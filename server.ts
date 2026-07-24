@@ -14,9 +14,15 @@ async function runTenantMigration() {
   try {
     let defaultTenant = await (Tenant as any).findOne({ id: 'TEN-0001' });
     if (!defaultTenant) {
-      defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'coronelsuarez' });
+      defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'www' });
       await defaultTenant.save();
       console.log('Created default tenant TEN-0001');
+    }
+    let wwwTenant = await (Tenant as any).findOne({ subdomain: 'www' });
+    if (!wwwTenant) {
+      wwwTenant = new Tenant({ id: 'TEN-WWW', name: 'Centro Médico Principal', subdomain: 'www' });
+      await wwwTenant.save();
+      console.log('Created www tenant');
     }
 
     const updatedUsers = await (User as any).updateMany(

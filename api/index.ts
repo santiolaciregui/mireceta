@@ -15,8 +15,13 @@ async function ensureDBAndMigration() {
     try {
       let defaultTenant = await (Tenant as any).findOne({ id: 'TEN-0001' });
       if (!defaultTenant) {
-        defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'coronelsuarez' });
+        defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'www' });
         await defaultTenant.save();
+      }
+      let wwwTenant = await (Tenant as any).findOne({ subdomain: 'www' });
+      if (!wwwTenant) {
+        wwwTenant = new Tenant({ id: 'TEN-WWW', name: 'Centro Médico Principal', subdomain: 'www' });
+        await wwwTenant.save();
       }
       isMigrated = true;
     } catch (e) {

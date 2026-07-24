@@ -13,7 +13,18 @@ export class TenantService {
 
   async resolveTenant(subdomain: string) {
     if (!subdomain) throw new Error('Subdominio requerido');
-    const tenant = await this.tenantRepo.findBySubdomain(subdomain);
+    const lowerSub = subdomain.toLowerCase();
+    let tenant = await this.tenantRepo.findBySubdomain(lowerSub);
+    
+    // Fallback for www or main domain
+    if (!tenant && (lowerSub === 'www' || lowerSub === 'localhost')) {
+      tenant = await this.tenantRepo.findById('TEN-0001');
+      if (!tenant) {
+        const tenants = await this.tenantRepo.findAll();
+        if (tenants.length > 0) tenant = tenants[0];
+      }
+    }
+
     if (!tenant) throw new Error('Tenant no encontrado');
     return { 
       id: tenant.id, 
