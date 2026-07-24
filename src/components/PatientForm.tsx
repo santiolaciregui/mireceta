@@ -132,16 +132,18 @@ export default function PatientForm({
   const [mpProcessing, setMpProcessing] = useState(false);
   const [mpTransactionId, setMpTransactionId] = useState('');
 
-  // Synchronize initialName and initialLastName when props update
+  // Synchronize initialName and initialLastName when props update (only if not isOficio and patient)
   useEffect(() => {
-    if (initialName && !patientName) setPatientName(initialName);
-    if (initialLastName && !patientLastName) setPatientLastName(initialLastName);
-  }, [initialName, initialLastName]);
+    if (!isOficio && (!currentUser || currentUser.role === 'paciente')) {
+      if (initialName && !patientName) setPatientName(initialName);
+      if (initialLastName && !patientLastName) setPatientLastName(initialLastName);
+    }
+  }, [initialName, initialLastName, isOficio, currentUser]);
 
   // Synchronize recentDni when props update
   useEffect(() => {
-    if (recentDni && !patientDni) setPatientDni(recentDni);
-  }, [recentDni]);
+    if (!isOficio && recentDni && !patientDni) setPatientDni(recentDni);
+  }, [recentDni, isOficio]);
 
   // Find all orders of the patient sorted by date
   const patientOrders = React.useMemo(() => {
@@ -157,9 +159,9 @@ export default function PatientForm({
     return patientOrders[0];
   }, [patientOrders]);
 
-  // Prefill from lastOrder or currentUser
+  // Prefill from lastOrder or currentUser (only for patient role)
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && currentUser.role === 'paciente' && !isOficio) {
       if (!patientName && currentUser.name) {
         setPatientName(currentUser.name);
       }
@@ -659,12 +661,14 @@ export default function PatientForm({
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
         <div className="relative">
           <span className="text-[10px] font-bold uppercase bg-blue-500/55 px-2.5 py-0.5 rounded-full text-blue-100 border border-blue-400/30">
-            Formulario Oficial
+            {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario Oficial'}
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-1 flex items-center gap-1.5">
-            Renovación de Medicación Crónica
+            {isOficio ? 'Nueva Solicitud de Renovación' : 'Renovación de Medicación Crónica'}
           </h2>
-          <p className="text-xs text-blue-150 font-medium">Complete paso a paso su trámite digital</p>
+          <p className="text-xs text-blue-150 font-medium">
+            {isOficio ? 'Ingrese los datos del paciente para generar la solicitud' : 'Complete paso a paso su trámite digital'}
+          </p>
         </div>
         <HeartHandshake className="h-10 w-10 text-blue-200 hidden sm:block stroke-[1.5]" />
       </div>

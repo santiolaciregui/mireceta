@@ -446,7 +446,7 @@ export default function DoctorDashboard({
                  onClick={() => setShowNewOrderModal(true)}
                  className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
                >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
+                 <Plus className="h-4 w-4" /> Nueva Solicitud
                </button>
              </header>
           )}
@@ -461,7 +461,7 @@ export default function DoctorDashboard({
                  onClick={() => setShowNewOrderModal(true)}
                  className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
                >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
+                 <Plus className="h-4 w-4" /> Nueva Solicitud
                </button>
              </header>
           )}
@@ -476,7 +476,7 @@ export default function DoctorDashboard({
                  onClick={() => setShowNewOrderModal(true)}
                  className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
                >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
+                 <Plus className="h-4 w-4" /> Nueva Solicitud
                </button>
              </header>
           )}
