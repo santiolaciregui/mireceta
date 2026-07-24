@@ -10,7 +10,11 @@
   --ink: #111827;
   --ink-muted: #6B7280;
   --ink-faint: rgba(17, 24, 39, 0.06);
-  --accent: #2563EB;
+  --accent: #2997C6;
+  --medflow-blue: #2997C6;
+  --medflow-blue-dark: #1F85B3;
+  --medflow-dark: #374652;
+  --medflow-light-bg: #EBF1F5;
   --white: #FFFFFF;
 }
 
