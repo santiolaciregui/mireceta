@@ -58,16 +58,7 @@ export default function SuperadminDashboard() {
   };
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
-      <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-        <div className="bg-purple-100 text-purple-600 p-2 rounded-lg">
-          <ShieldCheck className="h-6 w-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Panel de Superadmin</h1>
-          <p className="text-sm text-slate-500">Gestión global de Tenants (Instituciones/Clínicas)</p>
-        </div>
-      </div>
+    <div className="max-w-5xl mx-auto space-y-8">
 
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg border border-red-100 text-sm">

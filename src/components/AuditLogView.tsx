@@ -97,16 +97,6 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
 
   return (
     <div className="space-y-6">
-      <div className="space-y-1 mb-4">
-        <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
-          <span className="h-3.5 w-1.5 rounded-full bg-blue-600 block" />
-          Historial de Cambios y Auditoría
-        </h2>
-        <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-          Registro cronológico completo de las acciones ejecutadas por administradores, médicos y colaboradores sobre las solicitudes.
-        </p>
-      </div>
-
       {/* Controls & Search Filter */}
       <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         <div className="relative w-full sm:w-80">

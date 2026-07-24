@@ -444,7 +444,37 @@ export default function DoctorDashboard({
                </div>
                <button
                  onClick={() => setShowNewOrderModal(true)}
-                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2"
+                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+               >
+                 <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
+               </button>
+             </header>
+          )}
+
+          {forcedSubview === 'revision' && (
+             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+               <div className="space-y-1">
+                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Pedidos En Revisión Médica</h1>
+                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión y seguimiento de trámites en proceso de auditoría y emisión.</p>
+               </div>
+               <button
+                 onClick={() => setShowNewOrderModal(true)}
+                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+               >
+                 <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
+               </button>
+             </header>
+          )}
+
+          {forcedSubview === 'completadas' && (
+             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+               <div className="space-y-1">
+                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Recetas Emitidas y Completadas</h1>
+                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de recetas digitales firmadas y entregadas a pacientes.</p>
+               </div>
+               <button
+                 onClick={() => setShowNewOrderModal(true)}
+                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
                >
                  <Plus className="h-4 w-4" /> Nueva Solicitud (De Oficio)
                </button>
@@ -681,8 +711,15 @@ export default function DoctorDashboard({
           </section>
         </div>
       ) : (
-        <div className="flex-1 overflow-y-auto p-8">
-           {/* OPERATORS REPORTING VIEW */}
+        <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+          <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+             <div className="space-y-1">
+                <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Rendimiento de Operadores y Reportes</h1>
+                <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Consolidado de auditorías y honorarios según recetas procesadas.</p>
+             </div>
+          </header>
+          <div className="flex-1 overflow-y-auto p-8">
+             {/* OPERATORS REPORTING VIEW */}
            <div className="max-w-4xl mx-auto space-y-6">
               <div className="bg-white border border-[var(--ink-faint)] rounded-xl p-8">
                 <div className="flex justify-between items-center mb-6">
@@ -732,7 +769,8 @@ export default function DoctorDashboard({
                   })}
                 </div>
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

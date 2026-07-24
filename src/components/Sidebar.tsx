@@ -20,7 +20,8 @@ import {
   ShieldAlert,
   Clock,
   User,
-  Layers
+  Layers,
+  Settings
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -105,7 +106,8 @@ export default function Sidebar({
             ...(!isAdmin ? [{ id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp }] : []),
             ...(isMedic || isAdmin ? [
               { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
-              { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert }
+              { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
+              { id: 'pagos', label: 'Configuración Pasarela (MP)', icon: Settings }
             ] : []),
           ]
         }] : [])
@@ -176,7 +178,20 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="p-8 pt-4">
+      <div className="p-8 pt-4 border-t border-[var(--ink-faint)]">
+        {(role === 'admin' || role === 'superadmin' || role === 'medico') && (
+          <button 
+            onClick={() => handleItemClick('admin_panel', 'pagos')} 
+            className={`w-full text-[0.8rem] font-[600] flex items-center gap-2.5 px-3 py-2.5 rounded-lg mb-4 cursor-pointer transition-colors ${
+              activeSubcategory === 'pagos' 
+                ? 'bg-[var(--ink-faint)] text-[var(--ink)] font-bold shadow-xs' 
+                : 'text-[var(--ink-muted)] hover:bg-[var(--ink-faint)] hover:text-[var(--ink)]'
+            }`}
+          >
+            <Settings className="h-4.5 w-4.5" />
+            <span>Configuración</span>
+          </button>
+        )}
         <div className="flex flex-col gap-1 mb-4">
           <p className="text-[0.85rem] font-[600] text-[var(--ink)]">{userName} {userLastName}</p>
           <p className="text-[0.75rem] text-[var(--ink-muted)] capitalize">{role}</p>

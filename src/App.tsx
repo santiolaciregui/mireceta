@@ -17,6 +17,7 @@ import PatientDoctorChat from './components/PatientDoctorChat';
 import ForcePasswordChange from './components/ForcePasswordChange';
 import SuperadminDashboard from './components/SuperadminDashboard';
 import AuditLogView from './components/AuditLogView';
+import PaymentConfigPanel from './components/PaymentConfigPanel';
 import { 
   PlusCircle, 
   Search, 
@@ -221,55 +222,52 @@ export default function App() {
             {activeRole === 'paciente' && (
               <>
                 {activeSubcategory === 'solicitar' && (
-                  <div className="space-y-6 pt-6 sm:pt-8 pb-10">
-                    {/* Quick Greeting */}
-                    <div className="text-center max-w-xl mx-auto space-y-1 mb-6 px-4">
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                        Renovación medicación crónica
-                      </h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                        Cargá la información de tu medicación crónica de forma segura y ágil.
-                      </p>
-                    </div>
-
-                    {/* Notification alert of successful submission */}
-                    {successSubmissionId && (
-                      <div className="mx-4 sm:mx-auto max-w-xl bg-emerald-600/90 text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
-                        <div className="flex items-center gap-2">
-                          <ShieldCheck className="h-5.5 w-5.5 text-emerald-250 shrink-0" />
-                          <h4 className="font-bold text-sm">¡Pedido cargado correctamente!</h4>
-                        </div>
-                        <p className="text-xs text-emerald-50 leading-relaxed font-medium">
-                          Tu solicitud ha sido guardada. Podés verificar el estado en tiempo real en la categoría <strong>"Mis Solicitudes"</strong>. El personal de salud lo auditará a la brevedad.
-                        </p>
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Renovación Medicación Crónica</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Cargá la información de tu medicación crónica de forma segura y ágil.</p>
                       </div>
-                    )}
+                    </header>
 
-                    <PatientForm
-                      onSubmitOrder={createOrder}
-                      onSuccess={handleOrderSubmitted}
-                      recentDni={currentPatientDni}
-                      onSetDni={() => {}} // readonly for authenticated session
-                      initialName={currentUser.name}
-                      initialLastName={currentUser.lastName}
-                      orders={orders}
-                      currentUser={currentUser}
-                    />
+                    <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+                      {/* Notification alert of successful submission */}
+                      {successSubmissionId && (
+                        <div className="max-w-xl mx-auto bg-emerald-600/90 text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
+                          <div className="flex items-center gap-2">
+                            <ShieldCheck className="h-5.5 w-5.5 text-emerald-250 shrink-0" />
+                            <h4 className="font-bold text-sm">¡Pedido cargado correctamente!</h4>
+                          </div>
+                          <p className="text-xs text-emerald-50 leading-relaxed font-medium">
+                            Tu solicitud ha sido guardada. Podés verificar el estado en tiempo real en la categoría <strong>"Mis Solicitudes"</strong>. El personal de salud lo auditará a la brevedad.
+                          </p>
+                        </div>
+                      )}
+
+                      <PatientForm
+                        onSubmitOrder={createOrder}
+                        onSuccess={handleOrderSubmitted}
+                        recentDni={currentPatientDni}
+                        onSetDni={() => {}} // readonly for authenticated session
+                        initialName={currentUser.name}
+                        initialLastName={currentUser.lastName}
+                        orders={orders}
+                        currentUser={currentUser}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {activeSubcategory === 'pedidos' && (
-                  <div className="space-y-6 pt-6 sm:pt-8 pb-10">
-                    <div className="text-center max-w-xl mx-auto space-y-1 mb-6 px-4">
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">
-                        Mis Trámites de Renovación
-                      </h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                        Seguimiento continuo del estado de tus firmas médicas en tiempo real.
-                      </p>
-                    </div>
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mis Trámites de Renovación</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Seguimiento continuo del estado de tus firmas médicas en tiempo real.</p>
+                      </div>
+                    </header>
 
-                    <div className="px-0 sm:px-8">
+                    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
                       <PatientStatus
                         orders={orders}
                         onCancelOrder={deleteOrder}
@@ -281,13 +279,15 @@ export default function App() {
                 )}
 
                 {activeSubcategory === 'chat' && (
-                  <div className="space-y-4 pt-6 sm:pt-8 pb-10 flex flex-col h-full">
-                    <div className="max-w-xl mx-auto space-y-1 text-center mb-4 px-4 shrink-0">
-                      <h2 className="text-2xl font-black text-slate-850 tracking-tight">Soporte Médico Directo</h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">Chateá con los médicos auditores sobre tus recetas o enviá documentación de soporte.</p>
-                    </div>
-                    
-                    <div className="flex-1 px-0 sm:px-8">
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Soporte Médico Directo</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Chateá con los médicos auditores sobre tus recetas o enviá documentación de soporte.</p>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 flex overflow-hidden">
                       <PatientDoctorChat
                         orders={orders}
                         currentUser={currentUser}
@@ -300,39 +300,43 @@ export default function App() {
                 )}
 
                 {activeSubcategory === 'ayuda' && (
-                  <div className="space-y-6 max-w-2xl mx-auto">
-                    <div className="text-center space-y-1 mb-6">
-                      <h2 className="text-2xl font-black text-slate-800 tracking-tight">Preguntas Frecuentes</h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">Instrucciones y soporte para el trámite de renovación municipal.</p>
-                    </div>
-
-                    <div className="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-6 text-slate-650 text-xs sm:text-sm">
-                      <div className="space-y-2">
-                        <h3 className="font-extrabold text-slate-900 text-sm">1. ¿Qué validez tiene la receta digital emitida?</h3>
-                        <p className="text-slate-550 font-medium leading-relaxed">
-                          Tiene plena validez nacional bajo la Ley de Receta Digital. Las farmacias están autorizadas a aceptar el código y firma digital presentados en el PDF descargable.
-                        </p>
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Preguntas Frecuentes</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Instrucciones y soporte para el trámite de renovación municipal.</p>
                       </div>
+                    </header>
 
-                      <div className="space-y-2 border-t border-slate-100 pt-4">
-                        <h3 className="font-extrabold text-slate-900 text-sm">2. ¿Cuánto demora la auditoría del trámite?</h3>
-                        <p className="text-slate-550 font-medium leading-relaxed">
-                          La validación de la medicación crónica dura típicamente entre 12 y 24 horas hábiles. En caso de requerirse aclaraciones, el equipo médico se comunicará directamente con vos a través del chat integrado.
-                        </p>
-                      </div>
+                    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+                      <div className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-6 text-slate-650 text-xs sm:text-sm">
+                        <div className="space-y-2">
+                          <h3 className="font-extrabold text-slate-900 text-sm">1. ¿Qué validez tiene la receta digital emitida?</h3>
+                          <p className="text-slate-550 font-medium leading-relaxed">
+                            Tiene plena validez nacional bajo la Ley de Receta Digital. Las farmacias están autorizadas a aceptar el código y firma digital presentados en el PDF descargable.
+                          </p>
+                        </div>
 
-                      <div className="space-y-2 border-t border-slate-100 pt-4">
-                        <h3 className="font-extrabold text-slate-900 text-sm">3. ¿Qué documentación debo adjuntar?</h3>
-                        <p className="text-slate-550 font-medium leading-relaxed">
-                          Debés cargar una foto clara de la caja del medicamento (donde se vea la dosis y nombre) y el último comprobante de pago o receta anterior. Esto agiliza la firma del profesional médico.
-                        </p>
-                      </div>
+                        <div className="space-y-2 border-t border-slate-100 pt-4">
+                          <h3 className="font-extrabold text-slate-900 text-sm">2. ¿Cuánto demora la auditoría del trámite?</h3>
+                          <p className="text-slate-550 font-medium leading-relaxed">
+                            La validación de la medicación crónica dura típicamente entre 12 y 24 horas hábiles. En caso de requerirse aclaraciones, el equipo médico se comunicará directamente con vos a través del chat integrado.
+                          </p>
+                        </div>
 
-                      <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
-                        <MapPin className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
-                        <div className="text-xs">
-                          <p className="font-black text-slate-850">Hospital Municipal de Coronel Suárez</p>
-                          <p className="text-slate-500 font-medium mt-1">Atención presencial administrativa: Av. Casey 802 | Teléfono: (02926) 43-2000</p>
+                        <div className="space-y-2 border-t border-slate-100 pt-4">
+                          <h3 className="font-extrabold text-slate-900 text-sm">3. ¿Qué documentación debo adjuntar?</h3>
+                          <p className="text-slate-550 font-medium leading-relaxed">
+                            Debés cargar una foto clara de la caja del medicamento (donde se vea la dosis y nombre) y el último comprobante de pago o receta anterior. Esto agiliza la firma del profesional médico.
+                          </p>
+                        </div>
+
+                        <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
+                          <MapPin className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                          <div className="text-xs">
+                            <p className="font-black text-slate-850">Hospital Municipal de Coronel Suárez</p>
+                            <p className="text-slate-500 font-medium mt-1">Atención presencial administrativa: Av. Casey 802 | Teléfono: (02926) 43-2000</p>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -345,42 +349,70 @@ export default function App() {
             {(activeRole === 'medico' || activeRole === 'colaborador' || activeRole === 'admin') && (
               <>
                 {activeSubcategory === 'chat' ? (
-                  <div className="space-y-4">
-                    <div className="space-y-1 mb-4">
-                      <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
-                        <span className="h-3.5 w-1.5 rounded-full bg-blue-600 block" />
-                        Centro de Mensajería Clínica
-                      </h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">Canal bidireccional directo para resolver dudas de renovación de recetas en tiempo real.</p>
-                    </div>
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Centro de Mensajería Clínica</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Canal bidireccional directo para resolver dudas de renovación de recetas en tiempo real.</p>
+                      </div>
+                    </header>
 
-                    <PatientDoctorChat
-                      orders={orders}
-                      currentUser={currentUser}
-                      onSendMessage={sendChatMessage}
-                      initialSelectedOrderId={chatSelectedOrderId}
-                      onClearInitialOrderId={() => setChatSelectedOrderId(null)}
-                    />
+                    <div className="flex-1 flex overflow-hidden">
+                      <PatientDoctorChat
+                        orders={orders}
+                        currentUser={currentUser}
+                        onSendMessage={sendChatMessage}
+                        initialSelectedOrderId={chatSelectedOrderId}
+                        onClearInitialOrderId={() => setChatSelectedOrderId(null)}
+                      />
+                    </div>
                   </div>
                 ) : activeSubcategory === 'usuarios' && (activeRole === 'medico' || activeRole === 'admin') ? (
-                  <div className="space-y-6">
-                    <div className="space-y-1 mb-4">
-                      <h2 className="text-2xl font-black text-slate-850 tracking-tight flex items-center gap-2">
-                        <span className="h-3.5 w-1.5 rounded-full bg-blue-600 block" />
-                        Gestión de Personal Sanitario
-                      </h2>
-                      <p className="text-xs text-slate-500 font-semibold leading-relaxed">Administrá operadores autorizados, personal médico y credenciales de acceso al sistema.</p>
-                    </div>
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Gestión de Personal Sanitario</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Administrá operadores autorizados, personal médico y credenciales de acceso al sistema.</p>
+                      </div>
+                    </header>
 
-                    <UserManagement
-                      users={users}
-                      onAddUser={createUser}
-                      onUpdateUser={updateUser}
-                      onDeleteUser={deleteUser}
-                    />
+                    <div className="flex-1 overflow-y-auto p-8">
+                      <UserManagement
+                        users={users}
+                        onAddUser={createUser}
+                        onUpdateUser={updateUser}
+                        onDeleteUser={deleteUser}
+                      />
+                    </div>
                   </div>
                 ) : activeSubcategory === 'auditoria' && (activeRole === 'medico' || activeRole === 'admin') ? (
-                  <AuditLogView orders={orders} currentUser={currentUser} />
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Historial de Cambios y Auditoría</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Registro cronológico completo de las acciones ejecutadas por administradores, médicos y colaboradores sobre las solicitudes.</p>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-8">
+                      <AuditLogView orders={orders} currentUser={currentUser} />
+                    </div>
+                  </div>
+                ) : activeSubcategory === 'pagos' ? (
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Configuración de Pasarela de Pagos</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Administración de credenciales de Mercado Pago y recaudación de tasas.</p>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-8">
+                      <div className="max-w-4xl mx-auto w-full">
+                        <PaymentConfigPanel />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   /* Render DoctorDashboard with the selected subcategory passed as forcedSubview */
                   <DoctorDashboard
@@ -399,10 +431,20 @@ export default function App() {
               </>
             )}
 
-            
             {/* 3. SUPERADMIN SUBVIEWS */}
             {activeRole === 'superadmin' && (
-              <SuperadminDashboard />
+              <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                  <div className="space-y-1">
+                    <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Panel de Superadmin</h1>
+                    <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión global de Tenants (Instituciones / Clínicas).</p>
+                  </div>
+                </header>
+
+                <div className="flex-1 overflow-y-auto p-8">
+                  <SuperadminDashboard />
+                </div>
+              </div>
             )}
 
           </div>

@@ -315,7 +315,7 @@ export default function PatientDoctorChat({
   });
 
   return (
-    <div className="h-[calc(100vh-130px)] max-h-[800px] flex rounded-3xl bg-white border border-slate-200/80 shadow-lg overflow-hidden animate-fadeIn">
+    <div className="flex-1 flex w-full h-full bg-white overflow-hidden animate-fadeIn">
       
       {/* LEFT PANEL: CONVERSATIONS (Only for doctor/operator to navigate multiple patients) */}
       {!isPatient && (
