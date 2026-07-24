@@ -1,21 +1,27 @@
 import mongoose from 'mongoose';
 import { config } from './env.js';
 
-let isConnected = false;
+let cachedPromise: Promise<typeof mongoose> | null = null;
 
 export const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) {
-    return;
+    return mongoose;
   }
 
-  try {
-    const db = await mongoose.connect(config.MONGODB_URI, {
-      serverSelectionTimeoutMS: 5000,
-    });
-    isConnected = db.connections[0].readyState === 1;
-    console.log(`Connected to MongoDB successfully`);
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error);
-    throw error;
+  if (cachedPromise) {
+    return cachedPromise;
   }
+
+  cachedPromise = mongoose.connect(config.MONGODB_URI, {
+    serverSelectionTimeoutMS: 5000,
+    connectTimeoutMS: 5000,
+    maxPoolSize: 10,
+    minPoolSize: 0,
+  }).catch((err) => {
+    cachedPromise = null;
+    console.error('Error connecting to MongoDB:', err);
+    throw err;
+  });
+
+  return cachedPromise;
 };
