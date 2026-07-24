@@ -1,0 +1,153 @@
+import { OrderRepository } from '../repositories/OrderRepository.js';
+
+function addAuditAndNotification(order: any, action: string, user: string, notes?: string, notificationType?: string) {
+  if (!order.auditLog) order.auditLog = [];
+  order.auditLog.push({
+    action,
+    timestamp: new Date().toISOString(),
+    user,
+    notes
+  });
+
+  if (notificationType) {
+    if (!order.notificationsSent) order.notificationsSent = [];
+    order.notificationsSent.push({
+      type: notificationType,
+      sentAt: new Date().toISOString()
+    });
+  }
+}
+
+export class OrderService {
+  private orderRepo: OrderRepository;
+
+  constructor() {
+    this.orderRepo = new OrderRepository();
+  }
+
+  async getOrdersForUser(currentUser: any) {
+    if (currentUser.role === 'paciente') {
+      const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
+      const allOrders = await this.orderRepo.findByTenant(currentUser.tenantId || 'TEN-0001');
+      return allOrders.filter((o: any) => {
+        const orderDniClean = (o.patientDni || '').replace(/\s/g, '').replace(/\./g, '');
+        return orderDniClean === patientDniClean;
+      });
+    }
+
+    return this.orderRepo.findByTenant(currentUser.tenantId || 'TEN-0001');
+  }
+
+  async createOrder(orderData: any, currentUser: any) {
+    const newId = `REC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
+    
+    const newOrder: any = {
+      ...orderData,
+      id: newId,
+      patientName: orderData.patientName || currentUser.name,
+      patientLastName: orderData.patientLastName || currentUser.lastName,
+      patientDni: orderData.patientDni || currentUser.identifier,
+      patientEmail: orderData.patientEmail || currentUser.email,
+      tenantId: currentUser.tenantId || 'TEN-0001',
+      paymentId: finalPaymentId,
+      status: orderData.status || 'Pendiente', // 'En revisión' if Oficio
+      createdAt: new Date().toISOString(),
+      auditLog: [],
+      notificationsSent: []
+    };
+
+    let creatorName = 'Paciente (Autogestión)';
+    if (currentUser.role === 'colaborador') {
+      newOrder.createdByOperatorId = currentUser.id;
+      newOrder.createdByOperatorName = `${currentUser.name} ${currentUser.lastName}`;
+      creatorName = `Colaborador ${currentUser.name} ${currentUser.lastName}`;
+    } else if (currentUser.role === 'medico' || currentUser.role === 'admin') {
+      newOrder.createdByOperatorId = currentUser.id;
+      newOrder.createdByOperatorName = `${currentUser.name} ${currentUser.lastName} (Médico/Admin)`;
+      creatorName = `Médico/Admin ${currentUser.name} ${currentUser.lastName}`;
+    }
+
+    addAuditAndNotification(
+      newOrder,
+      'Creada',
+      creatorName,
+      `Solicitud de renovación ingresada para paciente ${newOrder.patientName} ${newOrder.patientLastName}`,
+      'solicitud_recibida'
+    );
+
+    if (newOrder.paymentStatus === 'approved') {
+      addAuditAndNotification(
+        newOrder,
+        'Pago aprobado',
+        'Sistema (Mercado Pago)',
+        `Se acreditó el pago de $${newOrder.paymentAmount} con código de operación ${newOrder.paymentId}`,
+        'pago_confirmado'
+      );
+    }
+
+    return this.orderRepo.create(newOrder);
+  }
+
+  async updateOrder(id: string, updateData: any, currentUser: any) {
+    const order: any = await this.orderRepo.findById(id);
+    if (!order) throw new Error('Pedido no encontrado.');
+
+    if (currentUser.role === 'paciente') {
+      const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
+      const orderDniClean = (order.patientDni || '').replace(/\s/g, '').replace(/\./g, '');
+      if (patientDniClean !== orderDniClean) throw new Error('Acceso no autorizado a este pedido.');
+      
+      if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
+        order.status = 'Cancelada';
+        addAuditAndNotification(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.', 'solicitud_cancelada');
+        return this.orderRepo.update(id, order);
+      } else {
+        throw new Error('Los pacientes solo pueden cancelar pedidos pendientes.');
+      }
+    }
+
+    // Medic / Admin / Colaborador updates
+    const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
+
+    if (updateData.status && updateData.status !== order.status) {
+      let notificationType;
+      if (updateData.status === 'Aprobada') notificationType = 'receta_aprobada';
+      else if (updateData.status === 'En revisión') notificationType = 'receta_en_revision';
+      else if (updateData.status === 'Rechazada') notificationType = 'receta_rechazada';
+      else if (updateData.status === 'Emitida') notificationType = 'receta_emitida';
+
+      addAuditAndNotification(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes, notificationType);
+      order.status = updateData.status;
+    }
+
+    if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;
+    if (updateData.recipePdfUrl) {
+      order.recipePdfUrl = updateData.recipePdfUrl;
+      order.recipePdfName = updateData.recipePdfName;
+      addAuditAndNotification(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
+    }
+
+    return this.orderRepo.update(id, order);
+  }
+
+  async addChatMessage(id: string, messageData: any, currentUser: any) {
+    const order: any = await this.orderRepo.findById(id);
+    if (!order) throw new Error('Pedido no encontrado');
+
+    const newMessage = {
+      id: `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
+      senderId: currentUser.id,
+      senderName: `${currentUser.name} ${currentUser.lastName}`,
+      senderRole: currentUser.role,
+      text: messageData.text,
+      timestamp: new Date().toISOString(),
+      attachments: messageData.attachments || []
+    };
+
+    if (!order.chatMessages) order.chatMessages = [];
+    order.chatMessages.push(newMessage);
+
+    return this.orderRepo.update(id, { chatMessages: order.chatMessages });
+  }
+}

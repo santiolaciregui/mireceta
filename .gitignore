@@ -1,0 +1,13 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+/.antigravity
+fix_ts.cjs
+README.md
+rewrite.cjs
+package-lock.json

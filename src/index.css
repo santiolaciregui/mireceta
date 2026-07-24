@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg: #F9FAFB;
+  --ink: #111827;
+  --ink-muted: #6B7280;
+  --ink-faint: rgba(17, 24, 39, 0.06);
+  --accent: #2563EB;
+  --white: #FFFFFF;
+}
+
+::selection { 
+  background: var(--accent); 
+  color: var(--white); 
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: 'Geist', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+input, select, textarea, select option {
+  font-family: 'Geist', sans-serif;
+}
+
+/* Glassmorphism Styles requested by the theme */
+.glass {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.04);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.glass-blue {
+  background: rgba(239, 246, 255, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(219, 234, 254, 0.5);
+}
+
+/* Animations helper */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+  from { opacity: 0; transform: scale(0.97); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-scaleUp {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* App Design Classes */
+.workspace {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    gap: 1px;
+    background: var(--ink-faint);
+    overflow: hidden;
+}
+@media (max-width: 1024px) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.list-pane {
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.search-bar {
+    padding: 1rem;
+    border-bottom: 1px solid var(--ink-faint);
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 0.6rem 1rem;
+    background: var(--bg);
+    border: 1px solid var(--ink-faint);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    outline: none;
+}
+.search-bar input:focus {
+    border-color: var(--accent);
+}
+
+.order-card {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--ink-faint);
+    cursor: pointer;
+    transition: background 0.2s;
+    text-align: left;
+    width: 100%;
+}
+
+.order-card.selected {
+    background: #EFF6FF;
+    border-left: 3px solid var(--accent);
+    padding-left: calc(1.25rem - 3px);
+}
+
+.order-meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.65rem;
+    color: var(--ink-muted);
+    margin-bottom: 0.5rem;
+}
+
+.order-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.order-sub {
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+}
+
+.detail-pane {
+    background: var(--white);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    padding: 2.5rem;
+}
+
+.detail-header {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--ink-faint);
+    padding-bottom: 1.5rem;
+}
+
+.status-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #FEF3C7;
+    color: #92400E;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+}
+
+.detail-section {
+    margin-bottom: 2.5rem;
+}
+
+.section-label {
+    font-family: 'Geist Mono', monospace;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin-bottom: 1rem;
+    display: block;
+}
+
+.medic-box {
+    background: var(--bg);
+    padding: 1.5rem;
+    border-radius: 12px;
+    font-weight: 500;
+    border: 1px solid var(--ink-faint);
+    white-space: pre-wrap;
+}
+
+.ia-feedback {
+    border: 1px dashed var(--accent);
+    padding: 1.25rem;
+    border-radius: 12px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
