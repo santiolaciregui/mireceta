@@ -17,6 +17,7 @@ export const connectDB = async () => {
     connectTimeoutMS: 5000,
     maxPoolSize: 10,
     minPoolSize: 0,
+    bufferCommands: false,
   }).catch((err) => {
     cachedPromise = null;
     console.error('Error connecting to MongoDB:', err);

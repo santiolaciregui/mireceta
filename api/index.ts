@@ -10,10 +10,11 @@ app.use(express.json({ limit: '50mb' }));
 app.use(async (req, res, next) => {
   try {
     await connectDB();
-  } catch (e) {
-    console.error('DB connect warning:', e);
+    next();
+  } catch (e: any) {
+    console.error('DB connect error:', e);
+    res.status(503).json({ error: 'Error de conexión con la base de datos MongoDB Atlas. Verifique la variable MONGODB_URI en Vercel y los permisos de IP.' });
   }
-  next();
 });
 
 // Mount API routes
