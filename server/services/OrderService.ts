@@ -1,4 +1,5 @@
 import { OrderRepository } from '../repositories/OrderRepository.js';
+import { auditLogService } from './AuditLogService.js';
 
 function addAuditAndNotification(order: any, action: string, user: string, notes?: string, notificationType?: string) {
   if (!order.auditLog) order.auditLog = [];
@@ -86,7 +87,18 @@ export class OrderService {
       );
     }
 
-    return this.orderRepo.create(newOrder);
+    const createdOrder = await this.orderRepo.create(newOrder);
+
+    await auditLogService.log({
+      tenantId: newOrder.tenantId,
+      currentUser,
+      action: 'ORDER_CREATE',
+      entity: 'Order',
+      entityId: newId,
+      details: `Creada receta ${newId} para paciente ${newOrder.patientName} ${newOrder.patientLastName}`
+    });
+
+    return createdOrder;
   }
 
   async updateOrder(id: string, updateData: any, currentUser: any) {
@@ -101,6 +113,16 @@ export class OrderService {
       if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
         order.status = 'Cancelada';
         addAuditAndNotification(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.', 'solicitud_cancelada');
+        
+        await auditLogService.log({
+          tenantId: order.tenantId || 'TEN-0001',
+          currentUser,
+          action: 'ORDER_CANCEL',
+          entity: 'Order',
+          entityId: id,
+          details: `Cancelada solicitud ${id} por el paciente`
+        });
+
         return this.orderRepo.update(id, order);
       } else {
         throw new Error('Los pacientes solo pueden cancelar pedidos pendientes.');
@@ -119,6 +141,15 @@ export class OrderService {
 
       addAuditAndNotification(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes, notificationType);
       order.status = updateData.status;
+
+      await auditLogService.log({
+        tenantId: order.tenantId || 'TEN-0001',
+        currentUser,
+        action: 'ORDER_STATUS_UPDATE',
+        entity: 'Order',
+        entityId: id,
+        details: `Cambio de estado a "${updateData.status}" por ${operatorName}`
+      });
     }
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;
@@ -126,6 +157,15 @@ export class OrderService {
       order.recipePdfUrl = updateData.recipePdfUrl;
       order.recipePdfName = updateData.recipePdfName;
       addAuditAndNotification(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
+
+      await auditLogService.log({
+        tenantId: order.tenantId || 'TEN-0001',
+        currentUser,
+        action: 'ORDER_PDF_ATTACH',
+        entity: 'Order',
+        entityId: id,
+        details: `Adjuntado PDF de receta: ${updateData.recipePdfName}`
+      });
     }
 
     return this.orderRepo.update(id, order);

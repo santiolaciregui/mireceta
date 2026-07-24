@@ -3,12 +3,16 @@ import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { sendCredentialsEmail } from '../utils/mailer.js';
 import { config } from '../config/env.js';
+import { auditLogService } from './AuditLogService.js';
+import { PatientService } from './PatientService.js';
 
 export class AuthService {
   private userRepo: UserRepository;
+  private patientService: PatientService;
 
   constructor() {
     this.userRepo = new UserRepository();
+    this.patientService = new PatientService();
   }
 
   async login(identifier: string, password: string) {
@@ -17,14 +21,21 @@ export class AuthService {
     if (user.status === 'Inactivo') throw new Error('La cuenta de este usuario está suspendida o inactiva.');
 
     let validPassword = false;
-    if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+    if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'))) {
       validPassword = await bcrypt.compare(password, user.password);
-    } else {
-      validPassword = user.password === password;
     }
-    if (password === '123456') validPassword = true;
 
-    if (!validPassword) throw new Error('Contraseña incorrecta.');
+    if (!validPassword) {
+      await auditLogService.log({
+        tenantId: user.tenantId || 'TEN-0001',
+        currentUser: user,
+        action: 'LOGIN_FAILED',
+        entity: 'Auth',
+        entityId: user.id,
+        details: `Intento de inicio de sesión fallido para el identificador: ${identifier}`
+      });
+      throw new Error('Contraseña incorrecta.');
+    }
 
     const tokenPayload: any = {
       id: user.id,
@@ -45,6 +56,15 @@ export class AuthService {
       tokenPayload.medicoId = user.medicoId;
       tokenPayload.medicoName = user.medicoName;
     }
+
+    await auditLogService.log({
+      tenantId: user.tenantId || 'TEN-0001',
+      currentUser: user,
+      action: 'LOGIN_SUCCESS',
+      entity: 'Auth',
+      entityId: user.id,
+      details: `Inicio de sesión exitoso como ${user.role}`
+    });
 
     const token = jwt.sign(tokenPayload, config.JWT_SECRET, { expiresIn: '12h' });
     return { token, user: tokenPayload };
@@ -76,9 +96,28 @@ export class AuthService {
       status: 'Activo'
     });
 
-    if ((newUser.role === 'medico' || newUser.role === 'colaborador') && newUser.email && newUser.email !== 'sin-correo@suarez.gob.ar') {
-      sendCredentialsEmail(newUser, '123456');
-    }
+    // Create entry in dedicated Patient collection
+    await this.patientService.createOrUpdatePatient({
+      dni: newUser.identifier,
+      name: newUser.name,
+      lastName: newUser.lastName,
+      email: newUser.email,
+      phone: newUser.phone,
+      birthDate: newUser.birthDate,
+      obraSocial: newUser.obraSocial,
+      obraSocialNumber: newUser.obraSocialNumber,
+      tenantId: newUser.tenantId,
+      userId: newUser.id
+    });
+
+    await auditLogService.log({
+      tenantId: newUser.tenantId || 'TEN-0001',
+      currentUser: newUser,
+      action: 'PATIENT_REGISTER',
+      entity: 'User',
+      entityId: newUser.id,
+      details: `Registro de nuevo paciente autogestionado ${newUser.name} ${newUser.lastName}`
+    });
 
     const tokenPayload = {
       id: newUser.id,

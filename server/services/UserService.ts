@@ -1,12 +1,16 @@
 import bcrypt from 'bcryptjs';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { sendCredentialsEmail } from '../utils/mailer.js';
+import { auditLogService } from './AuditLogService.js';
+import { PatientService } from './PatientService.js';
 
 export class UserService {
   private userRepo: UserRepository;
+  private patientService: PatientService;
 
   constructor() {
     this.userRepo = new UserRepository();
+    this.patientService = new PatientService();
   }
 
   async getProfile(id: string) {
@@ -41,16 +45,22 @@ export class UserService {
     if (!user) throw new Error('Usuario no encontrado');
     
     let validPassword = false;
-    if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+    if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'))) {
       validPassword = await bcrypt.compare(currentPassword, user.password);
-    } else {
-      validPassword = user.password === currentPassword;
     }
-    if (currentPassword === '123456') validPassword = true;
     if (!validPassword) throw new Error('La contraseña actual es incorrecta.');
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.userRepo.update(id, { password: hashedPassword, requirePasswordChange: false });
+
+    await auditLogService.log({
+      tenantId: user.tenantId || 'TEN-0001',
+      currentUser: user,
+      action: 'PASSWORD_CHANGE',
+      entity: 'User',
+      entityId: user.id,
+      details: `Cambio de contraseña realizado con éxito para ${user.name} ${user.lastName}`
+    });
   }
 
   async getUsersByTenant(tenantId: string) {
@@ -67,17 +77,43 @@ export class UserService {
 
     const count = await this.userRepo.count();
     const newId = `USR-${String(count + 1).padStart(4, '0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const initialPassword = userData.password || '123456';
+    const hashedPassword = await bcrypt.hash(initialPassword, 10);
     
     const newUser = await this.userRepo.create({
       ...userData,
       id: newId,
       tenantId: currentUser.tenantId,
-      password: await bcrypt.hash('123456', 10),
+      password: hashedPassword,
       requirePasswordChange: true
     });
 
+    if (newUser.role === 'paciente') {
+      await this.patientService.createOrUpdatePatient({
+        dni: newUser.identifier,
+        name: newUser.name,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        phone: newUser.phone,
+        birthDate: newUser.birthDate,
+        obraSocial: newUser.obraSocial,
+        obraSocialNumber: newUser.obraSocialNumber,
+        tenantId: newUser.tenantId,
+        userId: newUser.id
+      }, currentUser);
+    }
+
+    await auditLogService.log({
+      tenantId: currentUser.tenantId || 'TEN-0001',
+      currentUser,
+      action: 'USER_CREATE',
+      entity: 'User',
+      entityId: newId,
+      details: `Creado usuario ${newUser.name} ${newUser.lastName} con rol ${newUser.role}`
+    });
+
     if (newUser.email) {
-      sendCredentialsEmail(newUser, '123456');
+      sendCredentialsEmail(newUser, initialPassword);
     }
 
     return newUser;
@@ -88,13 +124,53 @@ export class UserService {
       throw new Error('No autorizado');
     }
 
-    return this.userRepo.update(id, updateData);
+    if (updateData.password) {
+      updateData.password = await bcrypt.hash(updateData.password, 10);
+    }
+
+    const updatedUser = await this.userRepo.update(id, updateData);
+
+    if (updatedUser && updatedUser.role === 'paciente') {
+      await this.patientService.createOrUpdatePatient({
+        dni: updatedUser.identifier,
+        name: updatedUser.name,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        birthDate: updatedUser.birthDate,
+        obraSocial: updatedUser.obraSocial,
+        obraSocialNumber: updatedUser.obraSocialNumber,
+        tenantId: updatedUser.tenantId,
+        userId: updatedUser.id
+      }, currentUser);
+    }
+
+    await auditLogService.log({
+      tenantId: currentUser.tenantId || 'TEN-0001',
+      currentUser,
+      action: 'USER_UPDATE',
+      entity: 'User',
+      entityId: id,
+      details: `Actualizados datos del usuario ${id}`
+    });
+
+    return updatedUser;
   }
 
   async deleteUser(id: string, currentUser: any) {
     if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
       throw new Error('No autorizado');
     }
+
+    await auditLogService.log({
+      tenantId: currentUser.tenantId || 'TEN-0001',
+      currentUser,
+      action: 'USER_DELETE',
+      entity: 'User',
+      entityId: id,
+      details: `Eliminado usuario ${id}`
+    });
+
     return this.userRepo.delete(id);
   }
 }
