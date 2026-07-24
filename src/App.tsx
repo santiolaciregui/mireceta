@@ -158,14 +158,26 @@ export default function App() {
     );
   }
 
-  // 2. Not Logged In -> Render Login Screen
+  // 2. Not Logged In -> Render Landing Page or Login Screen
   if (!currentUser) {
+    if (!showLogin && !window.location.search.includes('login=true') && !window.location.search.includes('admin=true')) {
+      return (
+        <LandingPage
+          onGoToLogin={(mode) => {
+            setLoginMode(mode);
+            setShowLogin(true);
+          }}
+        />
+      );
+    }
     return (
       <Login
         onLogin={login}
         isLoading={authLoading}
         onRegister={(data) => register({ ...data, tenantId: currentTenant?.id })}
         onForgotPassword={forgotPassword}
+        onBack={() => setShowLogin(false)}
+        initialMode={loginMode}
       />
     );
   }
