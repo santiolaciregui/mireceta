@@ -208,12 +208,6 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     Renovar Medicación Crónica
                     <ArrowRight className="h-5 w-5" />
                   </button>
-                  <button 
-                    onClick={() => onGoToLogin('login')}
-                    className="bg-black hover:bg-slate-900 text-white font-bold text-base px-7 py-4 rounded-md transition-all border border-slate-700 text-center cursor-pointer"
-                  >
-                    Solicitar orden de estudio
-                  </button>
                 </div>
 
                 {/* Fast Trust Indicators */}
@@ -511,11 +505,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     <ChevronRight className="h-3 w-3 text-[#2997C6]" /> Renovar Medicación Crónica
                   </button>
                 </li>
-                <li>
-                  <button onClick={() => onGoToLogin('login')} className="hover:text-[#2997C6] flex items-center gap-1.5 transition-colors">
-                    <ChevronRight className="h-3 w-3 text-[#2997C6]" /> Solicitar Orden de Estudio
-                  </button>
-                </li>
+
                 <li>
                   <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#2997C6] flex items-center gap-1.5 transition-colors">
                     <ChevronRight className="h-3 w-3 text-[#2997C6]" /> Cómo Funciona
