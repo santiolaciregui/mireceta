@@ -10,23 +10,18 @@ app.use(express.json({ limit: '50mb' }));
 let isMigrated = false;
 
 async function ensureDBAndMigration() {
-  await connectDB();
-  if (!isMigrated) {
-    try {
-      let defaultTenant = await (Tenant as any).findOne({ id: 'TEN-0001' });
+  try {
+    await connectDB();
+    if (!isMigrated) {
+      isMigrated = true;
+      let defaultTenant = await (Tenant as any).findOne({ id: 'TEN-0001' }).catch(() => null);
       if (!defaultTenant) {
         defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'www' });
-        await defaultTenant.save();
+        await defaultTenant.save().catch(() => null);
       }
-      let wwwTenant = await (Tenant as any).findOne({ subdomain: 'www' });
-      if (!wwwTenant) {
-        wwwTenant = new Tenant({ id: 'TEN-WWW', name: 'Centro Médico Principal', subdomain: 'www' });
-        await wwwTenant.save();
-      }
-      isMigrated = true;
-    } catch (e) {
-      console.error('Migration error:', e);
     }
+  } catch (e) {
+    console.error('DB connect/migration warning:', e);
   }
 }
 

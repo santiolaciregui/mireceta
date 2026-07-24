@@ -128,7 +128,7 @@ export default function Sidebar({
           <div className="w-8 h-8 bg-[var(--ink)] rounded-md shrink-0 flex items-center justify-center shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--white)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
           </div>
-          <span className="font-[800] text-[1.1rem] tracking-tight text-[var(--ink)]">RecetaFácil</span>
+          <span className="font-[800] text-[1.1rem] tracking-tight text-[var(--ink)]">Mi Receta Online</span>
         </div>
         
         {/* Mobile Close Button */}
@@ -207,7 +207,7 @@ export default function Sidebar({
             <div className="w-7 h-7 bg-blue-600 rounded-md shrink-0 flex items-center justify-center shadow-sm">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--white)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
             </div>
-            <span className="font-extrabold text-sm tracking-tight">RecetaFácil</span>
+            <span className="font-extrabold text-sm tracking-tight">Mi Receta Online</span>
           </div>
         </div>
         <div className="flex items-center gap-2">

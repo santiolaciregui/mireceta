@@ -450,7 +450,7 @@ export default function PatientDoctorChat({
                 </div>
                 <div>
                   <h4 className="font-black text-slate-900 text-sm">
-                    {isPatient ? 'Equipo Médico de RecetaFácil' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
+                    {isPatient ? 'Equipo Médico de Mi Receta Online' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
                   </h4>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
                     {isPatient 

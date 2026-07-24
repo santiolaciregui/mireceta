@@ -49,7 +49,7 @@ interface PatientFormProps {
 const BANK_DETAILS = {
   cbu: '0140305101300005522431',
   alias: 'receta.facil.suarez',
-  titular: 'Plataforma RecetaFácil BS AS',
+  titular: 'Plataforma Mi Receta Online',
 };
 
 export default function PatientForm({

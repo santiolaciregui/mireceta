@@ -26,7 +26,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 <HeartPulse className="h-6 w-6" />
               </div>
               <span className="font-sans font-bold text-2xl tracking-tight text-[var(--ink)]">
-                Recetas.
+                Mi Receta Online
               </span>
             </div>
             <div className="flex items-center gap-4">
@@ -256,7 +256,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <HeartPulse className="h-4 w-4" />
             </div>
             <span className="font-sans font-bold text-lg tracking-tight text-[var(--ink)]">
-              Recetas.
+              Mi Receta Online
             </span>
           </div>
           

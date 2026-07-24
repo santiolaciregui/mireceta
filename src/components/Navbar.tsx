@@ -34,7 +34,7 @@ export default function Navbar({
             </div>
             <div>
               <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight leading-tight flex items-center gap-1.5">
-                RecetaFácil
+                Mi Receta Online
                 <span className="text-[10px] sm:text-xs px-2.5 py-0.5 bg-blue-50/70 text-blue-700 font-bold rounded-full border border-blue-100">
                   Renovación medicación crónica
                 </span>
