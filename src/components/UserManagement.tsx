@@ -20,7 +20,6 @@ import {
   XCircle,
   Hash
 } from 'lucide-react';
-import PaymentConfigPanel from './PaymentConfigPanel';
 
 interface UserManagementProps {
   users: SystemUser[];
@@ -146,9 +145,6 @@ export default function UserManagement({
   return (
     <div className="space-y-6">
       
-      {/* Mercado Pago Tenant Credentials Config Panel */}
-      <PaymentConfigPanel />
-
       {/* Search and Action Bar */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-xs">
         
