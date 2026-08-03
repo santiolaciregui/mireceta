@@ -127,6 +127,19 @@ export interface Tenant {
 
 export type DeliveryMethod = 'email' | 'whatsapp' | 'both';
 
+export interface DependentPatient {
+  id: string;
+  name: string;
+  lastName: string;
+  dni: string;
+  birthDate: string;
+  relationship: string; // e.g. 'Titular', 'Hijo/a', 'Padre/Madre', 'Cónyuge', 'Otro'
+  obraSocial?: string;
+  obraSocialNumber?: string;
+  email?: string;
+  phone?: string;
+}
+
 export interface SystemUser {
   id: string;
   tenantId?: string; // Temporarily optional for the DB schema so we can migrate
@@ -144,6 +157,7 @@ export interface SystemUser {
   birthDate?: string;
   obraSocial?: string;
   obraSocialNumber?: string;
+  dependents?: DependentPatient[];
 }
 
 export interface ObraSocialOption {

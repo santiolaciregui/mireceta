@@ -33,6 +33,7 @@ import {
 
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
+  users?: any[];
   onUpdateStatus: (
     id: string, 
     status: OrderStatus, 
@@ -56,6 +57,7 @@ interface DoctorDashboardProps {
 
 export default function DoctorDashboard({ 
   orders, 
+  users = [],
   onUpdateStatus, 
   onCreateOrder, 
   currentUser, 
@@ -375,12 +377,31 @@ export default function DoctorDashboard({
 
       {/* Manual Registration Modal */}
       {showNewOrderModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col overflow-hidden relative">
-            <button onClick={() => setShowNewOrderModal(false)} className="absolute top-4 right-4 z-50 p-2 bg-white rounded-full shadow-md text-slate-500 hover:text-slate-800">
-              <X className="h-5 w-5" />
-            </button>
-            <div className="flex-1 overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative border border-slate-200 animate-scaleUp">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="h-9 w-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                  <User className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-white">Nueva Solicitud para Paciente (Tercero)</h3>
+                  <p className="text-xs text-slate-400 font-medium">Carga de oficio realizada por personal médico o colaborador</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowNewOrderModal(false)} 
+                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-full transition-all cursor-pointer"
+                title="Cerrar modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="flex-1 overflow-y-auto bg-slate-50/50">
               <PatientForm 
                 isOficio={true}
                 currentUser={currentUser}
@@ -401,8 +422,10 @@ export default function DoctorDashboard({
                   setShowNewOrderModal(false);
                 }}
                 orders={orders}
+                users={users}
               />
             </div>
+
           </div>
         </div>
       )}
@@ -504,7 +527,7 @@ export default function DoctorDashboard({
                     >
                       <option value="Todos">Todos</option>
                       <option value="Pendientes">Pendientes</option>
-                      <option value="En Proceso">En Proceso</option>
+                      <option value="En revisión">En revisión</option>
                       <option value="Listos">Emitidas</option>
                     </select>
                     <select
@@ -653,14 +676,14 @@ export default function DoctorDashboard({
 
                   {/* Action Area */}
                   <div style={{ paddingTop: '2rem' }} className="shrink-0 border-t border-[var(--ink-faint)] mt-4">
-                    {selectedOrder.status === 'Pendiente' && currentUser?.role === 'medico' && (
+                    {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
                       <div style={{ background: '#FFFBEB', border: '1px solid #FEF3C7', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
                         <strong>Atención:</strong> Esta solicitud requiere revisión clínica. Verifique medicación antes de firmar.
                       </div>
                     )}
                     
                     <div className="space-y-4">
-                      {selectedOrder.status === 'Pendiente' && currentUser?.role === 'medico' && (
+                      {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
                         <button
                           onClick={() => handleMarkInProcess(selectedOrder.id)}
                           className="bg-[var(--accent)] text-white w-full py-4 rounded-lg text-[0.9rem] font-[600]"
@@ -668,7 +691,7 @@ export default function DoctorDashboard({
                           EMPEZAR REVISIÓN CLÍNICA
                         </button>
                       )}
-                      {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && currentUser?.role === 'medico' && (
+                      {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
                           <div className="bg-[var(--bg)] p-6 rounded-xl border border-[var(--ink-faint)]">
                             <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas</label>
                             <textarea

@@ -16,6 +16,7 @@ export interface IUser extends Document {
   birthDate?: string;
   obraSocial?: string;
   obraSocialNumber?: string;
+  dependents?: any[];
   requirePasswordChange?: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -41,6 +42,7 @@ const userSchema = new Schema<IUser>({
   birthDate: { type: String },
   obraSocial: { type: String },
   obraSocialNumber: { type: String },
+  dependents: { type: Schema.Types.Mixed, default: [] },
 
   // Seguridad
   requirePasswordChange: { type: Boolean, default: true }

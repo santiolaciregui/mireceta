@@ -46,11 +46,11 @@ export class OrderService {
     const newOrder: any = {
       ...orderData,
       id: newId,
-      patientName: orderData.patientName || currentUser.name,
-      patientLastName: orderData.patientLastName || currentUser.lastName,
-      patientDni: orderData.patientDni || currentUser.identifier,
-      patientEmail: orderData.patientEmail || currentUser.email,
-      tenantId: currentUser.tenantId || 'TEN-0001',
+      patientName: orderData.patientName || currentUser?.name || 'Paciente',
+      patientLastName: orderData.patientLastName || currentUser?.lastName || '',
+      patientDni: orderData.patientDni || currentUser?.identifier || '',
+      patientEmail: orderData.patientEmail || currentUser?.email || '',
+      tenantId: currentUser?.tenantId || orderData.tenantId || 'TEN-0001',
       paymentId: finalPaymentId,
       status: orderData.status || 'Pendiente', // 'En revisión' if Oficio
       createdAt: new Date().toISOString(),
@@ -59,14 +59,14 @@ export class OrderService {
     };
 
     let creatorName = 'Paciente (Autogestión)';
-    if (currentUser.role === 'colaborador') {
+    if (currentUser?.role === 'colaborador') {
       newOrder.createdByOperatorId = currentUser.id;
-      newOrder.createdByOperatorName = `${currentUser.name} ${currentUser.lastName}`;
-      creatorName = `Colaborador ${currentUser.name} ${currentUser.lastName}`;
-    } else if (currentUser.role === 'medico' || currentUser.role === 'admin') {
+      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
+      creatorName = `Colaborador ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
+    } else if (currentUser?.role === 'medico' || currentUser?.role === 'admin') {
       newOrder.createdByOperatorId = currentUser.id;
-      newOrder.createdByOperatorName = `${currentUser.name} ${currentUser.lastName} (Médico/Admin)`;
-      creatorName = `Médico/Admin ${currentUser.name} ${currentUser.lastName}`;
+      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''} (Médico/Admin)`.trim();
+      creatorName = `Médico/Admin ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
     }
 
     addAuditAndNotification(

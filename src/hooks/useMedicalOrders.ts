@@ -205,23 +205,22 @@ export function useMedicalOrders() {
 
   // Create a new medical request order
   const createOrder = async (orderData: any): Promise<string> => {
-    try {
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: fetchHeaders(),
-        body: JSON.stringify(orderData),
-      });
-      if (!res.ok) throw new Error('Error al crear prescripción');
-      const newOrder = await res.json();
-      
-      // Update state locally and trigger bg refresh
-      setOrders((prev) => [newOrder, ...prev]);
-      return newOrder.id;
-    } catch (err) {
-      console.error(err);
-      // Fallback fallback ID
-      return `REC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: fetchHeaders(),
+      body: JSON.stringify(orderData),
+    });
+    
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al guardar la solicitud en el servidor. Verifique su conexión o autenticación.');
     }
+    
+    const newOrder = await res.json();
+    
+    // Update state locally and trigger bg refresh
+    setOrders((prev) => [newOrder, ...prev]);
+    return newOrder.id;
   };
 
   // Update photos on order
@@ -381,6 +380,27 @@ export function useMedicalOrders() {
     }
   };
 
+  const addDependent = (newDep: any) => {
+    if (!currentUser) return;
+    const existingDeps = currentUser.dependents || [];
+    const updatedUser = {
+      ...currentUser,
+      dependents: [...existingDeps, newDep],
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('mi-receta-user', JSON.stringify(updatedUser));
+  };
+
+  const removeDependent = (depId: string) => {
+    if (!currentUser || !currentUser.dependents) return;
+    const updatedUser = {
+      ...currentUser,
+      dependents: currentUser.dependents.filter((d: any) => d.id !== depId),
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('mi-receta-user', JSON.stringify(updatedUser));
+  };
+
   return {
     currentUser,
     token,
@@ -404,5 +424,7 @@ export function useMedicalOrders() {
     resetToBaseline,
     clearAllOrders,
     sendChatMessage,
+    addDependent,
+    removeDependent,
   };
 }

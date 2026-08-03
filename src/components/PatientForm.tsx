@@ -4,9 +4,11 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { OBRA_SOCIAL_OPTIONS, MedicationItem } from '../types';
+import { OBRA_SOCIAL_OPTIONS, MedicationItem, DependentPatient } from '../types';
 import { 
   User, 
+  Users,
+  Heart,
   FileText, 
   CreditCard, 
   Upload, 
@@ -31,7 +33,8 @@ import {
   Edit3,
   Lock,
   Unlock,
-  Copy
+  Copy,
+  Search
 } from 'lucide-react';
 
 interface PatientFormProps {
@@ -42,8 +45,11 @@ interface PatientFormProps {
   initialName?: string;
   initialLastName?: string;
   orders?: any[];
+  users?: any[];
   currentUser?: any;
   isOficio?: boolean;
+  onAddDependent?: (dependent: any) => void;
+  onRemoveDependent?: (dependentId: string) => void;
 }
 
 const BANK_DETAILS = {
@@ -60,28 +66,238 @@ export default function PatientForm({
   initialName = '',
   initialLastName = '',
   orders = [],
+  users = [],
   currentUser,
   isOficio = false,
+  onAddDependent,
+  onRemoveDependent,
 }: PatientFormProps) {
+  const isThirdPartyUser = Boolean(isOficio || (currentUser && currentUser.role !== 'paciente'));
+
   // Wizard steps: 'info' -> 'identification' -> 'medication' -> 'payment' -> 'confirmation'
   const [step, setStep] = useState<'info' | 'identification' | 'medication' | 'payment' | 'confirmation'>('info');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
-
+  const [searchStatus, setSearchStatus] = useState<{ found: boolean; message: string } | null>(null);
 
   // --- Step 1 Fields: Identification ---
-  const [patientDni, setPatientDni] = useState(recentDni);
-  const [patientName, setPatientName] = useState(initialName);
-  const [patientLastName, setPatientLastName] = useState(initialLastName);
+  const [patientDni, setPatientDni] = useState(isThirdPartyUser ? '' : recentDni);
+  const [patientName, setPatientName] = useState(isThirdPartyUser ? '' : initialName);
+  const [patientLastName, setPatientLastName] = useState(isThirdPartyUser ? '' : initialLastName);
   const [patientBirthDate, setPatientBirthDate] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('email');
   const [selectedObraSocial, setSelectedObraSocial] = useState('');
   const [obraSocialNumber, setObraSocialNumber] = useState('');
+
+  // --- Pacientes a Cargo (Dependents) State & Handlers ---
+  const DEFAULT_DEMO_DEPENDENTS: DependentPatient[] = React.useMemo(() => [
+    {
+      id: 'dep-1',
+      name: 'Lucas',
+      lastName: currentUser?.lastName || initialLastName || 'Pérez',
+      dni: '48912345',
+      birthDate: '2016-05-14',
+      relationship: 'Hijo/a',
+      obraSocial: 'OSDE',
+      obraSocialNumber: '210-48912345-01',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+    },
+    {
+      id: 'dep-2',
+      name: 'María Elena',
+      lastName: 'Gómez',
+      dni: '12345678',
+      birthDate: '1952-11-20',
+      relationship: 'Padre/Madre',
+      obraSocial: 'PAMI (Inssjp)',
+      obraSocialNumber: '1501234567800',
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+    },
+  ], [currentUser, initialLastName]);
+
+  const [dependents, setDependents] = useState<DependentPatient[]>(() => {
+    if (currentUser?.dependents && currentUser.dependents.length > 0) {
+      return currentUser.dependents;
+    }
+    return (!currentUser || currentUser.role === 'paciente') ? DEFAULT_DEMO_DEPENDENTS : [];
+  });
+
+  const [selectedCardId, setSelectedCardId] = useState<string>('titular');
+  const [showAddDependentModal, setShowAddDependentModal] = useState<boolean>(false);
+
+  // New Dependent Form Fields
+  const [depName, setDepName] = useState('');
+  const [depLastName, setDepLastName] = useState('');
+  const [depDni, setDepDni] = useState('');
+  const [depBirthDate, setDepBirthDate] = useState('');
+  const [depRelationship, setDepRelationship] = useState('Hijo/a');
+  const [depObraSocial, setDepObraSocial] = useState('');
+  const [depObraSocialNumber, setDepObraSocialNumber] = useState('');
+  const [depFormError, setDepFormError] = useState<string | null>(null);
+
+  // Keep dependents synced if currentUser updates
+  useEffect(() => {
+    if (currentUser?.dependents && currentUser.dependents.length > 0) {
+      setDependents(currentUser.dependents);
+    }
+  }, [currentUser?.dependents]);
+
+  const handleSelectCard = (cardId: string) => {
+    setSelectedCardId(cardId);
+    if (cardId === 'titular') {
+      const name = currentUser?.name || initialName || '';
+      const lastName = currentUser?.lastName || initialLastName || '';
+      const dni = currentUser?.identifier || recentDni || '';
+      const birth = currentUser?.birthDate || '';
+      const email = currentUser?.email || '';
+      const phone = currentUser?.phone || '';
+      const os = currentUser?.obraSocial || '';
+      const osNum = currentUser?.obraSocialNumber || '';
+
+      setPatientName(name);
+      setPatientLastName(lastName);
+      setPatientDni(dni);
+      setPatientBirthDate(birth);
+      setPatientEmail(email);
+      setPatientPhone(phone);
+      setSelectedObraSocial(os);
+      setObraSocialNumber(osNum);
+      if (searchStatus) setSearchStatus(null);
+    } else {
+      const dep = dependents.find((d) => d.id === cardId);
+      if (dep) {
+        setPatientName(dep.name);
+        setPatientLastName(dep.lastName);
+        setPatientDni(dep.dni);
+        setPatientBirthDate(dep.birthDate);
+        setSelectedObraSocial(dep.obraSocial || '');
+        setObraSocialNumber(dep.obraSocialNumber || '');
+        setPatientEmail(dep.email || currentUser?.email || '');
+        setPatientPhone(dep.phone || currentUser?.phone || '');
+        setSearchStatus({
+          found: true,
+          message: `Cargados datos de paciente a cargo: ${dep.name} ${dep.lastName} (${dep.relationship})`,
+        });
+      }
+    }
+  };
+
+  const handleCreateDependent = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!depName.trim() || !depLastName.trim() || !depDni.trim()) {
+      setDepFormError('Por favor ingrese Nombre, Apellido y DNI del paciente a cargo.');
+      return;
+    }
+
+    const newDep: DependentPatient = {
+      id: `dep-${Date.now()}`,
+      name: depName.trim(),
+      lastName: depLastName.trim(),
+      dni: depDni.trim(),
+      birthDate: depBirthDate,
+      relationship: depRelationship,
+      obraSocial: depObraSocial,
+      obraSocialNumber: depObraSocialNumber,
+      email: currentUser?.email || '',
+      phone: currentUser?.phone || '',
+    };
+
+    const updated = [...dependents, newDep];
+    setDependents(updated);
+
+    if (onAddDependent) {
+      onAddDependent(newDep);
+    }
+
+    // Auto select newly created dependent card
+    setSelectedCardId(newDep.id);
+    setPatientName(newDep.name);
+    setPatientLastName(newDep.lastName);
+    setPatientDni(newDep.dni);
+    setPatientBirthDate(newDep.birthDate);
+    setSelectedObraSocial(newDep.obraSocial || '');
+    setObraSocialNumber(newDep.obraSocialNumber || '');
+
+    // Reset modal
+    setDepName('');
+    setDepLastName('');
+    setDepDni('');
+    setDepBirthDate('');
+    setDepRelationship('Hijo/a');
+    setDepObraSocial('');
+    setDepObraSocialNumber('');
+    setDepFormError(null);
+    setShowAddDependentModal(false);
+
+    setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
+    setTimeout(() => setNotificationMsg(null), 4500);
+  };
+
+  const handleRemoveDependentCard = (e: React.MouseEvent, depId: string) => {
+    e.stopPropagation();
+    const updated = dependents.filter((d) => d.id !== depId);
+    setDependents(updated);
+    if (onRemoveDependent) {
+      onRemoveDependent(depId);
+    }
+    if (selectedCardId === depId) {
+      handleSelectCard('titular');
+    }
+  };
+
+  // Helper function to search patient in orders/users database by DNI
+  const handleSearchPatientByDni = (targetDni?: string) => {
+    const queryDni = (targetDni !== undefined ? targetDni : patientDni).trim();
+    if (!queryDni) {
+      setSearchStatus({ found: false, message: 'Ingrese un número de DNI para realizar la búsqueda.' });
+      return;
+    }
+
+    const foundOrder = orders.find(
+      (o: any) => o.patientDni && o.patientDni.trim() === queryDni
+    );
+
+    const foundUser = users.find(
+      (u: any) => u.identifier && u.identifier.trim() === queryDni
+    );
+
+    if (foundOrder || foundUser) {
+      const name = foundOrder?.patientName || foundUser?.name || '';
+      const lastName = foundOrder?.patientLastName || foundUser?.lastName || '';
+      const birthDate = foundOrder?.patientBirthDate || foundUser?.birthDate || '';
+      const email = foundOrder?.patientEmail || foundUser?.email || '';
+      const phone = foundOrder?.patientPhone || foundUser?.phone || '';
+      const obraSocial = foundOrder?.obraSocial || foundUser?.obraSocial || '';
+      const osNumber = foundOrder?.obraSocialNumber || foundUser?.obraSocialNumber || '';
+      const dMethod = foundOrder?.deliveryMethod || 'email';
+
+      if (name) setPatientName(name);
+      if (lastName) setPatientLastName(lastName);
+      if (birthDate) setPatientBirthDate(birthDate);
+      if (email) setPatientEmail(email);
+      if (phone) setPatientPhone(phone);
+      if (obraSocial) setSelectedObraSocial(obraSocial);
+      if (osNumber) setObraSocialNumber(osNumber);
+      if (dMethod) setDeliveryMethod(dMethod as any);
+
+      setSearchStatus({
+        found: true,
+        message: `¡Paciente registrado encontrado! Se cargaron los datos de ${name} ${lastName}.`,
+      });
+    } else {
+      setSearchStatus({
+        found: false,
+        message: `No se encontraron registros previos para el DNI ${queryDni}. Complete los datos del paciente manualmente.`,
+      });
+    }
+  };
 
   // --- Step 2 Fields: Medication ---
   const [medicationMethod, setMedicationMethod] = useState<'new_manual' | 'past_orders'>('new_manual');
@@ -117,7 +333,9 @@ export default function PatientForm({
   const TERMS_VERSION = 'v1.2';
 
   // --- Step 4 Fields: Payment ---
-  const [paymentMethod, setPaymentMethod] = useState<'mp' | 'transfer'>('mp');
+  const [paymentMethod, setPaymentMethod] = useState<'mp' | 'transfer' | 'cash_desk'>(
+    isThirdPartyUser ? 'cash_desk' : 'mp'
+  );
   const [paymentAmount, setPaymentAmount] = useState('10000');
   
   // Transfer Details
@@ -132,13 +350,13 @@ export default function PatientForm({
   const [mpProcessing, setMpProcessing] = useState(false);
   const [mpTransactionId, setMpTransactionId] = useState('');
 
-  // Synchronize initialName and initialLastName when props update (only if not isOficio and patient)
+  // Synchronize initialName and initialLastName when props update (only if not isThirdPartyUser)
   useEffect(() => {
-    if (!isOficio && (!currentUser || currentUser.role === 'paciente')) {
+    if (!isThirdPartyUser && (!currentUser || currentUser.role === 'paciente')) {
       if (initialName && !patientName) setPatientName(initialName);
       if (initialLastName && !patientLastName) setPatientLastName(initialLastName);
     }
-  }, [initialName, initialLastName, isOficio, currentUser]);
+  }, [initialName, initialLastName, isThirdPartyUser, currentUser]);
 
   // Synchronize recentDni when props update
   useEffect(() => {
@@ -475,7 +693,7 @@ export default function PatientForm({
     setError(null);
 
     // Final checks
-    if (selectedObraSocial !== 'PAMI (Inssjp)') {
+    if (selectedObraSocial !== 'PAMI (Inssjp)' && paymentMethod !== 'cash_desk') {
       if (paymentMethod === 'mp' && !mpPaymentApproved) {
         setError('Debe completar el pago mediante Mercado Pago para poder enviar la solicitud.');
         return;
@@ -502,6 +720,8 @@ export default function PatientForm({
       summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos). Medicamentos visibles en el archivo adjunto.`;
     }
 
+    const simulatedCashReceipt = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23ecfdf5"/><rect x="30" y="15" width="240" height="170" rx="8" fill="%23ffffff" stroke="%2310b981" stroke-width="2"/><circle cx="150" cy="60" r="22" fill="%23d1fae5"/><path d="M142,60 L148,66 L158,54" fill="none" stroke="%2310b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="110" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23065f46" text-anchor="middle">MARCADA COMO COBRADA</text><text x="150" y="135" font-family="sans-serif" font-size="14" font-weight="bold" fill="%2310b981" text-anchor="middle">EFECTIVO / CAJA</text><text x="150" y="160" font-family="sans-serif" font-size="9" fill="%2364748b" text-anchor="middle">Registrado en mesa de entrada / profesional</text></svg>`;
+
     // Build full order object mapping to backend fields
     const fullOrderPayload = {
       patientName: patientName.trim(),
@@ -523,12 +743,19 @@ export default function PatientForm({
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
       
       // Payment details
-      paymentReceiptUrl: paymentReceipt ? paymentReceipt.url : null,
-      paymentReceiptName: paymentReceipt ? paymentReceipt.name : null,
+      paymentReceiptUrl: paymentMethod === 'cash_desk'
+        ? simulatedCashReceipt
+        : (paymentReceipt ? paymentReceipt.url : null),
+      paymentReceiptName: paymentMethod === 'cash_desk'
+        ? 'cobrado_ventanilla.png'
+        : (paymentReceipt ? paymentReceipt.name : null),
       paymentAmount,
       paymentDate: new Date().toISOString(),
-      paymentId: paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`,
-      paymentStatus: 'approved', // automatic sandbox approval
+      paymentId: paymentMethod === 'cash_desk'
+        ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
+        : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`),
+      paymentStatus: 'approved', // automatic approval
+      createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
       lastConsultationTime: lastConsultationTime || undefined,
@@ -655,7 +882,7 @@ export default function PatientForm({
   }
 
   return (
-    <div className="w-full max-w-3xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100 overflow-hidden animate-scaleUp">
+    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-3xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
       <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
@@ -808,6 +1035,157 @@ export default function PatientForm({
         {step === 'identification' && (
           <div className="space-y-6 animate-fadeIn">
             
+            {notificationMsg && (
+              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-4 text-xs font-bold flex items-center gap-2 shadow-xs animate-fadeIn">
+                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                <span>{notificationMsg}</span>
+              </div>
+            )}
+
+            {/* CARDS SELECCIÓN DE PACIENTE / PACIENTES A CARGO */}
+            {!isThirdPartyUser && (
+              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+                  <div>
+                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-blue-600" />
+                      ¿Para quién es la receta?
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5 font-medium">
+                      Elegí si el trámite es para vos (titular) o para un paciente a tu cargo (hijo/a, padre mayor, etc.).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDependentModal(true)}
+                    className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0 self-start sm:self-auto"
+                  >
+                    <Plus className="h-4 w-4 text-blue-600" />
+                    <span>+ Agregar Paciente a Cargo</span>
+                  </button>
+                </div>
+
+                {/* GRID DE CARDS */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  {/* CARD TITULAR */}
+                  <div
+                    onClick={() => handleSelectCard('titular')}
+                    className={`relative rounded-2xl p-4 transition-all cursor-pointer border flex flex-col justify-between ${
+                      selectedCardId === 'titular'
+                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50/60 border-blue-500 ring-2 ring-blue-500/20 shadow-md'
+                        : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50/50 shadow-xs'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200/60">
+                          <User className="h-3 w-3" />
+                          Titular (Yo)
+                        </span>
+                        {selectedCardId === 'titular' && (
+                          <span className="h-5 w-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          </span>
+                        )}
+                      </div>
+                      <h5 className="font-extrabold text-slate-800 text-sm truncate">
+                        {currentUser?.name || initialName || 'Titular'} {currentUser?.lastName || initialLastName || ''}
+                      </h5>
+                      <p className="text-xs text-slate-500 font-semibold mt-1">
+                        DNI: {currentUser?.identifier || recentDni || 'Sin DNI'}
+                      </p>
+                      {(currentUser?.obraSocial || selectedObraSocial) && selectedCardId === 'titular' && (
+                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                          {currentUser?.obraSocial || selectedObraSocial}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* CARDS DEPENDIENTES */}
+                  {dependents.map((dep) => {
+                    const isSelected = selectedCardId === dep.id;
+                    return (
+                      <div
+                        key={dep.id}
+                        onClick={() => handleSelectCard(dep.id)}
+                        className={`relative rounded-2xl p-4 transition-all cursor-pointer border flex flex-col justify-between ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-emerald-50 to-teal-50/60 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
+                            : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50/50 shadow-xs'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-2">
+                            <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                              dep.relationship === 'Hijo/a'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                                : dep.relationship === 'Padre/Madre' || dep.relationship === 'Abuelo/a'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
+                                : 'bg-purple-100 text-purple-800 border border-purple-200/60'
+                            }`}>
+                              <Heart className="h-3 w-3" />
+                              {dep.relationship || 'A Cargo'}
+                            </span>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={(e) => handleRemoveDependentCard(e, dep.id)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
+                                title="Eliminar dependiente"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                              {isSelected && (
+                                <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <h5 className="font-extrabold text-slate-800 text-sm truncate">
+                            {dep.name} {dep.lastName}
+                          </h5>
+                          <p className="text-xs text-slate-500 font-semibold mt-1">
+                            DNI: {dep.dni}
+                          </p>
+                          {dep.obraSocial && (
+                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                              {dep.obraSocial}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* BOTÓN NUEVO DEPENDIENTE EN GRID */}
+                  <button
+                    type="button"
+                    onClick={() => setShowAddDependentModal(true)}
+                    className="rounded-2xl p-4 border-2 border-dashed border-slate-250 hover:border-blue-400 hover:bg-blue-50/40 text-slate-500 hover:text-blue-700 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer min-h-[105px] group"
+                  >
+                    <div className="h-8 w-8 rounded-full bg-blue-100/70 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-all shadow-2xs">
+                      <Plus className="h-4 w-4" />
+                    </div>
+                    <span className="text-xs font-bold">+ Nuevo Paciente a Cargo</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isThirdPartyUser && (
+              <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-4 text-xs text-blue-900 flex items-start gap-3 shadow-xs">
+                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-extrabold text-blue-950">Solicitud para Paciente Tercero</p>
+                  <p className="text-blue-800 leading-relaxed font-medium">
+                    Ingresá el DNI del paciente titular y hacé clic en <strong>"Buscar por DNI"</strong> para verificar si sus datos ya existen en el sistema.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-150 pb-3 gap-2">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
                 <User className="h-4.5 w-4.5 text-blue-600" />
@@ -849,15 +1227,49 @@ export default function PatientForm({
                 <label htmlFor="patient-dni" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
                   DNI (Sin puntos) <span className="text-red-500">*</span>
                 </label>
-                <input
-                  id="patient-dni"
-                  type="text"
-                  value={patientDni}
-                  onChange={(e) => setPatientDni(e.target.value.replace(/\D/g, ''))}
-                  placeholder="Ej. 34555888"
-                  disabled={!isEditMode}
-                  className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-bold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                />
+                <div className="flex gap-2">
+                  <input
+                    id="patient-dni"
+                    type="text"
+                    value={patientDni}
+                    onChange={(e) => {
+                      setPatientDni(e.target.value.replace(/\D/g, ''));
+                      if (searchStatus) setSearchStatus(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSearchPatientByDni();
+                      }
+                    }}
+                    placeholder="Ej. 34555888"
+                    disabled={!isEditMode}
+                    className="flex-1 px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-bold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearchPatientByDni()}
+                    className="px-3.5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
+                    title="Buscar paciente en la base de datos por DNI"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span className="hidden sm:inline">Buscar DNI</span>
+                  </button>
+                </div>
+                {searchStatus && (
+                  <div className={`mt-2 p-3 rounded-xl border text-xs flex items-center gap-2 animate-fadeIn font-semibold ${
+                    searchStatus.found 
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
+                      : 'bg-amber-50 border-amber-200 text-amber-900'
+                  }`}>
+                    {searchStatus.found ? (
+                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Info className="h-4.5 w-4.5 text-amber-600 shrink-0" />
+                    )}
+                    <span>{searchStatus.message}</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -1567,7 +1979,23 @@ export default function PatientForm({
               <div className="space-y-4">
                 
                 {/* Payment method selector */}
-                <div className="grid grid-cols-2 gap-3.5">
+                <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
+                  {isThirdPartyUser && (
+                    <button
+                      id="btn-pay-cash-desk"
+                      type="button"
+                      onClick={() => setPaymentMethod('cash_desk')}
+                      className={`py-3 px-3 rounded-2xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                        paymentMethod === 'cash_desk'
+                          ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-black ring-2 ring-emerald-500/20 shadow-xs'
+                          : 'border-slate-200 bg-white text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span>Dar como Cobrada (Efectivo / Ventanilla)</span>
+                    </button>
+                  )}
+
                   <button
                     id="btn-pay-mp"
                     type="button"
@@ -1596,6 +2024,19 @@ export default function PatientForm({
                     <span>Transferencia Directa (CBU)</span>
                   </button>
                 </div>
+
+                {/* OPTION 3: COBRADA EN VENTANILLA / EFECTIVO (MÉDICO / COLABORADOR) */}
+                {paymentMethod === 'cash_desk' && isThirdPartyUser && (
+                  <div className="bg-emerald-50/80 p-5 rounded-3xl border border-emerald-200 space-y-3 animate-fadeIn">
+                    <div className="flex items-center gap-2.5 text-emerald-950 font-bold text-sm">
+                      <CheckCircle2 className="h-6 w-6 text-emerald-600 shrink-0" />
+                      <span>Registrar Solicitud como Cobrada</span>
+                    </div>
+                    <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+                      Esta opción permite marcar la solicitud como <strong>Cobrada en Efectivo o Ventanilla Institucional</strong>. Se generará el registro de pago aprobado sin necesidad de pasarela online ni comprobantes adjuntos.
+                    </p>
+                  </div>
+                )}
 
                 {/* OPTION 1: MERCADO PAGO CHECKOUT PRO */}
                 {paymentMethod === 'mp' && (
@@ -1764,6 +2205,169 @@ export default function PatientForm({
         )}
 
       </form>
+
+      {/* MODAL AGREGAR PACIENTE A CARGO */}
+      {showAddDependentModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-100 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-slate-150 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-2xl">
+                  <Users className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-base">Nuevo Paciente a Cargo</h3>
+                  <p className="text-xs text-slate-500 font-medium">Completá los datos del familiar o dependiente a cargo</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAddDependentModal(false);
+                  setDepFormError(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-all cursor-pointer font-bold text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {depFormError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                <span>{depFormError}</span>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Nombre <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={depName}
+                    onChange={(e) => setDepName(e.target.value)}
+                    placeholder="Ej. Lucas"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Apellido <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={depLastName}
+                    onChange={(e) => setDepLastName(e.target.value)}
+                    placeholder="Ej. Pérez"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    DNI (Sin puntos) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={depDni}
+                    onChange={(e) => setDepDni(e.target.value.replace(/\D/g, ''))}
+                    placeholder="Ej. 48912345"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Fecha de Nacimiento
+                  </label>
+                  <input
+                    type="date"
+                    value={depBirthDate}
+                    onChange={(e) => setDepBirthDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                  Parentesco / Relación <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={depRelationship}
+                  onChange={(e) => setDepRelationship(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                >
+                  <option value="Hijo/a">Hijo/a</option>
+                  <option value="Padre/Madre">Padre/Madre mayor</option>
+                  <option value="Cónyuge">Cónyuge / Pareja</option>
+                  <option value="Abuelo/a">Abuelo/a</option>
+                  <option value="Hermano/a">Hermano/a</option>
+                  <option value="Otro">Otro familiar a cargo</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    Obra Social / Prepaga
+                  </label>
+                  <select
+                    value={depObraSocial}
+                    onChange={(e) => setDepObraSocial(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                  >
+                    <option value="">Seleccionar Obra Social</option>
+                    {OBRA_SOCIAL_OPTIONS.map((os) => (
+                      <option key={os.id} value={os.name}>{os.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
+                    N° de Afiliado
+                  </label>
+                  <input
+                    type="text"
+                    value={depObraSocialNumber}
+                    onChange={(e) => setDepObraSocialNumber(e.target.value)}
+                    placeholder="Ej. 210-48912345"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 border-t border-slate-150 pt-4 mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddDependentModal(false);
+                    setDepFormError(null);
+                  }}
+                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleCreateDependent(e)}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check className="h-4 w-4" />
+                  <span>Guardar Paciente a Cargo</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

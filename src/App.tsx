@@ -52,6 +52,8 @@ export default function App() {
     deleteUser,
     resetToBaseline,
     sendChatMessage,
+    addDependent,
+    removeDependent,
   } = useMedicalOrders();
 
   // Sidebar Layout Navigation state
@@ -253,6 +255,8 @@ export default function App() {
                         initialLastName={currentUser.lastName}
                         orders={orders}
                         currentUser={currentUser}
+                        onAddDependent={addDependent}
+                        onRemoveDependent={removeDependent}
                       />
                     </div>
                   </div>
@@ -417,6 +421,7 @@ export default function App() {
                   /* Render DoctorDashboard with the selected subcategory passed as forcedSubview */
                   <DoctorDashboard
                     orders={orders}
+                    users={users}
                     onUpdateStatus={updateOrderStatus}
                     onCreateOrder={createOrder}
                     currentUser={currentUser}
