@@ -107,13 +107,13 @@ export default function PatientStatus({
                 value={searchDni}
                 onChange={(e) => setSearchDni(e.target.value)}
                 placeholder="Ej. 14.283.991 o de prueba"
-                className="w-full pl-11 pr-4 py-3 bg-white/60 border border-slate-300 rounded-xl font-semibold text-slate-800 focus:bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                className="w-full pl-11 pr-4 py-3 bg-white/60 border border-slate-300 rounded-xl font-semibold text-[#1C2435] focus:bg-white focus:ring-2 focus:ring-[#295EF3] focus:outline-none transition-all"
               />
             </div>
             <button
               id="btn-search-dni"
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
+              className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold px-6 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
             >
               Buscar
             </button>
@@ -152,7 +152,7 @@ export default function PatientStatus({
               Pedidos de receta encontrados ({matchedOrders.length})
             </h4>
             {cleanDni && (
-              <span className="text-xs text-blue-700 font-bold bg-blue-50 border border-blue-100 px-3 py-1 rounded-full">
+              <span className="text-xs text-[#295EF3] font-bold bg-[#295EF3]/10 border border-[#295EF3]/20 px-3 py-1 rounded-full">
                 DNI: {cleanDni}
               </span>
             )}
@@ -197,11 +197,11 @@ export default function PatientStatus({
                       : isRejected
                         ? 'bg-red-50/25 font-bold'
                         : isInProcess 
-                          ? 'bg-blue-50/25 font-bold' 
+                          ? 'bg-[#295EF3]/10 font-bold' 
                           : 'bg-amber-50/15 font-bold'
                   }`}>
                     <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-slate-800 text-sm">ID: {order.id}</span>
+                      <span className="font-mono font-bold text-[#1C2435] text-sm">ID: {order.id}</span>
                       <span className="text-slate-300 text-sm">|</span>
                       <span className="text-xs text-slate-500 flex items-center gap-1 font-semibold">
                         <Calendar className="h-3.5 w-3.5" />
@@ -218,8 +218,8 @@ export default function PatientStatus({
                     )}
 
                     {order.status === 'En revisión' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-55 text-blue-900 border border-blue-200">
-                        <Activity className="h-3.5 w-3.5 text-blue-500 animate-pulse" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#295EF3]/15 text-[#295EF3] border border-[#295EF3]/30">
+                        <Activity className="h-3.5 w-3.5 text-[#295EF3] animate-pulse" />
                         En revisión médica
                       </span>
                     )}
@@ -232,8 +232,8 @@ export default function PatientStatus({
                     )}
 
                     {order.status === 'Aprobada' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-900 border border-blue-200">
-                        <FileCheck className="h-3.5 w-3.5 text-blue-600" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#295EF3]/15 text-[#295EF3] border border-[#295EF3]/30">
+                        <FileCheck className="h-3.5 w-3.5 text-[#295EF3]" />
                         Solicitud Pre-aprobada
                       </span>
                     )}
@@ -246,15 +246,15 @@ export default function PatientStatus({
                     )}
 
                     {order.status === 'Emitida' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-700 text-white shadow-xs">
-                        <FileCheck className="h-3.5 w-3.5 text-emerald-250 font-bold" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#316F80] text-white shadow-xs">
+                        <FileCheck className="h-3.5 w-3.5 text-white font-bold" />
                         Listo para retirar / farmacia
                       </span>
                     )}
 
                     {order.status === 'Enviada' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-805 text-white shadow-xs">
-                        <FileCheck className="h-3.5 w-3.5 text-emerald-250 font-bold" />
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#316F80] text-white shadow-xs">
+                        <FileCheck className="h-3.5 w-3.5 text-white font-bold" />
                         Enviada al paciente
                       </span>
                     )}
@@ -265,11 +265,11 @@ export default function PatientStatus({
                     <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
                       <div>
                         <p className="text-slate-400 font-semibold">Paciente</p>
-                        <p className="font-bold text-slate-800 text-sm">{order.patientLastName}, {order.patientName}</p>
+                        <p className="font-bold text-[#1C2435] text-sm">{order.patientLastName}, {order.patientName}</p>
                       </div>
                       <div>
                         <p className="text-slate-400 font-semibold">Obra Social o Cobertura</p>
-                        <p className="font-bold text-blue-700 text-sm">{order.obraSocial}</p>
+                        <p className="font-bold text-[#316F80] text-sm">{order.obraSocial}</p>
                       </div>
                     </div>
 
@@ -384,15 +384,15 @@ export default function PatientStatus({
           <div className="glass-dark rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-white/20 animate-scaleUp">
             
             {/* Modal Header */}
-            <div className="bg-blue-900/90 text-white px-6 py-4 flex justify-between items-center border-b border-white/10">
+            <div className="bg-[#1C2435] text-white px-6 py-4 flex justify-between items-center border-b border-white/10">
               <div className="flex items-center space-x-2">
-                <FileText className="h-5 w-5 text-blue-300" />
+                <FileText className="h-5 w-5 text-[#295EF3]" />
                 <span className="font-extrabold text-xs sm:text-sm tracking-widest text-slate-100">COMPROBANTE OFICIAL DE RECETA</span>
               </div>
               <button
                 id="btn-close-modal"
                 onClick={() => setSelectedRecipe(null)}
-                className="text-white hover:text-blue-105 text-xs bg-white/20 hover:bg-white/30 px-3.5 py-1.5 rounded-xl cursor-pointer font-extrabold transition-all border border-white/20"
+                className="text-white hover:text-slate-200 text-xs bg-white/10 hover:bg-white/20 px-3.5 py-1.5 rounded-xl cursor-pointer font-extrabold transition-all border border-white/20"
               >
                 Cerrar
               </button>
@@ -400,24 +400,24 @@ export default function PatientStatus({
 
             {/* Simulated Printed Prescription Recipe Card */}
             <div className="p-6 overflow-y-auto max-h-[75vh] space-y-4">
-              <div className="bg-white border-[3px] border-blue-600 p-5 rounded-2xl space-y-4 shadow-inner relative">
+              <div className="bg-white border-[3px] border-[#316F80] p-5 rounded-2xl space-y-4 shadow-inner relative">
                 
                 {/* Stamp overlay or watermark */}
-                <div className="absolute top-2 right-2 border-2 border-dashed border-blue-600 rounded-lg px-2.5 py-1 text-[10px] font-black text-blue-700/85 uppercase rotate-6 pointer-events-none select-none">
+                <div className="absolute top-2 right-2 border-2 border-dashed border-[#316F80] rounded-lg px-2.5 py-1 text-[10px] font-black text-[#316F80] uppercase rotate-6 pointer-events-none select-none">
                   Firma Digitalizada
                 </div>
 
                 {/* Doctor Header */}
-                <div className="border-b-2 border-blue-100 pb-3 flex justify-between items-start">
+                <div className="border-b-2 border-[#316F80]/20 pb-3 flex justify-between items-start">
                   <div>
-                    <h5 className="font-black text-blue-900 text-base">DRA. MARÍA ELENA MARTÍNEZ</h5>
+                    <h5 className="font-black text-[#1C2435] text-base">DRA. MARÍA ELENA MARTÍNEZ</h5>
                     <p className="text-[10px] text-slate-500 font-mono tracking-wide">
                       MÉDICA DE CABECERA — MATRÍCULA MP 44.102 / MN 89.281
                     </p>
                     <p className="text-[9px] text-slate-400 font-semibold">Consultorio: Av. Casey 802</p>
                   </div>
                   <div className="text-right">
-                    <span className="text-[9px] font-extrabold bg-blue-100 text-blue-950 px-2.5 py-1 rounded-full">
+                    <span className="text-[9px] font-extrabold bg-[#295EF3]/10 text-[#295EF3] px-2.5 py-1 rounded-full border border-[#295EF3]/20">
                       Solicitar recetas
                     </span>
                   </div>
@@ -427,27 +427,27 @@ export default function PatientStatus({
                 <div className="space-y-3.5 py-2">
                   <div className="grid grid-cols-2 text-xs gap-y-1.5 border-b border-slate-100 pb-2">
                     <p className="text-slate-400 font-semibold">Paciente:</p>
-                    <p className="font-bold text-slate-805 text-right">{selectedRecipe.patientLastName}, {selectedRecipe.patientName}</p>
+                    <p className="font-bold text-[#1C2435] text-right">{selectedRecipe.patientLastName}, {selectedRecipe.patientName}</p>
                     
                     <p className="text-slate-400 font-semibold">DNI del Paciente:</p>
-                    <p className="font-bold text-slate-805 text-right font-mono">{selectedRecipe.patientDni}</p>
+                    <p className="font-bold text-[#1C2435] text-right font-mono">{selectedRecipe.patientDni}</p>
 
                     <p className="text-slate-400 font-semibold">Obra Social:</p>
-                    <p className="font-bold text-blue-800 text-right">{selectedRecipe.obraSocial}</p>
+                    <p className="font-bold text-[#316F80] text-right">{selectedRecipe.obraSocial}</p>
 
                     {selectedRecipe.obraSocialNumber && (
                       <>
                         <p className="text-slate-400 font-semibold">Credencial N°:</p>
-                        <p className="font-bold font-mono text-slate-805 text-right">{selectedRecipe.obraSocialNumber}</p>
+                        <p className="font-bold font-mono text-[#1C2435] text-right">{selectedRecipe.obraSocialNumber}</p>
                       </>
                     )}
                   </div>
 
                   {/* Prescription RP */}
                   <div className="space-y-2 mt-2">
-                    <span className="font-black text-slate-900 text-lg block">Rp.</span>
+                    <span className="font-black text-[#1C2435] text-lg block">Rp.</span>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <p className="font-bold text-slate-800 text-sm italic">
+                      <p className="font-bold text-[#1C2435] text-sm italic">
                         "{selectedRecipe.medicationText}"
                       </p>
                       <p className="text-xs text-slate-500 mt-2">
@@ -459,18 +459,18 @@ export default function PatientStatus({
                   {/* Doctor notes if provided */}
                   {selectedRecipe.doctorNotes && (
                     <div className="text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100">
-                      <span className="font-extrabold text-slate-700 block">Indicaciones médicas especiales:</span>
+                      <span className="font-extrabold text-[#1C2435] block">Indicaciones médicas especiales:</span>
                       <p className="text-slate-605 leading-relaxed italic">{selectedRecipe.doctorNotes}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Stamp Signature and Barcode */}
-                <div className="pt-4 border-t-2 border-blue-600/50 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
+                <div className="pt-4 border-t-2 border-[#316F80]/30 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
                   
                   {/* QR and Barcode Mock */}
                   <div className="space-y-1">
-                    <div className="h-6 w-38 bg-slate-905 text-white flex items-center justify-center font-mono text-[9px] tracking-[4px] px-1 select-none">
+                    <div className="h-6 w-38 bg-[#1C2435] text-white flex items-center justify-center font-mono text-[9px] tracking-[4px] px-1 select-none">
                       ||| | || ||| || ||
                     </div>
                     <p className="text-[8px] text-slate-400 font-mono font-semibold">RECETA-TOKEN: {selectedRecipe.id}-{selectedRecipe.patientDni.replace(/\D/g, '')}</p>
@@ -478,7 +478,7 @@ export default function PatientStatus({
 
                   {/* Doctor Signature Stamp */}
                   <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-blue-900 font-bold border-b border-blue-600 pb-1 px-8 italic">
+                    <span className="text-[10px] text-[#316F80] font-bold border-b border-[#316F80] pb-1 px-8 italic">
                       Dra. María E. Martínez
                     </span>
                     <span className="text-[9px] text-slate-500 font-bold uppercase mt-1">
@@ -511,7 +511,7 @@ export default function PatientStatus({
                       showToast('¡Descarga Simulada Exitosamente! Su navegador ha registrado la descarga: ' + selectedRecipe.recipePdfName);
                     }
                   }}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  className="flex-1 bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
                 >
                   <Download className="h-4.5 w-4.5" />
                   <span>Descargar PDF</span>

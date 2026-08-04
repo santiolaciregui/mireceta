@@ -81,18 +81,18 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
   const getActionBadgeColor = (action: string) => {
     const act = action.toLowerCase();
     if (act.includes('emitida') || act.includes('aprobada')) {
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/30';
     }
     if (act.includes('rechazada') || act.includes('inactiva')) {
       return 'bg-red-50 text-red-700 border-red-200';
     }
     if (act.includes('revisión') || act.includes('revision')) {
-      return 'bg-blue-50 text-blue-700 border-blue-200';
+      return 'bg-[#295EF3]/15 text-[#295EF3] border-[#295EF3]/30';
     }
     if (act.includes('información') || act.includes('informacion')) {
       return 'bg-amber-50 text-amber-700 border-amber-200';
     }
-    return 'bg-slate-100 text-slate-700 border-slate-200';
+    return 'bg-slate-100 text-[#1C2435] border-slate-200';
   };
 
   return (
@@ -106,7 +106,7 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Buscar por usuario, acción o ID..."
-            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#1C2435] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#295EF3]"
           />
         </div>
 
@@ -115,9 +115,9 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
           <div className="flex gap-1.5 flex-wrap">
             <button
               onClick={() => setRoleFilter('all')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 roleFilter === 'all'
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-[#1C2435] text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -125,9 +125,9 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
             </button>
             <button
               onClick={() => setRoleFilter('medicos')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 roleFilter === 'medicos'
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-[#295EF3] text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -135,9 +135,9 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
             </button>
             <button
               onClick={() => setRoleFilter('colaboradores')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 roleFilter === 'colaboradores'
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-[#316F80] text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -145,9 +145,9 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
             </button>
             <button
               onClick={() => setRoleFilter('admin')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 roleFilter === 'admin'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-[#1C2435] text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
@@ -161,7 +161,7 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
       {filteredLogs.length === 0 ? (
         <div className="bg-white p-8 rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
           <ShieldAlert className="h-10 w-10 text-slate-300 mx-auto" />
-          <p className="text-sm font-bold text-slate-700">No se encontraron eventos de auditoría</p>
+          <p className="text-sm font-bold text-[#1C2435]">No se encontraron eventos de auditoría</p>
           <p className="text-xs text-slate-400">Intente modificar los filtros de búsqueda aplicados.</p>
         </div>
       ) : (
@@ -171,8 +171,8 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
               <div key={index} className="p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                    <span className="font-extrabold text-[#1C2435] flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-[#295EF3] shrink-0" />
                       {log.user}
                     </span>
 
@@ -180,24 +180,24 @@ export default function AuditLogView({ orders, currentUser }: AuditLogViewProps)
                       {log.action}
                     </span>
 
-                    <span className="text-[10px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md">
+                    <span className="text-[10px] font-mono text-[#1C2435]/70 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/50">
                       ID: {log.orderId}
                     </span>
                   </div>
 
                   <p className="text-slate-600 font-medium">
-                    Paciente: <strong className="text-slate-800">{log.patientName}</strong> (DNI: {log.patientDni})
+                    Paciente: <strong className="text-[#1C2435]">{log.patientName}</strong> (DNI: {log.patientDni})
                   </p>
 
                   {log.notes && (
-                    <p className="text-[11px] text-slate-500 italic bg-slate-50/90 p-2 rounded-xl border border-slate-150 mt-1">
+                    <p className="text-[11px] text-slate-500 italic bg-slate-50 p-2 rounded-xl border border-slate-150 mt-1">
                       "{log.notes}"
                     </p>
                   )}
                 </div>
 
                 <div className="shrink-0 text-right sm:text-right text-[11px] text-slate-400 font-semibold flex items-center gap-1 sm:justify-end">
-                  <Clock className="h-3.5 w-3.5" />
+                  <Clock className="h-3.5 w-3.5 text-[#316F80]" />
                   <span>{formatDate(log.timestamp)}</span>
                 </div>
               </div>

@@ -51,7 +51,7 @@ interface DoctorDashboardProps {
     medicoId?: string;
     medicoName?: string;
   };
-  forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'reportes';
+  forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'rechazadas' | 'reportes';
   onNavigateToChat?: (orderId: string) => void;
 }
 
@@ -66,7 +66,7 @@ export default function DoctorDashboard({
 }: DoctorDashboardProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   
-  const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'En revisión' | 'Listos'>('Todos');
+  const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'En revisión' | 'Listos' | 'Rechazadas'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOperatorFilter, setSelectedOperatorFilter] = useState<string>('Todos');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'requests' | 'operators'>('requests');
@@ -83,6 +83,9 @@ export default function DoctorDashboard({
         setActiveDashboardTab('requests');
       } else if (forcedSubview === 'completadas') {
         setFilter('Listos');
+        setActiveDashboardTab('requests');
+      } else if (forcedSubview === 'rechazadas') {
+        setFilter('Rechazadas');
         setActiveDashboardTab('requests');
       } else if (forcedSubview === 'reportes') {
         setActiveDashboardTab('operators');
@@ -200,6 +203,7 @@ export default function DoctorDashboard({
     if (filter === 'Pendientes' && order.status !== 'Pendiente') return false;
     if (filter === 'En revisión' && order.status !== 'En revisión' && order.status !== 'Aprobada' && order.status !== 'Solicita más información') return false;
     if (filter === 'Listos' && order.status !== 'Emitida' && order.status !== 'Enviada') return false;
+    if (filter === 'Rechazadas' && order.status !== 'Rechazada') return false;
 
     // Operator Filter
     if (selectedOperatorFilter !== 'Todos') {
@@ -381,9 +385,9 @@ export default function DoctorDashboard({
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative border border-slate-200 animate-scaleUp">
             
             {/* Modal Header */}
-            <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between shrink-0 border-b border-slate-800">
+            <div className="px-6 py-4 bg-[#1C2435] text-white flex items-center justify-between shrink-0 border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold">
+                <div className="h-9 w-9 rounded-xl bg-[#295EF3]/20 text-[#295EF3] flex items-center justify-center font-bold">
                   <User className="h-5 w-5" />
                 </div>
                 <div>
@@ -393,7 +397,7 @@ export default function DoctorDashboard({
               </div>
               <button 
                 onClick={() => setShowNewOrderModal(false)} 
-                className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-full transition-all cursor-pointer"
+                className="p-2 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white rounded-full transition-all cursor-pointer"
                 title="Cerrar modal"
               >
                 <X className="h-5 w-5" />
@@ -504,6 +508,21 @@ export default function DoctorDashboard({
              </header>
           )}
 
+          {forcedSubview === 'rechazadas' && (
+             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+               <div className="space-y-1">
+                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Solicitudes Rechazadas</h1>
+                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de solicitudes médicas rechazadas o desestimadas por auditoría.</p>
+               </div>
+               <button
+                 onClick={() => setShowNewOrderModal(true)}
+                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+               >
+                 <Plus className="h-4 w-4" /> Nueva Solicitud
+               </button>
+             </header>
+          )}
+
           <section className="workspace flex-1">
             {/* List Pane */}
             <div className={`list-pane ${selectedOrderId ? 'hidden lg:flex' : 'flex'}`}>
@@ -529,6 +548,7 @@ export default function DoctorDashboard({
                       <option value="Pendientes">Pendientes</option>
                       <option value="En revisión">En revisión</option>
                       <option value="Listos">Emitidas</option>
+                      <option value="Rechazadas">Rechazadas</option>
                     </select>
                     <select
                       value={selectedOperatorFilter}
@@ -568,7 +588,7 @@ export default function DoctorDashboard({
                           {order.obraSocial} • DNI: {order.patientDni}
                         </p>
                         {order.status === 'Pendiente' && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-amber-500" />}
-                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-blue-500" />}
+                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-[#295EF3]" />}
                       </button>
                     );
                   })
@@ -682,33 +702,58 @@ export default function DoctorDashboard({
                       </div>
                     )}
                     
+                    {selectedOrder.status === 'Rechazada' && (
+                      <div style={{ background: '#FFF1F2', border: '1px solid #FECACA', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
+                        <strong>Estado Rechazada:</strong> Esta solicitud ha sido desestimada tras evaluación.
+                      </div>
+                    )}
+                    
                     <div className="space-y-4">
                       {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
-                        <button
-                          onClick={() => handleMarkInProcess(selectedOrder.id)}
-                          className="bg-[var(--accent)] text-white w-full py-4 rounded-lg text-[0.9rem] font-[600]"
-                        >
-                          EMPEZAR REVISIÓN CLÍNICA
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleMarkInProcess(selectedOrder.id)}
+                            className="bg-[var(--accent)] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600]"
+                          >
+                            EMPEZAR REVISIÓN CLÍNICA
+                          </button>
+                          <button
+                            onClick={() => {
+                              onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
+                              showToast('La solicitud ha sido rechazada.');
+                            }}
+                            className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-4 py-4 rounded-lg text-[0.85rem] font-[600]"
+                          >
+                            Rechazar
+                          </button>
+                        </div>
                       )}
                       {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
                           <div className="bg-[var(--bg)] p-6 rounded-xl border border-[var(--ink-faint)]">
-                            <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas</label>
+                            <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas / Motivo de Rechazo</label>
                             <textarea
                               className="w-full p-3 bg-white border border-[var(--ink-faint)] rounded-md text-[0.85rem] mb-4 outline-none focus:border-[var(--accent)]"
                               rows={3}
-                              placeholder="Indicaciones para el paciente..."
+                              placeholder="Indicaciones para el paciente o motivo de rechazo..."
                               value={doctorNotes}
                               onChange={e => setDoctorNotes(e.target.value)}
                             />
                             <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Adjuntar Receta Firmada (PDF)</label>
                             <input type="file" accept="application/pdf" onChange={handleDoctorRecipeUploadChange} className="text-[0.75rem] mb-4 w-full" />
-                            <button onClick={() => {
-                              onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
-                              showToast('Receta emitida y enviada con éxito.');
-                            }} className="w-full bg-[var(--accent)] text-white py-3 rounded-lg text-[0.9rem] font-[600]">
-                              EMITIR RECETA FINAL
-                            </button>
+                            <div className="flex gap-3">
+                              <button onClick={() => {
+                                onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
+                                showToast('Receta emitida y enviada con éxito.');
+                              }} className="flex-1 bg-[var(--accent)] text-white py-3 rounded-lg text-[0.9rem] font-[600]">
+                                EMITIR RECETA FINAL
+                              </button>
+                              <button onClick={() => {
+                                onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
+                                showToast('La solicitud ha sido rechazada.');
+                              }} className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600]">
+                                RECHAZAR SOLICITUD
+                              </button>
+                            </div>
                           </div>
                       )}
                       {selectedOrder.status === 'Emitida' && (
@@ -719,6 +764,13 @@ export default function DoctorDashboard({
                             {selectedOrder.recipePdfUrl && (
                               <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-md text-[0.8rem] font-[600]">Descargar PDF</a>
                             )}
+                          </div>
+                      )}
+                      {selectedOrder.status === 'Rechazada' && (
+                          <div className="bg-rose-50 border border-rose-200 p-6 rounded-xl text-center">
+                            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
+                            <h4 className="font-[600] text-rose-900">Solicitud Rechazada</h4>
+                            <p className="text-[0.75rem] text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue rechazada por el profesional médico.'}</p>
                           </div>
                       )}
                     </div>

@@ -884,34 +884,34 @@ export default function PatientForm({
   return (
     <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-3xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-700 text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
+      <div className="bg-gradient-to-br from-[#1C2435] to-[#316F80] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
         <div className="relative">
-          <span className="text-[10px] font-bold uppercase bg-blue-500/55 px-2.5 py-0.5 rounded-full text-blue-100 border border-blue-400/30">
+          <span className="text-[10px] font-bold uppercase bg-[#295EF3]/30 px-2.5 py-0.5 rounded-full text-white border border-white/20">
             {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario Oficial'}
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-1 flex items-center gap-1.5">
             {isOficio ? 'Nueva Solicitud de Renovación' : 'Renovación de Medicación Crónica'}
           </h2>
-          <p className="text-xs text-blue-150 font-medium">
+          <p className="text-xs text-slate-200 font-medium">
             {isOficio ? 'Ingrese los datos del paciente para generar la solicitud' : 'Complete paso a paso su trámite digital'}
           </p>
         </div>
-        <HeartHandshake className="h-10 w-10 text-blue-200 hidden sm:block stroke-[1.5]" />
+        <HeartHandshake className="h-10 w-10 text-white/80 hidden sm:block stroke-[1.5]" />
       </div>
 
       {/* Progress Indicators */}
-      <div className="grid grid-cols-4 border-b border-blue-100/30 bg-slate-50/50 py-3 text-center text-[10px] sm:text-[11px] font-bold">
+      <div className="grid grid-cols-4 border-b border-slate-200 bg-slate-50/50 py-3 text-center text-[10px] sm:text-[11px] font-bold">
         <div 
           onClick={() => setStep('info')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'info' ? 'text-blue-700' : 'text-slate-400'
+            step === 'info' ? 'text-[#295EF3]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'info' 
-              ? 'bg-blue-600 text-white shadow' 
-              : 'bg-blue-50 text-blue-800 border border-blue-100'
+              ? 'bg-[#295EF3] text-white shadow' 
+              : 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20'
           }`}>1</span>
           <span>Información Previa</span>
         </div>
@@ -921,13 +921,13 @@ export default function PatientForm({
             setStep('identification');
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'identification' ? 'text-blue-700' : 'text-slate-400'
+            step === 'identification' ? 'text-[#295EF3]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'identification' 
-              ? 'bg-blue-600 text-white shadow' 
-              : step !== 'info' ? 'bg-blue-50 text-blue-800 border border-blue-100' : 'bg-slate-200 text-slate-400'
+              ? 'bg-[#295EF3] text-white shadow' 
+              : step !== 'info' ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20' : 'bg-slate-200 text-slate-400'
           }`}>2</span>
           <span>Identificación</span>
         </div>
@@ -939,13 +939,13 @@ export default function PatientForm({
             }
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'medication' ? 'text-blue-700' : 'text-slate-400'
+            step === 'medication' ? 'text-[#295EF3]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'medication' 
-              ? 'bg-blue-600 text-white shadow' 
-              : step === 'payment' ? 'bg-blue-50 text-blue-800 border border-blue-100' : 'bg-slate-200 text-slate-400'
+              ? 'bg-[#295EF3] text-white shadow' 
+              : step === 'payment' ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20' : 'bg-slate-200 text-slate-400'
           }`}>3</span>
           <span>Medicación</span>
         </div>
@@ -957,11 +957,11 @@ export default function PatientForm({
             }
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'payment' ? 'text-blue-700' : 'text-slate-400'
+            step === 'payment' ? 'text-[#295EF3]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-            step === 'payment' ? 'bg-blue-600 text-white shadow' : 'bg-slate-200 text-slate-400'
+            step === 'payment' ? 'bg-[#295EF3] text-white shadow' : 'bg-slate-200 text-slate-400'
           }`}>4</span>
           <span>Pago y Firma</span>
         </div>

@@ -174,7 +174,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('paciente')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'paciente' ? 'bg-white text-blue-700 shadow-xs' : 'text-slate-600 hover:text-slate-955'
+                roleFilter === 'paciente' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
               }`}
             >
               Pacientes
@@ -182,7 +182,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('medico')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'medico' ? 'bg-white text-emerald-700 shadow-xs' : 'text-slate-600 hover:text-slate-955'
+                roleFilter === 'medico' ? 'bg-white text-[#316F80] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
               }`}
             >
               Médicos
@@ -190,7 +190,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'admin' ? 'bg-white text-purple-700 shadow-xs' : 'text-slate-600 hover:text-slate-955'
+                roleFilter === 'admin' ? 'bg-white text-[#1C2435] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
               }`}
             >
               Admin
@@ -199,7 +199,7 @@ export default function UserManagement({
 
           <button
             onClick={openAddModal}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md active:scale-98 transition-all cursor-pointer ml-auto"
+            className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md active:scale-98 transition-all cursor-pointer ml-auto"
           >
             <UserPlus className="h-4 w-4" />
             <span>Nuevo Usuario</span>
@@ -245,17 +245,17 @@ export default function UserManagement({
                   let avatarBg = '';
                   
                   if (user.role === 'medico') {
-                    roleBadgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-100';
+                    roleBadgeStyle = 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/30';
                     roleLabel = 'Médico';
-                    avatarBg = 'bg-emerald-100 text-emerald-800';
+                    avatarBg = 'bg-[#316F80]/20 text-[#316F80]';
                   } else if (user.role === 'admin') {
-                    roleBadgeStyle = 'bg-purple-50 text-purple-700 border-purple-100';
+                    roleBadgeStyle = 'bg-[#1C2435]/10 text-[#1C2435] border-[#1C2435]/20';
                     roleLabel = 'Administrador';
-                    avatarBg = 'bg-purple-100 text-purple-800';
+                    avatarBg = 'bg-[#1C2435]/15 text-[#1C2435]';
                   } else {
-                    roleBadgeStyle = 'bg-blue-50 text-blue-700 border-blue-100';
+                    roleBadgeStyle = 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/20';
                     roleLabel = 'Paciente';
-                    avatarBg = 'bg-blue-100 text-blue-800';
+                    avatarBg = 'bg-[#295EF3]/15 text-[#295EF3]';
                   }
 
                   return (
@@ -427,9 +427,8 @@ export default function UserManagement({
                       setRole('paciente');
                       if (!editingUserId) setIdentifier('');
                     }}
-                    className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
-                      role === 'paciente'
-                        ? 'bg-blue-50 text-blue-700 border-blue-300 ring-2 ring-blue-50'
+                    className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition                      role === 'paciente'
+                        ? 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/40 ring-2 ring-[#295EF3]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -443,7 +442,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'medico'
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-50'
+                        ? 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/40 ring-2 ring-[#316F80]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -457,7 +456,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'admin'
-                        ? 'bg-purple-50 text-purple-700 border-purple-300 ring-2 ring-purple-50'
+                        ? 'bg-[#1C2435]/10 text-[#1C2435] border-[#1C2435]/40 ring-2 ring-[#1C2435]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -472,7 +471,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'colaborador'
-                        ? 'bg-pink-50 text-pink-700 border-pink-300 ring-2 ring-pink-50'
+                        ? 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/40 ring-2 ring-[#316F80]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -493,7 +492,7 @@ export default function UserManagement({
                       setMedicoId(e.target.value);
                       setMedicoName(selected ? `Dr. ${selected.lastName}` : '');
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                     required
                   >
                     <option value="">Seleccione un médico</option>
@@ -518,7 +517,7 @@ export default function UserManagement({
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder={role === 'paciente' ? 'Ej. 14.283.991' : role === 'medico' ? 'Ej. Mat. 44102' : 'Ej. admin.suarez'}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                   required
                 />
               </div>
@@ -532,7 +531,7 @@ export default function UserManagement({
                     onClick={() => setStatus('Activo')}
                     className={`px-3 py-1 text-[10px] font-extrabold rounded-md cursor-pointer transition-all ${
                       status === 'Activo' 
-                        ? 'bg-emerald-500 text-white shadow-xs' 
+                        ? 'bg-[#316F80] text-white shadow-xs' 
                         : 'bg-slate-50 text-slate-500 border border-slate-200'
                     }`}
                   >
@@ -563,7 +562,7 @@ export default function UserManagement({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
                 >
                   <Check className="h-4 w-4" />
                   <span>Guardar</span>
@@ -572,7 +571,7 @@ export default function UserManagement({
 
             </form>
           </div>
-         </div>
+        </div>
       )}
 
       {/* Safe confirmation modal for user deletion */}

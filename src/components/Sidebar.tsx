@@ -5,7 +5,6 @@
 
 import React, { useState } from 'react';
 import { 
-  Heart, 
   PlusCircle, 
   FileText, 
   MessageSquare, 
@@ -15,15 +14,14 @@ import {
   LogOut, 
   Menu, 
   X, 
-  ChevronRight, 
-  Activity,
   ShieldAlert,
   Clock,
-  User,
   Layers,
-  Settings
+  Settings,
+  XCircle
 } from 'lucide-react';
 import { UserRole } from '../types';
+import Logo from './Logo';
 
 interface SidebarProps {
   role: UserRole;
@@ -36,6 +34,7 @@ interface SidebarProps {
   pendingCount: number;
   inRevisionCount: number;
   completedCount: number;
+  rejectedCount?: number;
 }
 
 export default function Sidebar({
@@ -49,6 +48,7 @@ export default function Sidebar({
   pendingCount,
   inRevisionCount,
   completedCount,
+  rejectedCount = 0,
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -88,8 +88,9 @@ export default function Sidebar({
           title: 'Bandeja de Pedidos',
           items: [
             { id: 'pendientes', label: 'Pedidos Pendientes', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
-            { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-blue-600 text-white' },
-            { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-emerald-600 text-white' },
+            { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#295EF3] text-white' },
+            { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#316F80] text-white' },
+            { id: 'rechazadas', label: 'Solicitudes Rechazadas', icon: XCircle, count: rejectedCount, countColor: 'bg-rose-600 text-white' },
           ]
         },
         {
@@ -124,48 +125,50 @@ export default function Sidebar({
   };
 
   const SidebarContent = () => (
-    <aside className="bg-[var(--bg)] flex flex-col justify-between h-full">
-      <div className="p-8 pb-4">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-8 h-8 bg-[var(--ink)] rounded-md shrink-0 flex items-center justify-center shadow-[0_2px_4px_rgba(0,0,0,0.1)]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--white)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          </div>
-          <span className="font-[800] text-[1.1rem] tracking-tight text-[var(--ink)]">Mi Receta Online</span>
+    <aside className="bg-white flex flex-col justify-between h-full border-r border-[#1C2435]/10 shadow-xs">
+      <div className="p-6 pb-4">
+        {/* Brand Header */}
+        <div className="flex items-center gap-3 mb-8 pt-2">
+          <Logo variant="full" size="md" />
         </div>
         
         {/* Mobile Close Button */}
         <button 
-          className="lg:hidden absolute top-6 right-6 p-1.5 text-slate-400"
+          className="lg:hidden absolute top-6 right-6 p-1.5 text-slate-400 hover:text-[#1C2435]"
           onClick={() => setIsOpen(false)}
         >
           <X className="h-5 w-5" />
         </button>
 
-        <nav className="-mx-4">
+        <nav className="-mx-2">
           {menu.map((category) => (
             <div key={category.id} className="mb-2">
-              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[var(--ink-muted)] px-4 py-2 block mt-6 mb-1 font-[600]">
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#316F80] px-3 py-2 block mt-4 mb-1 font-[700]">
                 {category.title}
               </span>
               <div className="space-y-1">
                 {category.items.map((item) => {
                   const isActive = activeSubcategory === item.id;
+                  const Icon = item.icon;
                   
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleItemClick(category.id, item.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-[0.85rem] font-[500] cursor-pointer transition-colors ${
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[0.85rem] font-[600] cursor-pointer transition-all ${
                         isActive
-                          ? 'bg-[var(--ink-faint)] text-[var(--ink)]'
-                          : 'text-[var(--ink-muted)] hover:bg-[var(--ink-faint)] hover:text-[var(--ink)]'
+                          ? 'bg-[#295EF3]/10 text-[#295EF3] font-bold border-l-4 border-[#295EF3] shadow-2xs'
+                          : 'text-[#1C2435]/70 hover:bg-[#1C2435]/5 hover:text-[#1C2435]'
                       }`}
                     >
-                      <span>{item.label}</span>
+                      <div className="flex items-center gap-2.5">
+                        <Icon className={`h-4 w-4 ${isActive ? 'text-[#295EF3]' : 'text-slate-400'}`} />
+                        <span>{item.label}</span>
+                      </div>
                       
                       {/* Badge Counter */}
                       {item.count !== undefined && item.count > 0 && (
-                        <span className="bg-[var(--ink)] text-[var(--white)] text-[0.65rem] px-1.5 py-0.5 rounded font-[700]">
+                        <span className={`text-[0.65rem] px-2 py-0.5 rounded-full font-[700] ${item.countColor || 'bg-[#1C2435] text-white'}`}>
                           {item.count}
                         </span>
                       )}
@@ -178,27 +181,27 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="p-8 pt-4 border-t border-[var(--ink-faint)]">
+      <div className="p-6 pt-4 border-t border-[#1C2435]/10 bg-slate-50/50">
         {(role === 'admin' || role === 'superadmin' || role === 'medico') && (
           <button 
             onClick={() => handleItemClick('admin_panel', 'pagos')} 
-            className={`w-full text-[0.8rem] font-[600] flex items-center gap-2.5 px-3 py-2.5 rounded-lg mb-4 cursor-pointer transition-colors ${
+            className={`w-full text-[0.8rem] font-[600] flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-4 cursor-pointer transition-all ${
               activeSubcategory === 'pagos' 
-                ? 'bg-[var(--ink-faint)] text-[var(--ink)] font-bold shadow-xs' 
-                : 'text-[var(--ink-muted)] hover:bg-[var(--ink-faint)] hover:text-[var(--ink)]'
+                ? 'bg-[#295EF3]/10 text-[#295EF3] font-bold shadow-2xs' 
+                : 'text-[#1C2435]/70 hover:bg-[#1C2435]/5 hover:text-[#1C2435]'
             }`}
           >
-            <Settings className="h-4.5 w-4.5" />
-            <span>Configuración</span>
+            <Settings className="h-4.5 w-4.5 text-[#316F80]" />
+            <span>Configuración MP</span>
           </button>
         )}
-        <div className="flex flex-col gap-1 mb-4">
-          <p className="text-[0.85rem] font-[600] text-[var(--ink)]">{userName} {userLastName}</p>
-          <p className="text-[0.75rem] text-[var(--ink-muted)] capitalize">{role}</p>
+        <div className="flex flex-col gap-0.5 mb-4">
+          <p className="text-[0.85rem] font-[700] text-[#1C2435]">{userName} {userLastName}</p>
+          <p className="text-[0.75rem] text-[#316F80] font-semibold capitalize">{role}</p>
         </div>
         <button 
           onClick={onLogout} 
-          className="text-[0.8rem] text-[var(--ink-muted)] hover:text-[var(--ink)] font-[500] flex items-center gap-2 cursor-pointer transition-colors"
+          className="w-full text-[0.8rem] text-slate-500 hover:text-red-600 font-[600] flex items-center gap-2 cursor-pointer transition-colors pt-2 border-t border-slate-200/60"
         >
           <LogOut className="h-4 w-4" />
           Cerrar Sesión
@@ -210,23 +213,20 @@ export default function Sidebar({
   return (
     <>
       {/* Mobile top navigation bar */}
-      <div className="lg:hidden h-16 bg-slate-900 border-b border-slate-800 px-4 flex items-center justify-between text-white shrink-0 shadow-md">
+      <div className="lg:hidden h-16 bg-[#1C2435] border-b border-[#1C2435]/20 px-4 flex items-center justify-between text-white shrink-0 shadow-md">
         <div className="flex items-center gap-2">
           <button 
-            className="p-2 hover:bg-slate-800 rounded-xl"
+            className="p-2 hover:bg-white/10 rounded-xl transition-colors"
             onClick={() => setIsOpen(true)}
           >
-            <Menu className="h-6 w-6 text-slate-300" />
+            <Menu className="h-6 w-6 text-white" />
           </button>
           <div className="flex items-center gap-2 ml-1">
-            <div className="w-7 h-7 bg-blue-600 rounded-md shrink-0 flex items-center justify-center shadow-sm">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--white)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <span className="font-extrabold text-sm tracking-tight">Mi Receta Online</span>
+            <Logo variant="full" size="sm" theme="dark" />
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <span className="px-2 py-0.5 bg-blue-500/15 border border-blue-500/30 text-blue-400 text-[9px] font-extrabold uppercase rounded-md">
+          <span className="px-2.5 py-1 bg-[#295EF3]/20 border border-[#295EF3]/40 text-[#295EF3] text-[9px] font-extrabold uppercase rounded-md">
             {role}
           </span>
         </div>
@@ -240,7 +240,7 @@ export default function Sidebar({
       {/* Mobile Drawer Backdrop */}
       {isOpen && (
         <div 
-          className="lg:hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex animate-fadeIn"
+          className="lg:hidden fixed inset-0 z-50 bg-[#1C2435]/60 backdrop-blur-xs flex animate-fadeIn"
           onClick={() => setIsOpen(false)}
         >
           {/* Mobile Sidebar Content */}

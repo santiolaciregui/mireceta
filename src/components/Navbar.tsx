@@ -5,7 +5,8 @@
 
 import React from 'react';
 import { SystemUser } from '../types';
-import { Activity, LogOut, RefreshCw, ShieldAlert, ShieldCheck } from 'lucide-react';
+import { LogOut, RefreshCw } from 'lucide-react';
+import Logo from './Logo';
 
 interface NavbarProps {
   currentUser: SystemUser | null;
@@ -23,26 +24,16 @@ export default function Navbar({
   onReset,
 }: NavbarProps) {
   return (
-    <header className="glass sticky top-0 z-40 border-b border-white/20 shadow-sm">
+    <header className="glass sticky top-0 z-40 border-b border-[#1C2435]/10 shadow-xs bg-white/90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
           
           {/* Logo Brand */}
           <div className="flex items-center space-x-3">
-            <div className="bg-blue-600 text-white p-2 rounded-xl shadow-md shadow-blue-100 flex items-center justify-center">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--white)" strokeWidth="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-            </div>
-            <div>
-              <h1 className="text-lg sm:text-xl font-bold text-slate-800 tracking-tight leading-tight flex items-center gap-1.5">
-                Mi Receta Online
-                <span className="text-[10px] sm:text-xs px-2.5 py-0.5 bg-blue-50/70 text-blue-700 font-bold rounded-full border border-blue-100">
-                  Renovación medicación crónica
-                </span>
-              </h1>
-              <p className="text-xs text-slate-500 font-semibold hidden sm:block">
-                Portal de Renovación de Medicación Crónica
-              </p>
-            </div>
+            <Logo variant="full" size="md" />
+            <span className="hidden xl:inline-block text-[10px] sm:text-xs px-2.5 py-0.5 bg-[#295EF3]/10 text-[#295EF3] font-extrabold rounded-full border border-[#295EF3]/20">
+              Renovación Medicación Crónica
+            </span>
           </div>
 
           {/* User Badge and Logout */}
@@ -56,25 +47,25 @@ export default function Navbar({
                   }
                 }}
                 title="Reiniciar base de datos a valores iniciales"
-                className="p-2 sm:p-2.5 text-slate-450 hover:text-blue-600 hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-100"
+                className="p-2 sm:p-2.5 text-slate-450 hover:text-[#295EF3] hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-100"
               >
                 <RefreshCw className="h-4.5 w-4.5" />
               </button>
 
               {/* User Identity Info */}
               <div className="hidden md:flex flex-col text-right">
-                <span className="text-xs font-extrabold text-slate-900 leading-tight">
+                <span className="text-xs font-extrabold text-[#1C2435] leading-tight">
                   {currentUser.name} {currentUser.lastName}
                 </span>
-                <span className="text-[10px] font-bold text-slate-450 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
                   {currentUser.role === 'admin' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#316F80]" />
                   ) : currentUser.role === 'medico' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-amber-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#295EF3]" />
                   ) : currentUser.role === 'colaborador' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-600" />
                   ) : (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-blue-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#316F80]" />
                   )}{' '}
                   {currentUser.role === 'colaborador' ? 'COLABORADOR MÉD.' : currentUser.role.toUpperCase()}
                 </span>
@@ -82,7 +73,7 @@ export default function Navbar({
 
               {/* Role badge for tiny mobile viewports */}
               <div className="md:hidden px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] font-extrabold text-slate-800 uppercase tracking-wider block">
+                <span className="text-[10px] font-extrabold text-[#1C2435] uppercase tracking-wider block">
                   {currentUser.name.split(' ')[0]}
                 </span>
                 <span className="text-[8px] font-bold text-slate-500 block uppercase">
@@ -93,7 +84,7 @@ export default function Navbar({
               {/* Secure Logout Button */}
               <button
                 onClick={onLogout}
-                className="py-2 px-3 sm:px-4 bg-slate-900 hover:bg-slate-950 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
+                className="py-2 px-3 sm:px-4 bg-[#1C2435] hover:bg-[#295EF3] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                 title="Cerrar Sesión de forma segura"
               >
                 <LogOut className="h-4 w-4 shrink-0" />
@@ -107,15 +98,15 @@ export default function Navbar({
 
       {/* Top Session Breadcrumb Bar */}
       {currentUser && (
-        <div className="bg-slate-50/80 border-t border-b border-slate-200/50 py-1.5 px-4 text-center">
-          <p className="text-[10px] sm:text-xs text-slate-600 font-semibold flex items-center justify-center gap-1.5 flex-wrap">
-            <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            Sesión activa como: <strong className="text-slate-900">{currentUser.name} ({currentUser.role === 'colaborador' ? 'COLABORADOR MÉDICO' : currentUser.role.toUpperCase()})</strong>
+        <div className="bg-[#1C2435]/5 border-t border-b border-[#1C2435]/10 py-1.5 px-4 text-center">
+          <p className="text-[10px] sm:text-xs text-[#1C2435]/80 font-semibold flex items-center justify-center gap-1.5 flex-wrap">
+            <span className="flex h-2 w-2 rounded-full bg-[#295EF3] animate-pulse" />
+            Sesión activa como: <strong className="text-[#1C2435]">{currentUser.name} ({currentUser.role === 'colaborador' ? 'COLABORADOR MÉDICO' : currentUser.role.toUpperCase()})</strong>
             {(currentUser.role === 'colaborador') && currentUser.medicoName && (
-              <span> — Médico Asociado: <strong className="text-violet-700">{currentUser.medicoName}</strong></span>
+              <span> — Médico Asociado: <strong className="text-[#295EF3]">{currentUser.medicoName}</strong></span>
             )}
             <span> — Identificador: </span>
-            <span className="font-mono text-slate-700 bg-slate-200/50 px-1.5 py-0.5 rounded-md">{currentUser.identifier}</span>
+            <span className="font-mono text-[#1C2435] bg-white/80 border border-[#1C2435]/15 px-1.5 py-0.5 rounded-md">{currentUser.identifier}</span>
           </p>
         </div>
       )}

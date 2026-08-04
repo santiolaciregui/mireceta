@@ -135,10 +135,10 @@ export default function App() {
     return (
       <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
         <div className="relative">
-          <div className="h-14 w-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-          <Activity className="absolute inset-0 m-auto h-6 w-6 text-blue-600 animate-pulse" />
+          <div className="h-14 w-14 border-4 border-[#295EF3]/20 border-t-[#295EF3] rounded-full animate-spin" />
+          <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#295EF3] animate-pulse" />
         </div>
-        <p className="mt-4 text-xs font-bold text-slate-800">Cargando plataforma...</p>
+        <p className="mt-4 text-xs font-bold text-[#1C2435]">Cargando plataforma...</p>
       </div>
     );
   }
@@ -149,11 +149,11 @@ export default function App() {
       <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="relative">
-            <div className="h-14 w-14 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-            <Activity className="absolute inset-0 m-auto h-6 w-6 text-blue-600 animate-pulse" />
+            <div className="h-14 w-14 border-4 border-[#295EF3]/20 border-t-[#295EF3] rounded-full animate-spin" />
+            <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#295EF3] animate-pulse" />
           </div>
           <div>
-            <p className="text-xs sm:text-sm font-bold text-slate-800">Conectando con base de datos...</p>
+            <p className="text-xs sm:text-sm font-bold text-[#1C2435]">Conectando con base de datos...</p>
             <p className="text-[10px] text-slate-400 mt-1">Verificando firma de credenciales electrónicas</p>
           </div>
         </div>
@@ -213,6 +213,7 @@ export default function App() {
         pendingCount={pendingOrdersCount}
         inRevisionCount={orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length}
         completedCount={orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length}
+        rejectedCount={orders.filter(o => o.status === 'Rechazada').length}
       />
 
       {/* Main Workspace Frame */}
@@ -336,7 +337,7 @@ export default function App() {
                         </div>
 
                         <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
-                          <MapPin className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                          <MapPin className="h-5 w-5 text-[#295EF3] shrink-0 mt-0.5" />
                           <div className="text-xs">
                             <p className="font-black text-slate-850">Hospital Municipal de Coronel Suárez</p>
                             <p className="text-slate-500 font-medium mt-1">Atención presencial administrativa: Av. Casey 802 | Teléfono: (02926) 43-2000</p>

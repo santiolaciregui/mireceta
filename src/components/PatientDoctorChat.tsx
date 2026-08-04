@@ -321,10 +321,10 @@ export default function PatientDoctorChat({
       {!isPatient && (
         <div className={`w-full md:w-80 border-r border-slate-150 flex flex-col shrink-0 bg-slate-50/50 ${selectedOrderId ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-4 border-b border-slate-150">
-            <h3 className="font-extrabold text-slate-800 text-sm flex items-center gap-2">
-              <MessageSquare className="h-4.5 w-4.5 text-blue-600" />
+            <h3 className="font-extrabold text-[#1C2435] text-sm flex items-center gap-2">
+              <MessageSquare className="h-4.5 w-4.5 text-[#295EF3]" />
               <span>Bandeja de Consultas</span>
-              <span className="ml-auto px-2 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-black rounded-md">
+              <span className="ml-auto px-2 py-0.5 bg-[#295EF3]/10 text-[#295EF3] text-[10px] font-black rounded-md">
                 {chatOrders.length}
               </span>
             </h3>
@@ -337,7 +337,7 @@ export default function PatientDoctorChat({
                 placeholder="Buscar paciente o receta..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:outline-hidden focus:border-blue-500 placeholder:text-slate-400 text-slate-700"
+                className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:outline-hidden focus:border-[#295EF3] placeholder:text-slate-400 text-[#1C2435]"
               />
             </div>
           </div>
@@ -362,12 +362,12 @@ export default function PatientDoctorChat({
                     onClick={() => setSelectedOrderId(order.id)}
                     className={`w-full text-left p-4 transition-all flex flex-col gap-1 cursor-pointer ${
                       isSelected 
-                        ? 'bg-blue-50/75 border-l-4 border-blue-600' 
+                        ? 'bg-[#295EF3]/10 border-l-4 border-[#295EF3]' 
                         : 'hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex justify-between items-start w-full">
-                      <span className="font-bold text-slate-850 text-xs truncate">
+                      <span className="font-bold text-[#1C2435] text-xs truncate">
                         {order.patientName} {order.patientLastName}
                       </span>
                       <span className="text-[9px] font-bold text-slate-400 font-mono">
@@ -383,7 +383,7 @@ export default function PatientDoctorChat({
                     <div className="mt-2 text-xs truncate w-full flex items-center gap-1.5 text-slate-500">
                       {lastMsg ? (
                         <>
-                          <span className="font-extrabold text-[10px] text-slate-450 uppercase">
+                          <span className="font-extrabold text-[10px] text-[#316F80] uppercase">
                             {lastMsg.sender === 'paciente' ? 'Paciente:' : 'Soporte:'}
                           </span>
                           <span className="truncate text-slate-600 font-medium">{lastMsg.text || 'Archivo adjunto'}</span>
@@ -397,8 +397,8 @@ export default function PatientDoctorChat({
                     <div className="mt-2.5 flex items-center gap-1.5">
                       <span className={`inline-block h-1.5 w-1.5 rounded-full ${
                         order.status === 'Pendiente' ? 'bg-amber-400' :
-                        (order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información') ? 'bg-blue-400' :
-                        order.status === 'Rechazada' ? 'bg-red-400' : 'bg-emerald-400'
+                        (order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información') ? 'bg-[#295EF3]' :
+                        order.status === 'Rechazada' ? 'bg-red-400' : 'bg-[#316F80]'
                       }`} />
                       <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
                         {order.status}
@@ -414,17 +414,17 @@ export default function PatientDoctorChat({
 
       {/* RIGHT PANEL: ACTIVE CHAT THREAD */}
       <div 
-        className={`flex-1 flex flex-col bg-slate-50/30 relative ${isDragOver ? 'bg-blue-50/20' : ''} ${!selectedOrderId && !isPatient ? 'hidden md:flex' : 'flex'}`}
+        className={`flex-1 flex flex-col bg-slate-50/30 relative ${isDragOver ? 'bg-[#295EF3]/5' : ''} ${!selectedOrderId && !isPatient ? 'hidden md:flex' : 'flex'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
         {isDragOver && (
-          <div className="absolute inset-0 z-30 bg-blue-600/10 backdrop-blur-xs flex items-center justify-center pointer-events-none">
-            <div className="bg-white/90 shadow-xl border border-blue-200 rounded-3xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all">
-              <ImageIcon className="h-10 w-10 text-blue-600 animate-bounce" />
+          <div className="absolute inset-0 z-30 bg-[#295EF3]/10 backdrop-blur-xs flex items-center justify-center pointer-events-none">
+            <div className="bg-white/90 shadow-xl border border-[#295EF3]/30 rounded-3xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all">
+              <ImageIcon className="h-10 w-10 text-[#295EF3] animate-bounce" />
               <div>
-                <p className="font-extrabold text-sm text-slate-800">Soltá la imagen acá</p>
+                <p className="font-extrabold text-sm text-[#1C2435]">Soltá la imagen acá</p>
                 <p className="text-[10px] text-slate-400 mt-1">Se cargará como archivo adjunto de forma segura</p>
               </div>
             </div>
@@ -449,7 +449,7 @@ export default function PatientDoctorChat({
                   <User className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-900 text-sm">
+                  <h4 className="font-black text-[#1C2435] text-sm">
                     {isPatient ? 'Equipo Médico de Mi Receta Online' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
                   </h4>
                   <p className="text-[10px] text-slate-400 font-bold mt-0.5">
@@ -462,13 +462,13 @@ export default function PatientDoctorChat({
 
               {/* Order quick context badge */}
               <div className="text-right flex flex-col items-end gap-1">
-                <span className="text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-150 px-2 py-0.5 rounded-md font-mono">
+                <span className="text-[9px] font-black bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20 px-2 py-0.5 rounded-md font-mono">
                   Orden: {activeOrder.id}
                 </span>
                 <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
                   activeOrder.status === 'Pendiente' ? 'bg-amber-100 text-amber-700 border border-amber-200/50' :
-                  (activeOrder.status === 'En revisión' || activeOrder.status === 'Aprobada' || activeOrder.status === 'Solicita más información') ? 'bg-blue-100 text-blue-700 border border-blue-200/50' :
-                  activeOrder.status === 'Rechazada' ? 'bg-red-100 text-red-700 border border-red-200/50' : 'bg-emerald-100 text-emerald-700 border border-emerald-200/50'
+                  (activeOrder.status === 'En revisión' || activeOrder.status === 'Aprobada' || activeOrder.status === 'Solicita más información') ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/30' :
+                  activeOrder.status === 'Rechazada' ? 'bg-red-100 text-red-700 border border-red-200/50' : 'bg-[#316F80]/15 text-[#316F80] border border-[#316F80]/30'
                 }`}>
                   {activeOrder.status}
                 </span>
@@ -526,8 +526,8 @@ export default function PatientDoctorChat({
                       {/* Message bubble container */}
                       <div className={`p-3.5 rounded-2xl shadow-xs border ${
                         isOwn 
-                          ? 'bg-blue-600 border-blue-500 text-white rounded-br-none' 
-                          : 'bg-white border-slate-200 text-slate-800 rounded-bl-none'
+                          ? 'bg-[#295EF3] border-[#295EF3] text-white rounded-br-none' 
+                          : 'bg-white border-slate-200 text-[#1C2435] rounded-bl-none'
                       }`}>
                         
                         {/* 1. TEXT CONTENT */}
@@ -567,7 +567,7 @@ export default function PatientDoctorChat({
                               className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                                 isOwn 
                                   ? 'bg-white/20 hover:bg-white/30 text-white' 
-                                  : 'bg-blue-50 hover:bg-blue-100 text-blue-600'
+                                  : 'bg-[#295EF3]/10 hover:bg-[#295EF3]/20 text-[#295EF3]'
                               }`}
                             >
                               {playingAudioId === msg.id ? (
@@ -605,7 +605,7 @@ export default function PatientDoctorChat({
                               }`}>
                                 <div 
                                   className={`h-full rounded-full absolute left-0 top-0 transition-all duration-100 ${
-                                    isOwn ? 'bg-white' : 'bg-blue-600'
+                                    isOwn ? 'bg-white' : 'bg-[#295EF3]'
                                   }`}
                                   style={{ width: `${audioProgress[msg.id] || 0}%` }}
                                 />
@@ -643,7 +643,7 @@ export default function PatientDoctorChat({
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-slate-800 truncate">{previewImage.name}</p>
+                    <p className="text-[11px] font-bold text-[#1C2435] truncate">{previewImage.name}</p>
                     <p className="text-[9px] text-slate-400 font-semibold font-mono">Imagen lista para enviar</p>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export default function PatientDoctorChat({
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       placeholder="Escribí tu mensaje acá o soltá una foto..."
-                      className="w-full h-11 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-250 hover:border-slate-300 focus:border-blue-500 rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold focus:outline-hidden transition-all text-slate-800 placeholder:text-slate-400"
+                      className="w-full h-11 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-250 hover:border-slate-300 focus:border-[#295EF3] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold focus:outline-hidden transition-all text-[#1C2435] placeholder:text-slate-400"
                     />
                   </div>
 
@@ -752,7 +752,7 @@ export default function PatientDoctorChat({
                   <button
                     type="submit"
                     disabled={!inputText.trim() && !previewImage}
-                    className="h-11 px-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:hover:bg-blue-600 text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer font-bold text-xs"
+                    className="h-11 px-5 bg-[#295EF3] hover:bg-[#1C2435] disabled:opacity-50 disabled:hover:bg-[#295EF3] text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer font-bold text-xs"
                   >
                     <span>Enviar</span>
                     <Send className="h-3.5 w-3.5" />
@@ -764,10 +764,10 @@ export default function PatientDoctorChat({
         ) : (
           /* UNSELECTED WELCOME SPLASH PAGE */
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50/20">
-            <div className="h-16 w-16 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 mb-4 animate-pulse">
+            <div className="h-16 w-16 bg-[#295EF3]/10 rounded-2xl flex items-center justify-center text-[#295EF3] mb-4 animate-pulse">
               <MessageSquare className="h-8 w-8" />
             </div>
-            <h4 className="font-extrabold text-slate-800 text-sm">Canal de Chat Clínico Directo</h4>
+            <h4 className="font-extrabold text-[#1C2435] text-sm">Canal de Chat Clínico Directo</h4>
             <p className="text-[11px] text-slate-500 max-w-sm mt-1.5 leading-relaxed">
               Seleccione una de las solicitudes de los pacientes en la lista izquierda para abrir la consola de comunicación instantánea en tiempo real.
             </p>
