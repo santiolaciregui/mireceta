@@ -516,7 +516,7 @@ export default function UserManagement({
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={role === 'paciente' ? 'Ej. 14.283.991' : role === 'medico' ? 'Ej. Mat. 44102' : 'Ej. admin.suarez'}
+                  placeholder={role === 'paciente' ? 'Ej. 20123456' : role === 'medico' ? 'Ej. Mat. 12345' : 'Ej. usuario_admin'}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                   required
                 />

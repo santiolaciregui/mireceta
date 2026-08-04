@@ -125,16 +125,16 @@ export default function Sidebar({
   };
 
   const SidebarContent = () => (
-    <aside className="bg-white flex flex-col justify-between h-full border-r border-[#1C2435]/10 shadow-xs">
+    <aside className="bg-[#1C2435] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg">
       <div className="p-6 pb-4">
         {/* Brand Header */}
         <div className="flex items-center gap-3 mb-8 pt-2">
-          <Logo variant="full" size="md" />
+          <Logo variant="full" size="md" theme="dark" />
         </div>
         
         {/* Mobile Close Button */}
         <button 
-          className="lg:hidden absolute top-6 right-6 p-1.5 text-slate-400 hover:text-[#1C2435]"
+          className="lg:hidden absolute top-6 right-6 p-1.5 text-slate-400 hover:text-white"
           onClick={() => setIsOpen(false)}
         >
           <X className="h-5 w-5" />
@@ -142,8 +142,8 @@ export default function Sidebar({
 
         <nav className="-mx-2">
           {menu.map((category) => (
-            <div key={category.id} className="mb-2">
-              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#316F80] px-3 py-2 block mt-4 mb-1 font-[700]">
+            <div key={category.id} className="mb-3">
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#316F80] px-3 py-1.5 block mt-4 mb-1 font-[700]">
                 {category.title}
               </span>
               <div className="space-y-1">
@@ -157,18 +157,18 @@ export default function Sidebar({
                       onClick={() => handleItemClick(category.id, item.id)}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[0.85rem] font-[600] cursor-pointer transition-all ${
                         isActive
-                          ? 'bg-[#295EF3]/10 text-[#295EF3] font-bold border-l-4 border-[#295EF3] shadow-2xs'
-                          : 'text-[#1C2435]/70 hover:bg-[#1C2435]/5 hover:text-[#1C2435]'
+                          ? 'bg-[#295EF3]/20 border border-[#295EF3] text-white font-bold shadow-xs'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white border border-transparent'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
-                        <Icon className={`h-4 w-4 ${isActive ? 'text-[#295EF3]' : 'text-slate-400'}`} />
+                        <Icon className={`h-4.5 w-4.5 ${isActive ? 'text-[#295EF3]' : 'text-slate-400'}`} />
                         <span>{item.label}</span>
                       </div>
                       
                       {/* Badge Counter */}
                       {item.count !== undefined && item.count > 0 && (
-                        <span className={`text-[0.65rem] px-2 py-0.5 rounded-full font-[700] ${item.countColor || 'bg-[#1C2435] text-white'}`}>
+                        <span className={`text-[0.65rem] px-2 py-0.5 rounded-full font-[700] ${item.countColor || 'bg-[#295EF3] text-white'}`}>
                           {item.count}
                         </span>
                       )}
@@ -181,30 +181,37 @@ export default function Sidebar({
         </nav>
       </div>
 
-      <div className="p-6 pt-4 border-t border-[#1C2435]/10 bg-slate-50/50">
+      <div className="p-6 pt-4 border-t border-white/10 bg-[#161D2B]">
         {(role === 'admin' || role === 'superadmin' || role === 'medico') && (
           <button 
             onClick={() => handleItemClick('admin_panel', 'pagos')} 
             className={`w-full text-[0.8rem] font-[600] flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-4 cursor-pointer transition-all ${
               activeSubcategory === 'pagos' 
-                ? 'bg-[#295EF3]/10 text-[#295EF3] font-bold shadow-2xs' 
-                : 'text-[#1C2435]/70 hover:bg-[#1C2435]/5 hover:text-[#1C2435]'
+                ? 'bg-[#295EF3]/20 border border-[#295EF3] text-white font-bold shadow-xs' 
+                : 'text-slate-300 hover:bg-white/10 hover:text-white border border-transparent'
             }`}
           >
-            <Settings className="h-4.5 w-4.5 text-[#316F80]" />
+            <Settings className={`h-4.5 w-4.5 ${activeSubcategory === 'pagos' ? 'text-[#295EF3]' : 'text-[#316F80]'}`} />
             <span>Configuración MP</span>
           </button>
         )}
-        <div className="flex flex-col gap-0.5 mb-4">
-          <p className="text-[0.85rem] font-[700] text-[#1C2435]">{userName} {userLastName}</p>
-          <p className="text-[0.75rem] text-[#316F80] font-semibold capitalize">{role}</p>
+        
+        <div className="flex items-center gap-3 mb-3.5">
+          <div className="h-9 w-9 rounded-full bg-[#295EF3]/20 border border-[#295EF3]/40 text-[#295EF3] font-black text-xs flex items-center justify-center shrink-0">
+            {userName.charAt(0)}{userLastName.charAt(0)}
+          </div>
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <p className="text-[0.85rem] font-[700] text-white truncate">{userName} {userLastName}</p>
+            <p className="text-[0.75rem] text-[#316F80] font-bold capitalize">{role}</p>
+          </div>
         </div>
+
         <button 
           onClick={onLogout} 
-          className="w-full text-[0.8rem] text-slate-500 hover:text-red-600 font-[600] flex items-center gap-2 cursor-pointer transition-colors pt-2 border-t border-slate-200/60"
+          className="w-full text-[0.8rem] text-slate-400 hover:text-rose-400 font-[600] flex items-center gap-2 cursor-pointer transition-colors pt-3 border-t border-white/10"
         >
           <LogOut className="h-4 w-4" />
-          Cerrar Sesión
+          <span>Cerrar Sesión</span>
         </button>
       </div>
     </aside>

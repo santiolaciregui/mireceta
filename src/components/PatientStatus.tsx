@@ -106,7 +106,7 @@ export default function PatientStatus({
                 type="text"
                 value={searchDni}
                 onChange={(e) => setSearchDni(e.target.value)}
-                placeholder="Ej. 14.283.991 o de prueba"
+                placeholder="Ingrese número de DNI..."
                 className="w-full pl-11 pr-4 py-3 bg-white/60 border border-slate-300 rounded-xl font-semibold text-[#1C2435] focus:bg-white focus:ring-2 focus:ring-[#295EF3] focus:outline-none transition-all"
               />
             </div>
@@ -118,29 +118,6 @@ export default function PatientStatus({
               Buscar
             </button>
           </form>
-
-          {/* Quick hint for testers */}
-          <div className="mt-3.5 pt-3.5 border-t border-white/60 flex items-center justify-between flex-wrap gap-2">
-            <span className="text-[11px] text-slate-400 font-semibold">¿Probando la App? Prueba con estos DNIs guardados:</span>
-            <div className="flex gap-1.5 flex-wrap">
-              <button 
-                id="btn-fill-dni-1"
-                type="button" 
-                onClick={() => { setSearchDni('14.283.991'); onSetDni('14.283.991'); setHasSearched(true); }}
-                className="text-[10px] bg-white/70 hover:bg-white/95 font-bold text-slate-700 px-2 py-1 rounded-lg shadow-2xs border border-white/40"
-              >
-                14.283.991 (González)
-              </button>
-              <button 
-                id="btn-fill-dni-2"
-                type="button" 
-                onClick={() => { setSearchDni('22.391.802'); onSetDni('22.391.802'); setHasSearched(true); }}
-                className="text-[10px] bg-white/70 hover:bg-white/95 font-bold text-slate-700 px-2 py-1 rounded-lg shadow-2xs border border-white/40"
-              >
-                22.391.802 (Pérez)
-              </button>
-            </div>
-          </div>
         </div>
       )}
 
