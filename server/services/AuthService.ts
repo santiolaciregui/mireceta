@@ -150,7 +150,6 @@ export class AuthService {
       success: true,
       email: user.email,
       message: `Enlace de restablecimiento enviado con éxito a su casilla registrada: ${user.email}`,
-      demoPassword: 'Se requiere restablecimiento de contraseña.' // Don't expose password
     };
   }
 }

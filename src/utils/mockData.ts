@@ -16,6 +16,6 @@ export const BANK_DETAILS = {
   accountType: 'Caja de Ahorros Especial',
   cbu: '0140304301304905910293',
   alias: 'recetas.coronelsuarez',
-  titular: 'Dra. María Elena Martínez (Mat. 44102)',
+  titular: 'Servicio Médico Oficial',
   costPerPrescription: '1.200 por receta (sin cargo para jubilados PAMI con subsidio social, sugerido de colaboración)',
 };

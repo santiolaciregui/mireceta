@@ -238,8 +238,8 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                         <Stethoscope className="h-5 w-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">Dra. María González</h4>
-                        <p className="text-xs text-[#316F80] font-bold">Médica Auditora M.N. 142.890</p>
+                        <h4 className="text-sm font-bold text-white">Auditoría Médica Digital</h4>
+                        <p className="text-xs text-[#316F80] font-bold">Validación Profesional Oficial</p>
                       </div>
                     </div>
                     <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/30">

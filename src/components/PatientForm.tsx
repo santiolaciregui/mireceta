@@ -34,7 +34,9 @@ import {
   Lock,
   Unlock,
   Copy,
-  Search
+  Search,
+  UserPlus,
+  ShieldCheck
 } from 'lucide-react';
 
 interface PatientFormProps {
@@ -95,44 +97,15 @@ export default function PatientForm({
   const [obraSocialNumber, setObraSocialNumber] = useState('');
 
   // --- Pacientes a Cargo (Dependents) State & Handlers ---
-  const DEFAULT_DEMO_DEPENDENTS: DependentPatient[] = React.useMemo(() => [
-    {
-      id: 'dep-1',
-      name: 'Lucas',
-      lastName: currentUser?.lastName || initialLastName || 'Pérez',
-      dni: '48912345',
-      birthDate: '2016-05-14',
-      relationship: 'Hijo/a',
-      obraSocial: 'OSDE',
-      obraSocialNumber: '210-48912345-01',
-      email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
-    },
-    {
-      id: 'dep-2',
-      name: 'María Elena',
-      lastName: 'Gómez',
-      dni: '12345678',
-      birthDate: '1952-11-20',
-      relationship: 'Padre/Madre',
-      obraSocial: 'PAMI (Inssjp)',
-      obraSocialNumber: '1501234567800',
-      email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
-    },
-  ], [currentUser, initialLastName]);
-
   const [dependents, setDependents] = useState<DependentPatient[]>(() => {
-    if (currentUser?.dependents && currentUser.dependents.length > 0) {
-      return currentUser.dependents;
-    }
-    return (!currentUser || currentUser.role === 'paciente') ? DEFAULT_DEMO_DEPENDENTS : [];
+    return currentUser?.dependents || [];
   });
 
   const [selectedCardId, setSelectedCardId] = useState<string>('titular');
   const [showAddDependentModal, setShowAddDependentModal] = useState<boolean>(false);
 
-  // New Dependent Form Fields
+  // New/Edit Patient Modal State
+  const [editingCardId, setEditingCardId] = useState<string | null>(null);
   const [depName, setDepName] = useState('');
   const [depLastName, setDepLastName] = useState('');
   const [depDni, setDepDni] = useState('');
@@ -140,6 +113,8 @@ export default function PatientForm({
   const [depRelationship, setDepRelationship] = useState('Hijo/a');
   const [depObraSocial, setDepObraSocial] = useState('');
   const [depObraSocialNumber, setDepObraSocialNumber] = useState('');
+  const [depEmail, setDepEmail] = useState('');
+  const [depPhone, setDepPhone] = useState('');
   const [depFormError, setDepFormError] = useState<string | null>(null);
 
   // Keep dependents synced if currentUser updates
@@ -152,14 +127,14 @@ export default function PatientForm({
   const handleSelectCard = (cardId: string) => {
     setSelectedCardId(cardId);
     if (cardId === 'titular') {
-      const name = currentUser?.name || initialName || '';
-      const lastName = currentUser?.lastName || initialLastName || '';
-      const dni = currentUser?.identifier || recentDni || '';
-      const birth = currentUser?.birthDate || '';
-      const email = currentUser?.email || '';
-      const phone = currentUser?.phone || '';
-      const os = currentUser?.obraSocial || '';
-      const osNum = currentUser?.obraSocialNumber || '';
+      const name = patientName || currentUser?.name || initialName || '';
+      const lastName = patientLastName || currentUser?.lastName || initialLastName || '';
+      const dni = patientDni || currentUser?.identifier || recentDni || '';
+      const birth = patientBirthDate || currentUser?.birthDate || '';
+      const email = patientEmail || currentUser?.email || '';
+      const phone = patientPhone || currentUser?.phone || '';
+      const os = selectedObraSocial || currentUser?.obraSocial || '';
+      const osNum = obraSocialNumber || currentUser?.obraSocialNumber || '';
 
       setPatientName(name);
       setPatientLastName(lastName);
@@ -189,13 +164,115 @@ export default function PatientForm({
     }
   };
 
-  const handleCreateDependent = (e: React.FormEvent) => {
+  const handleOpenEditModal = (e: React.MouseEvent, cardId: string) => {
+    e.stopPropagation();
+    setEditingCardId(cardId);
+    setDepFormError(null);
+
+    if (cardId === 'titular') {
+      setDepName(patientName || currentUser?.name || initialName || '');
+      setDepLastName(patientLastName || currentUser?.lastName || initialLastName || '');
+      setDepDni(patientDni || currentUser?.identifier || recentDni || '');
+      setDepBirthDate(patientBirthDate || currentUser?.birthDate || '');
+      setDepRelationship('Titular');
+      setDepObraSocial(selectedObraSocial || currentUser?.obraSocial || '');
+      setDepObraSocialNumber(obraSocialNumber || currentUser?.obraSocialNumber || '');
+      setDepEmail(patientEmail || currentUser?.email || '');
+      setDepPhone(patientPhone || currentUser?.phone || '');
+    } else {
+      const dep = dependents.find((d) => d.id === cardId);
+      if (dep) {
+        setDepName(dep.name);
+        setDepLastName(dep.lastName);
+        setDepDni(dep.dni);
+        setDepBirthDate(dep.birthDate || '');
+        setDepRelationship(dep.relationship || 'A Cargo');
+        setDepObraSocial(dep.obraSocial || '');
+        setDepObraSocialNumber(dep.obraSocialNumber || '');
+        setDepEmail(dep.email || '');
+        setDepPhone(dep.phone || '');
+      }
+    }
+    setShowAddDependentModal(true);
+  };
+
+  const handleOpenNewDependentModal = () => {
+    setEditingCardId(null);
+    setDepFormError(null);
+    setDepName('');
+    setDepLastName('');
+    setDepDni('');
+    setDepBirthDate('');
+    setDepRelationship('Hijo/a');
+    setDepObraSocial('');
+    setDepObraSocialNumber('');
+    setDepEmail(currentUser?.email || '');
+    setDepPhone(currentUser?.phone || '');
+    setShowAddDependentModal(true);
+  };
+
+  const handleSaveModalPatient = (e: React.FormEvent) => {
     e.preventDefault();
     if (!depName.trim() || !depLastName.trim() || !depDni.trim()) {
-      setDepFormError('Por favor ingrese Nombre, Apellido y DNI del paciente a cargo.');
+      setDepFormError('Por favor ingrese Nombre, Apellido y DNI del paciente.');
       return;
     }
 
+    if (editingCardId === 'titular') {
+      setPatientName(depName.trim());
+      setPatientLastName(depLastName.trim());
+      setPatientDni(depDni.trim());
+      setPatientBirthDate(depBirthDate);
+      setSelectedObraSocial(depObraSocial);
+      setObraSocialNumber(depObraSocialNumber);
+      setPatientEmail(depEmail);
+      setPatientPhone(depPhone);
+
+      setShowAddDependentModal(false);
+      setNotificationMsg('¡Datos del Titular actualizados con éxito!');
+      setTimeout(() => setNotificationMsg(null), 4000);
+      return;
+    }
+
+    if (editingCardId) {
+      // Editing existing dependent
+      const updated = dependents.map((d) => {
+        if (d.id === editingCardId) {
+          return {
+            ...d,
+            name: depName.trim(),
+            lastName: depLastName.trim(),
+            dni: depDni.trim(),
+            birthDate: depBirthDate,
+            relationship: depRelationship,
+            obraSocial: depObraSocial,
+            obraSocialNumber: depObraSocialNumber,
+            email: depEmail,
+            phone: depPhone,
+          };
+        }
+        return d;
+      });
+      setDependents(updated);
+
+      if (selectedCardId === editingCardId) {
+        setPatientName(depName.trim());
+        setPatientLastName(depLastName.trim());
+        setPatientDni(depDni.trim());
+        setPatientBirthDate(depBirthDate);
+        setSelectedObraSocial(depObraSocial);
+        setObraSocialNumber(depObraSocialNumber);
+        setPatientEmail(depEmail);
+        setPatientPhone(depPhone);
+      }
+
+      setShowAddDependentModal(false);
+      setNotificationMsg(`¡Datos de "${depName.trim()} ${depLastName.trim()}" actualizados con éxito!`);
+      setTimeout(() => setNotificationMsg(null), 4000);
+      return;
+    }
+
+    // Creating new dependent
     const newDep: DependentPatient = {
       id: `dep-${Date.now()}`,
       name: depName.trim(),
@@ -205,8 +282,8 @@ export default function PatientForm({
       relationship: depRelationship,
       obraSocial: depObraSocial,
       obraSocialNumber: depObraSocialNumber,
-      email: currentUser?.email || '',
-      phone: currentUser?.phone || '',
+      email: depEmail || currentUser?.email || '',
+      phone: depPhone || currentUser?.phone || '',
     };
 
     const updated = [...dependents, newDep];
@@ -224,18 +301,10 @@ export default function PatientForm({
     setPatientBirthDate(newDep.birthDate);
     setSelectedObraSocial(newDep.obraSocial || '');
     setObraSocialNumber(newDep.obraSocialNumber || '');
+    setPatientEmail(newDep.email || '');
+    setPatientPhone(newDep.phone || '');
 
-    // Reset modal
-    setDepName('');
-    setDepLastName('');
-    setDepDni('');
-    setDepBirthDate('');
-    setDepRelationship('Hijo/a');
-    setDepObraSocial('');
-    setDepObraSocialNumber('');
-    setDepFormError(null);
     setShowAddDependentModal(false);
-
     setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
     setTimeout(() => setNotificationMsg(null), 4500);
   };
@@ -528,15 +597,6 @@ export default function PatientForm({
       };
       reader.readAsDataURL(file);
     }
-  };
-
-  const handleLoadMockReceipt = () => {
-    // Generate simulated homebanking screenshot
-    setPaymentReceipt({
-      url: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="300" height="200" fill="%23f0fdf4"/><text x="150" y="80" font-family="monospace" font-size="12" fill="%2315803d" font-weight="bold" text-anchor="middle">TRANSFERENCIA EXITOSA</text><text x="150" y="110" font-family="monospace" font-size="10" fill="%23166534" text-anchor="middle">ID: BANCO-987452-ARS</text><text x="150" y="130" font-family="monospace" font-size="9" fill="%234b5563" text-anchor="middle">CBU: ...5522431</text></svg>',
-      name: 'Simulacion_Transferencia_Homebanking.png'
-    });
-    setError(null);
   };
 
   // --- Action Handlers ---
@@ -1044,61 +1104,107 @@ export default function PatientForm({
 
             {/* CARDS SELECCIÓN DE PACIENTE / PACIENTES A CARGO */}
             {!isThirdPartyUser && (
-              <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 sm:p-5 space-y-4 shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+              <div className="bg-slate-50/80 border border-slate-200/80 rounded-3xl p-5 space-y-4 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3.5">
                   <div>
-                    <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-blue-600" />
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#1C2435] flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-[#295EF3]" />
                       ¿Para quién es la receta?
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                      Elegí si el trámite es para vos (titular) o para un paciente a tu cargo (hijo/a, padre mayor, etc.).
+                      Seleccioná la tarjeta del paciente titular o a tu cargo. Podés editar o agregar nuevos familiares.
                     </p>
                   </div>
                   <button
                     type="button"
-                    onClick={() => setShowAddDependentModal(true)}
-                    className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0 self-start sm:self-auto"
+                    onClick={handleOpenNewDependentModal}
+                    className="px-4 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
                   >
-                    <Plus className="h-4 w-4 text-blue-600" />
+                    <Plus className="h-4 w-4" />
                     <span>+ Agregar Paciente a Cargo</span>
                   </button>
                 </div>
 
-                {/* GRID DE CARDS */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {/* GRID DE CARDS CON DATOS COMPLETOS Y BOTÓN EDITAR */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* CARD TITULAR */}
                   <div
                     onClick={() => handleSelectCard('titular')}
-                    className={`relative rounded-2xl p-4 transition-all cursor-pointer border flex flex-col justify-between ${
+                    className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                       selectedCardId === 'titular'
-                        ? 'bg-gradient-to-br from-blue-50 to-indigo-50/60 border-blue-500 ring-2 ring-blue-500/20 shadow-md'
-                        : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50/50 shadow-xs'
+                        ? 'bg-white border-[#295EF3] ring-2 ring-[#295EF3]/20 shadow-md'
+                        : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
                     }`}
                   >
                     <div>
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200/60">
-                          <User className="h-3 w-3" />
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-blue-100 text-[#295EF3] border border-blue-200">
+                          <User className="h-3.5 w-3.5" />
                           Titular (Yo)
                         </span>
-                        {selectedCardId === 'titular' && (
-                          <span className="h-5 w-5 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                            <Check className="h-3.5 w-3.5 stroke-[3]" />
-                          </span>
+
+                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenEditModal(e, 'titular')}
+                            className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#295EF3] hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                            title="Editar datos del titular"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 text-[#295EF3]" />
+                            <span>Editar</span>
+                          </button>
+
+                          {selectedCardId === 'titular' && (
+                            <span className="h-6 w-6 rounded-full bg-[#295EF3] text-white flex items-center justify-center shadow-xs">
+                              <Check className="h-4 w-4 stroke-[3]" />
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <h5 className="font-black text-[#1C2435] text-base leading-tight">
+                        {patientName || currentUser?.name || initialName || 'Titular'} {patientLastName || currentUser?.lastName || initialLastName || ''}
+                      </h5>
+                      
+                      <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-400">DNI:</span>
+                          <span className="font-mono font-bold text-[#1C2435]">{patientDni || currentUser?.identifier || recentDni || 'Sin registrar'}</span>
+                        </div>
+
+                        {(patientBirthDate || currentUser?.birthDate) && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">F. Nacimiento:</span>
+                            <span className="font-bold text-slate-700">{patientBirthDate || currentUser?.birthDate}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-400">Obra Social:</span>
+                          <span className="font-bold text-[#316F80] truncate max-w-[130px] text-right">{selectedObraSocial || currentUser?.obraSocial || 'Sin especificar'}</span>
+                        </div>
+
+                        {(obraSocialNumber || currentUser?.obraSocialNumber) && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">Credencial N°:</span>
+                            <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{obraSocialNumber || currentUser?.obraSocialNumber}</span>
+                          </div>
+                        )}
+
+                        {(patientPhone || currentUser?.phone) && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">WhatsApp:</span>
+                            <span className="font-bold text-slate-700">{patientPhone || currentUser?.phone}</span>
+                          </div>
+                        )}
+
+                        {(patientEmail || currentUser?.email) && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">Email:</span>
+                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{patientEmail || currentUser?.email}</span>
+                          </div>
                         )}
                       </div>
-                      <h5 className="font-extrabold text-slate-800 text-sm truncate">
-                        {currentUser?.name || initialName || 'Titular'} {currentUser?.lastName || initialLastName || ''}
-                      </h5>
-                      <p className="text-xs text-slate-500 font-semibold mt-1">
-                        DNI: {currentUser?.identifier || recentDni || 'Sin DNI'}
-                      </p>
-                      {(currentUser?.obraSocial || selectedObraSocial) && selectedCardId === 'titular' && (
-                        <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                          {currentUser?.obraSocial || selectedObraSocial}
-                        </p>
-                      )}
                     </div>
                   </div>
 
@@ -1109,51 +1215,96 @@ export default function PatientForm({
                       <div
                         key={dep.id}
                         onClick={() => handleSelectCard(dep.id)}
-                        className={`relative rounded-2xl p-4 transition-all cursor-pointer border flex flex-col justify-between ${
+                        className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-gradient-to-br from-emerald-50 to-teal-50/60 border-emerald-500 ring-2 ring-emerald-500/20 shadow-md'
-                            : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50/50 shadow-xs'
+                            ? 'bg-white border-emerald-600 ring-2 ring-emerald-600/20 shadow-md'
+                            : 'bg-white border-slate-250 hover:border-emerald-300 hover:shadow-xs'
                         }`}
                       >
                         <div>
-                          <div className="flex items-center justify-between gap-2 mb-2">
-                            <span className={`inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <span className={`inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full ${
                               dep.relationship === 'Hijo/a'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200/60'
+                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
                                 : dep.relationship === 'Padre/Madre' || dep.relationship === 'Abuelo/a'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200/60'
-                                : 'bg-purple-100 text-purple-800 border border-purple-200/60'
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                : 'bg-purple-100 text-purple-800 border border-purple-200'
                             }`}>
-                              <Heart className="h-3 w-3" />
+                              <Heart className="h-3.5 w-3.5" />
                               {dep.relationship || 'A Cargo'}
                             </span>
-                            <div className="flex items-center gap-1">
+
+                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                type="button"
+                                onClick={(e) => handleOpenEditModal(e, dep.id)}
+                                className="px-2 py-1 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                                title="Editar datos del paciente"
+                              >
+                                <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
+                                <span>Editar</span>
+                              </button>
+
                               <button
                                 type="button"
                                 onClick={(e) => handleRemoveDependentCard(e, dep.id)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-all cursor-pointer"
-                                title="Eliminar dependiente"
+                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                                title="Eliminar paciente"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </button>
+
                               {isSelected && (
-                                <span className="h-5 w-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                                  <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                <span className="h-6 w-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                                  <Check className="h-4 w-4 stroke-[3]" />
                                 </span>
                               )}
                             </div>
                           </div>
-                          <h5 className="font-extrabold text-slate-800 text-sm truncate">
+
+                          <h5 className="font-black text-[#1C2435] text-base leading-tight">
                             {dep.name} {dep.lastName}
                           </h5>
-                          <p className="text-xs text-slate-500 font-semibold mt-1">
-                            DNI: {dep.dni}
-                          </p>
-                          {dep.obraSocial && (
-                            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
-                              {dep.obraSocial}
-                            </p>
-                          )}
+
+                          <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-400">DNI:</span>
+                              <span className="font-mono font-bold text-[#1C2435]">{dep.dni}</span>
+                            </div>
+
+                            {dep.birthDate && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-400">F. Nacimiento:</span>
+                                <span className="font-bold text-slate-700">{dep.birthDate}</span>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-slate-400">Obra Social:</span>
+                              <span className="font-bold text-[#316F80] truncate max-w-[130px] text-right">{dep.obraSocial || 'Sin especif.'}</span>
+                            </div>
+
+                            {dep.obraSocialNumber && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-400">Credencial N°:</span>
+                                <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{dep.obraSocialNumber}</span>
+                              </div>
+                            )}
+
+                            {dep.phone && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-400">WhatsApp:</span>
+                                <span className="font-bold text-slate-700">{dep.phone}</span>
+                              </div>
+                            )}
+
+                            {dep.email && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-400">Email:</span>
+                                <span className="font-medium text-slate-700 truncate max-w-[140px]">{dep.email}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );
@@ -1162,13 +1313,13 @@ export default function PatientForm({
                   {/* BOTÓN NUEVO DEPENDIENTE EN GRID */}
                   <button
                     type="button"
-                    onClick={() => setShowAddDependentModal(true)}
-                    className="rounded-2xl p-4 border-2 border-dashed border-slate-250 hover:border-blue-400 hover:bg-blue-50/40 text-slate-500 hover:text-blue-700 transition-all flex flex-col items-center justify-center gap-1.5 cursor-pointer min-h-[105px] group"
+                    onClick={handleOpenNewDependentModal}
+                    className="rounded-2xl p-5 border-2 border-dashed border-slate-300 hover:border-[#295EF3] hover:bg-blue-50/50 text-slate-500 hover:text-[#295EF3] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer min-h-[160px] group shadow-2xs"
                   >
-                    <div className="h-8 w-8 rounded-full bg-blue-100/70 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-all shadow-2xs">
-                      <Plus className="h-4 w-4" />
+                    <div className="h-10 w-10 rounded-full bg-blue-100/80 text-[#295EF3] group-hover:bg-[#295EF3] group-hover:text-white flex items-center justify-center transition-all shadow-xs">
+                      <Plus className="h-5 w-5 stroke-[2.5]" />
                     </div>
-                    <span className="text-xs font-bold">+ Nuevo Paciente a Cargo</span>
+                    <span className="text-xs font-black text-slate-700 group-hover:text-[#295EF3]">+ Nuevo Paciente a Cargo</span>
                   </button>
                 </div>
               </div>
@@ -1180,258 +1331,28 @@ export default function PatientForm({
                 <div className="space-y-1">
                   <p className="font-extrabold text-blue-950">Solicitud para Paciente Tercero</p>
                   <p className="text-blue-800 leading-relaxed font-medium">
-                    Ingresá el DNI del paciente titular y hacé clic en <strong>"Buscar por DNI"</strong> para verificar si sus datos ya existen en el sistema.
+                    Ingresá los datos completos del paciente en la tarjeta antes de continuar con la solicitud.
                   </p>
                 </div>
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-slate-150 pb-3 gap-2">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
-                <User className="h-4.5 w-4.5 text-blue-600" />
-                Datos Personales del Paciente
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsEditMode(!isEditMode)}
-                className={`flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition-all border cursor-pointer shrink-0 ${
-                  isEditMode 
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 shadow-sm' 
-                    : 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 shadow-sm'
-                }`}
-              >
-                {isEditMode ? (
-                  <>
-                    <Unlock className="h-3.5 w-3.5 text-emerald-600" />
-                    <span>Guardar y Bloquear Datos</span>
-                  </>
-                ) : (
-                  <>
-                    <Edit3 className="h-3.5 w-3.5 text-blue-600" />
-                    <span>Modificar / Editar Campos</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {!isEditMode && (
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 text-xs text-slate-600 flex items-center gap-2">
-                <Lock className="h-4 w-4 text-slate-400 shrink-0" />
-                <span>Los datos personales están autocompletados y bloqueados. Haga clic en <strong>Modificar / Editar Campos</strong> para editarlos.</span>
-              </div>
-            )}
-
-            {/* DNI and Birthdate */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="patient-dni" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  DNI (Sin puntos) <span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    id="patient-dni"
-                    type="text"
-                    value={patientDni}
-                    onChange={(e) => {
-                      setPatientDni(e.target.value.replace(/\D/g, ''));
-                      if (searchStatus) setSearchStatus(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleSearchPatientByDni();
-                      }
-                    }}
-                    placeholder="Ej. 34555888"
-                    disabled={!isEditMode}
-                    className="flex-1 px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-bold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => handleSearchPatientByDni()}
-                    className="px-3.5 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs cursor-pointer shrink-0"
-                    title="Buscar paciente en la base de datos por DNI"
-                  >
-                    <Search className="h-4 w-4" />
-                    <span className="hidden sm:inline">Buscar DNI</span>
-                  </button>
-                </div>
-                {searchStatus && (
-                  <div className={`mt-2 p-3 rounded-xl border text-xs flex items-center gap-2 animate-fadeIn font-semibold ${
-                    searchStatus.found 
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-900' 
-                      : 'bg-amber-50 border-amber-200 text-amber-900'
-                  }`}>
-                    {searchStatus.found ? (
-                      <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
-                    ) : (
-                      <Info className="h-4.5 w-4.5 text-amber-600 shrink-0" />
-                    )}
-                    <span>{searchStatus.message}</span>
-                  </div>
-                )}
-              </div>
-
-              <div>
-                <label htmlFor="patient-birthdate" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  Fecha de Nacimiento <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="patient-birthdate"
-                    type="date"
-                    value={patientBirthDate}
-                    onChange={(e) => setPatientBirthDate(e.target.value)}
-                    disabled={!isEditMode}
-                    className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-bold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all cursor-pointer"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Name and LastName */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="patient-name" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  Nombre/s <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="patient-name"
-                  type="text"
-                  value={patientName}
-                  onChange={(e) => setPatientName(e.target.value)}
-                  placeholder="Ej. Ana"
-                  disabled={!isEditMode}
-                  className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="patient-lastName" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  Apellido <span className="text-red-500">*</span>
-                </label>
-                <input
-                  id="patient-lastName"
-                  type="text"
-                  value={patientLastName}
-                  onChange={(e) => setPatientLastName(e.target.value)}
-                  placeholder="Ej. González"
-                  disabled={!isEditMode}
-                  className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1.5 flex items-center gap-1.5 pt-2">
-              <Mail className="h-4.5 w-4.5 text-blue-600" />
-              Contacto y Envío de la Receta
-            </h3>
-
-            {/* Email and Phone */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="patient-email" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  Correo Electrónico <span className="text-slate-400 font-semibold">(Opcional)</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
-                    <Mail className="h-4 w-4" />
-                  </span>
-                  <input
-                    id="patient-email"
-                    type="email"
-                    value={patientEmail}
-                    onChange={(e) => setPatientEmail(e.target.value)}
-                    placeholder="ana.gonzalez@gmail.com"
-                    disabled={!isEditMode}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="patient-phone" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                  WhatsApp / Celular <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 pointer-events-none">
-                    <Phone className="h-4 w-4" />
-                  </span>
-                  <input
-                    id="patient-phone"
-                    type="tel"
-                    value={patientPhone}
-                    onChange={(e) => setPatientPhone(e.target.value)}
-                    placeholder="Ej. 2926442385"
-                    disabled={!isEditMode}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Delivery preference */}
-            <div>
-              <label htmlFor="delivery-method" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                Medio de Recepción Preferido de la Receta <span className="text-red-500">*</span>
+            {/* PREFERENCIA DE ENTREGA */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
+              <label htmlFor="delivery-method" className="block text-xs font-bold text-[#1C2435] uppercase">
+                Medio Preferido de Envío de la Receta <span className="text-red-500">*</span>
               </label>
               <select
                 id="delivery-method"
                 value={deliveryMethod}
                 onChange={(e) => setDeliveryMethod(e.target.value as any)}
-                disabled={!isEditMode}
-                className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none cursor-pointer"
+                className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-[#1C2435] focus:ring-2 focus:ring-[#295EF3] focus:outline-none cursor-pointer text-xs"
               >
                 <option value="email">Únicamente por Correo Electrónico (PDF)</option>
                 <option value="whatsapp">Únicamente por WhatsApp (PDF)</option>
                 <option value="both">Enviar por Ambos Medios (Email y WhatsApp)</option>
               </select>
             </div>
-
-            <h3 className="text-sm font-bold text-slate-800 border-b border-slate-100 pb-1.5 flex items-center gap-1.5 pt-2">
-              <ClipboardCheck className="h-4.5 w-4.5 text-blue-600" />
-              Obra Social / Cobertura
-            </h3>
-
-            {/* Obra Social */}
-            <div>
-              <label htmlFor="patient-obraSocial" className="block text-xs font-bold text-slate-600 mb-1.5 uppercase">
-                Obra Social o Prepaga <span className="text-red-500">*</span>
-              </label>
-              <select
-                id="patient-obraSocial"
-                value={selectedObraSocial}
-                onChange={(e) => setSelectedObraSocial(e.target.value)}
-                disabled={!isEditMode}
-                className="w-full px-4 py-3 bg-slate-50 disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-semibold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none cursor-pointer"
-              >
-                <option value="">Seleccione una opción...</option>
-                {OBRA_SOCIAL_OPTIONS.map((opt) => (
-                  <option key={opt.id} value={opt.name}>
-                    {opt.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Affiliate number input */}
-            {selectedObraSocial && selectedObraSocial !== 'Particular / Sin Obra Social' && (
-              <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100/70 space-y-1.5 animate-fadeIn">
-                <label htmlFor="patient-obraSocialNumber" className="block text-xs font-bold text-blue-950 uppercase">
-                  Número de Afiliado / Nro. de Credencial <span className="text-slate-400 font-semibold">(Opcional)</span>
-                </label>
-                <input
-                  id="patient-obraSocialNumber"
-                  type="text"
-                  value={obraSocialNumber}
-                  onChange={(e) => setObraSocialNumber(e.target.value)}
-                  placeholder="Ingrese el número completo impreso en su credencial"
-                  disabled={!isEditMode}
-                  className="w-full px-4 py-3 bg-white disabled:bg-slate-100 border border-slate-250 disabled:border-slate-200 rounded-xl font-bold text-slate-800 disabled:text-slate-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
-                <p className="text-[10px] text-blue-600 font-semibold">Conserve guiones y dígitos verificadores.</p>
-              </div>
-            )}
 
             <div className="flex gap-3 mt-6">
               <button
@@ -1448,9 +1369,9 @@ export default function PatientForm({
                 id="btn-next-step-medication"
                 type="button"
                 onClick={goToMedication}
-                className="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-2/3 bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
               >
-                <span>Siguiente</span>
+                <span>Siguiente Paso</span>
                 <ArrowRight className="h-5 w-5" />
               </button>
             </div>
@@ -1881,7 +1802,7 @@ export default function PatientForm({
                     type="text"
                     value={lastConsultationDoctor}
                     onChange={(e) => setLastConsultationDoctor(e.target.value)}
-                    placeholder="Ej. Dr. Martínez"
+                    placeholder="Ej. Dr. López / Médico Tratante"
                     className="w-full px-3 py-2 bg-white border border-slate-250 rounded-xl text-xs font-semibold text-slate-800 focus:ring-1 focus:ring-blue-500"
                   />
                 </div>
@@ -2150,16 +2071,6 @@ export default function PatientForm({
                               className="hidden"
                             />
                           </label>
-
-                          <button
-                            id="btn-mock-transfer"
-                            type="button"
-                            onClick={handleLoadMockReceipt}
-                            className="text-[11px] bg-amber-100 hover:bg-amber-150 text-amber-900 border border-amber-250 font-extrabold px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer shadow-xs"
-                          >
-                            <Check className="h-4 w-4" />
-                            Simular Carga de Comprobante
-                          </button>
                         </div>
                       )}
                     </div>
@@ -2206,165 +2117,222 @@ export default function PatientForm({
 
       </form>
 
-      {/* MODAL AGREGAR PACIENTE A CARGO */}
+      {/* MODAL AGREGAR / EDITAR PACIENTE */}
       {showAddDependentModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-5 border border-slate-100 animate-scaleUp">
-            <div className="flex items-center justify-between border-b border-slate-150 pb-3">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2.5 bg-blue-100 text-blue-700 rounded-2xl">
-                  <Users className="h-5 w-5" />
+        <div 
+          className="fixed inset-0 z-50 bg-[#1C2435]/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowAddDependentModal(false)}
+        >
+          <div 
+            className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="bg-[#1C2435] text-white p-5 px-6 flex items-center justify-between border-b border-white/10">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-[#295EF3]/20 border border-[#295EF3]/40 text-[#295EF3] flex items-center justify-center shrink-0">
+                  {editingCardId ? <Edit3 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-slate-900 text-base">Nuevo Paciente a Cargo</h3>
-                  <p className="text-xs text-slate-500 font-medium">Completá los datos del familiar o dependiente a cargo</p>
+                  <h3 className="font-black text-white text-base">
+                    {editingCardId === 'titular' 
+                      ? 'Editar Datos del Titular' 
+                      : editingCardId 
+                      ? 'Editar Paciente a Cargo' 
+                      : 'Agregar Nuevo Paciente a Cargo'}
+                  </h3>
+                  <p className="text-xs text-[#316F80] font-semibold">
+                    {editingCardId ? 'Modifique los datos necesarios' : 'Complete la información requerida del familiar'}
+                  </p>
                 </div>
               </div>
-              <button
+
+              <button 
                 type="button"
-                onClick={() => {
-                  setShowAddDependentModal(false);
-                  setDepFormError(null);
-                }}
-                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-all cursor-pointer font-bold text-sm"
+                onClick={() => setShowAddDependentModal(false)}
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
-            {depFormError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
-                <span>{depFormError}</span>
-              </div>
-            )}
+            {/* Modal Body Form */}
+            <form onSubmit={handleSaveModalPatient} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {depFormError && (
+                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                  <span>{depFormError}</span>
+                </div>
+              )}
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    Nombre <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={depName}
-                    onChange={(e) => setDepName(e.target.value)}
-                    placeholder="Ej. Lucas"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    Apellido <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={depLastName}
-                    onChange={(e) => setDepLastName(e.target.value)}
-                    placeholder="Ej. Pérez"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
+              {/* Section 1: Identification */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-[#295EF3]" />
+                  1. Datos de Identificación del Paciente
+                </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    DNI (Sin puntos) <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={depDni}
-                    onChange={(e) => setDepDni(e.target.value.replace(/\D/g, ''))}
-                    placeholder="Ej. 48912345"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                    required
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Nombre/s <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={depName}
+                      onChange={(e) => setDepName(e.target.value)}
+                      placeholder="Ej. Lucas"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Apellido <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={depLastName}
+                      onChange={(e) => setDepLastName(e.target.value)}
+                      placeholder="Ej. Olaciregui"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      required
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    Fecha de Nacimiento
-                  </label>
-                  <input
-                    type="date"
-                    value={depBirthDate}
-                    onChange={(e) => setDepBirthDate(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                  Parentesco / Relación <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={depRelationship}
-                  onChange={(e) => setDepRelationship(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                >
-                  <option value="Hijo/a">Hijo/a</option>
-                  <option value="Padre/Madre">Padre/Madre mayor</option>
-                  <option value="Cónyuge">Cónyuge / Pareja</option>
-                  <option value="Abuelo/a">Abuelo/a</option>
-                  <option value="Hermano/a">Hermano/a</option>
-                  <option value="Otro">Otro familiar a cargo</option>
-                </select>
-              </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      DNI (Sin puntos) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={depDni}
+                      onChange={(e) => setDepDni(e.target.value.replace(/\D/g, ''))}
+                      placeholder="Ej. 48912345"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Fecha de Nacimiento <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={depBirthDate}
+                      onChange={(e) => setDepBirthDate(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all cursor-pointer"
+                      required
+                    />
+                  </div>
+                </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    Obra Social / Prepaga
-                  </label>
-                  <select
-                    value={depObraSocial}
-                    onChange={(e) => setDepObraSocial(e.target.value)}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                  >
-                    <option value="">Seleccionar Obra Social</option>
-                    {OBRA_SOCIAL_OPTIONS.map((os) => (
-                      <option key={os.id} value={os.name}>{os.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
-                    N° de Afiliado
-                  </label>
-                  <input
-                    type="text"
-                    value={depObraSocialNumber}
-                    onChange={(e) => setDepObraSocialNumber(e.target.value)}
-                    placeholder="Ej. 210-48912345"
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 text-xs focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none"
-                  />
-                </div>
+                {editingCardId !== 'titular' && (
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Parentesco / Relación <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={depRelationship}
+                      onChange={(e) => setDepRelationship(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="Hijo/a">Hijo/a</option>
+                      <option value="Padre/Madre">Padre/Madre mayor</option>
+                      <option value="Cónyuge">Cónyuge / Pareja</option>
+                      <option value="Abuelo/a">Abuelo/a</option>
+                      <option value="Hermano/a">Hermano/a</option>
+                      <option value="Otro">Otro familiar a cargo</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
-              <div className="flex justify-end gap-2 border-t border-slate-150 pt-4 mt-2">
+              {/* Section 2: Coverage & Contact */}
+              <div className="space-y-3 pt-2">
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#295EF3]" />
+                  2. Cobertura Médica y Contacto
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Obra Social / Prepaga
+                    </label>
+                    <select
+                      value={depObraSocial}
+                      onChange={(e) => setDepObraSocial(e.target.value)}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none cursor-pointer"
+                    >
+                      <option value="">Seleccionar Obra Social</option>
+                      {OBRA_SOCIAL_OPTIONS.map((os) => (
+                        <option key={os.id} value={os.name}>{os.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      N° de Afiliado / Credencial
+                    </label>
+                    <input
+                      type="text"
+                      value={depObraSocialNumber}
+                      onChange={(e) => setDepObraSocialNumber(e.target.value)}
+                      placeholder="Ej. 210-48912345"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      WhatsApp / Celular
+                    </label>
+                    <input
+                      type="tel"
+                      value={depPhone}
+                      onChange={(e) => setDepPhone(e.target.value)}
+                      placeholder="Ej. 2926442385"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      value={depEmail}
+                      onChange={(e) => setDepEmail(e.target.value)}
+                      placeholder="ejemplo@gmail.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowAddDependentModal(false);
-                    setDepFormError(null);
-                  }}
-                  className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
+                  onClick={() => setShowAddDependentModal(false)}
+                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="button"
-                  onClick={(e) => handleCreateDependent(e)}
-                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+                  type="submit"
+                  className="px-6 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <Check className="h-4 w-4" />
-                  <span>Guardar Paciente a Cargo</span>
+                  <span>{editingCardId ? 'Guardar Cambios' : 'Guardar Paciente a Cargo'}</span>
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       )}

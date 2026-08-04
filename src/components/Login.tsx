@@ -159,10 +159,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       const isEmail = forgotInput.includes('@');
       const res = await onForgotPassword(isEmail ? '' : forgotInput, isEmail ? forgotInput : '');
       if (res.success) {
-        setForgotSuccessMsg(res.data.message || 'Instrucciones enviadas.');
-        if (res.data.demoPassword) {
-          setForgotSuccessMsg(prev => `${prev} • Para pruebas del evaluador, su contraseña registrada es: "${res.data.demoPassword}"`);
-        }
+        setForgotSuccessMsg(res.data.message || 'Instrucciones de recuperación enviadas con éxito a su casilla de correo electrónico.');
       } else {
         setErrorMsg(res.error || 'No se encontró ningún usuario con ese identificador.');
       }

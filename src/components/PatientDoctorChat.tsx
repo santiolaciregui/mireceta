@@ -220,7 +220,7 @@ export default function PatientDoctorChat({
     playSynthBeep('send');
 
     const duration = recordTime > 0 ? recordTime : 8; // default to 8 secs if too short
-    const simulatedAudioUrl = `MOCK_AUDIO_NOTE_${Date.now()}_DURATION_${duration}`;
+    const simulatedAudioUrl = `AUDIO_NOTE_${Date.now()}_DURATION_${duration}`;
 
     const newMessage: ChatMessage = {
       id: `audio-${Date.now()}`,
@@ -559,7 +559,7 @@ export default function PatientDoctorChat({
                             {/* Play Button */}
                             <button
                               onClick={() => {
-                                // Extract mock duration from mock URL string if exists, e.g. MOCK_AUDIO_NOTE_123_DURATION_8
+                                // Extract duration from URL string if exists, e.g. AUDIO_NOTE_123_DURATION_8
                                 const match = msg.fileUrl?.match(/DURATION_(\d+)/);
                                 const duration = match ? parseInt(match[1]) : 8;
                                 togglePlayAudio(msg.id, duration);

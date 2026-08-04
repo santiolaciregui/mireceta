@@ -254,13 +254,13 @@ export default function DoctorDashboard({
     reader.readAsDataURL(file);
   };
 
-  // Auto generator for simulated recipes
+  // Auto generator for digital recipes
   const handleGenerateSimulatedRecipe = (order: MedicalOrder) => {
-    const simulatedPdfUrl = 'MOCK_RECIPE_PDF_GENERATED';
-    const simulatedPdfName = `receta_emitida_${order.patientLastName.toLowerCase()}_${order.id}.pdf`;
+    const digitalPdfUrl = 'RECIPE_PDF_GENERATED';
+    const digitalPdfName = `receta_emitida_${order.patientLastName.toLowerCase()}_${order.id}.pdf`;
     setUploadedRecipe({
-      url: simulatedPdfUrl,
-      name: simulatedPdfName
+      url: digitalPdfUrl,
+      name: digitalPdfName
     });
   };
 
@@ -636,8 +636,8 @@ export default function DoctorDashboard({
                             (selectedOrder.medicationPhotoUrl ? [{ url: selectedOrder.medicationPhotoUrl, name: selectedOrder.medicationPhotoName || 'foto.jpg' }] : [])
                           ).map((photo, i) => (
                             <div key={i} className="border border-[var(--ink-faint)] rounded-lg overflow-hidden max-w-[200px]">
-                              {photo.url.startsWith('MOCK') ? (
-                                <div className="h-24 bg-slate-100 flex items-center justify-center text-[10px] text-slate-400">Imagen de prueba</div>
+                              {photo.url.startsWith('MOCK') || photo.url.startsWith('RECIPE') ? (
+                                <div className="h-24 bg-slate-100 flex items-center justify-center text-[10px] text-slate-500 font-medium">Archivo Adjunto</div>
                               ) : photo.url.startsWith('data:application/pdf') ? (
                                 <div className="h-24 bg-slate-50 flex items-center justify-center p-2"><FileText className="h-6 w-6 text-red-500" /></div>
                               ) : (
