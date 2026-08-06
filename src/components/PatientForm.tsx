@@ -675,6 +675,7 @@ export default function PatientForm({
       nombreComercial: curNombreComercial.trim(),
       miligramos: curMiligramos.trim(),
       presentacion: curPresentacion,
+      unidadesPorCaja: curUnidadesPorCaja ? parseInt(curUnidadesPorCaja) : undefined,
       cantidadCajas: parseInt(curCantidadCajas) || 1,
     };
 
@@ -684,6 +685,7 @@ export default function PatientForm({
     setCurNombreComercial('');
     setCurMiligramos('');
     setCurPresentacion('Comprimidos');
+    setCurUnidadesPorCaja('30');
     setCurCantidadCajas('1');
   };
 
@@ -1527,7 +1529,7 @@ export default function PatientForm({
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <div>
                         <label htmlFor="cur-miligramos" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
                           Dosis / Miligramos
@@ -1539,6 +1541,21 @@ export default function PatientForm({
                           onChange={(e) => setCurMiligramos(e.target.value)}
                           placeholder="Ej. 10mg, 50mg, 500mg"
                           className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
+                        <label htmlFor="cur-unidades" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                          Cant. de Comprimidos
+                        </label>
+                        <input
+                          id="cur-unidades"
+                          type="number"
+                          min="1"
+                          value={curUnidadesPorCaja}
+                          onChange={(e) => setCurUnidadesPorCaja(e.target.value)}
+                          placeholder="Ej. 30, 60"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
 
@@ -1629,7 +1646,7 @@ export default function PatientForm({
                               {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
                             </p>
                             <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                              {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'}
+                              {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
                             </p>
                           </div>
                           <button
