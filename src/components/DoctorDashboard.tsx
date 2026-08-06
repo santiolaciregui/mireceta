@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import PatientForm from './PatientForm';
+import NewOrderForm from './NewOrderForm';
 import { MedicalOrder, OrderStatus, OBRA_SOCIAL_OPTIONS } from '../types';
 import { 
   FileText, 
@@ -51,8 +52,9 @@ interface DoctorDashboardProps {
     medicoId?: string;
     medicoName?: string;
   };
-  forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'rechazadas' | 'reportes';
+  forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'rechazadas' | 'reportes' | 'nueva';
   onNavigateToChat?: (orderId: string) => void;
+  onNavigateToSubview?: (subview: string) => void;
 }
 
 export default function DoctorDashboard({ 
@@ -62,7 +64,8 @@ export default function DoctorDashboard({
   onCreateOrder, 
   currentUser, 
   forcedSubview,
-  onNavigateToChat 
+  onNavigateToChat,
+  onNavigateToSubview
 }: DoctorDashboardProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   
@@ -370,67 +373,30 @@ export default function DoctorDashboard({
     return order.createdByOperatorName === selectedReportOperator;
   });
 
+  if (forcedSubview === 'nueva') {
+    return (
+      <NewOrderForm
+        currentUser={currentUser}
+        orders={orders}
+        users={users}
+        onSubmitOrder={onCreateOrder}
+        onSuccess={() => {
+          showToast('¡Solicitud creada de oficio exitosamente!');
+          if (onNavigateToSubview) onNavigateToSubview('pendientes');
+        }}
+        onCancel={() => {
+          if (onNavigateToSubview) onNavigateToSubview('pendientes');
+        }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {toast && (
         <div className="fixed bottom-5 right-5 z-50 bg-[var(--ink)] text-white py-3 px-6 rounded-lg shadow-xl text-[0.85rem] font-[500] animate-fadeIn flex items-center gap-2">
           <Sparkles className="h-4.5 w-4.5 text-[var(--accent)]" />
           <span>{toast}</span>
-        </div>
-      )}
-
-      {/* Manual Registration Modal */}
-      {showNewOrderModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden relative border border-slate-200 animate-scaleUp">
-            
-            {/* Modal Header */}
-            <div className="px-6 py-4 bg-[#1C2435] text-white flex items-center justify-between shrink-0 border-b border-white/10">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-[#295EF3]/20 text-[#295EF3] flex items-center justify-center font-bold">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <h3 className="font-extrabold text-base text-white">Nueva Solicitud para Paciente (Tercero)</h3>
-                  <p className="text-xs text-slate-400 font-medium">Carga de oficio realizada por personal médico o colaborador</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowNewOrderModal(false)} 
-                className="p-2 bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white rounded-full transition-all cursor-pointer"
-                title="Cerrar modal"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Scrollable Body */}
-            <div className="flex-1 overflow-y-auto bg-slate-50/50">
-              <PatientForm 
-                isOficio={true}
-                currentUser={currentUser}
-                recentDni={''}
-                onSetDni={() => {}}
-                onSubmitOrder={async (data) => {
-                  if (onCreateOrder) {
-                    await onCreateOrder({
-                      ...data,
-                      status: 'En revisión'
-                    });
-                    return 'ok';
-                  }
-                  return 'error';
-                }}
-                onSuccess={() => {
-                  showToast('Solicitud creada de oficio y enviada a revisión.');
-                  setShowNewOrderModal(false);
-                }}
-                orders={orders}
-                users={users}
-              />
-            </div>
-
-          </div>
         </div>
       )}
 
@@ -469,12 +435,14 @@ export default function DoctorDashboard({
                   <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Pedidos Pendientes de Auditoría</h1>
                   <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Visualizá y auditá las nuevas solicitudes de renovación médica.</p>
                </div>
-               <button
-                 onClick={() => setShowNewOrderModal(true)}
-                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-               >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud
-               </button>
+               {currentUser?.role !== 'admin' && (
+                 <button
+                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
+                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+                 >
+                   <Plus className="h-4 w-4" /> Nueva Solicitud
+                 </button>
+               )}
              </header>
           )}
 
@@ -484,12 +452,14 @@ export default function DoctorDashboard({
                   <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Pedidos En Revisión Médica</h1>
                   <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión y seguimiento de trámites en proceso de auditoría y emisión.</p>
                </div>
-               <button
-                 onClick={() => setShowNewOrderModal(true)}
-                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-               >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud
-               </button>
+               {currentUser?.role !== 'admin' && (
+                 <button
+                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
+                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+                 >
+                   <Plus className="h-4 w-4" /> Nueva Solicitud
+                 </button>
+               )}
              </header>
           )}
 
@@ -499,12 +469,14 @@ export default function DoctorDashboard({
                   <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Recetas Emitidas y Completadas</h1>
                   <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de recetas digitales firmadas y entregadas a pacientes.</p>
                </div>
-               <button
-                 onClick={() => setShowNewOrderModal(true)}
-                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-               >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud
-               </button>
+               {currentUser?.role !== 'admin' && (
+                 <button
+                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
+                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+                 >
+                   <Plus className="h-4 w-4" /> Nueva Solicitud
+                 </button>
+               )}
              </header>
           )}
 
@@ -514,12 +486,14 @@ export default function DoctorDashboard({
                   <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Solicitudes Rechazadas</h1>
                   <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de solicitudes médicas rechazadas o desestimadas por auditoría.</p>
                </div>
-               <button
-                 onClick={() => setShowNewOrderModal(true)}
-                 className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-               >
-                 <Plus className="h-4 w-4" /> Nueva Solicitud
-               </button>
+               {currentUser?.role !== 'admin' && (
+                 <button
+                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
+                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
+                 >
+                   <Plus className="h-4 w-4" /> Nueva Solicitud
+                 </button>
+               )}
              </header>
           )}
 
@@ -696,84 +670,92 @@ export default function DoctorDashboard({
 
                   {/* Action Area */}
                   <div style={{ paddingTop: '2rem' }} className="shrink-0 border-t border-[var(--ink-faint)] mt-4">
-                    {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
-                      <div style={{ background: '#FFFBEB', border: '1px solid #FEF3C7', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
-                        <strong>Atención:</strong> Esta solicitud requiere revisión clínica. Verifique medicación antes de firmar.
+                    {currentUser?.role === 'admin' ? (
+                      <div className="bg-slate-100 border border-slate-200 p-4 rounded-xl text-center text-slate-600 text-xs font-medium">
+                        Modo solo lectura (Administrador). Los administradores pueden visualizar solicitudes pero no crearlas ni modificar su estado.
                       </div>
-                    )}
-                    
-                    {selectedOrder.status === 'Rechazada' && (
-                      <div style={{ background: '#FFF1F2', border: '1px solid #FECACA', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
-                        <strong>Estado Rechazada:</strong> Esta solicitud ha sido desestimada tras evaluación.
-                      </div>
-                    )}
-                    
-                    <div className="space-y-4">
-                      {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleMarkInProcess(selectedOrder.id)}
-                            className="bg-[var(--accent)] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600]"
-                          >
-                            EMPEZAR REVISIÓN CLÍNICA
-                          </button>
-                          <button
-                            onClick={() => {
-                              onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
-                              showToast('La solicitud ha sido rechazada.');
-                            }}
-                            className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-4 py-4 rounded-lg text-[0.85rem] font-[600]"
-                          >
-                            Rechazar
-                          </button>
-                        </div>
-                      )}
-                      {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador' || currentUser?.role === 'admin') && (
-                          <div className="bg-[var(--bg)] p-6 rounded-xl border border-[var(--ink-faint)]">
-                            <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas / Motivo de Rechazo</label>
-                            <textarea
-                              className="w-full p-3 bg-white border border-[var(--ink-faint)] rounded-md text-[0.85rem] mb-4 outline-none focus:border-[var(--accent)]"
-                              rows={3}
-                              placeholder="Indicaciones para el paciente o motivo de rechazo..."
-                              value={doctorNotes}
-                              onChange={e => setDoctorNotes(e.target.value)}
-                            />
-                            <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Adjuntar Receta Firmada (PDF)</label>
-                            <input type="file" accept="application/pdf" onChange={handleDoctorRecipeUploadChange} className="text-[0.75rem] mb-4 w-full" />
-                            <div className="flex gap-3">
-                              <button onClick={() => {
-                                onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
-                                showToast('Receta emitida y enviada con éxito.');
-                              }} className="flex-1 bg-[var(--accent)] text-white py-3 rounded-lg text-[0.9rem] font-[600]">
-                                EMITIR RECETA FINAL
+                    ) : (
+                      <>
+                        {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
+                          <div style={{ background: '#FFFBEB', border: '1px solid #FEF3C7', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
+                            <strong>Atención:</strong> Esta solicitud requiere revisión clínica. Verifique medicación antes de firmar.
+                          </div>
+                        )}
+                        
+                        {selectedOrder.status === 'Rechazada' && (
+                          <div style={{ background: '#FFF1F2', border: '1px solid #FECACA', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
+                            <strong>Estado Rechazada:</strong> Esta solicitud ha sido desestimada tras evaluación.
+                          </div>
+                        )}
+                        
+                        <div className="space-y-4">
+                          {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => handleMarkInProcess(selectedOrder.id)}
+                                className="bg-[var(--accent)] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600]"
+                              >
+                                EMPEZAR REVISIÓN CLÍNICA
                               </button>
-                              <button onClick={() => {
-                                onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
-                                showToast('La solicitud ha sido rechazada.');
-                              }} className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600]">
-                                RECHAZAR SOLICITUD
+                              <button
+                                onClick={() => {
+                                  onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
+                                  showToast('La solicitud ha sido rechazada.');
+                                }}
+                                className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-4 py-4 rounded-lg text-[0.85rem] font-[600]"
+                              >
+                                Rechazar
                               </button>
                             </div>
-                          </div>
-                      )}
-                      {selectedOrder.status === 'Emitida' && (
-                          <div className="bg-green-50 border border-green-200 p-6 rounded-xl text-center">
-                            <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                            <h4 className="font-[600] text-green-900">Receta Emitida</h4>
-                            <p className="text-[0.75rem] text-green-700 mt-1">El proceso ha concluido correctamente.</p>
-                            {selectedOrder.recipePdfUrl && (
-                              <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-md text-[0.8rem] font-[600]">Descargar PDF</a>
-                            )}
-                          </div>
-                      )}
-                      {selectedOrder.status === 'Rechazada' && (
-                          <div className="bg-rose-50 border border-rose-200 p-6 rounded-xl text-center">
-                            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
-                            <h4 className="font-[600] text-rose-900">Solicitud Rechazada</h4>
-                            <p className="text-[0.75rem] text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue rechazada por el profesional médico.'}</p>
-                          </div>
-                      )}
-                    </div>
+                          )}
+                          {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
+                              <div className="bg-[var(--bg)] p-6 rounded-xl border border-[var(--ink-faint)]">
+                                <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas / Motivo de Rechazo</label>
+                                <textarea
+                                  className="w-full p-3 bg-white border border-[var(--ink-faint)] rounded-md text-[0.85rem] mb-4 outline-none focus:border-[var(--accent)]"
+                                  rows={3}
+                                  placeholder="Indicaciones para el paciente o motivo de rechazo..."
+                                  value={doctorNotes}
+                                  onChange={e => setDoctorNotes(e.target.value)}
+                                />
+                                <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Adjuntar Receta Firmada (PDF)</label>
+                                <input type="file" accept="application/pdf" onChange={handleDoctorRecipeUploadChange} className="text-[0.75rem] mb-4 w-full" />
+                                <div className="flex gap-3">
+                                  <button onClick={() => {
+                                    onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
+                                    showToast('Receta emitida y enviada con éxito.');
+                                  }} className="flex-1 bg-[var(--accent)] text-white py-3 rounded-lg text-[0.9rem] font-[600]">
+                                    EMITIR RECETA FINAL
+                                  </button>
+                                  <button onClick={() => {
+                                    onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
+                                    showToast('La solicitud ha sido rechazada.');
+                                  }} className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600]">
+                                    RECHAZAR SOLICITUD
+                                  </button>
+                                </div>
+                              </div>
+                          )}
+                          {selectedOrder.status === 'Emitida' && (
+                              <div className="bg-green-50 border border-green-200 p-6 rounded-xl text-center">
+                                <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                                <h4 className="font-[600] text-green-900">Receta Emitida</h4>
+                                <p className="text-[0.75rem] text-green-700 mt-1">El proceso ha concluido correctamente.</p>
+                                {selectedOrder.recipePdfUrl && (
+                                  <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-md text-[0.8rem] font-[600]">Descargar PDF</a>
+                                )}
+                              </div>
+                          )}
+                          {selectedOrder.status === 'Rechazada' && (
+                              <div className="bg-rose-50 border border-rose-200 p-6 rounded-xl text-center">
+                                <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
+                                <h4 className="font-[600] text-rose-900">Solicitud Rechazada</h4>
+                                <p className="text-[0.75rem] text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue rechazada por el profesional médico.'}</p>
+                              </div>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               ) : (

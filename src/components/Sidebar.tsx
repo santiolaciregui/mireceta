@@ -18,7 +18,8 @@ import {
   Clock,
   Layers,
   Settings,
-  XCircle
+  XCircle,
+  Bell
 } from 'lucide-react';
 import { UserRole } from '../types';
 import Logo from './Logo';
@@ -87,6 +88,7 @@ export default function Sidebar({
           id: 'solicitudes',
           title: 'Bandeja de Pedidos',
           items: [
+            ...(!isAdmin ? [{ id: 'nueva', label: 'Cargar Nueva Solicitud', icon: PlusCircle }] : []),
             { id: 'pendientes', label: 'Pedidos Pendientes', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
             { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#295EF3] text-white' },
             { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#316F80] text-white' },
@@ -108,7 +110,7 @@ export default function Sidebar({
             ...(isMedic || isAdmin ? [
               { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
               { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
-              { id: 'pagos', label: 'Configuración Pasarela (MP)', icon: Settings }
+              { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
             ] : []),
           ]
         }] : [])

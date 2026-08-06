@@ -18,7 +18,9 @@ import {
   XCircle,
   FileText,
   BookmarkCheck,
-  Printer
+  Printer,
+  CreditCard,
+  Sparkles
 } from 'lucide-react';
 
 interface PatientStatusProps {
@@ -248,6 +250,54 @@ export default function PatientStatus({
                         <p className="text-slate-400 font-semibold">Obra Social o Cobertura</p>
                         <p className="font-bold text-[#316F80] text-sm">{order.obraSocial}</p>
                       </div>
+                    </div>
+
+                    {/* Mercado Pago Payment Status Info */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-xs flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-blue-600 shrink-0" />
+                        <div>
+                          <span className="font-bold text-slate-800">Pago Mercado Pago: </span>
+                          <span className={`font-extrabold ${
+                            order.paymentStatus === 'approved' ? 'text-emerald-700' :
+                            order.paymentStatus === 'rejected' ? 'text-red-700' : 'text-amber-700'
+                          }`}>
+                            {order.paymentStatus === 'approved' ? 'Aprobado' :
+                             order.paymentStatus === 'rejected' ? 'Rechazado' : 'Pendiente de acreditación'}
+                          </span>
+                        </div>
+                      </div>
+                      {order.paymentStatus !== 'approved' && order.obraSocial !== 'PAMI (Inssjp)' && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/payments/create-preference', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  orderId: order.id,
+                                  amount: order.paymentAmount || '10000',
+                                  patientName: `${order.patientName} ${order.patientLastName}`,
+                                  patientEmail: order.patientEmail,
+                                  patientDni: order.patientDni,
+                                  origin: window.location.origin,
+                                }),
+                              });
+                              const data = await res.json();
+                              if (data.initPoint) {
+                                window.location.href = data.initPoint;
+                              }
+                            } catch (e: any) {
+                              alert('Error al conectar con Mercado Pago: ' + e.message);
+                            }
+                          }}
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                        >
+                          <Sparkles className="h-3.5 w-3.5 text-blue-200" />
+                          <span>Pagar con Mercado Pago</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="bg-white/40 border border-slate-105 rounded-xl p-3 text-xs">

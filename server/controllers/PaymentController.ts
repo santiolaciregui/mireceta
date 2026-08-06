@@ -16,10 +16,20 @@ export class PaymentController {
 
   async webhook(req: Request, res: Response, next: NextFunction) {
     try {
-      const result = await paymentService.processWebhook(req.query, req.body);
-      res.json(result);
+      const result = await paymentService.processWebhook(req.query, req.body, req.headers);
+      res.status(200).json(result);
     } catch (err: any) {
       res.status(200).json({ received: true });
+    }
+  }
+
+  async getStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const orderId = req.params.orderId;
+      const result = await paymentService.getPaymentStatus(orderId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(404).json({ error: err.message });
     }
   }
 }

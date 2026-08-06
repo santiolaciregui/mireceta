@@ -82,8 +82,26 @@ export default function PatientForm({
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
-  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const [searchStatus, setSearchStatus] = useState<{ found: boolean; message: string } | null>(null);
+  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  // Check URL query parameters for Mercado Pago payment return
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    const orderId = params.get('orderId') || params.get('external_reference');
+
+    if (payment && orderId) {
+      if (payment === 'approved' || payment === 'pending') {
+        setCreatedOrderId(orderId);
+        setStep('confirmation');
+        onSuccess(orderId);
+      } else if (payment === 'rejected') {
+        setError(`El pago para la receta ${orderId} fue rechazado. Puede reintentar el pago.`);
+      }
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // --- Step 1 Fields: Identification ---
   const [patientDni, setPatientDni] = useState(isThirdPartyUser ? '' : recentDni);
@@ -719,10 +737,64 @@ export default function PatientForm({
     setMpProcessing(true);
 
     try {
+      // Build medication summary text
+      const mappedMedicationMethod = medicationItems.length > 0 ? 'manual' : 'foto';
+      let summaryText = '';
+      if (medicationItems.length > 0) {
+        summaryText = medicationItems.map(item => 
+          `- ${item.nombreComercial} (${item.droga} ${item.miligramos}), Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
+        ).join('\n');
+        if (medicationPhotos.length > 0) {
+          summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
+        }
+      } else {
+        summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos). Medicamentos visibles en el archivo adjunto.`;
+      }
+
+      // 1. Create order in database with pending payment status
+      const fullOrderPayload = {
+        patientName: patientName.trim(),
+        patientLastName: patientLastName.trim(),
+        patientDni: patientDni.trim(),
+        patientBirthDate,
+        patientEmail: patientEmail.trim(),
+        patientPhone: patientPhone.trim(),
+        deliveryMethod,
+        obraSocial: selectedObraSocial,
+        obraSocialNumber: obraSocialNumber.trim() || undefined,
+        medicationMethod: mappedMedicationMethod,
+        medicationText: summaryText,
+        medicationItems,
+        diagnostic: diagnostic.trim(),
+        comments: comments.trim() || undefined,
+        medicationPhotos,
+        medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
+        medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
+        paymentAmount,
+        paymentDate: new Date().toISOString(),
+        paymentStatus: 'pending',
+        status: 'Pendiente',
+        createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
+        lastConsultationTime: lastConsultationTime || undefined,
+        lastConsultationDoctor: lastConsultationDoctor || undefined,
+        consentsAccepted: {
+          isOfAge: consentAge,
+          termsAccepted: consentTerms,
+          informedConsentAccepted: consentInformed,
+          swornStatementAccepted: consentSworn,
+          acceptedAt: new Date().toISOString(),
+          termsVersion: TERMS_VERSION
+        }
+      };
+
+      const orderId = await onSubmitOrder(fullOrderPayload);
+
+      // 2. Create Mercado Pago checkout preference using generated orderId
       const res = await fetch('/api/payments/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          orderId,
           amount: paymentAmount,
           patientName: `${patientName} ${patientLastName}`,
           patientEmail: patientEmail,
@@ -737,13 +809,13 @@ export default function PatientForm({
       }
 
       if (data.initPoint) {
+        // 3. Redirect to official Mercado Pago Checkout
         window.location.href = data.initPoint;
       } else {
         throw new Error('No se pudo generar el enlace de cobro oficial.');
       }
     } catch (err: any) {
       setError(err.message || 'Error al comunicarse con Mercado Pago');
-    } finally {
       setMpProcessing(false);
     }
   };

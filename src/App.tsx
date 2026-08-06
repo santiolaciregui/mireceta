@@ -18,6 +18,7 @@ import ForcePasswordChange from './components/ForcePasswordChange';
 import SuperadminDashboard from './components/SuperadminDashboard';
 import AuditLogView from './components/AuditLogView';
 import PaymentConfigPanel from './components/PaymentConfigPanel';
+import NotificationConfigPanel from './components/NotificationConfigPanel';
 import { 
   PlusCircle, 
   Search, 
@@ -418,6 +419,21 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                ) : activeSubcategory === 'notificaciones' ? (
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Canales y Plantillas de Notificación</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión modular de Email (SMTP), WhatsApp (Meta Business API), variables dinámicas e historial.</p>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-8">
+                      <div className="max-w-5xl mx-auto w-full">
+                        <NotificationConfigPanel />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
                   /* Render DoctorDashboard with the selected subcategory passed as forcedSubview */
                   <DoctorDashboard
@@ -431,6 +447,10 @@ export default function App() {
                       setActiveCategory('mensajeria');
                       setActiveSubcategory('chat');
                       setChatSelectedOrderId(orderId);
+                    }}
+                    onNavigateToSubview={(subview) => {
+                      setActiveCategory('solicitudes');
+                      setActiveSubcategory(subview);
                     }}
                   />
                 )}

@@ -27,19 +27,36 @@ export class OrderService {
   }
 
   async getOrdersForUser(currentUser: any) {
+    const tenantId = currentUser.tenantId || 'TEN-0001';
+    const allOrders = await this.orderRepo.findByTenant(tenantId);
+
     if (currentUser.role === 'paciente') {
       const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
-      const allOrders = await this.orderRepo.findByTenant(currentUser.tenantId || 'TEN-0001');
       return allOrders.filter((o: any) => {
         const orderDniClean = (o.patientDni || '').replace(/\s/g, '').replace(/\./g, '');
         return orderDniClean === patientDniClean;
       });
     }
 
-    return this.orderRepo.findByTenant(currentUser.tenantId || 'TEN-0001');
+    if (currentUser.role === 'medico' || currentUser.role === 'colaborador') {
+      // Regla Médica: Los médicos solo visibilizan solicitudes con pago válido y aprobado (o PAMI/Ventanilla).
+      // Si el pago fue cancelado, rechazado o devuelto, la receta no se procesa.
+      return allOrders.filter((o: any) => {
+        if (o.obraSocial === 'PAMI (Inssjp)' || (o.paymentReceiptUrl && o.paymentReceiptUrl.includes('cobrado_ventanilla'))) {
+          return true;
+        }
+        return o.paymentStatus === 'approved' && o.status !== 'Rechazada';
+      });
+    }
+
+    return allOrders;
   }
 
   async createOrder(orderData: any, currentUser: any) {
+    if (currentUser?.role === 'admin') {
+      throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
+    }
+
     const newId = `REC-${Math.floor(1000 + Math.random() * 9000)}`;
     const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
     
@@ -63,10 +80,10 @@ export class OrderService {
       newOrder.createdByOperatorId = currentUser.id;
       newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
       creatorName = `Colaborador ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
-    } else if (currentUser?.role === 'medico' || currentUser?.role === 'admin') {
+    } else if (currentUser?.role === 'medico') {
       newOrder.createdByOperatorId = currentUser.id;
-      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''} (Médico/Admin)`.trim();
-      creatorName = `Médico/Admin ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
+      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''} (Médico)`.trim();
+      creatorName = `Médico ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
     }
 
     addAuditAndNotification(
@@ -104,6 +121,10 @@ export class OrderService {
   async updateOrder(id: string, updateData: any, currentUser: any) {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
+
+    if (currentUser?.role === 'admin') {
+      throw new Error('Los administradores no tienen permiso para modificar solicitudes, solo pueden visualizarlas.');
+    }
 
     if (currentUser.role === 'paciente') {
       const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
