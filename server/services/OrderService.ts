@@ -14,7 +14,10 @@ function addAuditAndNotification(order: any, action: string, user: string, notes
     if (!order.notificationsSent) order.notificationsSent = [];
     order.notificationsSent.push({
       type: notificationType,
-      sentAt: new Date().toISOString()
+      sentAt: new Date().toISOString(),
+      sentTo: order.patientEmail || order.patientPhone || 'paciente@mireceta.local',
+      subject: `Notificación: ${action}`,
+      content: notes || `Notificación de ${action} generada para la receta.`
     });
   }
 }

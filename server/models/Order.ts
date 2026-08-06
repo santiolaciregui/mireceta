@@ -87,11 +87,11 @@ export interface IMedicalOrder extends Document {
 
 const medicationItemSchema = new Schema<IMedicationItem>({
   nombreComercial: { type: String, required: true },
-  droga: { type: String, required: true },
-  miligramos: { type: String, required: true },
-  presentacion: { type: String, required: true },
-  unidadesPorCaja: { type: Number, required: true },
-  cantidadCajas: { type: Number, required: true }
+  droga: { type: String, required: false, default: '' },
+  miligramos: { type: String, required: false, default: '' },
+  presentacion: { type: String, required: false, default: '' },
+  unidadesPorCaja: { type: Number, required: false, default: 0 },
+  cantidadCajas: { type: Number, required: false, default: 1 }
 }, { _id: false });
 
 const auditLogEntrySchema = new Schema<IAuditLogEntry>({
@@ -104,13 +104,12 @@ const auditLogEntrySchema = new Schema<IAuditLogEntry>({
 const notificationEntrySchema = new Schema<INotificationEntry>({
   type: { 
     type: String, 
-    enum: ['solicitud_recibida', 'pago_confirmado', 'en_revision', 'mas_info_requerida', 'emitida', 'rechazada', 'devolucion_pago'],
     required: true
   },
-  sentTo: { type: String, required: true },
+  sentTo: { type: String, required: false, default: '' },
   sentAt: { type: String, required: true },
-  subject: { type: String, required: true },
-  content: { type: String, required: true }
+  subject: { type: String, required: false, default: '' },
+  content: { type: String, required: false, default: '' }
 }, { _id: false });
 
 const medicalOrderSchema = new Schema<IMedicalOrder>({
@@ -119,16 +118,16 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   patientName: { type: String, required: true },
   patientLastName: { type: String, required: true },
   patientDni: { type: String, required: true, index: true },
-  patientBirthDate: { type: String, required: true },
-  patientEmail: { type: String, required: true },
-  patientPhone: { type: String, required: true },
-  deliveryMethod: { type: String, enum: ['email', 'whatsapp', 'both'], required: true },
+  patientBirthDate: { type: String, required: false, default: '' },
+  patientEmail: { type: String, required: false, default: '' },
+  patientPhone: { type: String, required: false, default: '' },
+  deliveryMethod: { type: String, enum: ['email', 'whatsapp', 'both'], required: false, default: 'email' },
   
   obraSocial: { type: String, required: true },
   obraSocialNumber: { type: String },
   
   medicationMethod: { type: String, enum: ['manual', 'foto'], required: true },
-  medicationText: { type: String },
+  medicationText: { type: String, required: false, default: '' },
   medicationItems: [medicationItemSchema],
   diagnostic: { type: String, required: false, default: 'Sin especificar' },
   comments: { type: String },
@@ -142,10 +141,10 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   
   paymentReceiptUrl: { type: String },
   paymentReceiptName: { type: String },
-  paymentAmount: { type: String, required: true },
-  paymentDate: { type: String, required: true },
+  paymentAmount: { type: String, required: false, default: '10000' },
+  paymentDate: { type: String, required: false, default: () => new Date().toISOString() },
   paymentId: { type: String },
-  paymentStatus: { type: String, enum: ['approved', 'pending', 'rejected', 'refunded'], required: true },
+  paymentStatus: { type: String, enum: ['approved', 'pending', 'rejected', 'refunded'], required: false, default: 'pending' },
   
   status: { 
     type: String, 
