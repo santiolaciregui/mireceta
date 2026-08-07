@@ -92,20 +92,6 @@ export function useMedicalOrders() {
         .then((data) => setUsers(data))
         .catch((err) => console.error(err));
     }
-
-    // Auto-polling every 5 seconds to sync incoming WhatsApp messages and status changes
-    const pollInterval = setInterval(() => {
-      fetch('/api/orders', { headers })
-        .then((res) => res.ok ? res.json() : null)
-        .then((data) => {
-          if (Array.isArray(data)) {
-            setOrders(data);
-          }
-        })
-        .catch(() => {});
-    }, 5000);
-
-    return () => clearInterval(pollInterval);
   }, [token, currentUser?.role]);
 
   // Handle Authentication login

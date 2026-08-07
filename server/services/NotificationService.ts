@@ -56,26 +56,47 @@ export class NotificationService {
     const finalSubject = subject ? this.interpolateVariables(subject, variables) : undefined;
     const finalBody = this.interpolateVariables(body, variables);
 
+    // Fetch channel config from database
     let configDoc = await this.configRepo.findByTenantAndChannel(tenantId, channel);
-    let credentials = configDoc?.credentials || {};
+    let credentials = (configDoc?.credentials as Record<string, unknown>) || {};
     let isEnabled = configDoc ? configDoc.isEnabled : false;
 
-    if (!isEnabled) {
-      if (channel === 'whatsapp' && (process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || process.env.WHATSAPP_WEBHOOK_URL)) {
+    // Fallback to default tenant TEN-0001 if specific tenant is missing or not configured
+    if (!configDoc && tenantId !== 'TEN-0001') {
+      const defaultDoc = await this.configRepo.findByTenantAndChannel('TEN-0001', channel);
+      if (defaultDoc) {
+        configDoc = defaultDoc;
+        credentials = (defaultDoc.credentials as Record<string, unknown>) || {};
+        isEnabled = defaultDoc.isEnabled;
+      }
+    }
+
+    // Auto-merge environment variables if credentials are empty or not configured
+    if (channel === 'whatsapp') {
+      if (!credentials.phoneNumberId && (process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID)) {
+        credentials.phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID;
+      }
+      if (!credentials.accessToken && (process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN)) {
+        credentials.accessToken = process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN;
+      }
+      if (!credentials.defaultCountryCode && process.env.WHATSAPP_DEFAULT_COUNTRY_CODE) {
+        credentials.defaultCountryCode = process.env.WHATSAPP_DEFAULT_COUNTRY_CODE;
+      }
+      if (!credentials.webhookUrl && process.env.WHATSAPP_WEBHOOK_URL) {
+        credentials.webhookUrl = process.env.WHATSAPP_WEBHOOK_URL;
+      }
+      if (credentials.phoneNumberId || credentials.accessToken || credentials.webhookUrl) {
         isEnabled = true;
-        credentials = {
-          phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID,
-          accessToken: process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN,
-          defaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54',
-          provider: process.env.WHATSAPP_PROVIDER || 'meta_cloud_api',
-          webhookUrl: process.env.WHATSAPP_WEBHOOK_URL
-        };
-      } else {
-        const defaultDoc = await this.configRepo.findByTenantAndChannel('TEN-0001', channel);
-        if (defaultDoc && defaultDoc.isEnabled) {
-          isEnabled = true;
-          credentials = defaultDoc.credentials;
-        }
+      }
+    }
+
+    if (channel === 'email') {
+      if (!credentials.host && process.env.SMTP_HOST) {
+        credentials.host = process.env.SMTP_HOST;
+        credentials.port = process.env.SMTP_PORT || 587;
+        credentials.user = process.env.SMTP_USER || '';
+        credentials.pass = process.env.SMTP_PASS || '';
+        isEnabled = true;
       }
     }
 
@@ -299,40 +320,43 @@ export class NotificationService {
     orderId: string;
     messageText: string;
     interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
-  }): Promise<void> {
+  }): Promise<SendNotificationResult> {
     const { tenantId, patientPhone, patientName, doctorName, orderId, messageText, interactionRecord } = params;
-    if (!patientPhone) return;
+    if (!patientPhone) {
+      return { success: false, error: 'Número de teléfono no disponible para este paciente.' };
+    }
 
     try {
       const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
 
       if (isWithin24h) {
-        await this.sendNotification({
+        return await this.sendNotification({
           tenantId,
           channel: 'whatsapp',
           to: patientPhone,
           body: `[Consulta Dr. ${doctorName} - Receta #${orderId}]\n${messageText}`
         });
-      } else {
-        const waConfig = await this.getConfig(tenantId, 'whatsapp');
-        const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
-
-        await this.sendNotification({
-          tenantId,
-          channel: 'whatsapp',
-          to: patientPhone,
-          templateCode: templateCode || undefined,
-          variables: templateCode ? {
-            patientName,
-            doctorName,
-            orderId,
-            messagePreview: messageText.substring(0, 60)
-          } : undefined,
-          body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
-        });
       }
-    } catch (err) {
+
+      const waConfig = await this.getConfig(tenantId, 'whatsapp');
+      const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+
+      return await this.sendNotification({
+        tenantId,
+        channel: 'whatsapp',
+        to: patientPhone,
+        templateCode: templateCode || undefined,
+        variables: templateCode ? {
+          patientName,
+          doctorName,
+          orderId,
+          messagePreview: messageText.substring(0, 60)
+        } : undefined,
+        body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+      });
+    } catch (err: any) {
       console.error('Error al despachar notificación de consulta médica WhatsApp:', err);
+      return { success: false, error: err.message || 'Error al despachar WhatsApp' };
     }
   }
 
@@ -346,39 +370,42 @@ export class NotificationService {
     orderId: string;
     recipeLink: string;
     interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
-  }): Promise<void> {
+  }): Promise<SendNotificationResult> {
     const { tenantId, patientPhone, patientName, orderId, recipeLink, interactionRecord } = params;
-    if (!patientPhone) return;
+    if (!patientPhone) {
+      return { success: false, error: 'Número de teléfono no disponible para este paciente.' };
+    }
 
     try {
       const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
 
       if (isWithin24h) {
-        await this.sendNotification({
+        return await this.sendNotification({
           tenantId,
           channel: 'whatsapp',
           to: patientPhone,
           body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`
         });
-      } else {
-        const waConfig = await this.getConfig(tenantId, 'whatsapp');
-        const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
-
-        await this.sendNotification({
-          tenantId,
-          channel: 'whatsapp',
-          to: patientPhone,
-          templateCode: templateCode || undefined,
-          variables: templateCode ? {
-            patientName,
-            orderId,
-            recipeLink
-          } : undefined,
-          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
-        });
       }
-    } catch (err) {
+
+      const waConfig = await this.getConfig(tenantId, 'whatsapp');
+      const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+
+      return await this.sendNotification({
+        tenantId,
+        channel: 'whatsapp',
+        to: patientPhone,
+        templateCode: templateCode || undefined,
+        variables: templateCode ? {
+          patientName,
+          orderId,
+          recipeLink
+        } : undefined,
+        body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
+      });
+    } catch (err: any) {
       console.error('Error enviando notificación de receta emitida:', err);
+      return { success: false, error: err.message || 'Error al despachar WhatsApp' };
     }
   }
 }

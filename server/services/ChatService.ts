@@ -279,7 +279,7 @@ export class ChatService {
 
       if (recipientPhone) {
         const messageText = messageData.text || (messageData.fileType === 'audio' ? 'Nota de voz adjunta' : 'Archivo adjunto enviado');
-        await notificationService.sendDoctorInquiryWhatsApp({
+        const waResult = await notificationService.sendDoctorInquiryWhatsApp({
           tenantId,
           patientPhone: recipientPhone,
           patientName: patientFullName,
@@ -287,6 +287,28 @@ export class ChatService {
           orderId: orderRef,
           messageText,
           interactionRecord: patientDoc || patientOrders[0]
+        });
+
+        if (waResult && !waResult.success) {
+          console.warn(`[ChatService] WhatsApp no pudo ser entregado a ${recipientPhone}: ${waResult.error}`);
+          await auditLogService.log({
+            tenantId,
+            currentUser,
+            action: 'WHATSAPP_SEND_FAILED',
+            entity: 'Patient',
+            entityId: clean,
+            details: `Aviso: No se pudo enviar WhatsApp a ${recipientPhone} (${waResult.error}). Verifique las credenciales en Notificaciones.`
+          });
+        }
+      } else {
+        console.warn(`[ChatService] Paciente DNI ${clean} no tiene número de teléfono registrado.`);
+        await auditLogService.log({
+          tenantId,
+          currentUser,
+          action: 'WHATSAPP_SKIPPED',
+          entity: 'Patient',
+          entityId: clean,
+          details: `Mensaje guardado en chat del sistema. No se despachó WhatsApp porque el paciente no tiene teléfono registrado.`
         });
       }
 
