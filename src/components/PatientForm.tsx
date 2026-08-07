@@ -57,9 +57,9 @@ interface PatientFormProps {
 }
 
 const BANK_DETAILS = {
-  cbu: '0140305101300005522431',
-  alias: 'receta.facil.suarez',
-  titular: 'Plataforma Mi Receta Online',
+  cbu: '0000003100087922246734',
+  alias: 'mireceta.online',
+  titular: 'Mariano Daniel Sein',
 };
 
 export default function PatientForm({
@@ -2183,20 +2183,7 @@ export default function PatientForm({
                     
                     <div className="flex justify-between items-center pb-3 border-b border-slate-200/80">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-extrabold tracking-wider bg-blue-600 text-white px-2.5 py-0.5 rounded-md">
-                          Checkout Pro
-                        </span>
                         <p className="text-xs font-black text-slate-850">Mercado Pago Oficial</p>
-                      </div>
-                    </div>
-
-                    {/* Method details */}
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
-                      <p className="font-extrabold text-slate-800">Medios de pago soportados por Mercado Pago:</p>
-                      <div className="flex flex-wrap gap-1.5 text-[11px] font-bold text-slate-600">
-                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">💳 Tarjetas de Crédito / Débito</span>
-                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">💙 Dinero en Cuenta Mercado Pago</span>
-                        <span className="bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200">💵 PagoFácil / RapiPago</span>
                       </div>
                     </div>
 
@@ -2219,7 +2206,7 @@ export default function PatientForm({
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                       >
                         <MercadoPagoIcon className="h-5 w-5" />
-                        <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
+                        <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar con Mercado Pago`}</span>
                       </button>
                     )}
                   </div>
@@ -2233,10 +2220,10 @@ export default function PatientForm({
                     <div className="space-y-1 bg-white p-3.5 rounded-2xl border border-amber-200/50 text-slate-700 font-medium">
                       <p className="font-extrabold text-amber-950 flex items-center gap-1.5 text-[10px] uppercase mb-1">
                         <span className="flex h-1.5 w-1.5 bg-amber-500 rounded-full" />
-                        Cuentas de Depósito Oficiales
+                        Cuenta para transferir
                       </p>
-                      <p><strong>CBU (Banco Provincia):</strong> <span className="font-mono">{BANK_DETAILS.cbu}</span></p>
-                      <p><strong>Alias MercadoPago:</strong> <span className="font-mono bg-amber-100 px-1 rounded text-amber-955 font-bold">{BANK_DETAILS.alias}</span></p>
+                      <p><strong>CBU:</strong> <span className="font-mono">{BANK_DETAILS.cbu}</span></p>
+                      <p><strong>Alias:</strong> <span className="font-mono bg-amber-100 px-1 rounded text-amber-955 font-bold">{BANK_DETAILS.alias}</span></p>
                       <p><strong>Titular de la Cuenta:</strong> {BANK_DETAILS.titular}</p>
                     </div>
 
