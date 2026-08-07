@@ -192,6 +192,27 @@ export class OrderService {
       });
     }
 
+    if (updateData.messages) {
+      order.messages = updateData.messages;
+      
+      // If last message was sent by doctor/collaborator, attempt sending via WhatsApp API if configured
+      const lastMsg = updateData.messages[updateData.messages.length - 1];
+      if (lastMsg && (lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador') && order.patientPhone) {
+        try {
+          const { NotificationService } = await import('./NotificationService.js');
+          const notificationService = new NotificationService();
+          await notificationService.sendNotification({
+            tenantId: order.tenantId || 'TEN-0001',
+            channel: 'whatsapp',
+            to: order.patientPhone,
+            body: `Receta #${order.id} - ${lastMsg.senderName}: ${lastMsg.text || 'Nuevo archivo adjunto en la consulta'}`
+          }).catch(err => console.log('WhatsApp send direct catch:', err));
+        } catch (e) {
+          // Non-blocking
+        }
+      }
+    }
+
     return this.orderRepo.update(id, order);
   }
 

@@ -3,6 +3,7 @@ import { NotificationChannel, SendNotificationResult, TestConnectionResult } fro
 import { NotificationConfigRepository } from '../repositories/NotificationConfigRepository.js';
 import { NotificationTemplateRepository } from '../repositories/NotificationTemplateRepository.js';
 import { NotificationLogRepository } from '../repositories/NotificationLogRepository.js';
+import { OrderRepository } from '../repositories/OrderRepository.js';
 
 export interface SendDirectNotificationDto {
   tenantId: string;
@@ -228,5 +229,52 @@ export class NotificationService {
 
   public async getLogs(tenantId: string, limit: number = 50) {
     return this.logRepo.findLogsByTenant(tenantId, limit);
+  }
+
+  public async processInboundWhatsAppPayload(body: any): Promise<{ success: boolean; processedMessages: number }> {
+    try {
+      const entries = body?.entry || [];
+      let count = 0;
+      const orderRepo = new OrderRepository();
+
+      for (const entry of entries) {
+        const changes = entry?.changes || [];
+        for (const change of changes) {
+          const value = change?.value;
+          const messages = value?.messages || [];
+          const contacts = value?.contacts || [];
+
+          for (const msg of messages) {
+            const senderPhone = msg.from; // e.g. "5491112345678"
+            const contactName = contacts.find((c: any) => c.wa_id === senderPhone)?.profile?.name || 'Paciente WhatsApp';
+            const textContent = msg.text?.body || (msg.type === 'image' ? '[Imagen recibida por WhatsApp]' : (msg.type === 'audio' ? '[Nota de voz por WhatsApp]' : '[Mensaje de WhatsApp]'));
+
+            // Search matching order by phone
+            const matchingOrders = await orderRepo.findByPatientPhone(senderPhone);
+            if (matchingOrders.length > 0) {
+              const targetOrder: any = matchingOrders[0];
+              const newMessage = {
+                id: msg.id || `WA-${Date.now()}`,
+                sender: 'paciente',
+                senderName: contactName,
+                text: textContent,
+                timestamp: new Date().toISOString(),
+                status: 'read'
+              };
+
+              const existingMessages = targetOrder.messages || [];
+              targetOrder.messages = [...existingMessages, newMessage];
+              await orderRepo.update(targetOrder.id, { messages: targetOrder.messages });
+              count++;
+            }
+          }
+        }
+      }
+
+      return { success: true, processedMessages: count };
+    } catch (err: any) {
+      console.error('Error procesando webhook de WhatsApp:', err);
+      return { success: false, processedMessages: 0 };
+    }
   }
 }

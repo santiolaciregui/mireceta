@@ -13,6 +13,15 @@ export class OrderRepository {
     return (Order as any).find({ patientId }).sort({ createdAt: -1 });
   }
 
+  async findByPatientPhone(phone: string) {
+    const cleanPhone = phone.replace(/[^\d]/g, '');
+    const orders = await (Order as any).find().sort({ createdAt: -1 });
+    return orders.filter((o: any) => {
+      const orderPhoneClean = (o.patientPhone || '').replace(/[^\d]/g, '');
+      return orderPhoneClean.length > 5 && (cleanPhone.endsWith(orderPhoneClean) || orderPhoneClean.endsWith(cleanPhone));
+    });
+  }
+
   async count() {
     return (Order as any).countDocuments();
   }

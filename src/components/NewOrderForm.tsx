@@ -485,14 +485,17 @@ export default function NewOrderForm({
               <div className="flex justify-between items-center pt-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-slate-600 font-medium">Cantidad de cajas:</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="10"
+                  <select
                     value={curCantidadCajas}
                     onChange={e => setCurCantidadCajas(e.target.value)}
-                    className="w-16 px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs text-center font-bold outline-none focus:border-[#295EF3]"
-                  />
+                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-[#295EF3] cursor-pointer"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <option key={num} value={num}>
+                        {num} {num === 1 ? 'caja' : 'cajas'}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <button

@@ -1016,10 +1016,9 @@ export default function PatientForm({
   }
 
   return (
-    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-5xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
+    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-5xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
-      <div className="bg-gradient-to-br from-[#1C2435] to-[#316F80] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
-        <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
+      <div className="bg-[#1C2435] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="relative">
           <span className="text-[10px] font-bold uppercase bg-[#295EF3]/30 px-2.5 py-0.5 rounded-full text-white border border-white/20">
             {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario Oficial'}
@@ -1563,15 +1562,18 @@ export default function PatientForm({
                         <label htmlFor="cur-cajas" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
                           Cantidad de Cajas <span className="text-red-500">*</span>
                         </label>
-                        <input
+                        <select
                           id="cur-cajas"
-                          type="number"
-                          min="1"
                           value={curCantidadCajas}
                           onChange={(e) => setCurCantidadCajas(e.target.value)}
-                          placeholder="1"
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        >
+                          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                            <option key={num} value={num}>
+                              {num} {num === 1 ? 'Caja' : 'Cajas'}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 

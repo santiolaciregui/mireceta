@@ -5,7 +5,11 @@ import { authenticateToken } from '../middlewares/auth.middleware.js';
 const router = Router();
 const controller = new NotificationController();
 
-// All notification routes are protected by authentication token
+// Public Meta Cloud API WhatsApp Webhook Endpoints
+router.get('/whatsapp/webhook', (req, res, next) => controller.verifyWebhook(req, res, next));
+router.post('/whatsapp/webhook', (req, res, next) => controller.handleInboundWebhook(req, res, next));
+
+// Protected notification routes
 router.use(authenticateToken);
 
 router.get('/configs', (req, res, next) => controller.getConfigs(req, res, next));

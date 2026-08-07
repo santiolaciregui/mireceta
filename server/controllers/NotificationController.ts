@@ -117,4 +117,31 @@ export class NotificationController {
       next(err);
     }
   }
+
+  async verifyWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const mode = req.query['hub.mode'];
+      const token = req.query['hub.verify_token'];
+      const challenge = req.query['hub.challenge'];
+
+      const expectedToken = process.env.WA_VERIFY_TOKEN || 'mireceta-wa-verify';
+
+      if (mode === 'subscribe' && token === expectedToken) {
+        res.status(200).send(challenge);
+      } else {
+        res.status(403).json({ error: 'Token de verificación inválido' });
+      }
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  async handleInboundWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const result = await notificationService.processInboundWhatsAppPayload(req.body);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

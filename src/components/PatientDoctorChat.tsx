@@ -27,8 +27,15 @@ import {
   Heart,
   Sparkles,
   CheckCircle,
+  CheckCheck,
   X,
-  Plus
+  Plus,
+  Reply,
+  Maximize2,
+  Zap,
+  MoreVertical,
+  PhoneCall,
+  Video
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../types';
 
@@ -39,6 +46,14 @@ interface PatientDoctorChatProps {
   initialSelectedOrderId?: string | null;
   onClearInitialOrderId?: () => void;
 }
+
+const QUICK_TEMPLATES = [
+  'Hola, hemos recibido tu consulta. El equipo médico está evaluando tu receta.',
+  'Estimado paciente, por favor envíanos una foto clara y nítida de la caja de tu medicación.',
+  'Tu solicitud de receta ha sido APROBADA. Puedes descargar el comprobante desde la plataforma.',
+  'Recordá que para la renovación de recetas crónicas debes tener una consulta registrada en los últimos 6 meses.',
+  'El médico auditor requiere aclarar la dosis indicada en tu solicitud anterior.'
+];
 
 export default function PatientDoctorChat({ 
   orders, 
@@ -56,11 +71,22 @@ export default function PatientDoctorChat({
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [inboxSearchQuery, setInboxSearchQuery] = useState('');
+  const [chatSearchQuery, setChatSearchQuery] = useState('');
+  const [showChatSearch, setShowChatSearch] = useState(false);
+  const [showQuickTemplates, setShowQuickTemplates] = useState(false);
+
+  // Replying state
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+
+  // Lightbox Modal for viewing images
+  const [lightboxImage, setLightboxImage] = useState<{ url: string; title: string } | null>(null);
   
-  // Audio Recording States
+  // Real MediaRecorder Audio Recording States
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
   const recordInterval = useRef<NodeJS.Timeout | null>(null);
 
   // File Upload State
@@ -71,6 +97,7 @@ export default function PatientDoctorChat({
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
   const [audioProgress, setAudioProgress] = useState<Record<string, number>>({});
   const playbackIntervals = useRef<Record<string, NodeJS.Timeout>>({});
+  const audioElementsRef = useRef<Record<string, HTMLAudioElement>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -117,7 +144,7 @@ export default function PatientDoctorChat({
     };
   }, [isRecording]);
 
-  // Helper: Play simple synth alert chime (AudioContext)
+  // Helper: Play simple synth alert chime
   const playSynthBeep = (type: 'send' | 'record' | 'error' | 'play') => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
@@ -132,30 +159,105 @@ export default function PatientDoctorChat({
       if (type === 'send') {
         osc.type = 'sine';
         osc.frequency.setValueAtTime(600, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15);
+        osc.frequency.exponentialRampToValueAtTime(1200, ctx.currentTime + 0.12);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
         osc.start();
-        osc.stop(ctx.currentTime + 0.15);
+        osc.stop(ctx.currentTime + 0.12);
       } else if (type === 'record') {
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(400, ctx.currentTime);
         osc.frequency.setValueAtTime(500, ctx.currentTime + 0.08);
-        gain.gain.setValueAtTime(0.08, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.16);
+        gain.gain.setValueAtTime(0.06, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.14);
         osc.start();
-        osc.stop(ctx.currentTime + 0.16);
-      } else if (type === 'play') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(800, ctx.currentTime);
-        gain.gain.setValueAtTime(0.05, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.05);
+        osc.stop(ctx.currentTime + 0.14);
       }
     } catch (e) {
       // AudioContext blocked or not supported
     }
+  };
+
+  // Start Browser Microphone Recording
+  const startRecording = async () => {
+    playSynthBeep('record');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.warn('Microphone permission or support issue, falling back to simulated voice note:', err);
+      setIsRecording(true);
+    }
+  };
+
+  // Stop Microphone Recording and send audio
+  const stopAndSendAudioRecording = async () => {
+    if (!activeOrder) return;
+    playSynthBeep('send');
+    setIsRecording(false);
+
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.onstop = async () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const base64Audio = reader.result as string;
+          const duration = recordTime > 0 ? recordTime : 5;
+          await sendAudioMessagePayload(base64Audio, duration);
+        };
+        reader.readAsDataURL(audioBlob);
+
+        // Stop all tracks
+        mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
+      };
+      mediaRecorderRef.current.stop();
+    } else {
+      // Fallback audio simulation
+      const duration = recordTime > 0 ? recordTime : 8;
+      const simulatedAudioUrl = `AUDIO_NOTE_${Date.now()}_DURATION_${duration}`;
+      await sendAudioMessagePayload(simulatedAudioUrl, duration);
+    }
+  };
+
+  const cancelAudioRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      mediaRecorderRef.current.stream?.getTracks().forEach(track => track.stop());
+    }
+    setIsRecording(false);
+    audioChunksRef.current = [];
+  };
+
+  const sendAudioMessagePayload = async (audioUrl: string, duration: number) => {
+    if (!activeOrder) return;
+    const messageId = `audio-${Date.now()}`;
+    const newMessage: ChatMessage = {
+      id: messageId,
+      sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : 'colaborador'),
+      senderName: `${currentUser.name} ${currentUser.lastName}`,
+      timestamp: new Date().toISOString(),
+      text: `Mensaje de voz (${formatTime(duration)})`,
+      fileUrl: audioUrl,
+      fileName: `Nota_de_voz_${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }).replace(':', '_')}.mp3`,
+      fileType: 'audio',
+      status: 'sent',
+      audioDuration: duration,
+      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
+    };
+
+    setReplyingTo(null);
+    await onSendMessage(activeOrder.id, newMessage);
   };
 
   // Trigger file browser for image sharing
@@ -199,49 +301,30 @@ export default function PatientDoctorChat({
       sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : 'colaborador'),
       senderName: `${currentUser.name} ${currentUser.lastName}`,
       timestamp: new Date().toISOString(),
+      status: 'sent',
       ...(inputText.trim() ? { text: inputText.trim() } : {}),
       ...(previewImage ? { 
         fileUrl: previewImage.url, 
         fileName: previewImage.name, 
         fileType: 'image' 
-      } : {})
+      } : {}),
+      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
     };
 
     playSynthBeep('send');
     setInputText('');
     setPreviewImage(null);
+    setReplyingTo(null);
     await onSendMessage(activeOrder.id, newMessage);
   };
 
-  // Simulate audio message recording completion
-  const handleSendAudioMessage = async () => {
-    if (!activeOrder) return;
-    setIsRecording(false);
-    playSynthBeep('send');
-
-    const duration = recordTime > 0 ? recordTime : 8; // default to 8 secs if too short
-    const simulatedAudioUrl = `AUDIO_NOTE_${Date.now()}_DURATION_${duration}`;
-
-    const newMessage: ChatMessage = {
-      id: `audio-${Date.now()}`,
-      sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : 'colaborador'),
-      senderName: `${currentUser.name} ${currentUser.lastName}`,
-      timestamp: new Date().toISOString(),
-      text: `Mensaje de voz (${formatTime(duration)})`,
-      fileUrl: simulatedAudioUrl,
-      fileName: `Nota_de_voz_${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }).replace(':', '_')}.mp3`,
-      fileType: 'audio'
-    };
-
-    await onSendMessage(activeOrder.id, newMessage);
-  };
-
-  // Handle Simulated Audio Playback with a moving slider progress bar
-  const togglePlayAudio = (msgId: string, durationSecs: number) => {
-    playSynthBeep('play');
-    
+  // Handle Audio Playback with real Audio element or smooth fallback progress
+  const togglePlayAudio = (msgId: string, url: string, durationSecs: number = 8) => {
     // If already playing this, stop it
     if (playingAudioId === msgId) {
+      if (audioElementsRef.current[msgId]) {
+        audioElementsRef.current[msgId].pause();
+      }
       clearInterval(playbackIntervals.current[msgId]);
       delete playbackIntervals.current[msgId];
       setPlayingAudioId(null);
@@ -250,29 +333,48 @@ export default function PatientDoctorChat({
 
     // Stop currently playing if other
     if (playingAudioId) {
+      if (audioElementsRef.current[playingAudioId]) {
+        audioElementsRef.current[playingAudioId].pause();
+      }
       clearInterval(playbackIntervals.current[playingAudioId]);
       delete playbackIntervals.current[playingAudioId];
       setAudioProgress(prev => ({ ...prev, [playingAudioId]: 0 }));
     }
 
     setPlayingAudioId(msgId);
-    setAudioProgress(prev => ({ ...prev, [msgId]: prev[msgId] || 0 }));
 
-    const tickMs = 150;
-    const progressPerTick = (tickMs / (durationSecs * 1000)) * 100;
-
-    playbackIntervals.current[msgId] = setInterval(() => {
-      setAudioProgress(prev => {
-        const current = prev[msgId] || 0;
-        if (current >= 100) {
-          clearInterval(playbackIntervals.current[msgId]);
-          delete playbackIntervals.current[msgId];
+    // If real base64 audio URL
+    if (url.startsWith('data:audio')) {
+      if (!audioElementsRef.current[msgId]) {
+        const audio = new Audio(url);
+        audioElementsRef.current[msgId] = audio;
+        audio.ontimeupdate = () => {
+          const pct = (audio.currentTime / audio.duration) * 100;
+          setAudioProgress(prev => ({ ...prev, [msgId]: pct || 0 }));
+        };
+        audio.onended = () => {
           setPlayingAudioId(null);
-          return { ...prev, [msgId]: 0 };
-        }
-        return { ...prev, [msgId]: current + progressPerTick };
-      });
-    }, tickMs);
+          setAudioProgress(prev => ({ ...prev, [msgId]: 0 }));
+        };
+      }
+      audioElementsRef.current[msgId].play();
+    } else {
+      // Simulated audio playback progress
+      const tickMs = 100;
+      const progressPerTick = (tickMs / (durationSecs * 1000)) * 100;
+      playbackIntervals.current[msgId] = setInterval(() => {
+        setAudioProgress(prev => {
+          const current = prev[msgId] || 0;
+          if (current >= 100) {
+            clearInterval(playbackIntervals.current[msgId]);
+            delete playbackIntervals.current[msgId];
+            setPlayingAudioId(null);
+            return { ...prev, [msgId]: 0 };
+          }
+          return { ...prev, [msgId]: current + progressPerTick };
+        });
+      }, tickMs);
+    }
   };
 
   // Drag and drop image upload handlers
@@ -302,9 +404,9 @@ export default function PatientDoctorChat({
     }
   };
 
-  // Filter orders by query on doctor/operator side
+  // Filter conversations list
   const filteredInbox = chatOrders.filter(o => {
-    const term = searchQuery.toLowerCase();
+    const term = inboxSearchQuery.toLowerCase();
     return (
       o.patientName.toLowerCase().includes(term) ||
       o.patientLastName.toLowerCase().includes(term) ||
@@ -314,40 +416,99 @@ export default function PatientDoctorChat({
     );
   });
 
-  return (
-    <div className="flex-1 flex w-full h-full bg-white overflow-hidden animate-fadeIn">
-      
-      {/* LEFT PANEL: CONVERSATIONS (Only for doctor/operator to navigate multiple patients) */}
-      {!isPatient && (
-        <div className={`w-full md:w-80 border-r border-slate-150 flex flex-col shrink-0 bg-slate-50/50 ${selectedOrderId ? 'hidden md:flex' : 'flex'}`}>
-          <div className="p-4 border-b border-slate-150">
-            <h3 className="font-extrabold text-[#1C2435] text-sm flex items-center gap-2">
-              <MessageSquare className="h-4.5 w-4.5 text-[#295EF3]" />
-              <span>Bandeja de Consultas</span>
-              <span className="ml-auto px-2 py-0.5 bg-[#295EF3]/10 text-[#295EF3] text-[10px] font-black rounded-md">
-                {chatOrders.length}
-              </span>
-            </h3>
+  // Filter active chat messages by in-chat search query
+  const displayedMessages = (activeOrder?.messages || []).filter(msg => {
+    if (!chatSearchQuery.trim()) return true;
+    const term = chatSearchQuery.toLowerCase();
+    return (
+      (msg.text && msg.text.toLowerCase().includes(term)) ||
+      (msg.senderName && msg.senderName.toLowerCase().includes(term)) ||
+      (msg.fileName && msg.fileName.toLowerCase().includes(term))
+    );
+  });
 
-            {/* Inbox Search bar */}
-            <div className="relative mt-3">
+  return (
+    <div className="flex-1 flex w-full h-full bg-[#f0f2f5] overflow-hidden font-sans text-slate-800 animate-fadeIn selection:bg-[#00a884] selection:text-white">
+      
+      {/* LIGHTBOX IMAGE MODAL */}
+      {lightboxImage && (
+        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fadeIn">
+          <div className="absolute top-4 right-4 flex items-center gap-3">
+            <a
+              href={lightboxImage.url}
+              download={lightboxImage.title}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer"
+              title="Descargar imagen"
+            >
+              <Maximize2 className="h-5 w-5" />
+            </a>
+            <button
+              onClick={() => setLightboxImage(null)}
+              className="p-2.5 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors cursor-pointer"
+              title="Cerrar"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          <img 
+            src={lightboxImage.url} 
+            alt={lightboxImage.title} 
+            className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg shadow-2xl"
+          />
+          <p className="mt-4 text-white text-xs font-semibold font-mono bg-white/10 px-3 py-1 rounded-full">
+            {lightboxImage.title}
+          </p>
+        </div>
+      )}
+
+      {/* LEFT PANEL: CONVERSATIONS LIST (WhatsApp Web Left Drawer Style) */}
+      {!isPatient && (
+        <div className={`w-full md:w-96 border-r border-slate-250 flex flex-col shrink-0 bg-white ${selectedOrderId ? 'hidden md:flex' : 'flex'}`}>
+          
+          {/* Header Bar (WhatsApp Teal `#075E54`) */}
+          <div className="px-4 py-3 bg-[#075E54] text-white flex items-center justify-between shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold border border-white/30 shadow-inner">
+                <MessageSquare className="h-5 w-5 fill-current text-emerald-300" />
+              </div>
+              <div>
+                <h3 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
+                  <span>WhatsApp Clínico</span>
+                  <span className="bg-emerald-400/20 text-emerald-200 text-[10px] font-mono px-1.5 py-0.5 rounded border border-emerald-400/30">
+                    Meta API
+                  </span>
+                </h3>
+                <p className="text-[10px] text-emerald-100 font-medium">Consultorio digital y paciente directo</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-white/80">
+              <span className="px-2 py-0.5 bg-emerald-700/60 rounded-full text-[10px] font-bold font-mono text-emerald-100 border border-emerald-500/30">
+                {chatOrders.length} chats
+              </span>
+            </div>
+          </div>
+
+          {/* Search bar container */}
+          <div className="p-2.5 bg-[#f6f6f6] border-b border-slate-200">
+            <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar paciente o receta..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-4 text-xs font-semibold focus:outline-hidden focus:border-[#295EF3] placeholder:text-slate-400 text-[#1C2435]"
+                placeholder="Buscar paciente, DNI o número de receta..."
+                value={inboxSearchQuery}
+                onChange={(e) => setInboxSearchQuery(e.target.value)}
+                className="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] placeholder:text-slate-400 text-slate-800 shadow-xs"
               />
             </div>
           </div>
 
-          {/* Conversations list scroll container */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          {/* Conversations scrollable inbox */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
             {filteredInbox.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
-                <p className="text-xs font-bold">No se encontraron chats</p>
-                <p className="text-[10px] mt-1">Modifique los términos de búsqueda</p>
+                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                <p className="text-xs font-bold text-slate-600">No se encontraron chats</p>
+                <p className="text-[11px] mt-0.5">Modifique los términos de búsqueda</p>
               </div>
             ) : (
               filteredInbox.map((order) => {
@@ -360,49 +521,50 @@ export default function PatientDoctorChat({
                   <button
                     key={order.id}
                     onClick={() => setSelectedOrderId(order.id)}
-                    className={`w-full text-left p-4 transition-all flex flex-col gap-1 cursor-pointer ${
+                    className={`w-full text-left p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
                       isSelected 
-                        ? 'bg-[#295EF3]/10 border-l-4 border-[#295EF3]' 
-                        : 'hover:bg-slate-50'
+                        ? 'bg-[#f0f2f5] border-[#00a884]' 
+                        : 'border-transparent hover:bg-slate-50'
                     }`}
                   >
-                    <div className="flex justify-between items-start w-full">
-                      <span className="font-bold text-[#1C2435] text-xs truncate">
-                        {order.patientName} {order.patientLastName}
-                      </span>
-                      <span className="text-[9px] font-bold text-slate-400 font-mono">
-                        {order.id}
-                      </span>
+                    {/* User Avatar */}
+                    <div className="relative shrink-0">
+                      <div className="h-11 w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-sm border border-teal-200 shadow-xs">
+                        {order.patientName.charAt(0)}{order.patientLastName.charAt(0)}
+                      </div>
+                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
                     </div>
 
-                    <p className="text-[10px] text-slate-400 font-bold truncate">
-                      DNI: {order.patientDni} • {order.obraSocial}
-                    </p>
+                    {/* Chat details snippet */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-baseline">
+                        <h4 className="font-bold text-slate-800 text-xs truncate">
+                          {order.patientName} {order.patientLastName}
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-mono">
+                          {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                      </div>
 
-                    {/* Last message snippet */}
-                    <div className="mt-2 text-xs truncate w-full flex items-center gap-1.5 text-slate-500">
-                      {lastMsg ? (
-                        <>
-                          <span className="font-extrabold text-[10px] text-[#316F80] uppercase">
-                            {lastMsg.sender === 'paciente' ? 'Paciente:' : 'Soporte:'}
-                          </span>
-                          <span className="truncate text-slate-600 font-medium">{lastMsg.text || 'Archivo adjunto'}</span>
-                        </>
-                      ) : (
-                        <span className="text-slate-400 italic text-[11px]">No hay mensajes todavía</span>
-                      )}
-                    </div>
+                      <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                        DNI: {order.patientDni} • {order.obraSocial}
+                      </p>
 
-                    {/* Order status badge */}
-                    <div className="mt-2.5 flex items-center gap-1.5">
-                      <span className={`inline-block h-1.5 w-1.5 rounded-full ${
-                        order.status === 'Pendiente' ? 'bg-amber-400' :
-                        (order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información') ? 'bg-[#295EF3]' :
-                        order.status === 'Rechazada' ? 'bg-red-400' : 'bg-[#316F80]'
-                      }`} />
-                      <span className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
-                        {order.status}
-                      </span>
+                      {/* Last message preview */}
+                      <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
+                        {lastMsg ? (
+                          <>
+                            {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
+                              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
+                            ) : null}
+                            <span className="truncate text-slate-600 font-normal">
+                              {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-slate-400 italic text-[11px]">Conversación iniciada</span>
+                        )}
+                      </div>
                     </div>
                   </button>
                 );
@@ -412,20 +574,27 @@ export default function PatientDoctorChat({
         </div>
       )}
 
-      {/* RIGHT PANEL: ACTIVE CHAT THREAD */}
+      {/* RIGHT PANEL: ACTIVE WHATSAPP CHAT CANVAS */}
       <div 
-        className={`flex-1 flex flex-col bg-slate-50/30 relative ${isDragOver ? 'bg-[#295EF3]/5' : ''} ${!selectedOrderId && !isPatient ? 'hidden md:flex' : 'flex'}`}
+        className={`flex-1 flex flex-col bg-[#efeae2] relative ${isDragOver ? 'ring-4 ring-[#00a884] ring-inset' : ''} ${!selectedOrderId && !isPatient ? 'hidden md:flex' : 'flex'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        style={{
+          backgroundImage: `radial-gradient(#00a884 0.4px, transparent 0.4px), radial-gradient(#00a884 0.4px, #efeae2 0.4px)`,
+          backgroundSize: '24px 24px',
+          backgroundPosition: '0 0, 12px 12px',
+          opacity: 0.98
+        }}
       >
+        {/* DRAG DROP OVERLAY */}
         {isDragOver && (
-          <div className="absolute inset-0 z-30 bg-[#295EF3]/10 backdrop-blur-xs flex items-center justify-center pointer-events-none">
-            <div className="bg-white/90 shadow-xl border border-[#295EF3]/30 rounded-3xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all">
-              <ImageIcon className="h-10 w-10 text-[#295EF3] animate-bounce" />
+          <div className="absolute inset-0 z-30 bg-[#00a884]/20 backdrop-blur-xs flex items-center justify-center pointer-events-none">
+            <div className="bg-white shadow-2xl border-2 border-[#00a884] rounded-2xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all">
+              <ImageIcon className="h-12 w-12 text-[#00a884] animate-bounce" />
               <div>
-                <p className="font-extrabold text-sm text-[#1C2435]">Soltá la imagen acá</p>
-                <p className="text-[10px] text-slate-400 mt-1">Se cargará como archivo adjunto de forma segura</p>
+                <p className="font-bold text-base text-slate-800">Soltá tu imagen acá</p>
+                <p className="text-xs text-slate-500 mt-1">Se adjuntará directamente al mensaje de WhatsApp</p>
               </div>
             </div>
           </div>
@@ -433,165 +602,230 @@ export default function PatientDoctorChat({
 
         {activeOrder ? (
           <>
-            {/* Active chat header with contact/order summary */}
-            <div className="px-6 py-4 border-b border-slate-150 bg-white flex items-center justify-between shadow-xs z-10">
-              <div className="flex items-center gap-3">
+            {/* WHATSAPP TOP HEADER BAR */}
+            <div className="px-4 py-2.5 bg-[#f0f2f5] border-b border-slate-250 flex items-center justify-between z-10 shadow-xs">
+              <div className="flex items-center gap-3 min-w-0">
                 {!isPatient && (
                   <button 
                     onClick={() => setSelectedOrderId(null)}
-                    className="md:hidden p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 flex items-center justify-center shrink-0 border border-slate-200 mr-1"
-                    title="Volver"
+                    className="md:hidden p-1.5 hover:bg-slate-200 rounded-full text-slate-600 shrink-0 mr-1"
+                    title="Volver a chats"
                   >
+                    <X className="h-5 w-5" />
+                  </button>
+                )}
+
+                <div className="h-10 w-10 bg-[#075E54] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                  {isPatient ? 'MR' : activeOrder.patientName.charAt(0)}
+                </div>
+
+                <div className="min-w-0">
+                  <h4 className="font-bold text-slate-800 text-sm truncate">
+                    {isPatient ? 'Consultorio Médico - Mi Receta Online' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1.5">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shrink-0" />
+                    <span>{isPatient ? 'Atención Médica Directa' : `DNI: ${activeOrder.patientDni} • WhatsApp: ${activeOrder.patientPhone || 'Conectado'}`}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Action Toolbar */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => setShowChatSearch(!showChatSearch)}
+                  className={`p-2 rounded-full transition-colors cursor-pointer ${showChatSearch ? 'bg-slate-300 text-slate-900' : 'hover:bg-slate-200 text-slate-600'}`}
+                  title="Buscar en el chat"
+                >
+                  <Search className="h-4.5 w-4.5" />
+                </button>
+                {!isPatient && (
+                  <button
+                    onClick={() => setShowQuickTemplates(!showQuickTemplates)}
+                    className={`p-2 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold ${showQuickTemplates ? 'bg-[#00a884] text-white' : 'hover:bg-slate-200 text-[#075E54]'}`}
+                    title="Plantillas médicas rápidas"
+                  >
+                    <Zap className="h-4.5 w-4.5" />
+                    <span className="hidden sm:inline">Plantillas</span>
+                  </button>
+                )}
+                <div className="bg-white/80 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54]">
+                  #{activeOrder.id}
+                </div>
+              </div>
+            </div>
+
+            {/* IN-CHAT SEARCH BAR (TOGGLEABLE) */}
+            {showChatSearch && (
+              <div className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-2 animate-fadeIn z-10 shadow-xs">
+                <Search className="h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Buscar texto en esta conversación..."
+                  value={chatSearchQuery}
+                  onChange={(e) => setChatSearchQuery(e.target.value)}
+                  className="flex-1 text-xs py-1 px-2 focus:outline-none text-slate-800"
+                  autoFocus
+                />
+                {chatSearchQuery && (
+                  <button onClick={() => setChatSearchQuery('')} className="text-slate-400 hover:text-slate-600">
                     <X className="h-4 w-4" />
                   </button>
                 )}
-                <div className="h-10 w-10 bg-slate-100 rounded-full border border-slate-200 flex items-center justify-center text-slate-500 shrink-0">
-                  <User className="h-5 w-5" />
-                </div>
-                <div>
-                  <h4 className="font-black text-[#1C2435] text-sm">
-                    {isPatient ? 'Equipo Médico de Mi Receta Online' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 font-bold mt-0.5">
-                    {isPatient 
-                      ? 'Consultorio y auditoría médica asincrónica activa' 
-                      : `DNI: ${activeOrder.patientDni} • Obra Social: ${activeOrder.obraSocial}`}
-                  </p>
+              </div>
+            )}
+
+            {/* QUICK RESPONSE TEMPLATES DROPDOWN */}
+            {showQuickTemplates && (
+              <div className="bg-white border-b border-slate-200 p-3 z-10 shadow-md animate-fadeIn">
+                <p className="text-[10px] font-bold text-[#075E54] uppercase tracking-wider mb-2 flex items-center gap-1">
+                  <Zap className="h-3.5 w-3.5" />
+                  <span>Respuestas Médicas Rápidas</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_TEMPLATES.map((tmpl, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setInputText(tmpl);
+                        setShowQuickTemplates(false);
+                      }}
+                      className="text-left bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg p-2 text-xs text-slate-700 hover:text-[#075E54] transition-all cursor-pointer max-w-sm"
+                    >
+                      {tmpl}
+                    </button>
+                  ))}
                 </div>
               </div>
+            )}
 
-              {/* Order quick context badge */}
-              <div className="text-right flex flex-col items-end gap-1">
-                <span className="text-[9px] font-black bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20 px-2 py-0.5 rounded-md font-mono">
-                  Orden: {activeOrder.id}
-                </span>
-                <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                  activeOrder.status === 'Pendiente' ? 'bg-amber-100 text-amber-700 border border-amber-200/50' :
-                  (activeOrder.status === 'En revisión' || activeOrder.status === 'Aprobada' || activeOrder.status === 'Solicita más información') ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/30' :
-                  activeOrder.status === 'Rechazada' ? 'bg-red-100 text-red-700 border border-red-200/50' : 'bg-[#316F80]/15 text-[#316F80] border border-[#316F80]/30'
-                }`}>
-                  {activeOrder.status}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Context Strip regarding active treatment */}
-            <div className="bg-slate-50 border-b border-slate-150 px-6 py-2.5 flex items-center justify-between text-[11px] text-slate-500 font-semibold gap-3">
+            {/* CONVERSATION ACTIVE TREATMENT BANNER */}
+            <div className="bg-white/80 backdrop-blur-xs border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs text-slate-600 font-medium">
               <span className="truncate">
-                <strong>Medicación:</strong> {activeOrder.medicationText}
+                <strong>Solicitud de receta:</strong> {activeOrder.medicationText}
               </span>
-              <span className="shrink-0 font-mono">
-                Diag: {activeOrder.diagnostic || 'Tratamiento Crónico'}
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
+                activeOrder.status === 'Aprobada' ? 'bg-emerald-100 text-emerald-800' :
+                activeOrder.status === 'Pendiente' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {activeOrder.status}
               </span>
             </div>
 
-            {/* Messages Thread list */}
-            <div className="flex-1 overflow-y-auto px-6 py-6 space-y-4">
+            {/* MESSAGES SCROLL CANVAS */}
+            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 space-y-3">
               
-              {/* Informative baseline message */}
-              <div className="text-center py-2">
-                <span className="inline-block bg-slate-100 border border-slate-200/60 rounded-xl px-4 py-1.5 text-[10px] text-slate-500 font-bold tracking-wide">
-                  Encriptación segura de grado clínico activa • {new Date(activeOrder.createdAt).toLocaleDateString('es-AR')}
-                </span>
+              {/* WhatsApp Encryption baseline notice */}
+              <div className="text-center my-3">
+                <div className="inline-block bg-[#ffeebd] border border-[#f5d98b] text-[#544415] rounded-lg px-4 py-2 text-[11px] max-w-md shadow-xs text-center font-medium leading-tight">
+                  🔒 Los mensajes están protegidos con cifrado de grado clínico. WhatsApp Cloud API conectada.
+                </div>
               </div>
 
-              {/* Loop messages list */}
-              {(!activeOrder.messages || activeOrder.messages.length === 0) ? (
-                <div className="h-full flex flex-col items-center justify-center text-center max-w-sm mx-auto opacity-75">
-                  <MessageSquare className="h-10 w-10 text-slate-300 stroke-[1.5] mb-2 animate-bounce" />
-                  <p className="text-xs font-bold text-slate-700">Sin mensajes en este canal</p>
-                  <p className="text-[10px] text-slate-450 mt-1">
-                    Escriba una pregunta, adjunte fotos complementarias de su remedio o grabe una nota de voz para solicitar apoyo médico.
-                  </p>
+              {/* Loop Messages */}
+              {displayedMessages.length === 0 ? (
+                <div className="text-center py-12 text-slate-400">
+                  <p className="text-xs font-semibold">No se encontraron mensajes en esta conversación</p>
                 </div>
               ) : (
-                activeOrder.messages.map((msg) => {
+                displayedMessages.map((msg) => {
                   const isOwn = (isPatient && msg.sender === 'paciente') || 
                                 (!isPatient && msg.sender !== 'paciente');
-                  
+
                   return (
                     <div 
                       key={msg.id} 
-                      className={`flex flex-col max-w-[70%] ${
+                      className={`group relative flex flex-col max-w-[85%] sm:max-w-[70%] ${
                         isOwn ? 'ml-auto items-end' : 'mr-auto items-start'
                       }`}
                     >
-                      {/* Sender name label (if not own) */}
+                      {/* Sender name label for incoming */}
                       {!isOwn && (
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-1 ml-1.5">
+                        <span className="text-[10px] font-bold text-[#075E54] mb-0.5 ml-1">
                           {msg.senderName} ({msg.sender})
                         </span>
                       )}
 
-                      {/* Message bubble container */}
-                      <div className={`p-3.5 rounded-2xl shadow-xs border ${
+                      {/* Message Bubble Container (WhatsApp Green `#d9fdd3` for outgoing, White `#ffffff` for incoming) */}
+                      <div className={`relative p-2.5 sm:p-3 rounded-lg shadow-xs text-slate-800 text-xs sm:text-sm leading-relaxed ${
                         isOwn 
-                          ? 'bg-[#295EF3] border-[#295EF3] text-white rounded-br-none' 
-                          : 'bg-white border-slate-200 text-[#1C2435] rounded-bl-none'
+                          ? 'bg-[#d9fdd3] rounded-tr-none border border-emerald-200/50' 
+                          : 'bg-white rounded-tl-none border border-slate-200/60'
                       }`}>
+
+                        {/* Reply Trigger Quick Button */}
+                        <button
+                          onClick={() => setReplyingTo(msg)}
+                          className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 p-1 hover:bg-black/10 rounded-full transition-opacity text-slate-500 cursor-pointer"
+                          title="Citar / Responder"
+                        >
+                          <Reply className="h-3.5 w-3.5" />
+                        </button>
+
+                        {/* QUOTED MESSAGE PREVIEW (IF REPLY) */}
+                        {msg.replyTo && (
+                          <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#00a884] rounded text-xs font-medium text-slate-700">
+                            <p className="font-bold text-[#075E54] text-[10px]">{msg.replyTo.senderName}</p>
+                            <p className="truncate text-slate-600 text-[11px]">{msg.replyTo.text}</p>
+                          </div>
+                        )}
                         
                         {/* 1. TEXT CONTENT */}
                         {msg.text && (
-                          <p className="text-xs leading-relaxed font-semibold whitespace-pre-wrap">
+                          <p className="whitespace-pre-wrap font-normal text-slate-800 pr-4">
                             {msg.text}
                           </p>
                         )}
 
-                        {/* 2. IMAGE CONTENT */}
+                        {/* 2. IMAGE ATTACHMENT */}
                         {msg.fileType === 'image' && msg.fileUrl && (
-                          <div className={`mt-2 overflow-hidden rounded-xl border ${msg.text ? 'border-t border-slate-200/20 pt-2' : ''}`}>
+                          <div className="mt-1.5 overflow-hidden rounded-lg cursor-pointer group/img relative">
                             <img 
                               src={msg.fileUrl} 
                               alt={msg.fileName} 
-                              className="max-h-56 object-cover rounded-lg hover:scale-[1.02] transition-transform duration-200 cursor-zoom-in"
+                              onClick={() => setLightboxImage({ url: msg.fileUrl!, title: msg.fileName || 'Imagen' })}
+                              className="max-h-64 object-cover rounded-lg hover:brightness-95 transition-all"
                               referrerPolicy="no-referrer"
                             />
-                            <div className="mt-1.5 flex items-center gap-1.5 text-[9px] opacity-75 font-mono">
-                              <ImageIcon className="h-3 w-3 shrink-0" />
-                              <span className="truncate max-w-[150px]">{msg.fileName}</span>
+                            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <Maximize2 className="h-6 w-6" />
                             </div>
                           </div>
                         )}
 
-                        {/* 3. AUDIO VOICE MESSAGE CONTENT */}
+                        {/* 3. AUDIO VOICE NOTE CONTENT */}
                         {msg.fileType === 'audio' && msg.fileUrl && (
-                          <div className="flex items-center gap-3 py-1.5 min-w-[200px]">
+                          <div className="flex items-center gap-3 py-1 min-w-[220px]">
                             {/* Play Button */}
                             <button
-                              onClick={() => {
-                                // Extract duration from URL string if exists, e.g. AUDIO_NOTE_123_DURATION_8
-                                const match = msg.fileUrl?.match(/DURATION_(\d+)/);
-                                const duration = match ? parseInt(match[1]) : 8;
-                                togglePlayAudio(msg.id, duration);
-                              }}
-                              className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                              onClick={() => togglePlayAudio(msg.id, msg.fileUrl!, msg.audioDuration || 8)}
+                              className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                                 isOwn 
-                                  ? 'bg-white/20 hover:bg-white/30 text-white' 
-                                  : 'bg-[#295EF3]/10 hover:bg-[#295EF3]/20 text-[#295EF3]'
+                                  ? 'bg-[#00a884] text-white hover:bg-[#075E54]' 
+                                  : 'bg-[#075E54] text-white hover:bg-[#00a884]'
                               }`}
                             >
                               {playingAudioId === msg.id ? (
-                                <Pause className="h-4.5 w-4.5 fill-current" />
+                                <Pause className="h-5 w-5 fill-current" />
                               ) : (
-                                <Play className="h-4.5 w-4.5 fill-current translate-x-0.5" />
+                                <Play className="h-5 w-5 fill-current translate-x-0.5" />
                               )}
                             </button>
 
                             {/* Voice Wave and Slider Progress bar */}
                             <div className="flex-1 space-y-1">
                               <div className="flex items-end gap-0.5 h-6">
-                                {/* Simulated static audio waves */}
-                                {[4, 7, 2, 8, 5, 9, 3, 6, 4, 8, 2, 5, 9, 4, 7, 3].map((val, idx) => {
-                                  // Animate wave lines if this exact audio note is playing
+                                {[4, 7, 3, 9, 5, 8, 2, 6, 4, 8, 3, 6, 9, 4, 7, 2].map((val, idx) => {
                                   const isPlaying = playingAudioId === msg.id;
-                                  const randomFactor = isPlaying ? Math.sin((audioProgress[msg.id] || 0) + idx) * 3 : 0;
-                                  const height = Math.max(2, Math.min(24, val * 2.5 + randomFactor));
+                                  const height = isPlaying 
+                                    ? Math.max(3, Math.min(22, val * 2.2 + Math.sin((audioProgress[msg.id] || 0) + idx) * 3))
+                                    : val * 2.2;
 
                                   return (
                                     <span 
                                       key={idx} 
-                                      className={`w-1 rounded-full ${
-                                        isOwn ? 'bg-white/40' : 'bg-slate-300'
+                                      className={`w-1 rounded-full transition-all ${
+                                        isOwn ? 'bg-[#00a884]' : 'bg-slate-400'
                                       }`}
                                       style={{ height: `${height}px` }}
                                     />
@@ -600,31 +834,27 @@ export default function PatientDoctorChat({
                               </div>
 
                               {/* Progress bar line */}
-                              <div className={`h-1 w-full rounded-full relative ${
-                                isOwn ? 'bg-white/20' : 'bg-slate-100'
-                              }`}>
+                              <div className="h-1 w-full rounded-full bg-slate-200 relative">
                                 <div 
-                                  className={`h-full rounded-full absolute left-0 top-0 transition-all duration-100 ${
-                                    isOwn ? 'bg-white' : 'bg-[#295EF3]'
-                                  }`}
+                                  className="h-full rounded-full bg-[#00a884] absolute left-0 top-0 transition-all duration-100"
                                   style={{ width: `${audioProgress[msg.id] || 0}%` }}
                                 />
                               </div>
                             </div>
-
-                            {/* Volume speaker decoration */}
-                            <Volume2 className={`h-4 w-4 shrink-0 opacity-40 hidden sm:block ${
-                              isOwn ? 'text-white' : 'text-slate-500'
-                            }`} />
                           </div>
                         )}
 
-                      </div>
+                        {/* TIMESTAMP & STATUS INDICATOR (WHATSAPP DOUBLE TICKS `✓✓`) */}
+                        <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-400 float-right">
+                          <span>
+                            {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {isOwn && (
+                            <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+                          )}
+                        </div>
 
-                      {/* Timestamp of delivery */}
-                      <span className="text-[9px] font-bold text-slate-400 mt-1 mr-1">
-                        {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
+                      </div>
                     </div>
                   );
                 })
@@ -632,71 +862,69 @@ export default function PatientDoctorChat({
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Drag drop guidelines or preview upload widget */}
+            {/* QUOTED REPLY PREVIEW BANNER */}
+            {replyingTo && (
+              <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between animate-fadeIn z-10">
+                <div className="border-l-4 border-[#00a884] pl-3 min-w-0">
+                  <p className="text-[10px] font-bold text-[#075E54]">Respondiendo a {replyingTo.senderName}</p>
+                  <p className="text-xs text-slate-600 truncate">{replyingTo.text || replyingTo.fileName}</p>
+                </div>
+                <button 
+                  onClick={() => setReplyingTo(null)}
+                  className="p-1 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
+
+            {/* PREVIEW UPLOADED IMAGE BANNER */}
             {previewImage && (
-              <div className="px-6 py-3 border-t border-slate-150 bg-white flex items-center justify-between gap-4 animate-scaleUp">
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl border border-slate-200 max-w-sm">
+              <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-4 animate-scaleUp z-10">
+                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 max-w-xs">
                   <img 
                     src={previewImage.url} 
                     alt="Preview" 
-                    className="h-10 w-10 object-cover rounded-lg shrink-0"
+                    className="h-10 w-10 object-cover rounded shrink-0"
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-[#1C2435] truncate">{previewImage.name}</p>
-                    <p className="text-[9px] text-slate-400 font-semibold font-mono">Imagen lista para enviar</p>
+                    <p className="text-xs font-bold text-slate-800 truncate">{previewImage.name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">Imagen lista para enviar</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setPreviewImage(null)}
-                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer"
                 >
                   <X className="h-5 w-5" />
                 </button>
               </div>
             )}
 
-            {/* MESSAGE INPUT CONSOLE */}
-            <div className="p-4 border-t border-slate-150 bg-white z-10 shadow-lg">
+            {/* WHATSAPP MESSAGE INPUT CONSOLE */}
+            <div className="p-3 bg-[#f0f2f5] border-t border-slate-250 z-10 shadow-lg">
               {isRecording ? (
-                /* AUDIO RECORDING ACTIVE INTERFACE */
-                <div className="flex items-center justify-between bg-red-50 border border-red-150 rounded-2xl py-3 px-5 animate-pulse">
+                /* AUDIO RECORDING ACTIVE BAR */
+                <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl py-2.5 px-4 animate-pulse">
                   <div className="flex items-center gap-3">
                     <span className="h-3 w-3 rounded-full bg-red-600 animate-ping shrink-0" />
-                    <span className="text-xs font-black text-red-700">GRABANDO MENSAJE DE VOZ</span>
-                    <span className="font-mono text-xs font-black text-red-950 bg-red-100 px-2 py-0.5 rounded-md">
+                    <span className="text-xs font-bold text-red-700">GRABANDO MENSAJE DE VOZ</span>
+                    <span className="font-mono text-xs font-bold text-red-950 bg-red-100 px-2 py-0.5 rounded">
                       {formatTime(recordTime)}
                     </span>
                   </div>
 
-                  {/* Audio Waves active visualizer */}
-                  <div className="hidden md:flex items-center gap-1">
-                    {[16, 24, 12, 32, 18, 10, 28, 20].map((h, i) => (
-                      <span 
-                        key={i} 
-                        className="w-1 bg-red-500 rounded-full transition-all duration-150"
-                        style={{ 
-                          height: `${Math.max(4, Math.sin(recordTime * 2 + i) * h)}px`,
-                          animationDelay: `${i * 0.1}s`
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Actions buttons */}
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
-                        playSynthBeep('error');
-                        setIsRecording(false);
-                      }}
-                      className="px-3 py-1.5 hover:bg-red-100 rounded-xl text-xs font-bold text-red-600 hover:text-red-800 transition-colors cursor-pointer"
+                      onClick={cancelAudioRecording}
+                      className="px-3 py-1.5 hover:bg-red-100 rounded-lg text-xs font-bold text-red-600 cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button
-                      onClick={handleSendAudioMessage}
-                      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow flex items-center gap-1.5 cursor-pointer"
+                      onClick={stopAndSendAudioRecording}
+                      className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
                     >
                       <MicOff className="h-4 w-4" />
                       <span>Enviar Audio</span>
@@ -704,10 +932,10 @@ export default function PatientDoctorChat({
                   </div>
                 </div>
               ) : (
-                /* STANDARD TEXT INPUT FORM */
+                /* STANDARD TEXT & MEDIA INPUT FORM */
                 <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3">
                   
-                  {/* File attacher triggers hidden input */}
+                  {/* File attacher trigger */}
                   <input
                     type="file"
                     ref={fileInputRef}
@@ -719,7 +947,7 @@ export default function PatientDoctorChat({
                     type="button"
                     onClick={handleFileClick}
                     title="Adjuntar Imagen"
-                    className="h-11 w-11 hover:bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 hover:text-slate-800 border border-slate-200 hover:border-slate-300 transition-all shrink-0 cursor-pointer"
+                    className="p-2.5 hover:bg-slate-200 rounded-full text-slate-600 transition-colors shrink-0 cursor-pointer"
                   >
                     <Paperclip className="h-5 w-5" />
                   </button>
@@ -727,12 +955,9 @@ export default function PatientDoctorChat({
                   {/* Voice mic recorder trigger */}
                   <button
                     type="button"
-                    onClick={() => {
-                      playSynthBeep('record');
-                      setIsRecording(true);
-                    }}
+                    onClick={startRecording}
                     title="Grabar Mensaje de Voz"
-                    className="h-11 w-11 hover:bg-red-50 rounded-xl flex items-center justify-center text-red-500 hover:text-red-700 hover:bg-red-500/10 border border-red-200/50 hover:border-red-300 transition-all shrink-0 cursor-pointer"
+                    className="p-2.5 hover:bg-slate-200 rounded-full text-slate-600 hover:text-red-600 transition-colors shrink-0 cursor-pointer"
                   >
                     <Mic className="h-5 w-5" />
                   </button>
@@ -743,8 +968,8 @@ export default function PatientDoctorChat({
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Escribí tu mensaje acá o soltá una foto..."
-                      className="w-full h-11 bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-250 hover:border-slate-300 focus:border-[#295EF3] rounded-xl px-4 py-2.5 text-xs sm:text-sm font-semibold focus:outline-hidden transition-all text-[#1C2435] placeholder:text-slate-400"
+                      placeholder="Escribe un mensaje de WhatsApp..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
                     />
                   </div>
 
@@ -752,10 +977,10 @@ export default function PatientDoctorChat({
                   <button
                     type="submit"
                     disabled={!inputText.trim() && !previewImage}
-                    className="h-11 px-5 bg-[#295EF3] hover:bg-[#1C2435] disabled:opacity-50 disabled:hover:bg-[#295EF3] text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 shrink-0 cursor-pointer font-bold text-xs"
+                    className="h-10 w-10 bg-[#00a884] hover:bg-[#075E54] disabled:opacity-50 text-white rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                    title="Enviar mensaje"
                   >
-                    <span>Enviar</span>
-                    <Send className="h-3.5 w-3.5" />
+                    <Send className="h-4 w-4 translate-x-0.5" />
                   </button>
                 </form>
               )}
@@ -763,13 +988,13 @@ export default function PatientDoctorChat({
           </>
         ) : (
           /* UNSELECTED WELCOME SPLASH PAGE */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50/20">
-            <div className="h-16 w-16 bg-[#295EF3]/10 rounded-2xl flex items-center justify-center text-[#295EF3] mb-4 animate-pulse">
-              <MessageSquare className="h-8 w-8" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#f0f2f5]">
+            <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center text-[#075E54] mb-4 shadow-sm">
+              <MessageSquare className="h-10 w-10" />
             </div>
-            <h4 className="font-extrabold text-[#1C2435] text-sm">Canal de Chat Clínico Directo</h4>
-            <p className="text-[11px] text-slate-500 max-w-sm mt-1.5 leading-relaxed">
-              Seleccione una de las solicitudes de los pacientes en la lista izquierda para abrir la consola de comunicación instantánea en tiempo real.
+            <h4 className="font-bold text-slate-800 text-base">WhatsApp Web Clínico</h4>
+            <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed">
+              Seleccione un chat de la lista izquierda para iniciar o continuar la atención médica directa por WhatsApp.
             </p>
           </div>
         )}

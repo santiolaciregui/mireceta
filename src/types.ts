@@ -108,13 +108,20 @@ export interface MedicalOrder {
 
 export interface ChatMessage {
   id: string;
-  sender: 'paciente' | 'medico' | 'colaborador';
+  sender: 'paciente' | 'medico' | 'colaborador' | 'sistema';
   senderName: string;
   text?: string;
   fileUrl?: string; // for image or audio
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'text';
+  fileType?: 'image' | 'audio' | 'text' | 'pdf';
   timestamp: string;
+  status?: 'sent' | 'delivered' | 'read';
+  replyTo?: {
+    id: string;
+    senderName: string;
+    text?: string;
+  };
+  audioDuration?: number;
 }
 
 export type UserRole = 'paciente' | 'medico' | 'admin' | 'colaborador' | 'operador' | 'superadmin';
