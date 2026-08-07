@@ -19,6 +19,8 @@ export interface MedicationItem {
   presentacion?: string;
   unidadesPorCaja?: number;
   cantidadCajas: number;
+  diagnostic?: string;
+  comments?: string;
   photoUrl?: string;
 }
 

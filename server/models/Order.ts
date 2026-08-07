@@ -7,6 +7,8 @@ export interface IMedicationItem {
   presentacion: string;
   unidadesPorCaja: number;
   cantidadCajas: number;
+  diagnostic?: string;
+  comments?: string;
 }
 
 export interface IAuditLogEntry {
@@ -91,7 +93,9 @@ const medicationItemSchema = new Schema<IMedicationItem>({
   miligramos: { type: String, required: false, default: '' },
   presentacion: { type: String, required: false, default: '' },
   unidadesPorCaja: { type: Number, required: false, default: 0 },
-  cantidadCajas: { type: Number, required: false, default: 1 }
+  cantidadCajas: { type: Number, required: false, default: 1 },
+  diagnostic: { type: String, required: false, default: '' },
+  comments: { type: String, required: false, default: '' }
 }, { _id: false });
 
 const auditLogEntrySchema = new Schema<IAuditLogEntry>({

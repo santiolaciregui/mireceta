@@ -399,6 +399,8 @@ export default function PatientForm({
   const [curPresentacion, setCurPresentacion] = useState('Comprimidos');
   const [curUnidadesPorCaja, setCurUnidadesPorCaja] = useState('30');
   const [curCantidadCajas, setCurCantidadCajas] = useState('1');
+  const [curDiagnostic, setCurDiagnostic] = useState('');
+  const [curComments, setCurComments] = useState('');
 
   // B. Photo Carga
   const [medicationPhotos, setMedicationPhotos] = useState<{ url: string; name: string }[]>([]);
@@ -677,6 +679,8 @@ export default function PatientForm({
       presentacion: curPresentacion,
       unidadesPorCaja: curUnidadesPorCaja ? parseInt(curUnidadesPorCaja) : undefined,
       cantidadCajas: parseInt(curCantidadCajas) || 1,
+      diagnostic: curDiagnostic.trim(),
+      comments: curComments.trim(),
     };
 
     setMedicationItems(prev => [...prev, newItem]);
@@ -687,6 +691,8 @@ export default function PatientForm({
     setCurPresentacion('Comprimidos');
     setCurUnidadesPorCaja('30');
     setCurCantidadCajas('1');
+    setCurDiagnostic('');
+    setCurComments('');
   };
 
   const removeMedicationItem = (index: number) => {
@@ -749,7 +755,7 @@ export default function PatientForm({
       let summaryText = '';
       if (medicationItems.length > 0) {
         summaryText = medicationItems.map(item => 
-          `- ${item.nombreComercial} (${item.droga} ${item.miligramos}), Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
+          `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
         ).join('\n');
         if (medicationPhotos.length > 0) {
           summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
@@ -757,6 +763,8 @@ export default function PatientForm({
       } else {
         summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos). Medicamentos visibles en el archivo adjunto.`;
       }
+
+      const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
       // 1. Create order in database with pending payment status
       const fullOrderPayload = {
@@ -772,7 +780,7 @@ export default function PatientForm({
         medicationMethod: mappedMedicationMethod,
         medicationText: summaryText,
         medicationItems,
-        diagnostic: diagnostic.trim(),
+        diagnostic: aggregatedDiagnostic,
         comments: comments.trim() || undefined,
         medicationPhotos,
         medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
@@ -850,7 +858,7 @@ export default function PatientForm({
     let summaryText = '';
     if (medicationItems.length > 0) {
       summaryText = medicationItems.map(item => 
-        `- ${item.nombreComercial} (${item.droga} ${item.miligramos}), Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
+        `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
       ).join('\n');
       if (medicationPhotos.length > 0) {
         summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
@@ -860,6 +868,8 @@ export default function PatientForm({
     }
 
     const simulatedCashReceipt = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23ecfdf5"/><rect x="30" y="15" width="240" height="170" rx="8" fill="%23ffffff" stroke="%2310b981" stroke-width="2"/><circle cx="150" cy="60" r="22" fill="%23d1fae5"/><path d="M142,60 L148,66 L158,54" fill="none" stroke="%2310b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="110" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23065f46" text-anchor="middle">MARCADA COMO COBRADA</text><text x="150" y="135" font-family="sans-serif" font-size="14" font-weight="bold" fill="%2310b981" text-anchor="middle">EFECTIVO / CAJA</text><text x="150" y="160" font-family="sans-serif" font-size="9" fill="%2364748b" text-anchor="middle">Registrado en mesa de entrada / profesional</text></svg>`;
+
+    const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
     // Build full order object mapping to backend fields
     const fullOrderPayload = {
@@ -875,7 +885,7 @@ export default function PatientForm({
       medicationMethod: mappedMedicationMethod,
       medicationText: summaryText,
       medicationItems,
-      diagnostic: diagnostic.trim(),
+      diagnostic: aggregatedDiagnostic,
       comments: comments.trim() || undefined,
       medicationPhotos,
       medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
@@ -1468,6 +1478,100 @@ export default function PatientForm({
               </div>
             )}
 
+            {/* 🛒 CARRITO DE LA SOLICITUD (PLACED ABOVE MÉTODO DE CARGA) */}
+            <div className="bg-slate-50/75 p-4.5 rounded-2xl border border-slate-200 space-y-3 shadow-xs">
+              <div className="flex items-center justify-between">
+                <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                  <span>🛒 Carrito de la Solicitud</span>
+                  <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
+                    {medicationItems.length + medicationPhotos.length} {medicationItems.length + medicationPhotos.length === 1 ? 'item' : 'items'}
+                  </span>
+                </h5>
+                {(medicationItems.length > 0 || medicationPhotos.length > 0) && (
+                  <button
+                    type="button"
+                    onClick={() => { setMedicationItems([]); setMedicationPhotos([]); }}
+                    className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
+                  >
+                    Vaciar Todo
+                  </button>
+                )}
+              </div>
+
+              {medicationItems.length === 0 && medicationPhotos.length === 0 ? (
+                <div className="py-5 text-center text-xs text-slate-400 font-medium bg-white/60 rounded-xl border border-dashed border-slate-250">
+                  El recetario está vacío. Seleccione un <strong>Método de Carga</strong> a continuación para ingresar medicamentos o adjuntar fotos.
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  {/* Items ingresados por texto / manual */}
+                  {medicationItems.map((item, index) => (
+                    <div 
+                      key={`text-${index}`} 
+                      className="flex items-center justify-between bg-white border border-slate-200 p-3 rounded-xl text-xs shadow-xs"
+                    >
+                      <div>
+                        <p className="font-extrabold text-slate-900">
+                          {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                          {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
+                        </p>
+                        {item.diagnostic && (
+                          <p className="text-[10.5px] text-indigo-700 font-bold mt-1 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md inline-block mr-1">
+                            Diagnóstico: {item.diagnostic}
+                          </p>
+                        )}
+                        {item.comments && (
+                          <p className="text-[10.5px] text-slate-700 font-medium mt-1 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md inline-block">
+                            Aclaración: {item.comments}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        id={`btn-remove-med-item-${index}`}
+                        type="button"
+                        onClick={() => removeMedicationItem(index)}
+                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                        title="Quitar"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Fotos de envase o receta agregadas */}
+                  {medicationPhotos.map((photo, index) => (
+                    <div key={`photo-${index}`} className="bg-white p-2.5 rounded-xl border border-blue-200 flex items-center justify-between text-left text-xs shadow-xs">
+                      <div className="flex items-center gap-2.5 truncate">
+                        <div className="h-10 w-12 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                          {photo.url.startsWith('data:application/pdf') ? (
+                            <span className="text-[9px] font-bold text-slate-500">PDF</span>
+                          ) : (
+                            <img src={photo.url} alt="Envase" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                          )}
+                        </div>
+                        <div className="truncate">
+                          <p className="font-extrabold text-slate-900 truncate max-w-[150px] sm:max-w-[220px]">
+                            {photo.name}
+                          </p>
+                          <p className="text-[10px] text-emerald-600 font-bold">Foto de envase / receta adjuntada</p>
+                        </div>
+                      </div>
+                      <button
+                        id={`btn-remove-photo-${index}`}
+                        type="button"
+                        onClick={() => setMedicationPhotos(prev => prev.filter((_, i) => i !== index))}
+                        className="text-[11px] text-red-600 hover:text-red-800 hover:bg-red-50 font-bold px-2 py-1 rounded-lg cursor-pointer shrink-0"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Input Method Toggle */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-600 uppercase">
@@ -1519,7 +1623,7 @@ export default function PatientForm({
               </div>
             </div>
 
-            {/* SECTION A: NUEVA CARGA MANUAL (CARRITO) */}
+            {/* SECTION A: NUEVA CARGA MANUAL */}
             {medicationMethod === 'new_manual' && (
               <div className="space-y-4 animate-fadeIn">
                 {/* A1. Formulario intuitivo para agregar medicación */}
@@ -1596,6 +1700,34 @@ export default function PatientForm({
                       </div>
                     </div>
 
+                    <div>
+                      <label htmlFor="cur-diagnostic" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Diagnóstico para este Medicamento <span className="text-slate-400 font-normal">(Motivo de prescripción)</span>
+                      </label>
+                      <input
+                        id="cur-diagnostic"
+                        type="text"
+                        value={curDiagnostic}
+                        onChange={(e) => setCurDiagnostic(e.target.value)}
+                        placeholder="Ej. Hipertensión arterial, Diabetes tipo 2, Hipotiroidismo..."
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="cur-comments" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Comentarios / Aclaraciones Adicionales <span className="text-slate-400 font-normal">(Opcional para esta medicación)</span>
+                      </label>
+                      <input
+                        id="cur-comments"
+                        type="text"
+                        value={curComments}
+                        onChange={(e) => setCurComments(e.target.value)}
+                        placeholder="Ej. Tomo 1 comprimido diario por la mañana. Marca habitual: Lotrial."
+                        className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+
                     <div className="pt-1">
                       <button
                         id="btn-add-medication-item"
@@ -1608,60 +1740,6 @@ export default function PatientForm({
                       </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Lista / Carrito de Medicamentos Agregados */}
-                <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-dashed border-slate-300 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <span>🛒 Carrito de la Solicitud</span>
-                      <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
-                        {medicationItems.length} {medicationItems.length === 1 ? 'medicamento' : 'medicamentos'}
-                      </span>
-                    </h5>
-                    {medicationItems.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setMedicationItems([])}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
-                      >
-                        Vaciar Todo
-                      </button>
-                    )}
-                  </div>
-
-                  {medicationItems.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                      El recetario está vacío. Ingrese el nombre de su medicación arriba y presione "Agregar al carrito".
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {medicationItems.map((item, index) => (
-                        <div 
-                          key={`text-${index}`} 
-                          className="flex items-center justify-between bg-white border border-slate-200 p-3 rounded-xl text-xs shadow-xs"
-                        >
-                          <div>
-                            <p className="font-extrabold text-slate-900">
-                              {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
-                            </p>
-                            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                              {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
-                            </p>
-                          </div>
-                          <button
-                            id={`btn-remove-med-item-${index}`}
-                            type="button"
-                            onClick={() => removeMedicationItem(index)}
-                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
-                            title="Quitar"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1694,63 +1772,6 @@ export default function PatientForm({
                       className="hidden"
                     />
                   </label>
-                </div>
-
-                {/* Lista de Fotos / Documentos Adjuntos */}
-                <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-dashed border-slate-300 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                      <span>📷 Fotos de Envases o Recetas Adjuntas</span>
-                      <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
-                        {medicationPhotos.length} {medicationPhotos.length === 1 ? 'archivo' : 'archivos'}
-                      </span>
-                    </h5>
-                    {medicationPhotos.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={() => setMedicationPhotos([])}
-                        className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
-                      >
-                        Vaciar Fotos
-                      </button>
-                    )}
-                  </div>
-
-                  {medicationPhotos.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                      No hay fotos adjuntas. Haga clic en el recuadro superior para seleccionar o tomar fotos de sus recetas o medicaciones.
-                    </div>
-                  ) : (
-                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {medicationPhotos.map((photo, index) => (
-                        <div key={`photo-${index}`} className="bg-white p-2.5 rounded-xl border border-blue-200 flex items-center justify-between text-left text-xs shadow-xs">
-                          <div className="flex items-center gap-2.5 truncate">
-                            <div className="h-10 w-12 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                              {photo.url.startsWith('data:application/pdf') ? (
-                                <span className="text-[9px] font-bold text-slate-500">PDF</span>
-                              ) : (
-                                <img src={photo.url} alt="Envase" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-                              )}
-                            </div>
-                            <div className="truncate">
-                              <p className="font-extrabold text-slate-900 truncate max-w-[150px] sm:max-w-[220px]">
-                                {photo.name}
-                              </p>
-                              <p className="text-[10px] text-emerald-600 font-bold">Foto de envase adjuntada</p>
-                            </div>
-                          </div>
-                          <button
-                            id={`btn-remove-photo-${index}`}
-                            type="button"
-                            onClick={() => setMedicationPhotos(prev => prev.filter((_, i) => i !== index))}
-                            className="text-[11px] text-red-600 hover:text-red-800 hover:bg-red-50 font-bold px-2 py-1 rounded-lg cursor-pointer"
-                          >
-                            Quitar
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -1899,7 +1920,6 @@ export default function PatientForm({
                 placeholder="Ej. Hipertensión arterial, Diabetes, Hipotiroidismo..."
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-250 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none text-xs font-semibold placeholder:text-slate-400"
               />
-              <p className="text-[10px] text-slate-500 font-semibold mt-1">Opcional. Permite al médico auditar de forma más ágil su historia clínica.</p>
             </div>
 
             {/* OPTIONAL COMMENTS FIELD */}
