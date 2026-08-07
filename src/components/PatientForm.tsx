@@ -1527,7 +1527,7 @@ export default function PatientForm({
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <Sparkles className="h-4 w-4 text-blue-600 animate-pulse" />
-                      <span>Ingresar Medicamento</span>
+                      <span>Datos del Medicamento</span>
                     </h4>
                   </div>
 
