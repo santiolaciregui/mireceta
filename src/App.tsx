@@ -356,11 +356,6 @@ export default function App() {
               <>
                 {activeSubcategory === 'chat' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-                      <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mensajería con Pacientes</h1>
-                      </div>
-                    </header>
 
                     <div className="flex-1 flex overflow-hidden">
                       <PatientDoctorChat
