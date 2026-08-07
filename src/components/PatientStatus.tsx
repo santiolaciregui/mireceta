@@ -20,10 +20,19 @@ import {
   BookmarkCheck,
   Printer,
   CreditCard,
-  Sparkles
+  ShieldCheck,
+  Eye,
+  Copy,
+  Pill,
+  Camera,
+  Phone,
+  ExternalLink,
+  ChevronRight,
+  CheckCircle2,
+  User,
+  X
 } from 'lucide-react';
 import MercadoPagoIcon from './MercadoPagoIcon';
-
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
@@ -41,6 +50,9 @@ export default function PatientStatus({
   const [searchDni, setSearchDni] = useState(recentDni || '');
   const [hasSearched, setHasSearched] = useState(!!recentDni);
   const [selectedRecipe, setSelectedRecipe] = useState<MedicalOrder | null>(null);
+  const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
+  const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'ready' | 'rejected'>('all');
   const [toast, setToast] = useState<string | null>(null);
 
   React.useEffect(() => {
@@ -54,15 +66,39 @@ export default function PatientStatus({
     setToast(msg);
     setTimeout(() => {
       setToast(null);
-    }, 4500);
+    }, 4000);
+  };
+
+  const handleCopyOrderId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedOrderId(id);
+    showToast(`Código de trámite ${id} copiado al portapapeles`);
+    setTimeout(() => {
+      setCopiedOrderId(null);
+    }, 2500);
   };
 
   const cleanDni = searchDni.trim().replace(/\s/g, '');
   
   // Filter orders matching DNI
   const matchedOrders = orders.filter((order) => {
-    const orderDniClean = order.patientDni.trim().replace(/\s/g, '');
+    const orderDniClean = (order.patientDni || '').trim().replace(/\s/g, '');
     return orderDniClean.toLowerCase() === cleanDni.toLowerCase();
+  });
+
+  // Filter by status tab
+  const filteredOrders = matchedOrders.filter((order) => {
+    if (statusFilter === 'all') return true;
+    if (statusFilter === 'pending') {
+      return order.status === 'Pendiente' || order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información';
+    }
+    if (statusFilter === 'ready') {
+      return order.status === 'Emitida' || order.status === 'Enviada';
+    }
+    if (statusFilter === 'rejected') {
+      return order.status === 'Rechazada';
+    }
+    return true;
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -72,87 +108,153 @@ export default function PatientStatus({
     setHasSearched(true);
   };
 
-  // Helper code to print/simulate downloading the receta
-  const handleSimulateDownload = (order: MedicalOrder) => {
-    setSelectedRecipe(order);
-  };
-
-  // Helper function to format ISO date to readable string
-  const formatDate = (isoString: string) => {
-    const date = new Date(isoString);
-    return date.toLocaleDateString('es-AR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   const shouldShowResults = hasSearched || !!recentDni;
 
   return (
-    <div className="max-w-xl mx-auto space-y-4 sm:space-y-6">
+    <div className="max-w-4xl mx-auto w-full space-y-6 animate-fadeIn pb-12">
       
-      {/* Search Bar Panel (Only shown if NOT logged in / no recentDni) */}
-      {!recentDni && (
-        <div className="glass rounded-2xl sm:rounded-3xl p-4 sm:p-6 shadow-md border border-white/40">
-          <h3 className="text-lg font-bold text-slate-800 mb-2">Consulta el Estado de tu Receta</h3>
-          <p className="text-xs text-slate-500 mb-4">
-            Ingresa el número de DNI del paciente para verificar los pedidos cargados y descargar la orden médica lista.
-          </p>
+      {/* Search Bar Panel (Shown when no active recentDni or to search another patient) */}
+      <div className="bg-white rounded-3xl p-5 sm:p-7 shadow-sm border border-slate-200/90 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+              <Search className="h-5 w-5 text-[#295EF3]" />
+              <span>Consulta de Estado de Solicitudes</span>
+            </h3>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Ingrese el DNI del paciente para consultar el estado en tiempo real y descargar las recetas médicas autorizadas.
+            </p>
+          </div>
 
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
-              <input
-                id="search-dni-input"
-                type="text"
-                value={searchDni}
-                onChange={(e) => setSearchDni(e.target.value)}
-                placeholder="Ingrese número de DNI..."
-                className="w-full pl-11 pr-4 py-3 bg-white/60 border border-slate-300 rounded-xl font-semibold text-[#1C2435] focus:bg-white focus:ring-2 focus:ring-[#295EF3] focus:outline-none transition-all"
-              />
+          {cleanDni && (
+            <div className="self-start sm:self-auto bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full flex items-center gap-2">
+              <span className="text-[10px] uppercase font-extrabold text-blue-600 tracking-wider">DNI Activo:</span>
+              <strong className="font-mono text-xs text-blue-950">{cleanDni}</strong>
             </div>
-            <button
-              id="btn-search-dni"
-              type="submit"
-              className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold px-6 py-3 rounded-xl shadow-xs transition-colors cursor-pointer"
-            >
-              Buscar
-            </button>
-          </form>
+          )}
         </div>
-      )}
 
-      {/* Search Results */}
+        <form onSubmit={handleSearch} className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
+            <input
+              id="search-dni-input"
+              type="text"
+              value={searchDni}
+              onChange={(e) => setSearchDni(e.target.value)}
+              placeholder="Ej: 42090557"
+              className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-300 rounded-2xl font-bold text-slate-900 placeholder:text-slate-400 placeholder:font-normal text-xs sm:text-sm focus:bg-white focus:ring-2 focus:ring-[#295EF3] focus:border-[#295EF3] focus:outline-none transition-all"
+            />
+          </div>
+          <button
+            id="btn-search-dni"
+            type="submit"
+            className="bg-[#1C2435] hover:bg-[#295EF3] text-white font-extrabold px-6 py-3 rounded-2xl text-xs sm:text-sm shadow-md transition-all cursor-pointer shrink-0"
+          >
+            Buscar Solicitudes
+          </button>
+        </form>
+      </div>
+
+      {/* Results Header and Quick Filter Tabs */}
       {shouldShowResults && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Pedidos de receta encontrados ({matchedOrders.length})
-            </h4>
-            {cleanDni && (
-              <span className="text-xs text-[#295EF3] font-bold bg-[#295EF3]/10 border border-[#295EF3]/20 px-3 py-1 rounded-full">
-                DNI: {cleanDni}
-              </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-1">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <h4 className="text-xs sm:text-sm font-extrabold text-slate-700 tracking-wide uppercase">
+                Trámites Encontrados ({matchedOrders.length})
+              </h4>
+            </div>
+
+            {/* Status Filter Pills */}
+            {matchedOrders.length > 0 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
+                    statusFilter === 'all'
+                      ? 'bg-[#1C2435] text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Todos ({matchedOrders.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('pending')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
+                    statusFilter === 'pending'
+                      ? 'bg-amber-500 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-amber-50 border border-slate-200'
+                  }`}
+                >
+                  En Proceso ({matchedOrders.filter(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('ready')}
+                  className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
+                    statusFilter === 'ready'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-white text-slate-600 hover:bg-emerald-50 border border-slate-200'
+                  }`}
+                >
+                  Emitidas ({matchedOrders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length})
+                </button>
+                {matchedOrders.some(o => o.status === 'Rechazada') && (
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('rejected')}
+                    className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
+                      statusFilter === 'rejected'
+                        ? 'bg-red-600 text-white shadow-xs'
+                        : 'bg-white text-slate-600 hover:bg-red-50 border border-slate-200'
+                    }`}
+                  >
+                    Rechazadas ({matchedOrders.filter(o => o.status === 'Rechazada').length})
+                  </button>
+                )}
+              </div>
             )}
           </div>
 
+          {/* Empty State */}
           {matchedOrders.length === 0 ? (
-            <div className="glass rounded-2xl sm:rounded-3xl p-5 sm:p-8 text-center space-y-3 shadow-xs border border-white/40">
-              <div className="mx-auto w-12 h-12 bg-white rounded-full flex items-center justify-center text-slate-400 border border-slate-200">
-                <HelpCircle className="h-6 w-6" />
+            <div className="bg-white rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-sm border border-slate-200/90">
+              <div className="mx-auto w-16 h-16 bg-blue-50 text-blue-600 rounded-3xl flex items-center justify-center shadow-inner">
+                <HelpCircle className="h-8 w-8" />
               </div>
-              <div>
-                <p className="font-bold text-slate-805 text-sm">No encontramos solicitudes</p>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-                  Verifica el número de DNI ingresado o inicia un nuevo trámite con el formulario de la pestaña "Iniciar Solicitud".
+              <div className="max-w-md mx-auto space-y-1.5">
+                <h4 className="font-extrabold text-slate-900 text-base sm:text-lg">No se encontraron solicitudes para este DNI</h4>
+                <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                  Verifique que el número de documento sea el correcto. Si aún no ha solicitado su receta, puede iniciar el trámite en simples pasos.
                 </p>
               </div>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold px-6 py-3 rounded-2xl text-xs sm:text-sm shadow-md transition-all cursor-pointer"
+                >
+                  Iniciar Nueva Solicitud
+                </button>
+              </div>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className="bg-white rounded-3xl p-8 text-center space-y-2 border border-slate-200 text-slate-500 text-xs">
+              <p className="font-bold text-slate-700">No hay trámites con el filtro seleccionado</p>
+              <button 
+                type="button" 
+                onClick={() => setStatusFilter('all')}
+                className="text-[#295EF3] font-bold hover:underline cursor-pointer"
+              >
+                Ver todos los trámites
+              </button>
             </div>
           ) : (
-            matchedOrders.map((order) => {
+            filteredOrders.map((order) => {
               const isPending = order.status === 'Pendiente';
               const isInProcess = order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información';
               const isReady = order.status === 'Emitida' || order.status === 'Enviada';
@@ -161,114 +263,198 @@ export default function PatientStatus({
               return (
                 <div 
                   key={order.id} 
-                  className={`glass rounded-2xl sm:rounded-3xl overflow-hidden shadow-sm transition-all ring-1 ${
+                  className={`bg-white rounded-3xl overflow-hidden shadow-md transition-all border ${
                     isReady 
-                      ? 'ring-emerald-500/25 border-emerald-500/30' 
+                      ? 'border-emerald-300 ring-1 ring-emerald-500/20' 
                       : isRejected
-                        ? 'ring-red-500/25 border-red-500/30'
+                        ? 'border-red-300 ring-1 ring-red-500/20'
                         : isInProcess 
-                          ? 'ring-blue-500/25' 
-                          : 'ring-amber-500/15'
+                          ? 'border-blue-300 ring-1 ring-blue-500/20' 
+                          : 'border-slate-200 hover:border-slate-300'
                   }`}
                 >
-                  {/* Card Header Status */}
-                  <div className={`px-4 sm:px-5 py-3 sm:py-4 border-b border-slate-105 flex items-center justify-between flex-wrap gap-2 ${
-                    isReady 
-                      ? 'bg-emerald-50/25 font-bold' 
-                      : isRejected
-                        ? 'bg-red-50/25 font-bold'
-                        : isInProcess 
-                          ? 'bg-[#295EF3]/10 font-bold' 
-                          : 'bg-amber-50/15 font-bold'
-                  }`}>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-mono font-bold text-[#1C2435] text-sm">ID: {order.id}</span>
-                      <span className="text-slate-300 text-sm">|</span>
-                      <span className="text-xs text-slate-500 flex items-center gap-1 font-semibold">
-                        <Calendar className="h-3.5 w-3.5" />
-                        {new Date(order.createdAt).toLocaleDateString('es-AR')}
+                  {/* Card Top Header */}
+                  <div className="bg-gradient-to-r from-slate-50 via-slate-50 to-slate-100/80 px-5 sm:px-6 py-4 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-white border border-slate-200 px-3 py-1 rounded-xl shadow-2xs flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400">ID:</span>
+                        <strong className="font-mono text-xs font-black text-slate-900">{order.id}</strong>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyOrderId(order.id)}
+                          className="text-slate-400 hover:text-slate-700 transition-colors p-0.5 cursor-pointer"
+                          title="Copiar ID del trámite"
+                        >
+                          {copiedOrderId === order.id ? (
+                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          ) : (
+                            <Copy className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+
+                      <span className="text-xs text-slate-500 flex items-center gap-1.5 font-semibold">
+                        <Calendar className="h-3.5 w-3.5 text-slate-400" />
+                        {new Date(order.createdAt).toLocaleDateString('es-AR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
                       </span>
                     </div>
 
                     {/* Status Badges */}
                     {order.status === 'Pendiente' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-55 text-amber-900 border border-amber-200">
-                        <Clock className="h-3.5 w-3.5 animate-pulse text-amber-600" />
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-amber-50 text-amber-900 border border-amber-200 shadow-2xs">
+                        <Clock className="h-3.5 w-3.5 text-amber-600 animate-pulse" />
                         Pendiente de Revisión
                       </span>
                     )}
 
                     {order.status === 'En revisión' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#295EF3]/15 text-[#295EF3] border border-[#295EF3]/30">
-                        <Activity className="h-3.5 w-3.5 text-[#295EF3] animate-pulse" />
-                        En revisión médica
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs">
+                        <Activity className="h-3.5 w-3.5 text-blue-600 animate-pulse" />
+                        En Auditoría Médica
                       </span>
                     )}
 
                     {order.status === 'Solicita más información' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-900 border border-orange-200">
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-orange-50 text-orange-900 border border-orange-200 shadow-2xs">
                         <AlertCircle className="h-3.5 w-3.5 text-orange-600" />
-                        Se solicita más información
+                        Información Solicitada
                       </span>
                     )}
 
                     {order.status === 'Aprobada' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#295EF3]/15 text-[#295EF3] border border-[#295EF3]/30">
-                        <FileCheck className="h-3.5 w-3.5 text-[#295EF3]" />
-                        Solicitud Pre-aprobada
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-teal-50 text-teal-900 border border-teal-200 shadow-2xs">
+                        <FileCheck className="h-3.5 w-3.5 text-teal-600" />
+                        Pre-aprobada por Médico
                       </span>
                     )}
 
                     {order.status === 'Rechazada' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-red-100 text-red-900 border border-red-200">
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-red-50 text-red-900 border border-red-200 shadow-2xs">
                         <AlertCircle className="h-3.5 w-3.5 text-red-600" />
-                        Rechazada (Pago Reembolsado)
+                        Rechazada (Reembolso listo)
                       </span>
                     )}
 
-                    {order.status === 'Emitida' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#316F80] text-white shadow-xs">
-                        <FileCheck className="h-3.5 w-3.5 text-white font-bold" />
-                        Listo para retirar / farmacia
-                      </span>
-                    )}
-
-                    {order.status === 'Enviada' && (
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#316F80] text-white shadow-xs">
-                        <FileCheck className="h-3.5 w-3.5 text-white font-bold" />
-                        Enviada al paciente
+                    {(order.status === 'Emitida' || order.status === 'Enviada') && (
+                      <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black bg-emerald-600 text-white shadow-xs">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-200" />
+                        Receta Oficial Emitida
                       </span>
                     )}
                   </div>
 
-                  {/* Order Details Body */}
-                  <div className="p-4 sm:p-5 space-y-4">
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
-                      <div>
-                        <p className="text-slate-400 font-semibold">Paciente</p>
-                        <p className="font-bold text-[#1C2435] text-sm">{order.patientLastName}, {order.patientName}</p>
+                  {/* 3-Step Visual Progress Bar */}
+                  <div className="px-5 sm:px-6 pt-4 pb-2 bg-white">
+                    <div className="grid grid-cols-3 gap-2 text-[10px] sm:text-xs">
+                      {/* Step 1 */}
+                      <div className="flex flex-col items-center text-center gap-1">
+                        <div className="h-6 w-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+                          ✓
+                        </div>
+                        <span className="font-bold text-slate-800">1. Ingresada</span>
                       </div>
+
+                      {/* Step 2 */}
+                      <div className="flex flex-col items-center text-center gap-1">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs shadow-2xs ${
+                          isReady 
+                            ? 'bg-emerald-500 text-white' 
+                            : isRejected 
+                              ? 'bg-red-500 text-white' 
+                              : 'bg-blue-600 text-white animate-pulse'
+                        }`}>
+                          {isReady ? '✓' : isRejected ? '✕' : '2'}
+                        </div>
+                        <span className={`font-bold ${isReady || isInProcess ? 'text-slate-800' : 'text-slate-400'}`}>
+                          2. Auditoría
+                        </span>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex flex-col items-center text-center gap-1">
+                        <div className={`h-6 w-6 rounded-full flex items-center justify-center font-bold text-xs ${
+                          isReady 
+                            ? 'bg-emerald-500 text-white shadow-2xs' 
+                            : 'bg-slate-100 text-slate-400 border border-slate-200'
+                        }`}>
+                          {isReady ? '✓' : '3'}
+                        </div>
+                        <span className={`font-bold ${isReady ? 'text-emerald-700 font-extrabold' : 'text-slate-400'}`}>
+                          3. Firma y QR
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Details Body */}
+                  <div className="p-5 sm:p-6 space-y-5">
+                    
+                    {/* Patient & Obra Social Key Specs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-xs">
                       <div>
-                        <p className="text-slate-400 font-semibold">Obra Social o Cobertura</p>
-                        <p className="font-bold text-[#316F80] text-sm">{order.obraSocial}</p>
+                        <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+                          <User className="h-3 w-3 text-slate-400" />
+                          Paciente
+                        </p>
+                        <p className="font-black text-slate-900 text-sm mt-0.5">
+                          {order.patientLastName}, {order.patientName}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">DNI</p>
+                        <p className="font-mono font-black text-slate-900 text-sm mt-0.5">
+                          {order.patientDni}
+                        </p>
+                      </div>
+
+                      <div>
+                        <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Cobertura Médica</p>
+                        <p className="font-extrabold text-[#295EF3] text-sm mt-0.5">
+                          {order.obraSocial || 'Particular'}
+                        </p>
+                        {order.obraSocialNumber && (
+                          <p className="text-[11px] font-mono text-slate-500 mt-0.5">N° {order.obraSocialNumber}</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Medio de Notificación</p>
+                        <p className="font-extrabold text-slate-800 text-xs mt-0.5 flex items-center gap-1">
+                          {order.patientPhone ? (
+                            <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded border border-emerald-200 font-mono text-[11px]">
+                              WA: {order.patientPhone}
+                            </span>
+                          ) : (
+                            <span className="text-slate-500">Email: {order.patientEmail || 'Cargado'}</span>
+                          )}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Mercado Pago Payment Status Info */}
-                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-xs flex items-center justify-between flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-4 w-4 text-blue-600 shrink-0" />
+                    {/* Mercado Pago Payment Status Bar */}
+                    <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 text-xs flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-2.5">
+                        <MercadoPagoIcon className="h-5 w-5" />
                         <div>
-                          <span className="font-bold text-slate-800">Pago Mercado Pago: </span>
-                          <span className={`font-extrabold ${
-                            order.paymentStatus === 'approved' ? 'text-emerald-700' :
-                            order.paymentStatus === 'rejected' ? 'text-red-700' : 'text-amber-700'
+                          <span className="font-bold text-slate-800">Estado del Pago: </span>
+                          <span className={`font-black uppercase tracking-wider text-[11px] px-2 py-0.5 rounded-md ${
+                            order.paymentStatus === 'approved' 
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' 
+                              : order.paymentStatus === 'rejected' 
+                                ? 'bg-red-100 text-red-800 border border-red-200' 
+                                : 'bg-amber-100 text-amber-850 border border-amber-200'
                           }`}>
-                            {order.paymentStatus === 'approved' ? 'Aprobado' :
-                             order.paymentStatus === 'rejected' ? 'Rechazado' : 'Pendiente de acreditación'}
+                            {order.paymentStatus === 'approved' ? '✓ Aprobado' :
+                             order.paymentStatus === 'rejected' ? '✕ Rechazado' : 'Pendiente de acreditación'}
                           </span>
                         </div>
                       </div>
+
                       {order.paymentStatus !== 'approved' && order.obraSocial !== 'PAMI (Inssjp)' && (
                         <button
                           type="button"
@@ -294,111 +480,200 @@ export default function PatientStatus({
                               alert('Error al conectar con Mercado Pago: ' + e.message);
                             }
                           }}
-                          className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                          className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
                         >
                           <MercadoPagoIcon className="h-4 w-4" />
-                          <span>Pagar con Mercado Pago</span>
+                          <span>Pagar $10000 ARS con Mercado Pago</span>
                         </button>
                       )}
                     </div>
 
-                    <div className="bg-white/40 border border-slate-105 rounded-xl p-3 text-xs">
-                      <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] mb-1">Medicación Solicitada</p>
-                      <p className="text-slate-800 font-semibold whitespace-pre-line">{order.medicationText}</p>
+                    {/* Requested Medication Card */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">
+                          <Pill className="h-3.5 w-3.5 text-blue-600" />
+                          Medicación Solicitada
+                        </p>
+                        <span className="text-[10px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-100">
+                          Tratamiento Crónico
+                        </span>
+                      </div>
+
+                      <p className="text-slate-900 font-bold text-xs sm:text-sm whitespace-pre-line leading-relaxed pl-1 border-l-2 border-[#295EF3]">
+                        {order.medicationText || 'Medicación según receta adjunta'}
+                      </p>
                     </div>
 
-                    {/* Show uploaded medication preview if any */}
+                    {/* Uploaded Medication Photo Preview */}
                     {order.medicationPhotoUrl && (
-                      <div className="flex items-center gap-2 bg-white/40 p-2 rounded-xl border border-white/45">
-                        <div className="h-10 w-12 bg-white rounded border border-slate-205 overflow-hidden flex items-center justify-center shrink-0">
-                          <img 
-                            src={order.medicationPhotoUrl} 
-                            alt="Foto medicamento" 
-                            referrerPolicy="no-referrer"
-                            className="h-full w-full object-cover" 
-                          />
+                      <div className="flex items-center justify-between bg-slate-50 p-3 rounded-2xl border border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-14 bg-white rounded-xl border border-slate-200 overflow-hidden flex items-center justify-center shrink-0 shadow-2xs">
+                            <img 
+                              src={order.medicationPhotoUrl} 
+                              alt="Foto medicamento" 
+                              referrerPolicy="no-referrer"
+                              className="h-full w-full object-cover cursor-pointer hover:scale-105 transition-all"
+                              onClick={() => setPreviewPhotoUrl(order.medicationPhotoUrl || null)}
+                            />
+                          </div>
+                          <div>
+                            <p className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                              <Camera className="h-3.5 w-3.5 text-blue-600" />
+                              Foto de Envase / Receta Adjunta
+                            </p>
+                            <p className="text-[11px] font-mono text-slate-500 truncate max-w-[200px] sm:max-w-xs">{order.medicationPhotoName || 'receta_foto.jpg'}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-slate-400 font-semibold">Foto del Medicamento Adjunta</p>
-                          <p className="text-[11px] font-mono text-slate-600 truncate max-w-[200px] sm:max-w-xs">{order.medicationPhotoName}</p>
-                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setPreviewPhotoUrl(order.medicationPhotoUrl || null)}
+                          className="text-xs font-bold text-[#295EF3] hover:text-[#1C2435] px-3 py-1.5 rounded-xl hover:bg-white transition-all cursor-pointer flex items-center gap-1"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Ver Foto</span>
+                        </button>
                       </div>
                     )}
 
-                    {/* Ready state download panel */}
+                    {/* READY STATE: Download Banner */}
                     {isReady && (
-                      <div className="bg-emerald-50/50 rounded-2xl p-4 border border-emerald-200/50 space-y-3 mt-1.5 animate-fadeIn">
-                        <div className="flex items-start gap-2.5">
-                          <BookmarkCheck className="h-5 w-5 text-emerald-700 shrink-0 mt-0.5" />
-                          <div className="text-xs">
-                            <p className="font-bold text-emerald-950">¡Tu receta digital ya fue firmada de forma autorizada!</p>
-                            <p className="text-emerald-800 mt-1">
-                              El médico resolvió tu pedido. Descarga a continuación tu comprobante digital de receta. Llévalo en tu celular para presentarlo en cualquier farmacia habilitada.
+                      <div className="bg-gradient-to-br from-emerald-500 to-teal-700 text-white rounded-2xl p-5 sm:p-6 shadow-md space-y-4 animate-fadeIn">
+                        <div className="flex items-start gap-3.5">
+                          <div className="h-10 w-10 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 text-white shadow-inner">
+                            <CheckCircle2 className="h-6 w-6 stroke-[2.5]" />
+                          </div>
+                          <div>
+                            <h5 className="font-black text-base sm:text-lg tracking-tight">¡Su receta digital ya fue firmada y validada!</h5>
+                            <p className="text-xs text-emerald-100 leading-relaxed mt-1">
+                              El médico emisor matriculado ha autorizado su prescripción médica. Puede descargar la orden oficial en PDF o presentar el comprobante digital directamente desde su celular en cualquier farmacia.
                             </p>
                             
                             {order.doctorNotes && (
-                              <div className="bg-white/80 p-2.5 rounded-xl border border-emerald-100 mt-2.5 text-[11px] text-slate-700 font-semibold">
-                                <span className="font-bold text-slate-800 block mb-0.5">Nota de la Dra./Dr:</span>
+                              <div className="bg-black/15 p-3 rounded-xl border border-white/15 mt-3 text-xs text-white">
+                                <span className="font-bold text-emerald-200 block mb-0.5">Indicación del Profesional Médico:</span>
                                 "{order.doctorNotes}"
                               </div>
                             )}
                           </div>
                         </div>
 
-                        <button
-                          id={`btn-download-recipe-${order.id}`}
-                          type="button"
-                          onClick={() => handleSimulateDownload(order)}
-                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-colors flex items-center justify-center gap-2 cursor-pointer text-xs"
-                        >
-                          <Download className="h-4.5 w-4.5" />
-                          <span>DESCARGAR RECETA DIGITAL (PDF)</span>
-                        </button>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          <button
+                            id={`btn-download-recipe-${order.id}`}
+                            type="button"
+                            onClick={() => setSelectedRecipe(order)}
+                            className="bg-white text-emerald-950 hover:bg-emerald-50 font-black py-3.5 px-4 rounded-xl shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer text-xs uppercase tracking-wider"
+                          >
+                            <Eye className="h-4 w-4 text-emerald-700" />
+                            <span>Ver Receta Oficial y QR</span>
+                          </button>
+
+                          <a
+                            href={order.recipePdfUrl || '#'}
+                            download={order.recipePdfName || `receta_${order.id}.pdf`}
+                            onClick={(e) => {
+                              if (!order.recipePdfUrl || order.recipePdfUrl.startsWith('MOCK')) {
+                                e.preventDefault();
+                                setSelectedRecipe(order);
+                              }
+                            }}
+                            className="bg-emerald-900/40 hover:bg-emerald-900/60 border border-white/20 text-white font-bold py-3.5 px-4 rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer text-xs"
+                          >
+                            <Download className="h-4 w-4" />
+                            <span>Descargar PDF</span>
+                          </a>
+                        </div>
                       </div>
                     )}
 
-                    {/* Progress feedback for process or pending state */}
+                    {/* PENDING / IN-PROCESS Notice */}
                     {!isReady && !isRejected && (
-                      <div className="p-3 bg-white/40 border border-slate-105 rounded-xl text-xs flex items-center gap-2 font-semibold">
-                        <AlertCircle className="h-4 w-4 text-slate-500" />
-                        <span className="text-slate-600">
-                          {isPending 
-                            ? 'Esperando a que el panel médico valide tu comprobante y prepare tu receta.' 
-                            : order.status === 'Solicita más información'
-                              ? 'El médico ha solicitado información adicional. Revisa las notas abajo o contacta soporte.'
-                              : 'La médica / médico de cabecera está confeccionando la receta en este momento.'}
-                        </span>
+                      <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-4 text-xs text-blue-950 flex items-start gap-3">
+                        <Clock className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-blue-950 text-xs sm:text-sm">
+                            {isPending 
+                              ? 'Solicitud en cola de auditoría médica' 
+                              : order.status === 'Solicita más información'
+                                ? 'El médico ha solicitado información adicional'
+                                : 'El profesional médico está evaluando su receta'}
+                          </p>
+                          <p className="text-blue-900 leading-relaxed">
+                            {isPending 
+                              ? 'Un médico matriculado validará su diagnóstico y tratamiento. Plazo de resolución: menos de 24 hs hábiles. Recibirá aviso por WhatsApp y correo electrónico.' 
+                              : order.status === 'Solicita más información'
+                                ? 'Por favor verifique las notas adjuntas o comuníquese a soporte para completar su trámite.'
+                                : 'La prescripción está siendo confeccionada con firma electrónica y código QR.'}
+                          </p>
+                        </div>
                       </div>
                     )}
 
+                    {/* REJECTED Notice */}
                     {isRejected && (
-                      <div className="p-3 bg-red-50/50 border border-red-200 rounded-xl text-xs flex items-center gap-2 font-semibold animate-fadeIn">
-                        <AlertCircle className="h-4 w-4 text-red-600" />
-                        <span className="text-red-750">
-                          {order.doctorNotes 
-                            ? `Motivo de rechazo: "${order.doctorNotes}"` 
-                            : 'No cumple con las pautas de renovación asincrónica de tratamientos crónicos.'} El pago ha sido reembolsado a su cuenta.
-                        </span>
+                      <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-xs text-red-950 flex items-start gap-3 animate-fadeIn">
+                        <AlertCircle className="h-5 w-5 text-red-600 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-red-950 text-xs sm:text-sm">Solicitud No Aprobada por Criterio Clínico</p>
+                          <p className="text-red-900 leading-relaxed">
+                            {order.doctorNotes 
+                              ? `Observación médica: "${order.doctorNotes}"` 
+                              : 'La solicitud no reúne las pautas médicas para renovación asincrónica de tratamiento.'}
+                          </p>
+                          <p className="text-red-800 font-bold text-[11px] pt-1">
+                            🛡️ Garantía de Devolución: El arancel abonado ha sido reintegrado automáticamente a su medio de pago.
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Cancel / Delete option for pending orders (safety feature) */}
-                  {isPending && (
-                    <div className="px-5 py-3 border-t border-slate-105 bg-white/20 flex justify-end">
-                      <button
-                        id={`btn-cancel-order-${order.id}`}
-                        onClick={() => {
-                          onCancelOrder(order.id);
-                          showToast('Solicitud de receta cancelada exitosamente.');
-                        }}
-                        className="text-xs text-red-655 hover:text-red-800 font-bold flex items-center gap-1 px-2.5 py-1.5 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                  {/* Card Bottom Actions */}
+                  <div className="px-5 sm:px-6 py-3.5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <div className="flex items-center gap-3">
+                      <a
+                        href={`https://wa.me/5492926414331?text=${encodeURIComponent(`Hola! Consulto por el estado del trámite Nro ${order.id} (DNI ${order.patientDni}).`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1.5 transition-colors"
                       >
-                        <XCircle className="h-3.5 w-3.5" />
-                        <span>Cancelar Pedido</span>
-                      </button>
+                        <Phone className="h-3.5 w-3.5 text-emerald-600" />
+                        <span>Consultar por WhatsApp</span>
+                      </a>
                     </div>
-                  )}
+
+                    <div className="flex items-center gap-2">
+                      {isReady && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedRecipe(order)}
+                          className="bg-[#1C2435] hover:bg-[#295EF3] text-white font-bold px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 text-xs shadow-xs"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                          <span>Ver Comprobante</span>
+                        </button>
+                      )}
+
+                      {isPending && (
+                        <button
+                          id={`btn-cancel-order-${order.id}`}
+                          onClick={() => {
+                            if (window.confirm('¿Está seguro de que desea cancelar esta solicitud? Se procesará la anulación del trámite.')) {
+                              onCancelOrder(order.id);
+                              showToast('Solicitud de receta cancelada exitosamente.');
+                            }
+                          }}
+                          className="text-red-600 hover:text-red-800 font-bold flex items-center gap-1 px-3 py-1.5 hover:bg-red-50 rounded-xl cursor-pointer transition-colors"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          <span>Cancelar Trámite</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
                 </div>
               );
@@ -407,144 +682,136 @@ export default function PatientStatus({
         </div>
       )}
 
-      {/* Receta Digital Presentación */}
+      {/* Receta Digital Modal Presentación */}
       {selectedRecipe && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="glass-dark rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-white/20 animate-scaleUp">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl border border-slate-200 animate-scaleUp">
             
             {/* Modal Header */}
-            <div className="bg-[#1C2435] text-white px-6 py-4 flex justify-between items-center border-b border-white/10">
+            <div className="bg-[#1C2435] text-white px-6 py-4 flex justify-between items-center">
               <div className="flex items-center space-x-2">
                 <FileText className="h-5 w-5 text-[#295EF3]" />
-                <span className="font-extrabold text-xs sm:text-sm tracking-widest text-slate-100">COMPROBANTE OFICIAL DE RECETA</span>
+                <span className="font-black text-xs sm:text-sm tracking-widest text-slate-100 uppercase">
+                  Receta Médica Digital Oficial
+                </span>
               </div>
               <button
                 id="btn-close-modal"
                 onClick={() => setSelectedRecipe(null)}
-                className="text-white hover:text-slate-200 text-xs bg-white/10 hover:bg-white/20 px-3.5 py-1.5 rounded-xl cursor-pointer font-extrabold transition-all border border-white/20"
+                className="text-slate-300 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors cursor-pointer"
               >
-                Cerrar
+                <X className="h-5 w-5" />
               </button>
             </div>
 
-            {/* Simulated Printed Prescription Recipe Card */}
-            <div className="p-6 overflow-y-auto max-h-[75vh] space-y-4">
-              <div className="bg-white border-[3px] border-[#316F80] p-5 rounded-2xl space-y-4 shadow-inner relative">
+            {/* Printable Prescription Card */}
+            <div className="p-6 overflow-y-auto max-h-[78vh] space-y-4">
+              <div className="bg-white border-2 border-[#1C2435] p-5 sm:p-6 rounded-2xl space-y-4 shadow-sm relative">
                 
-                {/* Stamp overlay or watermark */}
-                <div className="absolute top-2 right-2 border-2 border-dashed border-[#316F80] rounded-lg px-2.5 py-1 text-[10px] font-black text-[#316F80] uppercase rotate-6 pointer-events-none select-none">
-                  Firma Digitalizada
+                {/* Stamp overlay */}
+                <div className="absolute top-3 right-3 border-2 border-emerald-600 bg-emerald-50/90 rounded-lg px-2.5 py-1 text-[10px] font-black text-emerald-800 uppercase rotate-3 pointer-events-none select-none shadow-xs">
+                  ✓ Firma Digital Validada
                 </div>
 
                 {/* Doctor Header */}
-                <div className="border-b-2 border-[#316F80]/20 pb-3 flex justify-between items-start">
+                <div className="border-b-2 border-slate-200 pb-3 flex justify-between items-start">
                   <div>
-                    <h5 className="font-black text-[#1C2435] text-base">PRESCRIPCIÓN MÉDICA OFICIAL</h5>
+                    <h5 className="font-black text-[#1C2435] text-base sm:text-lg">PRESCRIPCIÓN MÉDICA</h5>
                     <p className="text-[10px] text-slate-500 font-mono tracking-wide">
-                      AUDITORÍA MÉDICA DIGITAL Y VALIDACIÓN PROFESIONAL
+                      LEY NACIONAL DE RECETA DIGITAL N° 27.553
                     </p>
-                    <p className="text-[9px] text-slate-400 font-semibold">Portal Oficial de Recetas Médicas</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[9px] font-extrabold bg-[#295EF3]/10 text-[#295EF3] px-2.5 py-1 rounded-full border border-[#295EF3]/20">
-                      Receta Validada
-                    </span>
+                    <p className="text-[10px] text-slate-600 font-bold mt-0.5">Portal Oficial Mi Receta Online</p>
                   </div>
                 </div>
 
-                {/* Recipe Body details */}
-                <div className="space-y-3.5 py-2">
-                  <div className="grid grid-cols-2 text-xs gap-y-1.5 border-b border-slate-100 pb-2">
-                    <p className="text-slate-400 font-semibold">Paciente:</p>
-                    <p className="font-bold text-[#1C2435] text-right">{selectedRecipe.patientLastName}, {selectedRecipe.patientName}</p>
-                    
-                    <p className="text-slate-400 font-semibold">DNI del Paciente:</p>
-                    <p className="font-bold text-[#1C2435] text-right font-mono">{selectedRecipe.patientDni}</p>
-
-                    <p className="text-slate-400 font-semibold">Obra Social:</p>
-                    <p className="font-bold text-[#316F80] text-right">{selectedRecipe.obraSocial}</p>
-
+                {/* Patient Specs */}
+                <div className="space-y-3 py-1">
+                  <div className="grid grid-cols-2 text-xs gap-y-2 bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <div>
+                      <p className="text-slate-400 font-bold text-[10px] uppercase">Paciente:</p>
+                      <p className="font-black text-slate-900">{selectedRecipe.patientLastName}, {selectedRecipe.patientName}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold text-[10px] uppercase">DNI:</p>
+                      <p className="font-mono font-black text-slate-900">{selectedRecipe.patientDni}</p>
+                    </div>
+                    <div>
+                      <p className="text-slate-400 font-bold text-[10px] uppercase">Cobertura:</p>
+                      <p className="font-bold text-[#295EF3]">{selectedRecipe.obraSocial}</p>
+                    </div>
                     {selectedRecipe.obraSocialNumber && (
-                      <>
-                        <p className="text-slate-400 font-semibold">Credencial N°:</p>
-                        <p className="font-bold font-mono text-[#1C2435] text-right">{selectedRecipe.obraSocialNumber}</p>
-                      </>
+                      <div>
+                        <p className="text-slate-400 font-bold text-[10px] uppercase">N° Credencial:</p>
+                        <p className="font-mono font-bold text-slate-800">{selectedRecipe.obraSocialNumber}</p>
+                      </div>
                     )}
                   </div>
 
-                  {/* Prescription RP */}
-                  <div className="space-y-2 mt-2">
-                    <span className="font-black text-[#1C2435] text-lg block">Rp.</span>
+                  {/* Prescription Rp */}
+                  <div className="space-y-1.5 pt-2">
+                    <span className="font-serif italic font-black text-[#1C2435] text-xl block">Rp.</span>
                     <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                      <p className="font-bold text-[#1C2435] text-sm italic">
-                        "{selectedRecipe.medicationText}"
+                      <p className="font-black text-slate-900 text-sm whitespace-pre-line leading-relaxed">
+                        {selectedRecipe.medicationText}
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">
-                        Tratamiento habitual crónica autorizado. Dispensación mensual según cobertura autorizada de la Obra Social.
+                      <p className="text-[11px] text-slate-500 mt-2 font-medium">
+                        Dispensación mensual de tratamiento crónico conforme a la cobertura de la Obra Social.
                       </p>
                     </div>
                   </div>
 
-                  {/* Doctor notes if provided */}
+                  {/* Doctor notes */}
                   {selectedRecipe.doctorNotes && (
-                    <div className="text-xs bg-slate-50 px-3 py-2.5 rounded-xl border border-slate-100">
-                      <span className="font-extrabold text-[#1C2435] block">Indicaciones médicas especiales:</span>
-                      <p className="text-slate-600 leading-relaxed italic">{selectedRecipe.doctorNotes}</p>
+                    <div className="text-xs bg-amber-50/70 p-3 rounded-xl border border-amber-200 text-amber-950">
+                      <span className="font-bold block mb-0.5">Indicación médica:</span>
+                      <p className="leading-relaxed italic">{selectedRecipe.doctorNotes}</p>
                     </div>
                   )}
                 </div>
 
-                {/* Stamp Signature and Barcode */}
-                <div className="pt-4 border-t-2 border-[#316F80]/30 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-                  
-                  {/* QR and Barcode */}
+                {/* Footer Stamp & QR Token */}
+                <div className="pt-4 border-t-2 border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-3 text-center sm:text-left">
                   <div className="space-y-1">
-                    <div className="h-6 w-38 bg-[#1C2435] text-white flex items-center justify-center font-mono text-[9px] tracking-[4px] px-1 select-none">
+                    <div className="h-6 w-36 bg-slate-900 text-white flex items-center justify-center font-mono text-[9px] tracking-[4px] px-1 select-none rounded">
                       ||| | || ||| || ||
                     </div>
-                    <p className="text-[8px] text-slate-400 font-mono font-semibold">RECETA-TOKEN: {selectedRecipe.id}-{selectedRecipe.patientDni.replace(/\D/g, '')}</p>
+                    <p className="text-[9px] text-slate-400 font-mono font-semibold">TOKEN: {selectedRecipe.id}-{selectedRecipe.patientDni.replace(/\D/g, '')}</p>
                   </div>
 
-                  {/* Doctor Signature Stamp */}
                   <div className="flex flex-col items-center">
-                    <span className="text-[10px] text-[#316F80] font-bold border-b border-[#316F80] pb-1 px-8 italic">
-                      Firma y Sello Digital Validado
+                    <span className="text-[11px] text-[#295EF3] font-black border-b border-[#295EF3] pb-0.5 px-4 italic">
+                      Firma Médica Digitalizada
                     </span>
-                    <span className="text-[9px] text-slate-500 font-bold uppercase mt-1">
-                      Sello de Validación Oficial
+                    <span className="text-[9px] text-slate-400 font-bold uppercase mt-1">
+                      Matrícula Nacional Habilitada
                     </span>
                   </div>
-
                 </div>
 
               </div>
 
-              {/* Action Buttons inside Modal */}
-              <div className="pt-2 flex gap-2">
+              {/* Modal Action Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
                 <button
                   id="btn-print-recipe"
                   type="button"
                   onClick={() => window.print()}
-                  className="flex-1 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all"
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors border border-slate-200"
                 >
-                  <Printer className="h-4.5 w-4.5" />
+                  <Printer className="h-4 w-4 text-slate-600" />
                   <span>Imprimir Receta</span>
                 </button>
-                <a
-                  id="btn-simulation-download"
-                  href={selectedRecipe.recipePdfUrl || '#'}
-                  download={selectedRecipe.recipePdfName || 'receta_autorizada.pdf'}
-                  onClick={(e) => {
-                    if (!selectedRecipe.recipePdfUrl || selectedRecipe.recipePdfUrl.startsWith('MOCK')) {
-                      e.preventDefault();
-                      showToast('Descargando comprobante oficial de receta: ' + (selectedRecipe.recipePdfName || 'receta_firmada.pdf'));
-                    }
+                <button
+                  type="button"
+                  onClick={() => {
+                    showToast('Receta lista para presentar en farmacia.');
+                    setSelectedRecipe(null);
                   }}
-                  className="flex-1 bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-lg"
+                  className="flex-1 bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition-all shadow-md"
                 >
-                  <Download className="h-4.5 w-4.5" />
-                  <span>Descargar PDF</span>
-                </a>
+                  <Check className="h-4 w-4" />
+                  <span>Aceptar y Cerrar</span>
+                </button>
               </div>
             </div>
 
@@ -552,6 +819,31 @@ export default function PatientStatus({
         </div>
       )}
 
+      {/* Photo Preview Modal */}
+      {previewPhotoUrl && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn" onClick={() => setPreviewPhotoUrl(null)}>
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-white/20 p-4 space-y-3 animate-scaleUp" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+              <p className="font-extrabold text-xs text-slate-800 flex items-center gap-1.5">
+                <Camera className="h-4 w-4 text-blue-600" />
+                Foto de Medicamento Adjunta
+              </p>
+              <button 
+                type="button" 
+                onClick={() => setPreviewPhotoUrl(null)}
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="max-h-[60vh] overflow-hidden rounded-2xl flex items-center justify-center bg-slate-100">
+              <img src={previewPhotoUrl} alt="Foto medicamento ampliada" className="max-h-[58vh] w-auto object-contain rounded-xl" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
       {toast && (
         <div className="fixed bottom-6 right-6 bg-slate-900 border border-white/20 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 z-50 animate-fadeIn font-semibold text-xs max-w-sm">
           <Check className="h-5 w-5 text-emerald-400 shrink-0 stroke-[2.5]" />
