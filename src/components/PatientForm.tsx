@@ -920,7 +920,7 @@ export default function PatientForm({
   // --- Render Confirmation View ---
   if (step === 'confirmation') {
     return (
-      <div className="max-w-xl mx-auto w-auto -mx-4 sm:mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-100 overflow-hidden animate-scaleUp">
+      <div className="max-w-4xl mx-auto w-auto -mx-4 sm:mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-100 overflow-hidden animate-scaleUp">
         <div className="bg-emerald-600 p-8 text-center text-white relative">
           <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
           <div className="relative flex flex-col items-center gap-3">
@@ -1016,7 +1016,7 @@ export default function PatientForm({
   }
 
   return (
-    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-3xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
+    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-5xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none sm:shadow-xl border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
       <div className="bg-gradient-to-br from-[#1C2435] to-[#316F80] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 bg-white/10 h-32 w-32 rounded-full blur-xl" />
