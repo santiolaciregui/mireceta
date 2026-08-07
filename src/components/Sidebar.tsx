@@ -83,6 +83,13 @@ export default function Sidebar({
     } else if (role === 'admin') {
       return [
         {
+          id: 'mensajeria',
+          title: 'Centro de Mensajería',
+          items: [
+            { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare },
+          ]
+        },
+        {
           id: 'admin_panel',
           title: 'Sistema',
           items: [

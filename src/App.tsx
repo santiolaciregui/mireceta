@@ -358,8 +358,7 @@ export default function App() {
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Centro de Mensajería Clínica</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Canal bidireccional directo para resolver dudas de renovación de recetas en tiempo real.</p>
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mensajería con Pacientes</h1>
                       </div>
                     </header>
 

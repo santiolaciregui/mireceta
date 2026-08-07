@@ -121,6 +121,10 @@ export class OrderService {
     return createdOrder;
   }
 
+  async getOrderById(id: string) {
+    return this.orderRepo.findById(id);
+  }
+
   async updateOrder(id: string, updateData: any, currentUser: any) {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
@@ -190,6 +194,46 @@ export class OrderService {
         entityId: id,
         details: `Adjuntado PDF de receta: ${updateData.recipePdfName}`
       });
+    }
+
+    // Auto-dispatch WhatsApp notification with direct inline recipe PDF link when issued
+    if ((updateData.status === 'Emitida' || updateData.status === 'Enviada') && order.patientPhone) {
+      try {
+        const { NotificationService } = await import('./NotificationService.js');
+        const notificationService = new NotificationService();
+        
+        const host = process.env.PUBLIC_URL || 'https://mireceta.com';
+        const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
+
+        const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
+
+        if (isWithin24h) {
+          await notificationService.sendNotification({
+            tenantId: order.tenantId || 'TEN-0001',
+            channel: 'whatsapp',
+            to: order.patientPhone,
+            body: `¡Hola ${order.patientName}! Tu receta #${order.id} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`
+          }).catch(err => console.log('WhatsApp send issued receipt catch:', err));
+        } else {
+          const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
+          const templateCode = waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode;
+
+          await notificationService.sendNotification({
+            tenantId: order.tenantId || 'TEN-0001',
+            channel: 'whatsapp',
+            to: order.patientPhone,
+            templateCode: templateCode || undefined,
+            variables: templateCode ? {
+              patientName: `${order.patientName} ${order.patientLastName}`,
+              orderId: order.id,
+              recipeLink
+            } : undefined,
+            body: `¡Hola ${order.patientName}! Tu receta #${order.id} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
+          }).catch(err => console.log('WhatsApp template send issued receipt catch:', err));
+        }
+      } catch (e) {
+        console.error('Error enviando notificación de receta emitida:', e);
+      }
     }
 
     if (updateData.messages) {

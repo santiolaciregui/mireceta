@@ -48,6 +48,12 @@ async function startServer() {
   await connectDB();
   await runTenantMigration();
 
+  const uploadsDir = path.resolve('uploads');
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  app.use('/uploads', express.static(uploadsDir));
+
   // API Routes
   app.use('/api', routes);
 
