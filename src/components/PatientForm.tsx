@@ -1072,7 +1072,7 @@ export default function PatientForm({
       <div className="bg-[#1C2435] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="relative">
           <span className="text-[10px] font-bold uppercase bg-[#295EF3]/30 px-2.5 py-0.5 rounded-full text-white border border-white/20">
-            {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario Oficial'}
+            {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario '}
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-1 flex items-center gap-1.5">
             {isOficio ? 'Nueva Solicitud de Renovación' : 'Renovación de Medicación Crónica'}
@@ -2063,7 +2063,7 @@ export default function PatientForm({
                     <CreditCard className="h-5 w-5" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-sm text-slate-50">Arancel del Trámite</h4>
+                    <h4 className="font-extrabold text-sm text-slate-50">Arancel de la medicación</h4>
                     <p className="text-[10px] text-slate-400 font-semibold uppercase">Gestión Digital de Firmas</p>
                   </div>
                 </div>
@@ -2183,8 +2183,11 @@ export default function PatientForm({
                     
                     <div className="flex justify-between items-center pb-3 border-b border-slate-200/80">
                       <div className="flex items-center gap-2">
-                        <p className="text-xs font-black text-slate-850">Mercado Pago Oficial</p>
+                        <MercadoPagoIcon variant="full" className="h-6 w-auto" />
                       </div>
+                      <span className="text-[10px] uppercase font-extrabold tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
+                        Pago 100% Protegido
+                      </span>
                     </div>
 
                     {/* Submit checkout preference button */}
@@ -2206,7 +2209,7 @@ export default function PatientForm({
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                       >
                         <MercadoPagoIcon className="h-5 w-5" />
-                        <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar con Mercado Pago`}</span>
+                        <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
                       </button>
                     )}
                   </div>
