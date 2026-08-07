@@ -1,4 +1,5 @@
 import { TenantRepository } from '../repositories/TenantRepository.js';
+import { generateTenantId } from '../utils/idGenerator.js';
 
 export class TenantService {
   private tenantRepo: TenantRepository;
@@ -14,11 +15,11 @@ export class TenantService {
   async resolveTenant(subdomain: string) {
     if (!subdomain) throw new Error('Subdominio requerido');
     const lowerSub = subdomain.toLowerCase();
-    
+
     try {
       let tenant = await this.tenantRepo.findBySubdomain(lowerSub);
-      
-      // Fallback for www or main domain
+
+      // Fallback for www or localhost
       if (!tenant && (lowerSub === 'www' || lowerSub === 'localhost')) {
         tenant = await this.tenantRepo.findById('TEN-0001');
         if (!tenant) {
@@ -28,9 +29,9 @@ export class TenantService {
       }
 
       if (tenant) {
-        return { 
-          id: tenant.id, 
-          name: tenant.name, 
+        return {
+          id: tenant.id,
+          name: tenant.name,
           subdomain: tenant.subdomain,
           mpPublicKey: tenant.mpPublicKey,
           mpEnabled: tenant.mpEnabled
@@ -40,7 +41,6 @@ export class TenantService {
       console.error('Error resolving tenant from DB, using fallback:', err);
     }
 
-    // Emergency fallback if DB is timing out or unreachable
     return {
       id: 'TEN-0001',
       name: 'Centro Médico Principal',
@@ -52,10 +52,10 @@ export class TenantService {
 
   async createTenant(tenantData: any, currentUser: any) {
     if (currentUser.role !== 'superadmin') throw new Error('Acceso denegado');
-    
+
     const count = await this.tenantRepo.count();
-    const newId = `TEN-${String(count + 1).padStart(4, '0')}`;
-    
+    const newId = generateTenantId(count);
+
     return this.tenantRepo.create({
       id: newId,
       name: tenantData.name,

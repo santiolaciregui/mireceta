@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IUser extends Document {
   id: string; // USR-XXXX
@@ -27,27 +27,21 @@ const userSchema = new Schema<IUser>({
   name: { type: String, required: true },
   lastName: { type: String, required: true },
   role: { type: String, enum: ['paciente', 'medico', 'admin', 'colaborador'], required: true },
-  identifier: { type: String, required: true, unique: true }, // DNI, Matrícula, Username
+  identifier: { type: String, required: true, unique: true },
   email: { type: String, required: false },
   status: { type: String, enum: ['Activo', 'Inactivo'], default: 'Activo' },
   password: { type: String },
-  
-  // Campos específicos para 'colaborador'
-  medicoId: { type: String }, // Storing the string ID to match old logic, though ObjectId is better long term
+  medicoId: { type: String },
   medicoName: { type: String },
-  tenantId: { type: String }, // Populated during migration and required for new users
-  
-  // Campos específicos para pacientes
+  tenantId: { type: String },
   phone: { type: String },
   birthDate: { type: String },
   obraSocial: { type: String },
   obraSocialNumber: { type: String },
   dependents: { type: Schema.Types.Mixed, default: [] },
-
-  // Seguridad
   requirePasswordChange: { type: Boolean, default: true }
 }, {
   timestamps: true, 
 });
 
-export const User = mongoose.models.User || mongoose.model<IUser>('User', userSchema);
+export const User: Model<IUser> = (mongoose.models.User as any) || mongoose.model<IUser>('User', userSchema);

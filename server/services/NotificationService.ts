@@ -28,26 +28,19 @@ export class NotificationService {
     this.registry = AdapterRegistry.getInstance();
   }
 
-  /**
-   * Replaces placeholders like {{variableName}} with values provided in variables map.
-   */
   public interpolateVariables(template: string, variables: Record<string, string | number | boolean> = {}): string {
     return template.replace(/\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g, (match, key) => {
       if (Object.prototype.hasOwnProperty.call(variables, key) && variables[key] !== undefined && variables[key] !== null) {
         return String(variables[key]);
       }
-      return match; // Keep unresolved variables if not provided
+      return match;
     });
   }
 
-  /**
-   * Send notification by channel and store log in DB.
-   */
   public async sendNotification(dto: SendDirectNotificationDto): Promise<SendNotificationResult> {
     const { tenantId, channel, to, variables = {} } = dto;
     let { subject, body, templateCode } = dto;
 
-    // If templateCode is passed, retrieve template from DB
     if (templateCode) {
       const template = await this.templateRepo.findByTenantAndCode(tenantId, templateCode);
       if (template && template.isActive) {
@@ -60,16 +53,13 @@ export class NotificationService {
       throw new Error('El cuerpo del mensaje no puede estar vacío.');
     }
 
-    // Replace variables in subject and body
     const finalSubject = subject ? this.interpolateVariables(subject, variables) : undefined;
     const finalBody = this.interpolateVariables(body, variables);
 
-    // Fetch config for channel from database
     let configDoc = await this.configRepo.findByTenantAndChannel(tenantId, channel);
     let credentials = configDoc?.credentials || {};
     let isEnabled = configDoc ? configDoc.isEnabled : false;
 
-    // If channel is not explicitly configured in DB, check env vars or default tenant
     if (!isEnabled) {
       if (channel === 'whatsapp' && (process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || process.env.WHATSAPP_WEBHOOK_URL)) {
         isEnabled = true;
@@ -105,7 +95,6 @@ export class NotificationService {
       return { success: false, error: errorMsg };
     }
 
-    // Obtain adapter and send
     const adapter = this.registry.getAdapter(channel);
     const result = await adapter.send(
       {
@@ -118,7 +107,6 @@ export class NotificationService {
       credentials
     );
 
-    // Persist Log in DB
     await this.logRepo.createLog({
       tenantId,
       recipient: to,
@@ -135,9 +123,6 @@ export class NotificationService {
     return result;
   }
 
-  /**
-   * Tests adapter connection credentials saved or supplied for a channel.
-   */
   public async testConnection(
     tenantId: string,
     channel: NotificationChannel,
@@ -160,9 +145,6 @@ export class NotificationService {
     return adapter.testConnection(credentials);
   }
 
-  /**
-   * Retrieves notification channel configs for a tenant.
-   */
   public async getConfigs(tenantId: string) {
     const configs = await this.configRepo.findAllByTenant(tenantId);
     return configs.map((c) => ({
@@ -174,16 +156,10 @@ export class NotificationService {
     }));
   }
 
-  /**
-   * Retrieves single notification channel config for a tenant.
-   */
   public async getConfig(tenantId: string, channel: NotificationChannel) {
     return this.configRepo.findByTenantAndChannel(tenantId, channel);
   }
 
-  /**
-   * Masks sensitive fields like passwords/tokens for UI view.
-   */
   private sanitizeCredentials(channel: NotificationChannel, creds: Record<string, unknown> = {}) {
     const sanitized = { ...creds };
     if (channel === 'email' && sanitized.pass) {
@@ -196,9 +172,6 @@ export class NotificationService {
     return sanitized;
   }
 
-  /**
-   * Save channel configuration to database.
-   */
   public async saveConfig(
     tenantId: string,
     channel: NotificationChannel,
@@ -206,7 +179,6 @@ export class NotificationService {
     credentials: Record<string, unknown>,
     settings?: Record<string, unknown>
   ) {
-    // If password/token is masked, keep original value from DB
     const existing = await this.configRepo.findByTenantAndChannel(tenantId, channel);
     if (existing) {
       if (channel === 'email' && credentials.pass === '********') {
@@ -220,9 +192,6 @@ export class NotificationService {
     return this.configRepo.upsertConfig(tenantId, channel, isEnabled, credentials, settings);
   }
 
-  /**
-   * Seeds default templates if none exist for tenant.
-   */
   public async ensureDefaultTemplates(tenantId: string) {
     const existing = await this.templateRepo.findAllByTenant(tenantId);
     if (existing.length === 0) {
@@ -275,11 +244,10 @@ export class NotificationService {
           const contacts = value?.contacts || [];
 
           for (const msg of messages) {
-            const senderPhone = msg.from; // e.g. "5491112345678"
+            const senderPhone = msg.from;
             const contactName = contacts.find((c: any) => c.wa_id === senderPhone)?.profile?.name || 'Paciente WhatsApp';
             const textContent = msg.text?.body || (msg.type === 'image' ? '[Imagen recibida por WhatsApp]' : (msg.type === 'audio' ? '[Nota de voz por WhatsApp]' : '[Mensaje de WhatsApp]'));
 
-            // Search matching order by phone
             const matchingOrders = await orderRepo.findByPatientPhone(senderPhone);
             if (matchingOrders.length > 0) {
               const targetOrder: any = matchingOrders[0];
@@ -312,11 +280,107 @@ export class NotificationService {
     }
   }
 
-  public isWithinWhatsApp24hWindow(order: any): boolean {
-    if (!order || !order.lastPatientWhatsAppInteractionAt) return false;
-    const lastInteraction = new Date(order.lastPatientWhatsAppInteractionAt).getTime();
+  public isWithinWhatsApp24hWindow(recordWithInteraction: { lastPatientWhatsAppInteractionAt?: string } | null | undefined): boolean {
+    if (!recordWithInteraction || !recordWithInteraction.lastPatientWhatsAppInteractionAt) return false;
+    const lastInteraction = new Date(recordWithInteraction.lastPatientWhatsAppInteractionAt).getTime();
     if (isNaN(lastInteraction)) return false;
     const hoursDifference = (Date.now() - lastInteraction) / (1000 * 60 * 60);
     return hoursDifference < 24;
   }
+
+  /**
+   * Dispatches WhatsApp notification to patient when a doctor/collaborator sends an inquiry or reply.
+   */
+  public async sendDoctorInquiryWhatsApp(params: {
+    tenantId: string;
+    patientPhone: string;
+    patientName: string;
+    doctorName: string;
+    orderId: string;
+    messageText: string;
+    interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
+  }): Promise<void> {
+    const { tenantId, patientPhone, patientName, doctorName, orderId, messageText, interactionRecord } = params;
+    if (!patientPhone) return;
+
+    try {
+      const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
+
+      if (isWithin24h) {
+        await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          body: `[Consulta Dr. ${doctorName} - Receta #${orderId}]\n${messageText}`
+        });
+      } else {
+        const waConfig = await this.getConfig(tenantId, 'whatsapp');
+        const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+
+        await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          templateCode: templateCode || undefined,
+          variables: templateCode ? {
+            patientName,
+            doctorName,
+            orderId,
+            messagePreview: messageText.substring(0, 60)
+          } : undefined,
+          body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+        });
+      }
+    } catch (err) {
+      console.error('Error al despachar notificación de consulta médica WhatsApp:', err);
+    }
+  }
+
+  /**
+   * Dispatches WhatsApp notification when an order is issued/ready with PDF link.
+   */
+  public async sendRecipeIssuedWhatsApp(params: {
+    tenantId: string;
+    patientPhone: string;
+    patientName: string;
+    orderId: string;
+    recipeLink: string;
+    interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
+  }): Promise<void> {
+    const { tenantId, patientPhone, patientName, orderId, recipeLink, interactionRecord } = params;
+    if (!patientPhone) return;
+
+    try {
+      const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
+
+      if (isWithin24h) {
+        await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`
+        });
+      } else {
+        const waConfig = await this.getConfig(tenantId, 'whatsapp');
+        const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+
+        await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          templateCode: templateCode || undefined,
+          variables: templateCode ? {
+            patientName,
+            orderId,
+            recipeLink
+          } : undefined,
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
+        });
+      }
+    } catch (err) {
+      console.error('Error enviando notificación de receta emitida:', err);
+    }
+  }
 }
+
+export const notificationService = new NotificationService();

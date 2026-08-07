@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface ITenant extends Document {
-  id: string; // Tenant unique ID, e.g. TEN-XXXX
+  id: string;
   name: string;
   subdomain: string;
   mpAccessToken?: string;
@@ -22,4 +22,4 @@ const tenantSchema = new Schema<ITenant>({
   timestamps: true
 });
 
-export const Tenant = mongoose.models.Tenant || mongoose.model<ITenant>('Tenant', tenantSchema);
+export const Tenant: Model<ITenant> = (mongoose.models.Tenant as any) || mongoose.model<ITenant>('Tenant', tenantSchema);

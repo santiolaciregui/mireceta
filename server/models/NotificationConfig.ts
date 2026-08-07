@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { NotificationChannel } from '../services/notification/adapters/NotificationAdapter.js';
 
 export interface INotificationConfig extends Document {
@@ -26,6 +26,6 @@ const notificationConfigSchema = new Schema<INotificationConfig>(
 
 notificationConfigSchema.index({ tenantId: 1, channel: 1 }, { unique: true });
 
-export const NotificationConfig =
-  mongoose.models.NotificationConfig ||
+export const NotificationConfig: Model<INotificationConfig> =
+  (mongoose.models.NotificationConfig as any) ||
   mongoose.model<INotificationConfig>('NotificationConfig', notificationConfigSchema);

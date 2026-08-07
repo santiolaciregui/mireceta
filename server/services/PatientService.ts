@@ -1,5 +1,7 @@
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { auditLogService } from './AuditLogService.js';
+import { cleanDni } from '../utils/formatters.js';
+import { generatePatientId } from '../utils/idGenerator.js';
 
 export class PatientService {
   private repo: PatientRepository;
@@ -13,12 +15,13 @@ export class PatientService {
   }
 
   async getPatientByDni(dni: string, tenantId?: string) {
-    return this.repo.findByDni(dni, tenantId);
+    return this.repo.findByDni(cleanDni(dni), tenantId);
   }
 
   async createOrUpdatePatient(patientData: any, currentUser?: any) {
     const tenantId = patientData.tenantId || currentUser?.tenantId || 'TEN-0001';
-    let existing = await this.repo.findByDni(patientData.dni || patientData.identifier, tenantId);
+    const dni = cleanDni(patientData.dni || patientData.identifier);
+    let existing = await this.repo.findByDni(dni, tenantId);
 
     if (existing) {
       const updated = await this.repo.update(existing.id, {
@@ -28,7 +31,7 @@ export class PatientService {
         phone: patientData.phone || existing.phone,
         birthDate: patientData.birthDate || existing.birthDate,
         obraSocial: patientData.obraSocial || existing.obraSocial,
-        obraSocialNumber: patientData.obraSocialNumber || existing.obraSocialNumber,
+        obraSocialNumber: patientData.obraSocialNumber || existing.obraSocialNumber
       });
 
       await auditLogService.log({
@@ -44,11 +47,11 @@ export class PatientService {
     }
 
     const count = (await this.repo.findByTenant(tenantId)).length;
-    const newId = `PAT-${String(count + 1).padStart(4, '0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const newId = generatePatientId(count);
 
     const newPatient = await this.repo.create({
       id: newId,
-      dni: patientData.dni || patientData.identifier,
+      dni,
       name: patientData.name,
       lastName: patientData.lastName,
       email: patientData.email,
@@ -67,7 +70,7 @@ export class PatientService {
       action: 'PATIENT_CREATE',
       entity: 'Patient',
       entityId: newId,
-      details: `Registrado nuevo paciente ${patientData.name} ${patientData.lastName} (DNI: ${patientData.dni || patientData.identifier})`
+      details: `Registrado nuevo paciente ${patientData.name} ${patientData.lastName} (DNI: ${dni})`
     });
 
     return newPatient;

@@ -12,44 +12,44 @@ import { Order } from './server/models/Order.js';
 
 async function runTenantMigration() {
   try {
-    let defaultTenant = await (Tenant as any).findOne({ id: 'TEN-0001' });
+    let defaultTenant = await Tenant.findOne({ id: 'TEN-0001' });
     if (!defaultTenant) {
       defaultTenant = new Tenant({ id: 'TEN-0001', name: 'Centro Médico Principal', subdomain: 'www' });
       await defaultTenant.save();
       console.log('Created default tenant TEN-0001');
     }
-    let wwwTenant = await (Tenant as any).findOne({ subdomain: 'www' });
+    let wwwTenant = await Tenant.findOne({ subdomain: 'www' });
     if (!wwwTenant) {
       wwwTenant = new Tenant({ id: 'TEN-WWW', name: 'Centro Médico Principal', subdomain: 'www' });
       await wwwTenant.save();
       console.log('Created www tenant');
     }
 
-    const updatedUsers = await (User as any).updateMany(
+    const updatedUsers = await User.updateMany(
       { tenantId: { $exists: false } },
       { $set: { tenantId: 'TEN-0001' } }
     );
     if (updatedUsers.modifiedCount > 0) console.log(`Migrated ${updatedUsers.modifiedCount} users to TEN-0001`);
 
-    const updatedOrders = await (Order as any).updateMany(
+    const updatedOrders = await Order.updateMany(
       { tenantId: { $exists: false } },
       { $set: { tenantId: 'TEN-0001' } }
     );
     if (updatedOrders.modifiedCount > 0) console.log(`Migrated ${updatedOrders.modifiedCount} orders to TEN-0001`);
 
     // Unify chatMessages into messages and clean up legacy redundant fields
-    const legacyOrders = await (Order as any).find({
+    const legacyOrders = await Order.find({
       $or: [
         { chatMessages: { $exists: true } },
         { notificationsSent: { $exists: true } }
       ]
     });
     for (const ord of legacyOrders) {
-      if (ord.chatMessages && (!ord.messages || ord.messages.length === 0)) {
-        ord.messages = ord.chatMessages;
+      if ((ord as any).chatMessages && (!ord.messages || ord.messages.length === 0)) {
+        ord.messages = (ord as any).chatMessages;
       }
-      ord.chatMessages = undefined;
-      ord.notificationsSent = undefined;
+      (ord as any).chatMessages = undefined;
+      (ord as any).notificationsSent = undefined;
       await ord.save();
     }
   } catch (error) {

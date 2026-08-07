@@ -7,11 +7,11 @@ const controller = new UserController();
 
 router.use(authenticateToken);
 
-router.get('/me', controller.getProfile.bind(controller));
-router.post('/change-password', controller.changePassword.bind(controller));
-router.get('/', controller.getUsersByTenant.bind(controller));
-router.post('/', controller.createUser.bind(controller));
-router.put('/:id', controller.updateUser.bind(controller));
-router.delete('/:id', controller.deleteUser.bind(controller));
+router.get('/me', controller.getProfile);
+router.post('/change-password', controller.changePassword);
+router.get('/', controller.getUsersByTenant);
+router.post('/', controller.createUser);
+router.put('/:id', controller.updateUser);
+router.delete('/:id', controller.deleteUser);
 
 export default router;

@@ -1,19 +1,20 @@
 import { Request, Response, NextFunction } from 'express';
 import { UserService } from '../services/UserService.js';
+import { getCurrentUser } from '../utils/httpHelpers.js';
 
 const userService = new UserService();
 
 export class UserController {
-  async getProfile(req: Request, res: Response, next: NextFunction) {
+  getProfile = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await userService.getProfile(req.user.id);
       res.json(result);
     } catch (err: any) {
       res.status(404).json({ error: err.message });
     }
-  }
+  };
 
-  async changePassword(req: Request, res: Response, next: NextFunction) {
+  changePassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { currentPassword, newPassword } = req.body;
       await userService.changePassword(req.user.id, currentPassword, newPassword);
@@ -21,41 +22,41 @@ export class UserController {
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
-  }
+  };
 
-  async getUsersByTenant(req: Request, res: Response, next: NextFunction) {
+  getUsersByTenant = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await userService.getUsersByTenant(req.user.tenantId);
       res.json(result);
     } catch (err: any) {
       next(err);
     }
-  }
+  };
 
-  async createUser(req: Request, res: Response, next: NextFunction) {
+  createUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await userService.createUser(req.body, req.user);
+      const result = await userService.createUser(req.body, getCurrentUser(req));
       res.status(201).json(result);
     } catch (err: any) {
       res.status(403).json({ error: err.message });
     }
-  }
+  };
 
-  async updateUser(req: Request, res: Response, next: NextFunction) {
+  updateUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const result = await userService.updateUser(req.params.id, req.body, req.user);
+      const result = await userService.updateUser(req.params.id, req.body, getCurrentUser(req));
       res.json(result);
     } catch (err: any) {
       res.status(403).json({ error: err.message });
     }
-  }
+  };
 
-  async deleteUser(req: Request, res: Response, next: NextFunction) {
+  deleteUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await userService.deleteUser(req.params.id, req.user);
+      await userService.deleteUser(req.params.id, getCurrentUser(req));
       res.json({ message: 'Usuario eliminado' });
     } catch (err: any) {
       res.status(403).json({ error: err.message });
     }
-  }
+  };
 }

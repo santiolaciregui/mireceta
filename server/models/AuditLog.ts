@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IAuditLog extends Document {
   id: string;
@@ -6,7 +6,7 @@ export interface IAuditLog extends Document {
   userId?: string;
   userName?: string;
   userRole?: string;
-  action: string; // e.g. "USER_CREATE", "ORDER_STATUS_UPDATE", "PASSWORD_CHANGE", "TENANT_UPDATE"
+  action: string;
   entity: 'User' | 'Patient' | 'Order' | 'Tenant' | 'Auth';
   entityId?: string;
   details?: string;
@@ -33,4 +33,4 @@ const auditLogSchema = new Schema<IAuditLog>({
 auditLogSchema.index({ tenantId: 1, timestamp: -1 });
 auditLogSchema.index({ entity: 1, entityId: 1 });
 
-export const AuditLog = mongoose.models.AuditLog || mongoose.model<IAuditLog>('AuditLog', auditLogSchema);
+export const AuditLog: Model<IAuditLog> = (mongoose.models.AuditLog as any) || mongoose.model<IAuditLog>('AuditLog', auditLogSchema);

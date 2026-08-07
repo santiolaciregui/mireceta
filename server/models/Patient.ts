@@ -1,7 +1,7 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IPatient extends Document {
-  id: string; // PAT-XXXX
+  id: string;
   dni: string;
   name: string;
   lastName: string;
@@ -11,7 +11,7 @@ export interface IPatient extends Document {
   obraSocial?: string;
   obraSocialNumber?: string;
   tenantId: string;
-  userId?: string; // Reference to User.id credentials account
+  userId?: string;
   status: 'Activo' | 'Inactivo';
   messages?: any[];
   lastPatientWhatsAppInteractionAt?: string;
@@ -60,5 +60,4 @@ const patientSchema = new Schema<IPatient>({
 
 patientSchema.index({ tenantId: 1, dni: 1 });
 
-export const Patient = mongoose.models.Patient || mongoose.model<IPatient>('Patient', patientSchema);
-
+export const Patient: Model<IPatient> = (mongoose.models.Patient as any) || mongoose.model<IPatient>('Patient', patientSchema);

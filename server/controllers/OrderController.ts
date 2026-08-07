@@ -1,46 +1,47 @@
 import { Request, Response, NextFunction } from 'express';
 import { OrderService } from '../services/OrderService.js';
+import { getCurrentUser } from '../utils/httpHelpers.js';
 
 const orderService = new OrderService();
 
 export class OrderController {
-  async getOrders(req: Request, res: Response, next: NextFunction) {
+  getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const orders = await orderService.getOrdersForUser(req.user);
+      const orders = await orderService.getOrdersForUser(getCurrentUser(req));
       res.json(orders);
     } catch (err: any) {
       next(err);
     }
-  }
+  };
 
-  async createOrder(req: Request, res: Response, next: NextFunction) {
+  createOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const order = await orderService.createOrder(req.body, req.user);
+      const order = await orderService.createOrder(req.body, getCurrentUser(req));
       res.status(201).json(order);
     } catch (err: any) {
       next(err);
     }
-  }
+  };
 
-  async updateOrder(req: Request, res: Response, next: NextFunction) {
+  updateOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const order = await orderService.updateOrder(req.params.id, req.body, req.user);
+      const order = await orderService.updateOrder(req.params.id, req.body, getCurrentUser(req));
       res.json(order);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
-  }
+  };
 
-  async addChatMessage(req: Request, res: Response, next: NextFunction) {
+  addChatMessage = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const order = await orderService.addChatMessage(req.params.id, req.body, req.user);
+      const order = await orderService.addChatMessage(req.params.id, req.body, getCurrentUser(req));
       res.json(order);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
-  }
+  };
 
-  async streamPublicPdf(req: Request, res: Response, next: NextFunction) {
+  streamPublicPdf = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { id } = req.params;
       const order: any = await orderService.getOrderById(id);
@@ -68,5 +69,5 @@ export class OrderController {
     } catch (err: any) {
       res.status(500).send('Error al obtener el archivo de la receta.');
     }
-  }
+  };
 }

@@ -7,9 +7,9 @@ const router = Router();
 const controller = new AuthController();
 const userController = new UserController();
 
-router.post('/login', controller.login.bind(controller));
-router.post('/register', controller.register.bind(controller));
-router.post('/forgot-password', controller.forgotPassword.bind(controller));
-router.get('/me', authenticateToken, userController.getProfile.bind(userController));
+router.post('/login', controller.login);
+router.post('/register', controller.register);
+router.post('/forgot-password', controller.forgotPassword);
+router.get('/me', authenticateToken, userController.getProfile);
 
 export default router;

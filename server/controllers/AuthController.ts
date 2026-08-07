@@ -4,34 +4,38 @@ import { AuthService } from '../services/AuthService.js';
 const authService = new AuthService();
 
 export class AuthController {
-  async login(req: Request, res: Response, next: NextFunction) {
+  login = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { identifier, password } = req.body;
-      if (!identifier || !password) return res.status(400).json({ error: 'Identificador y contraseña requeridos.' });
+      if (!identifier || !password) {
+        return res.status(400).json({ error: 'Identificador y contraseña requeridos.' });
+      }
       const result = await authService.login(identifier, password);
       res.json(result);
     } catch (err: any) {
       res.status(401).json({ error: err.message });
     }
-  }
+  };
 
-  async register(req: Request, res: Response, next: NextFunction) {
+  register = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await authService.register(req.body);
       res.status(201).json(result);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
     }
-  }
+  };
 
-  async forgotPassword(req: Request, res: Response, next: NextFunction) {
+  forgotPassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { identifier, email } = req.body;
-      if (!identifier && !email) return res.status(400).json({ error: 'Por favor ingrese su correo o DNI de usuario.' });
+      if (!identifier && !email) {
+        return res.status(400).json({ error: 'Por favor ingrese su correo o DNI de usuario.' });
+      }
       const result = await authService.forgotPassword(identifier, email);
       res.json(result);
     } catch (err: any) {
       res.status(404).json({ error: err.message });
     }
-  }
+  };
 }

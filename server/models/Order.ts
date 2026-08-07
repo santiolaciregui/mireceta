@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IMedicationItem {
   nombreComercial: string;
@@ -14,7 +14,7 @@ export interface IMedicationItem {
 export interface IAuditLogEntry {
   action: string;
   user: string;
-  timestamp: string; // Keep as string for compatibility with frontend/original API
+  timestamp: string;
   notes?: string;
 }
 
@@ -27,8 +27,8 @@ export interface INotificationEntry {
 }
 
 export interface IMedicalOrder extends Document {
-  id: string; // Mongoose will add _id, but we keep the custom REC-XXXX id format as string
-  tenantId?: string; // Temporarily optional for the DB schema so we can migrate
+  id: string;
+  tenantId?: string;
   patientName: string;
   patientLastName: string;
   patientDni: string;
@@ -57,19 +57,17 @@ export interface IMedicalOrder extends Document {
   paymentId?: string;
   paymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded';
   
-  status: 'Pendiente' | 'En revisión' | 'Solicita más información' | 'Aprobada' | 'Rechazada' | 'Emitida' | 'Enviada';
-  createdAt: string; // Re-mapping the string createdAt to avoid issues
+  status: 'Pendiente' | 'En revisión' | 'Solicita más información' | 'Aprobada' | 'Rechazada' | 'Emitida' | 'Enviada' | 'Cancelada';
+  createdAt: string;
   updatedAt?: string;
   
   recipePdfUrl: string | null;
   recipePdfName: string | null;
   doctorNotes?: string;
 
-  // Chronic renewal questions
   lastConsultationTime?: string;
   lastConsultationDoctor?: string;
   
-  // Operator tracking
   createdByOperatorId?: string;
   createdByOperatorName?: string;
 
@@ -107,10 +105,7 @@ const auditLogEntrySchema = new Schema<IAuditLogEntry>({
 }, { _id: false });
 
 const notificationEntrySchema = new Schema<INotificationEntry>({
-  type: { 
-    type: String, 
-    required: true
-  },
+  type: { type: String, required: true },
   sentTo: { type: String, required: false, default: '' },
   sentAt: { type: String, required: true },
   subject: { type: String, required: false, default: '' },
@@ -138,8 +133,8 @@ const chatMessageSchema = new Schema({
 }, { _id: false });
 
 const medicalOrderSchema = new Schema<IMedicalOrder>({
-  id: { type: String, required: true, unique: true }, // The custom 'REC-XXXX' id
-  tenantId: { type: String }, // Populated during migration
+  id: { type: String, required: true, unique: true },
+  tenantId: { type: String },
   patientName: { type: String, required: true },
   patientLastName: { type: String, required: true },
   patientDni: { type: String, required: true, index: true },
@@ -173,7 +168,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   
   status: { 
     type: String, 
-    enum: ['Pendiente', 'En revisión', 'Solicita más información', 'Aprobada', 'Rechazada', 'Emitida', 'Enviada'],
+    enum: ['Pendiente', 'En revisión', 'Solicita más información', 'Aprobada', 'Rechazada', 'Emitida', 'Enviada', 'Cancelada'],
     default: 'Pendiente',
     index: true 
   },
@@ -185,11 +180,9 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   recipePdfName: { type: String },
   doctorNotes: { type: String },
   
-  // Renovación crónica
   lastConsultationTime: { type: String },
   lastConsultationDoctor: { type: String },
   
-  // Tracking de operadores
   createdByOperatorId: { type: String },
   createdByOperatorName: { type: String },
   
@@ -206,6 +199,6 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   notificationsSent: [notificationEntrySchema],
   messages: [chatMessageSchema],
   lastPatientWhatsAppInteractionAt: { type: String }
-}); // we manage timestamps manually as strings to preserve previous app logic
+});
 
-export const Order = mongoose.models.Order || mongoose.model<IMedicalOrder>('Order', medicalOrderSchema);
+export const Order: Model<IMedicalOrder> = (mongoose.models.Order as any) || mongoose.model<IMedicalOrder>('Order', medicalOrderSchema);

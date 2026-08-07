@@ -1,46 +1,51 @@
 import { User, IUser } from '../models/User.js';
+import { cleanDni } from '../utils/formatters.js';
 
 export class UserRepository {
-  async findById(id: string) {
-    return (User as any).findOne({ id });
+  async findById(id: string): Promise<IUser | null> {
+    return User.findOne({ id });
   }
 
-  async findByIdentifier(identifier: string) {
-    return (User as any).findOne({
+  async findByIdentifier(identifier: string): Promise<IUser | null> {
+    const raw = identifier.trim();
+    const clean = cleanDni(raw);
+
+    return User.findOne({
       $or: [
-        { identifier: { $regex: new RegExp(`^${identifier}$`, 'i') } },
-        { identifier: identifier.replace(/\s/g, '').replace(/\./g, '') }
+        { identifier: { $regex: new RegExp(`^${raw}$`, 'i') } },
+        { identifier: clean }
       ]
     });
   }
 
-  async findByEmail(email: string) {
-    return (User as any).findOne({ email: new RegExp(`^${email.trim()}$`, 'i') });
+  async findByEmail(email: string): Promise<IUser | null> {
+    return User.findOne({ email: new RegExp(`^${email.trim()}$`, 'i') });
   }
 
-  async findByTenantAndRole(tenantId: string, role?: string) {
-    const query: any = { tenantId };
+  async findByTenantAndRole(tenantId: string, role?: string): Promise<IUser[]> {
+    const query: Record<string, unknown> = { tenantId };
     if (role) query.role = role;
-    return (User as any).find(query);
+    return User.find(query);
   }
 
-  async count() {
-    return (User as any).countDocuments();
+  async count(): Promise<number> {
+    return User.countDocuments();
   }
 
-  async create(userData: Partial<IUser>) {
+  async create(userData: Partial<IUser>): Promise<IUser> {
     const newUser = new User(userData);
     return newUser.save();
   }
 
-  async update(id: string, updateData: Partial<IUser>) {
+  async update(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
     const user = await this.findById(id);
     if (!user) return null;
     Object.assign(user, updateData);
     return user.save();
   }
 
-  async delete(id: string) {
-    return (User as any).deleteOne({ id });
+  async delete(id: string): Promise<boolean> {
+    const result = await User.deleteOne({ id });
+    return result.deletedCount > 0;
   }
 }

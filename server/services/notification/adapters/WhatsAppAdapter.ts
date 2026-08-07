@@ -5,6 +5,7 @@ import {
   SendNotificationResult,
   TestConnectionResult
 } from './NotificationAdapter.js';
+import { formatWhatsAppPhone } from '../../../utils/formatters.js';
 
 export interface WhatsAppConfig {
   phoneNumberId: string;
@@ -29,50 +30,14 @@ export class WhatsAppAdapter implements NotificationAdapter {
     const webhookUrl = config.webhookUrl ? String(config.webhookUrl) : process.env.WHATSAPP_WEBHOOK_URL;
 
     if (provider === 'meta_cloud_api' && (!phoneNumberId || !accessToken)) {
-      throw new Error('Configuración de WhatsApp Incompleta: Phone Number ID y Access Token son requeridos en la configuración del tenant o variables de entorno.');
+      throw new Error('Configuración de WhatsApp Incompleta: Phone Number ID y Access Token son requeridos.');
     }
 
     return { phoneNumberId, accessToken, businessAccountId, defaultCountryCode, doctorInquiryTemplateCode, provider, webhookUrl };
   }
 
   public formatPhoneNumber(phone: string, defaultCountryCode: string = '54'): string {
-    if (!phone) return '';
-    let cleaned = phone.replace(/[^\d]/g, '');
-
-    // Strip leading 00 (international dialing prefix)
-    if (cleaned.startsWith('00')) {
-      cleaned = cleaned.substring(2);
-    }
-
-    // If starts with Argentina country code '54'
-    if (cleaned.startsWith('54')) {
-      let national = cleaned.substring(2);
-      // Strip leading 0 if present (e.g. 54 0 11 -> 54 11)
-      if (national.startsWith('0')) national = national.substring(1);
-      // Meta WhatsApp Cloud API strictly requires mobile numbers in Argentina to have '9' before the area code
-      if (!national.startsWith('9')) {
-        national = `9${national}`;
-      }
-      return `54${national}`;
-    }
-
-    // If starts with local 0 (e.g. 02926 432000, 011 1234 5678)
-    if (cleaned.startsWith('0')) {
-      cleaned = cleaned.substring(1);
-    }
-
-    // Argentina local formatting
-    if (defaultCountryCode === '54') {
-      if (cleaned.startsWith('9')) {
-        return `54${cleaned}`;
-      }
-      return `549${cleaned}`;
-    }
-
-    if (!cleaned.startsWith(defaultCountryCode)) {
-      return `${defaultCountryCode}${cleaned}`;
-    }
-    return cleaned;
+    return formatWhatsAppPhone(phone, defaultCountryCode);
   }
 
   public async send(
@@ -87,7 +52,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
         return await this.sendViaWebhook(waConfig.webhookUrl, recipientNumber, payload);
       }
 
-      // Meta Cloud API Implementation
+      // Meta Cloud API
       const url = `https://graph.facebook.com/v18.0/${waConfig.phoneNumberId}/messages`;
       
       const bodyPayload = payload.templateCode
@@ -120,8 +85,6 @@ export class WhatsAppAdapter implements NotificationAdapter {
             text: { preview_url: false, body: payload.body }
           };
 
-      console.log(`[WhatsAppAdapter] Despachando WhatsApp a ${recipientNumber} vía Meta Cloud API (Template: ${payload.templateCode || 'Texto Directo'})...`);
-
       let response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -133,9 +96,9 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
       let responseData = await response.json();
 
-      // If template send failed (e.g. template not created/approved on Meta yet), retry immediately with direct text
+      // If template send failed, fallback immediately to direct text
       if (!response.ok && payload.templateCode && payload.body) {
-        console.warn(`[WhatsAppAdapter] Plantilla "${payload.templateCode}" falló en Meta API (${responseData?.error?.message}). Reintentando con texto directo...`);
+        console.warn(`[WhatsAppAdapter] Plantilla "${payload.templateCode}" falló (${responseData?.error?.message}). Reintentando con texto directo...`);
         const fallbackPayload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -157,7 +120,6 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
       if (!response.ok) {
         const errorMsg = responseData?.error?.message || responseData?.error?.user_msg || 'Error devuelto por WhatsApp API';
-        console.error(`[WhatsAppAdapter] Error enviando WhatsApp a ${recipientNumber}:`, errorMsg);
         return {
           success: false,
           error: errorMsg,
@@ -166,7 +128,6 @@ export class WhatsAppAdapter implements NotificationAdapter {
       }
 
       const messageId = responseData?.messages?.[0]?.id || 'WA-SENT';
-      console.log(`[WhatsAppAdapter] Mensaje WhatsApp enviado exitosamente a ${recipientNumber} (ID: ${messageId})`);
       return {
         success: true,
         messageId,
@@ -174,7 +135,6 @@ export class WhatsAppAdapter implements NotificationAdapter {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido al enviar WhatsApp';
-      console.error('[WhatsAppAdapter] Excepción al enviar WhatsApp:', errorMessage);
       return {
         success: false,
         error: errorMessage
@@ -208,7 +168,6 @@ export class WhatsAppAdapter implements NotificationAdapter {
         return { success: true, message: 'URL de Webhook configurada correctamente.' };
       }
 
-      // Check Meta API status for phone number ID
       const url = `https://graph.facebook.com/v18.0/${waConfig.phoneNumberId}`;
       const response = await fetch(url, {
         headers: {

@@ -5,10 +5,10 @@ import { authenticateToken } from '../middlewares/auth.middleware.js';
 const router = Router();
 const controller = new TenantController();
 
-router.get('/resolve', controller.resolveTenant.bind(controller));
-router.get('/', controller.getTenants.bind(controller));
-router.post('/', authenticateToken, controller.createTenant.bind(controller));
-router.get('/payment-config', authenticateToken, controller.getPaymentConfig.bind(controller));
-router.put('/payment-config', authenticateToken, controller.updatePaymentConfig.bind(controller));
+router.get('/resolve', controller.resolveTenant);
+router.get('/', controller.getTenants);
+router.post('/', authenticateToken, controller.createTenant);
+router.get('/payment-config', authenticateToken, controller.getPaymentConfig);
+router.put('/payment-config', authenticateToken, controller.updatePaymentConfig);
 
 export default router;

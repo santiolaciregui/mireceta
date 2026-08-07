@@ -1,14 +1,14 @@
-import mongoose, { Schema, Document } from 'mongoose';
+import mongoose, { Schema, Document, Model } from 'mongoose';
 import { NotificationChannel } from '../services/notification/adapters/NotificationAdapter.js';
 
 export interface INotificationTemplate extends Document {
   tenantId: string;
-  code: string; // e.g. 'RECIPE_READY', 'ORDER_CREATED', 'PATIENT_REMINDER'
+  code: string;
   name: string;
   channel: NotificationChannel | 'all';
   subject?: string;
   body: string;
-  variables: string[]; // e.g. ['patientName', 'orderId', 'recipeUrl']
+  variables: string[];
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -32,6 +32,6 @@ const notificationTemplateSchema = new Schema<INotificationTemplate>(
 
 notificationTemplateSchema.index({ tenantId: 1, code: 1 }, { unique: true });
 
-export const NotificationTemplate =
-  mongoose.models.NotificationTemplate ||
+export const NotificationTemplate: Model<INotificationTemplate> =
+  (mongoose.models.NotificationTemplate as any) ||
   mongoose.model<INotificationTemplate>('NotificationTemplate', notificationTemplateSchema);

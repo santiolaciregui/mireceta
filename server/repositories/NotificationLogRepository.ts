@@ -7,6 +7,6 @@ export class NotificationLogRepository {
   }
 
   async findLogsByTenant(tenantId: string, limit: number = 50): Promise<INotificationLog[]> {
-    return (NotificationLog as any).find({ tenantId }).sort({ sentAt: -1 }).limit(limit);
+    return NotificationLog.find({ tenantId }).sort({ sentAt: -1 }).limit(limit);
   }
 }

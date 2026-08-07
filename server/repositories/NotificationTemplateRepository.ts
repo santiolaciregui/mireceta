@@ -1,27 +1,26 @@
 import { NotificationTemplate, INotificationTemplate } from '../models/NotificationTemplate.js';
 import { NotificationChannel } from '../services/notification/adapters/NotificationAdapter.js';
 
+export interface UpsertTemplateDto {
+  code: string;
+  name: string;
+  channel: NotificationChannel | 'all';
+  subject?: string;
+  body: string;
+  variables?: string[];
+  isActive?: boolean;
+}
+
 export class NotificationTemplateRepository {
   async findByTenantAndCode(tenantId: string, code: string): Promise<INotificationTemplate | null> {
-    return (NotificationTemplate as any).findOne({ tenantId, code: code.toUpperCase() });
+    return NotificationTemplate.findOne({ tenantId, code: code.toUpperCase() });
   }
 
   async findAllByTenant(tenantId: string): Promise<INotificationTemplate[]> {
-    return (NotificationTemplate as any).find({ tenantId }).sort({ name: 1 });
+    return NotificationTemplate.find({ tenantId }).sort({ name: 1 });
   }
 
-  async upsertTemplate(
-    tenantId: string,
-    templateData: {
-      code: string;
-      name: string;
-      channel: NotificationChannel | 'all';
-      subject?: string;
-      body: string;
-      variables?: string[];
-      isActive?: boolean;
-    }
-  ): Promise<INotificationTemplate> {
+  async upsertTemplate(tenantId: string, templateData: UpsertTemplateDto): Promise<INotificationTemplate> {
     const code = templateData.code.toUpperCase();
     const existing = await this.findByTenantAndCode(tenantId, code);
 
@@ -49,7 +48,7 @@ export class NotificationTemplateRepository {
   }
 
   async deleteByCode(tenantId: string, code: string): Promise<boolean> {
-    const res = await (NotificationTemplate as any).deleteOne({ tenantId, code: code.toUpperCase() });
+    const res = await NotificationTemplate.deleteOne({ tenantId, code: code.toUpperCase() });
     return res.deletedCount > 0;
   }
 }

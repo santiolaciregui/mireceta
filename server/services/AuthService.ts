@@ -1,10 +1,11 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { UserRepository } from '../repositories/UserRepository.js';
-import { sendCredentialsEmail } from '../utils/mailer.js';
 import { config } from '../config/env.js';
 import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
+import { cleanDni } from '../utils/formatters.js';
+import { generateUserId } from '../utils/idGenerator.js';
 
 export class AuthService {
   private userRepo: UserRepository;
@@ -16,7 +17,8 @@ export class AuthService {
   }
 
   async login(identifier: string, password: string) {
-    const user = await this.userRepo.findByIdentifier(identifier);
+    const cleanIdentifier = cleanDni(identifier) || identifier;
+    const user = await this.userRepo.findByIdentifier(cleanIdentifier);
     if (!user) throw new Error('Usuario no registrado en el sistema médico.');
     if (user.status === 'Inactivo') throw new Error('La cuenta de este usuario está suspendida o inactiva.');
 
@@ -37,7 +39,7 @@ export class AuthService {
       throw new Error('Contraseña incorrecta.');
     }
 
-    const tokenPayload: any = {
+    const tokenPayload: Record<string, any> = {
       id: user.id,
       name: user.name,
       lastName: user.lastName,
@@ -79,16 +81,18 @@ export class AuthService {
       throw new Error('La contraseña debe tener al menos 6 caracteres por seguridad.');
     }
 
-    const exists = await this.userRepo.findByIdentifier(userData.identifier);
+    const cleanIdentifier = cleanDni(userData.identifier) || userData.identifier;
+    const exists = await this.userRepo.findByIdentifier(cleanIdentifier);
     if (exists) {
       throw new Error('Este número de DNI ya se encuentra registrado.');
     }
 
     const count = await this.userRepo.count();
-    const newId = `USR-${String(count + 1).padStart(4, '0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const newId = generateUserId(count);
 
     const newUser = await this.userRepo.create({
       ...userData,
+      identifier: cleanIdentifier,
       password: await bcrypt.hash(userData.password, 10),
       id: newId,
       role: 'paciente',
@@ -139,7 +143,7 @@ export class AuthService {
 
   async forgotPassword(identifier: string, email: string) {
     let user;
-    if (identifier) user = await this.userRepo.findByIdentifier(identifier);
+    if (identifier) user = await this.userRepo.findByIdentifier(cleanDni(identifier) || identifier);
     else if (email) user = await this.userRepo.findByEmail(email);
 
     if (!user) {

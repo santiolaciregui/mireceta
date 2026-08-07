@@ -2,6 +2,8 @@ import crypto from 'crypto';
 import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
 import { TenantRepository } from '../repositories/TenantRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
+import { addAuditLogEntry } from '../utils/orderUtils.js';
+import { generateOrderId } from '../utils/idGenerator.js';
 
 function verifyWebhookSignature(
   xSignature: string | undefined,
@@ -58,7 +60,7 @@ export class PaymentService {
 
     const amount = Number(orderData.amount) || 10000;
     const origin = orderData.origin || process.env.APP_URL || 'http://localhost:3000';
-    const orderId = orderData.orderId || `REC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const orderId = orderData.orderId || generateOrderId();
 
     const notificationUrl = process.env.WEBHOOK_URL
       ? `${process.env.WEBHOOK_URL}/api/payments/webhook`
@@ -144,7 +146,7 @@ export class PaymentService {
       }
 
       const orderId = paymentInfo.external_reference || (paymentInfo as any).metadata?.order_id;
-      const status = paymentInfo.status; // 'approved', 'pending', 'rejected', 'cancelled', 'refunded', 'charged_back'
+      const status = paymentInfo.status;
 
       console.log(`[MercadoPago Webhook] Payment ${paymentId} for Order ${orderId} status: ${status}`);
 
@@ -156,17 +158,14 @@ export class PaymentService {
 
           if (status === 'approved') {
             updatedPaymentStatus = 'approved';
-            // Solo si estaba en espera de pago, pasa a Pendiente de auditoría médica
             if (recipeStatus === 'Pendiente de Pago' || recipeStatus === 'Pendiente') {
               recipeStatus = 'Pendiente';
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
-            // Pago rechazado o cancelado: la solicitud no entra a auditoría médica
             recipeStatus = 'Rechazada';
           } else if (status === 'refunded' || status === 'charged_back') {
             updatedPaymentStatus = 'refunded';
-            // Pago devuelto / contradispuesto: inhabilitar la receta inmediatamente
             recipeStatus = 'Rechazada';
           }
 
@@ -175,14 +174,12 @@ export class PaymentService {
           order.paymentId = String(paymentId);
           order.paymentDate = new Date().toISOString();
 
-          // Audit Log Entry
-          if (!order.auditLog) order.auditLog = [];
-          order.auditLog.push({
-            action: `Mercado Pago Webhook: ${status}`,
-            user: 'Sistema (Mercado Pago API)',
-            timestamp: new Date().toISOString(),
-            notes: `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}". Receta configurada en "${recipeStatus}".`
-          });
+          addAuditLogEntry(
+            order,
+            `Mercado Pago Webhook: ${status}`,
+            'Sistema (Mercado Pago API)',
+            `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}". Receta configurada en "${recipeStatus}".`
+          );
 
           await this.orderRepo.update(orderId, order);
           console.log(`[MercadoPago Webhook] Order ${orderId} updated: paymentStatus=${updatedPaymentStatus}, status=${recipeStatus}`);
@@ -202,7 +199,6 @@ export class PaymentService {
       throw new Error(`Receta con ID ${orderId} no encontrada`);
     }
 
-    // Active sync: If payment is pending or we have a paymentId, double check with Mercado Pago API
     const accessToken = process.env.MP_ACCESS_TOKEN;
     if (order.paymentStatus === 'pending' && accessToken) {
       try {
@@ -245,13 +241,12 @@ export class PaymentService {
             order.paymentId = String(fetchedPayment.id);
             order.paymentDate = new Date().toISOString();
 
-            if (!order.auditLog) order.auditLog = [];
-            order.auditLog.push({
-              action: `Sync Pago Mercado Pago: ${status}`,
-              user: 'Sistema (Consulta Sync API)',
-              timestamp: new Date().toISOString(),
-              notes: `Sincronización activa: Pago ID ${fetchedPayment.id} estado "${status}".`
-            });
+            addAuditLogEntry(
+              order,
+              `Sync Pago Mercado Pago: ${status}`,
+              'Sistema (Consulta Sync API)',
+              `Sincronización activa: Pago ID ${fetchedPayment.id} estado "${status}".`
+            );
 
             await this.orderRepo.update(orderId, order);
           }
@@ -272,4 +267,3 @@ export class PaymentService {
     };
   }
 }
-

@@ -3,6 +3,8 @@ import { UserRepository } from '../repositories/UserRepository.js';
 import { sendCredentialsEmail } from '../utils/mailer.js';
 import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
+import { cleanDni } from '../utils/formatters.js';
+import { generateUserId } from '../utils/idGenerator.js';
 
 export class UserService {
   private userRepo: UserRepository;
@@ -18,7 +20,7 @@ export class UserService {
     if (!user) throw new Error('Usuario no encontrado.');
     if (user.status === 'Inactivo') throw new Error('Cuenta suspendida.');
 
-    const responsePayload: any = {
+    const responsePayload: Record<string, any> = {
       id: user.id,
       name: user.name,
       lastName: user.lastName,
@@ -41,10 +43,10 @@ export class UserService {
 
   async changePassword(id: string, currentPassword: string, newPassword: string) {
     if (newPassword.length < 6) throw new Error('La nueva contraseña debe tener al menos 6 caracteres.');
-    
+
     const user = await this.userRepo.findById(id);
     if (!user) throw new Error('Usuario no encontrado');
-    
+
     let validPassword = false;
     if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'))) {
       validPassword = await bcrypt.compare(currentPassword, user.password);
@@ -73,16 +75,18 @@ export class UserService {
       throw new Error('No autorizado para crear usuarios');
     }
 
-    const exists = await this.userRepo.findByIdentifier(userData.identifier);
+    const cleanIdentifier = cleanDni(userData.identifier) || userData.identifier;
+    const exists = await this.userRepo.findByIdentifier(cleanIdentifier);
     if (exists) throw new Error('El usuario con este identificador (DNI) ya existe.');
 
     const count = await this.userRepo.count();
-    const newId = `USR-${String(count + 1).padStart(4, '0')}-${Math.floor(100 + Math.random() * 900)}`;
+    const newId = generateUserId(count);
     const initialPassword = userData.password || '123456';
     const hashedPassword = await bcrypt.hash(initialPassword, 10);
-    
+
     const newUser = await this.userRepo.create({
       ...userData,
+      identifier: cleanIdentifier,
       id: newId,
       tenantId: currentUser.tenantId,
       password: hashedPassword,

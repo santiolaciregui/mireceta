@@ -3,11 +3,11 @@ import { NotificationChannel } from '../services/notification/adapters/Notificat
 
 export class NotificationConfigRepository {
   async findByTenantAndChannel(tenantId: string, channel: NotificationChannel): Promise<INotificationConfig | null> {
-    return (NotificationConfig as any).findOne({ tenantId, channel });
+    return NotificationConfig.findOne({ tenantId, channel });
   }
 
   async findAllByTenant(tenantId: string): Promise<INotificationConfig[]> {
-    return (NotificationConfig as any).find({ tenantId });
+    return NotificationConfig.find({ tenantId });
   }
 
   async upsertConfig(

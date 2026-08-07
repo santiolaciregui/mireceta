@@ -1,27 +1,22 @@
 import { Request, Response, NextFunction } from 'express';
-import { NotificationService } from '../services/NotificationService.js';
+import { notificationService } from '../services/NotificationService.js';
 import { NotificationChannel } from '../services/notification/adapters/NotificationAdapter.js';
-
-const notificationService = new NotificationService();
+import { getTenantId } from '../utils/httpHelpers.js';
 
 export class NotificationController {
-  private getTenantId(req: Request): string {
-    return (req.user as any)?.tenantId || 'TEN-0001';
-  }
-
-  async getConfigs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getConfigs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const configs = await notificationService.getConfigs(tenantId);
       res.json(configs);
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async saveConfig(req: Request, res: Response, next: NextFunction): Promise<void> {
+  saveConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const channel = req.params.channel as NotificationChannel;
       const { isEnabled, credentials, settings } = req.body;
 
@@ -35,11 +30,11 @@ export class NotificationController {
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async testConnection(req: Request, res: Response, next: NextFunction): Promise<void> {
+  testConnection = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const channel = req.params.channel as NotificationChannel;
       const { credentials } = req.body;
 
@@ -53,21 +48,21 @@ export class NotificationController {
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async getTemplates(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getTemplates = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const templates = await notificationService.getTemplates(tenantId);
       res.json(templates);
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async saveTemplate(req: Request, res: Response, next: NextFunction): Promise<void> {
+  saveTemplate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const templateData = req.body;
 
       if (!templateData.code || !templateData.name || !templateData.body) {
@@ -80,11 +75,11 @@ export class NotificationController {
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async sendNotification(req: Request, res: Response, next: NextFunction): Promise<void> {
+  sendNotification = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const { channel, to, subject, body, templateCode, variables } = req.body;
 
       if (!channel || !to) {
@@ -106,19 +101,19 @@ export class NotificationController {
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async getLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+  getLogs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const tenantId = this.getTenantId(req);
+      const tenantId = getTenantId(req);
       const logs = await notificationService.getLogs(tenantId);
       res.json(logs);
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async verifyWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+  verifyWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const mode = req.query['hub.mode'];
       const token = req.query['hub.verify_token'];
@@ -134,14 +129,14 @@ export class NotificationController {
     } catch (err) {
       next(err);
     }
-  }
+  };
 
-  async handleInboundWebhook(req: Request, res: Response, next: NextFunction): Promise<void> {
+  handleInboundWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const result = await notificationService.processInboundWhatsAppPayload(req.body);
       res.status(200).json(result);
     } catch (err) {
       next(err);
     }
-  }
+  };
 }

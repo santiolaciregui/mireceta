@@ -11,7 +11,14 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-export const sendCredentialsEmail = async (user: any, password: string) => {
+interface UserCredentialsEmailPayload {
+  email: string;
+  name: string;
+  role: string;
+  identifier: string;
+}
+
+export const sendCredentialsEmail = async (user: UserCredentialsEmailPayload, password: string): Promise<void> => {
   if (config.SMTP_HOST === 'smtp.ethereal.email' || !process.env.SMTP_HOST) {
     console.log('\n=== SIMULATED EMAIL ===');
     console.log(`To: ${user.email}`);
@@ -23,7 +30,7 @@ export const sendCredentialsEmail = async (user: any, password: string) => {
     console.log('Te pediremos cambiarla en tu primer inicio de sesión.\n');
     return;
   }
-  
+
   try {
     await transporter.sendMail({
       from: '"Mi Receta" <no-reply@mireceta.com>',

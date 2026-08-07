@@ -1,15 +1,10 @@
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { auditLogService } from './AuditLogService.js';
-
-function addAuditLogEntry(order: any, action: string, user: string, notes?: string) {
-  if (!order.auditLog) order.auditLog = [];
-  order.auditLog.push({
-    action,
-    timestamp: new Date().toISOString(),
-    user,
-    notes
-  });
-}
+import { notificationService } from './NotificationService.js';
+import { chatService } from './ChatService.js';
+import { addAuditLogEntry } from '../utils/orderUtils.js';
+import { cleanDni } from '../utils/formatters.js';
+import { generateOrderId } from '../utils/idGenerator.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
@@ -19,20 +14,15 @@ export class OrderService {
   }
 
   async getOrdersForUser(currentUser: any) {
-    const tenantId = currentUser.tenantId || 'TEN-0001';
+    const tenantId = currentUser?.tenantId || 'TEN-0001';
     const allOrders = await this.orderRepo.findByTenant(tenantId);
 
-    if (currentUser.role === 'paciente') {
-      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
+    if (currentUser?.role === 'paciente') {
+      const patientDniClean = cleanDni(currentUser.identifier);
       return allOrders.filter((o: any) => {
-        const orderDniClean = (o.patientDni || '').replace(/\D/g, '');
+        const orderDniClean = cleanDni(o.patientDni);
         return orderDniClean === patientDniClean;
       });
-    }
-
-    if (currentUser.role === 'medico' || currentUser.role === 'colaborador' || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
-      // Los médicos, colaboradores y administradores visualizan las solicitudes para auditoría y soporte directo
-      return allOrders;
     }
 
     return allOrders;
@@ -43,9 +33,9 @@ export class OrderService {
       throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
     }
 
-    const newId = `REC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newId = generateOrderId();
     const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
-    
+
     const newOrder: any = {
       ...orderData,
       id: newId,
@@ -55,7 +45,7 @@ export class OrderService {
       patientEmail: orderData.patientEmail || currentUser?.email || '',
       tenantId: currentUser?.tenantId || orderData.tenantId || 'TEN-0001',
       paymentId: finalPaymentId,
-      status: orderData.status || 'Pendiente', // 'En revisión' if Oficio
+      status: orderData.status || 'Pendiente',
       createdAt: new Date().toISOString(),
       auditLog: [],
       notificationsSent: [],
@@ -111,15 +101,16 @@ export class OrderService {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
 
+    // 1. Patient permissions and updates
     if (currentUser.role === 'paciente') {
-      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
-      const orderDniClean = (order.patientDni || '').replace(/\D/g, '');
+      const patientDniClean = cleanDni(currentUser.identifier);
+      const orderDniClean = cleanDni(order.patientDni);
       if (patientDniClean !== orderDniClean) throw new Error('Acceso no autorizado a este pedido.');
-      
+
       if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
         order.status = 'Cancelada';
         addAuditLogEntry(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.');
-        
+
         await auditLogService.log({
           tenantId: order.tenantId || 'TEN-0001',
           currentUser,
@@ -133,7 +124,7 @@ export class OrderService {
       } else if (updateData.messages) {
         order.messages = updateData.messages;
         order.lastPatientWhatsAppInteractionAt = new Date().toISOString();
-        
+
         const lastMsg = updateData.messages[updateData.messages.length - 1];
         addAuditLogEntry(
           order,
@@ -157,6 +148,7 @@ export class OrderService {
       }
     }
 
+    // 2. Admin restrictions
     if (currentUser?.role === 'admin') {
       if (updateData.messages) {
         order.messages = updateData.messages;
@@ -174,7 +166,7 @@ export class OrderService {
       }
     }
 
-    // Medic / Colaborador updates
+    // 3. Medic & Collaborator modifications
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
 
     if (updateData.status && updateData.status !== order.status) {
@@ -207,182 +199,46 @@ export class OrderService {
       });
     }
 
-    // Auto-dispatch WhatsApp notification with direct inline recipe PDF link when issued
+    // 4. Auto-dispatch WhatsApp notification when recipe is issued
     if ((updateData.status === 'Emitida' || updateData.status === 'Enviada') && order.patientPhone) {
-      try {
-        const { NotificationService } = await import('./NotificationService.js');
-        const notificationService = new NotificationService();
-        
-        const host = process.env.PUBLIC_URL || 'https://mireceta.com';
-        const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
+      const host = process.env.PUBLIC_URL || 'https://mireceta.com';
+      const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
 
-        const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
-
-        if (isWithin24h) {
-          await notificationService.sendNotification({
-            tenantId: order.tenantId || 'TEN-0001',
-            channel: 'whatsapp',
-            to: order.patientPhone,
-            body: `¡Hola ${order.patientName}! Tu receta #${order.id} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`
-          }).catch(err => console.log('WhatsApp send issued receipt catch:', err));
-        } else {
-          const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-          const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
-
-          await notificationService.sendNotification({
-            tenantId: order.tenantId || 'TEN-0001',
-            channel: 'whatsapp',
-            to: order.patientPhone,
-            templateCode: templateCode || undefined,
-            variables: templateCode ? {
-              patientName: `${order.patientName} ${order.patientLastName}`,
-              orderId: order.id,
-              recipeLink
-            } : undefined,
-            body: `¡Hola ${order.patientName}! Tu receta #${order.id} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
-          }).catch(err => console.log('WhatsApp template send issued receipt catch:', err));
-        }
-      } catch (e) {
-        console.error('Error enviando notificación de receta emitida:', e);
-      }
+      notificationService.sendRecipeIssuedWhatsApp({
+        tenantId: order.tenantId || 'TEN-0001',
+        patientPhone: order.patientPhone,
+        patientName: order.patientName,
+        orderId: order.id,
+        recipeLink,
+        interactionRecord: order
+      }).catch((err) => console.error('Error enviando WhatsApp de receta emitida:', err));
     }
 
+    // 5. If messages are updated by doctor, dispatch WhatsApp notification
     if (updateData.messages) {
       order.messages = updateData.messages;
-      
-      // If last message was sent by doctor/collaborator, attempt sending via WhatsApp API considering 24h window
       const lastMsg = updateData.messages[updateData.messages.length - 1];
+
       if (lastMsg && (lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' || lastMsg.sender === 'admin') && order.patientPhone) {
-        try {
-          const { NotificationService } = await import('./NotificationService.js');
-          const notificationService = new NotificationService();
-          const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
-
-          if (isWithin24h) {
-            await notificationService.sendNotification({
-              tenantId: order.tenantId || 'TEN-0001',
-              channel: 'whatsapp',
-              to: order.patientPhone,
-              body: `[Consulta Dr. ${lastMsg.senderName} - Receta #${order.id}]\n${lastMsg.text || 'Nuevo mensaje adjunto en su consulta.'}`
-            }).catch(err => console.log('WhatsApp 24h direct send catch:', err));
-          } else {
-            const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-            const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
-
-            await notificationService.sendNotification({
-              tenantId: order.tenantId || 'TEN-0001',
-              channel: 'whatsapp',
-              to: order.patientPhone,
-              templateCode: templateCode || undefined,
-              variables: templateCode ? {
-                patientName: `${order.patientName} ${order.patientLastName}`,
-                doctorName: lastMsg.senderName,
-                orderId: order.id,
-                messagePreview: (lastMsg.text || 'Consulta sobre su receta').substring(0, 60)
-              } : undefined,
-              body: `Hola ${order.patientName}, el Dr. ${lastMsg.senderName} envió una consulta sobre su receta #${order.id}: "${(lastMsg.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
-            }).catch(err => console.log('WhatsApp template send catch:', err));
-          }
-        } catch (e) {
-          // Non-blocking
-        }
+        notificationService.sendDoctorInquiryWhatsApp({
+          tenantId: order.tenantId || 'TEN-0001',
+          patientPhone: order.patientPhone,
+          patientName: `${order.patientName} ${order.patientLastName}`.trim(),
+          doctorName: lastMsg.senderName || `${currentUser.name} ${currentUser.lastName}`.trim(),
+          orderId: order.id,
+          messageText: lastMsg.text || 'Nuevo archivo adjunto en la consulta',
+          interactionRecord: order
+        }).catch((err) => console.error('Error enviando WhatsApp de consulta médica:', err));
       }
     }
 
     return this.orderRepo.update(id, order);
   }
 
+  /**
+   * Delegates chat messages directly to unified chatService.
+   */
   async addChatMessage(id: string, messageData: any, currentUser: any) {
-    const order: any = await this.orderRepo.findById(id);
-    if (!order) throw new Error('Pedido no encontrado');
-
-    if (currentUser.role === 'paciente') {
-      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
-      const orderDniClean = (order.patientDni || '').replace(/\D/g, '');
-      if (patientDniClean !== orderDniClean) throw new Error('Acceso no autorizado a este pedido.');
-    }
-
-    const newMessage: any = {
-      id: messageData.id || `msg-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
-      sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : (currentUser.role === 'admin' ? 'admin' : 'colaborador')),
-      senderName: `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim() || (currentUser.role === 'paciente' ? 'Paciente' : 'Equipo Médico'),
-      senderId: currentUser.id || currentUser.identifier,
-      senderRole: currentUser.role,
-      timestamp: messageData.timestamp || new Date().toISOString(),
-      status: 'sent',
-      ...(messageData.text ? { text: messageData.text } : {}),
-      ...(messageData.fileUrl ? { fileUrl: messageData.fileUrl } : {}),
-      ...(messageData.fileName ? { fileName: messageData.fileName } : {}),
-      ...(messageData.fileType ? { fileType: messageData.fileType } : (messageData.fileUrl?.startsWith('data:audio') || messageData.fileUrl?.includes('AUDIO_NOTE') ? { fileType: 'audio' } : (messageData.fileUrl ? { fileType: 'image' } : {}))),
-      ...(messageData.audioDuration ? { audioDuration: messageData.audioDuration } : {}),
-      ...(messageData.replyTo ? { replyTo: messageData.replyTo } : {})
-    };
-
-    if (!order.messages) order.messages = [];
-    order.messages.push(newMessage);
-
-    if (currentUser.role === 'paciente') {
-      order.lastPatientWhatsAppInteractionAt = new Date().toISOString();
-      addAuditLogEntry(
-        order,
-        'Mensaje recibido del paciente',
-        `${order.patientName} ${order.patientLastName} (Paciente)`,
-        newMessage.text || (newMessage.fileType === 'audio' ? 'Nota de voz recibida' : 'Foto adjunta recibida')
-      );
-
-      await auditLogService.log({
-        tenantId: order.tenantId || 'TEN-0001',
-        currentUser,
-        action: 'ORDER_CHAT_MESSAGE',
-        entity: 'Order',
-        entityId: id,
-        details: `Mensaje del paciente en receta ${id}: "${(newMessage.text || '').substring(0, 50)}"`
-      });
-    } else {
-      addAuditLogEntry(
-        order,
-        'Respuesta médica enviada',
-        `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`,
-        newMessage.text || (newMessage.fileType === 'audio' ? 'Nota de voz enviada' : 'Archivo adjunto')
-      );
-
-      if (order.patientPhone) {
-        try {
-          const { NotificationService } = await import('./NotificationService.js');
-          const notificationService = new NotificationService();
-          const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
-
-          if (isWithin24h) {
-            await notificationService.sendNotification({
-              tenantId: order.tenantId || 'TEN-0001',
-              channel: 'whatsapp',
-              to: order.patientPhone,
-              body: `[Consulta Dr. ${currentUser.name} - Receta #${order.id}]\n${messageData.text || 'Nuevo archivo adjunto en la consulta'}`
-            }).catch(err => console.log('WhatsApp chat 24h direct send catch:', err));
-          } else {
-            const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-            const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
-
-            await notificationService.sendNotification({
-              tenantId: order.tenantId || 'TEN-0001',
-              channel: 'whatsapp',
-              to: order.patientPhone,
-              templateCode: templateCode || undefined,
-              variables: templateCode ? {
-                patientName: `${order.patientName} ${order.patientLastName}`,
-                doctorName: `${currentUser.name} ${currentUser.lastName}`,
-                orderId: order.id,
-                messagePreview: (messageData.text || 'Consulta sobre su receta').substring(0, 60)
-              } : undefined,
-              body: `Hola ${order.patientName}, el Dr. ${currentUser.name} envió una consulta sobre su receta #${order.id}: "${(messageData.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
-            }).catch(err => console.log('WhatsApp chat template send catch:', err));
-          }
-        } catch (e) {
-          // Non-blocking
-        }
-      }
-    }
-
-    return this.orderRepo.update(id, order);
+    return chatService.sendMessage(id, messageData, currentUser);
   }
 }

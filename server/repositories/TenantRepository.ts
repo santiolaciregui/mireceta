@@ -1,28 +1,28 @@
 import { Tenant, ITenant } from '../models/Tenant.js';
 
 export class TenantRepository {
-  async findById(id: string) {
-    return (Tenant as any).findOne({ id });
+  async findById(id: string): Promise<ITenant | null> {
+    return Tenant.findOne({ id });
   }
 
-  async findBySubdomain(subdomain: string) {
-    return (Tenant as any).findOne({ subdomain: subdomain.toLowerCase() });
+  async findBySubdomain(subdomain: string): Promise<ITenant | null> {
+    return Tenant.findOne({ subdomain: subdomain.toLowerCase() });
   }
 
-  async findAll() {
-    return (Tenant as any).find().sort({ name: 1 });
+  async findAll(): Promise<ITenant[]> {
+    return Tenant.find().sort({ name: 1 });
   }
 
-  async count() {
-    return (Tenant as any).countDocuments();
+  async count(): Promise<number> {
+    return Tenant.countDocuments();
   }
 
-  async create(tenantData: Partial<ITenant>) {
+  async create(tenantData: Partial<ITenant>): Promise<ITenant> {
     const newTenant = new Tenant(tenantData);
     return newTenant.save();
   }
 
-  async update(id: string, updateData: Partial<ITenant>) {
+  async update(id: string, updateData: Partial<ITenant>): Promise<ITenant | null> {
     const tenant = await this.findById(id);
     if (!tenant) return null;
     Object.assign(tenant, updateData);
