@@ -93,6 +93,7 @@ export default function Sidebar({
           id: 'admin_panel',
           title: 'Sistema',
           items: [
+            { id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp },
             { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
             { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
             { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
@@ -100,7 +101,6 @@ export default function Sidebar({
         }
       ];
     } else if (role === 'medico' || role === 'colaborador') {
-      const isMedic = role === 'medico';
       return [
         {
           id: 'solicitudes',
@@ -119,17 +119,7 @@ export default function Sidebar({
           items: [
             { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare },
           ]
-        },
-        ...(role !== 'colaborador' ? [{
-          id: 'admin_panel',
-          title: 'Administración',
-          items: [
-            { id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp },
-            { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
-            { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
-            { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
-          ]
-        }] : [])
+        }
       ];
     }
     return [];
@@ -200,7 +190,7 @@ export default function Sidebar({
       </div>
 
       <div className="p-6 pt-4 border-t border-white/10 bg-[#161D2B]">
-        {(role === 'admin' || role === 'superadmin' || role === 'medico') && (
+        {(role === 'admin' || role === 'superadmin') && (
           <button 
             onClick={() => handleItemClick('admin_panel', 'pagos')} 
             className={`w-full text-[0.8rem] font-[600] flex items-center gap-2.5 px-3 py-2.5 rounded-xl mb-4 cursor-pointer transition-all ${

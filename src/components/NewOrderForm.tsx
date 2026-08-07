@@ -258,23 +258,24 @@ export default function NewOrderForm({
       <div className="max-w-4xl mx-auto w-full space-y-6">
         
         {/* Navigation Top Header */}
-        <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-4">
+          <div className="flex items-center justify-between">
             <button
               onClick={onCancel}
-              className="p-2 bg-white hover:bg-slate-100 text-slate-600 rounded-xl border border-slate-200 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shadow-xs"
+              className="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 rounded-xl border border-slate-200 transition-all cursor-pointer flex items-center gap-2 text-xs font-bold shadow-xs"
             >
               <ArrowLeft className="h-4 w-4" /> Volver a Pedidos
             </button>
-            <div>
-              <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Nueva Solicitud de Oficio</h1>
-              <p className="text-xs text-slate-500 font-medium">Estructura administrativa de carga directa para personal médico o colaboradores</p>
+
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#295EF3]/10 border border-[#295EF3]/20 rounded-xl text-[#295EF3] text-xs font-bold">
+              <ShieldCheck className="h-4 w-4" />
+              <span>Operador: {currentUser?.name || 'Personal Autorizado'}</span>
             </div>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#295EF3]/10 border border-[#295EF3]/20 rounded-xl text-[#295EF3] text-xs font-bold">
-            <ShieldCheck className="h-4 w-4" />
-            <span>Operador: {currentUser?.name || 'Personal Autorizado'}</span>
+          <div>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Nueva Solicitud de Oficio</h1>
+            <p className="text-xs text-slate-500 font-medium">Estructura administrativa de carga directa para personal médico o colaboradores</p>
           </div>
         </div>
 
@@ -634,7 +635,7 @@ export default function NewOrderForm({
                 <span>Guardando solicitud...</span>
               ) : (
                 <>
-                  <CheckCircle className="h-4 w-4" /> Guardar y Enviar a Auditoría
+                  <CheckCircle className="h-4 w-4" /> Cargar solicitud
                 </>
               )}
             </button>

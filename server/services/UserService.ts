@@ -69,7 +69,7 @@ export class UserService {
   }
 
   async createUser(userData: any, currentUser: any) {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin' && currentUser.role !== 'medico') {
+    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
       throw new Error('No autorizado para crear usuarios');
     }
 
@@ -121,7 +121,7 @@ export class UserService {
   }
 
   async updateUser(id: string, updateData: any, currentUser: any) {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin' && currentUser.role !== 'medico') {
+    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
       throw new Error('No autorizado');
     }
 

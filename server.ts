@@ -36,6 +36,22 @@ async function runTenantMigration() {
       { $set: { tenantId: 'TEN-0001' } }
     );
     if (updatedOrders.modifiedCount > 0) console.log(`Migrated ${updatedOrders.modifiedCount} orders to TEN-0001`);
+
+    // Unify chatMessages into messages and clean up legacy redundant fields
+    const legacyOrders = await (Order as any).find({
+      $or: [
+        { chatMessages: { $exists: true } },
+        { notificationsSent: { $exists: true } }
+      ]
+    });
+    for (const ord of legacyOrders) {
+      if (ord.chatMessages && (!ord.messages || ord.messages.length === 0)) {
+        ord.messages = ord.chatMessages;
+      }
+      ord.chatMessages = undefined;
+      ord.notificationsSent = undefined;
+      await ord.save();
+    }
   } catch (error) {
     console.error('Error running tenant migration:', error);
   }

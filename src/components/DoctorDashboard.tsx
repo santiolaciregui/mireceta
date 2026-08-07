@@ -90,7 +90,7 @@ export default function DoctorDashboard({
       } else if (forcedSubview === 'rechazadas') {
         setFilter('Rechazadas');
         setActiveDashboardTab('requests');
-      } else if (forcedSubview === 'reportes') {
+      } else if (forcedSubview === 'reportes' && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin')) {
         setActiveDashboardTab('operators');
       }
     }
@@ -401,7 +401,7 @@ export default function DoctorDashboard({
       )}
 
       {/* Internal Tabs Switcher - Only visible if no forced subview */}
-      {!forcedSubview && (
+      {!forcedSubview && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin') && (
         <div className="flex border-b border-[var(--ink-faint)] bg-white px-8 pt-4 shrink-0">
           <button
             onClick={() => setActiveDashboardTab('requests')}
@@ -427,7 +427,7 @@ export default function DoctorDashboard({
         </div>
       )}
 
-      {activeDashboardTab === 'requests' ? (
+      {activeDashboardTab === 'requests' || (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') ? (
         <div className="flex flex-col flex-1 overflow-hidden">
           {(!forcedSubview || forcedSubview === 'pendientes') && (
              <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">

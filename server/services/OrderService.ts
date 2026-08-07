@@ -1,7 +1,7 @@
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { auditLogService } from './AuditLogService.js';
 
-function addAuditAndNotification(order: any, action: string, user: string, notes?: string, notificationType?: string) {
+function addAuditLogEntry(order: any, action: string, user: string, notes?: string) {
   if (!order.auditLog) order.auditLog = [];
   order.auditLog.push({
     action,
@@ -9,17 +9,6 @@ function addAuditAndNotification(order: any, action: string, user: string, notes
     user,
     notes
   });
-
-  if (notificationType) {
-    if (!order.notificationsSent) order.notificationsSent = [];
-    order.notificationsSent.push({
-      type: notificationType,
-      sentAt: new Date().toISOString(),
-      sentTo: order.patientEmail || order.patientPhone || 'paciente@mireceta.local',
-      subject: `Notificación: ${action}`,
-      content: notes || `Notificación de ${action} generada para la receta.`
-    });
-  }
 }
 
 export class OrderService {
@@ -89,21 +78,19 @@ export class OrderService {
       creatorName = `Médico ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
     }
 
-    addAuditAndNotification(
+    addAuditLogEntry(
       newOrder,
       'Creada',
       creatorName,
-      `Solicitud de renovación ingresada para paciente ${newOrder.patientName} ${newOrder.patientLastName}`,
-      'solicitud_recibida'
+      `Solicitud de renovación ingresada para paciente ${newOrder.patientName} ${newOrder.patientLastName}`
     );
 
     if (newOrder.paymentStatus === 'approved') {
-      addAuditAndNotification(
+      addAuditLogEntry(
         newOrder,
         'Pago aprobado',
         'Sistema (Mercado Pago)',
-        `Se acreditó el pago de $${newOrder.paymentAmount} con código de operación ${newOrder.paymentId}`,
-        'pago_confirmado'
+        `Se acreditó el pago de $${newOrder.paymentAmount} con código de operación ${newOrder.paymentId}`
       );
     }
 
@@ -140,7 +127,7 @@ export class OrderService {
       
       if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
         order.status = 'Cancelada';
-        addAuditAndNotification(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.', 'solicitud_cancelada');
+        addAuditLogEntry(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.');
         
         await auditLogService.log({
           tenantId: order.tenantId || 'TEN-0001',
@@ -161,13 +148,7 @@ export class OrderService {
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
 
     if (updateData.status && updateData.status !== order.status) {
-      let notificationType;
-      if (updateData.status === 'Aprobada') notificationType = 'receta_aprobada';
-      else if (updateData.status === 'En revisión') notificationType = 'receta_en_revision';
-      else if (updateData.status === 'Rechazada') notificationType = 'receta_rechazada';
-      else if (updateData.status === 'Emitida') notificationType = 'receta_emitida';
-
-      addAuditAndNotification(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes, notificationType);
+      addAuditLogEntry(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes);
       order.status = updateData.status;
 
       await auditLogService.log({
@@ -184,7 +165,7 @@ export class OrderService {
     if (updateData.recipePdfUrl) {
       order.recipePdfUrl = updateData.recipePdfUrl;
       order.recipePdfName = updateData.recipePdfName;
-      addAuditAndNotification(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
+      addAuditLogEntry(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
 
       await auditLogService.log({
         tenantId: order.tenantId || 'TEN-0001',
@@ -295,8 +276,8 @@ export class OrderService {
       attachments: messageData.attachments || []
     };
 
-    if (!order.chatMessages) order.chatMessages = [];
-    order.chatMessages.push(newMessage);
+    if (!order.messages) order.messages = [];
+    order.messages.push(newMessage);
 
     if ((currentUser.role === 'medico' || currentUser.role === 'colaborador' || currentUser.role === 'admin') && order.patientPhone) {
       try {
@@ -334,6 +315,6 @@ export class OrderService {
       }
     }
 
-    return this.orderRepo.update(id, { chatMessages: order.chatMessages });
+    return this.orderRepo.update(id, { messages: order.messages });
   }
 }

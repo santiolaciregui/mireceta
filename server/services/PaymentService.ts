@@ -184,30 +184,6 @@ export class PaymentService {
             notes: `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}". Receta configurada en "${recipeStatus}".`
           });
 
-          // Send notification entry if approved or refunded
-          if (updatedPaymentStatus === 'approved') {
-            if (!order.notificationsSent) order.notificationsSent = [];
-            const alreadyNotified = order.notificationsSent.some((n: any) => n.type === 'pago_confirmado');
-            if (!alreadyNotified) {
-              order.notificationsSent.push({
-                type: 'pago_confirmado',
-                sentAt: new Date().toISOString(),
-                sentTo: order.patientEmail || '',
-                subject: 'Pago Acreditado - Mi Receta',
-                content: `Su pago para la receta ${orderId} ha sido acreditado exitosamente por Mercado Pago.`
-              });
-            }
-          } else if (updatedPaymentStatus === 'rejected' || updatedPaymentStatus === 'refunded') {
-            if (!order.notificationsSent) order.notificationsSent = [];
-            order.notificationsSent.push({
-              type: 'devolucion_pago',
-              sentAt: new Date().toISOString(),
-              sentTo: order.patientEmail || '',
-              subject: 'Pago Rechazado o Reembolsado - Mi Receta',
-              content: `El pago para su solicitud ${orderId} figura como ${status}. La solicitud de receta fue inhabilitada.`
-            });
-          }
-
           await this.orderRepo.update(orderId, order);
           console.log(`[MercadoPago Webhook] Order ${orderId} updated: paymentStatus=${updatedPaymentStatus}, status=${recipeStatus}`);
         }

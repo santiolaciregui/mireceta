@@ -14,11 +14,22 @@ export class OrderRepository {
   }
 
   async findByPatientPhone(phone: string) {
-    const cleanPhone = phone.replace(/[^\d]/g, '');
+    let cleanPhone = phone.replace(/[^\d]/g, '');
+    if (cleanPhone.startsWith('549')) cleanPhone = cleanPhone.slice(3);
+    else if (cleanPhone.startsWith('54')) cleanPhone = cleanPhone.slice(2);
+    if (cleanPhone.startsWith('0')) cleanPhone = cleanPhone.slice(1);
+    const last8Digits = cleanPhone.slice(-8);
+
     const orders = await (Order as any).find().sort({ createdAt: -1 });
     return orders.filter((o: any) => {
-      const orderPhoneClean = (o.patientPhone || '').replace(/[^\d]/g, '');
-      return orderPhoneClean.length > 5 && (cleanPhone.endsWith(orderPhoneClean) || orderPhoneClean.endsWith(cleanPhone));
+      let orderPhoneClean = (o.patientPhone || '').replace(/[^\d]/g, '');
+      if (orderPhoneClean.startsWith('549')) orderPhoneClean = orderPhoneClean.slice(3);
+      else if (orderPhoneClean.startsWith('54')) orderPhoneClean = orderPhoneClean.slice(2);
+      if (orderPhoneClean.startsWith('0')) orderPhoneClean = orderPhoneClean.slice(1);
+
+      if (orderPhoneClean.length < 6 || last8Digits.length < 6) return false;
+      const orderLast8 = orderPhoneClean.slice(-8);
+      return orderLast8 === last8Digits;
     });
   }
 

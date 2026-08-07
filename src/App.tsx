@@ -372,7 +372,7 @@ export default function App() {
                       />
                     </div>
                   </div>
-                ) : activeSubcategory === 'usuarios' && (activeRole === 'medico' || activeRole === 'admin') ? (
+                ) : activeSubcategory === 'usuarios' && activeRole === 'admin' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -390,7 +390,7 @@ export default function App() {
                       />
                     </div>
                   </div>
-                ) : activeSubcategory === 'auditoria' && (activeRole === 'medico' || activeRole === 'admin') ? (
+                ) : activeSubcategory === 'auditoria' && activeRole === 'admin' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -403,7 +403,7 @@ export default function App() {
                       <AuditLogView orders={orders} currentUser={currentUser} />
                     </div>
                   </div>
-                ) : activeSubcategory === 'pagos' ? (
+                ) : activeSubcategory === 'pagos' && activeRole === 'admin' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -418,7 +418,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                ) : activeSubcategory === 'notificaciones' ? (
+                ) : activeSubcategory === 'notificaciones' && activeRole === 'admin' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">

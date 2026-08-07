@@ -83,8 +83,7 @@ export interface IMedicalOrder extends Document {
   };
 
   auditLog: IAuditLogEntry[];
-  notificationsSent: INotificationEntry[];
-  chatMessages?: any[];
+  messages?: any[];
   lastPatientWhatsAppInteractionAt?: string;
 }
 
@@ -184,6 +183,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   
   auditLog: [auditLogEntrySchema],
   notificationsSent: [notificationEntrySchema],
+  messages: { type: Array, default: [] },
   lastPatientWhatsAppInteractionAt: { type: String }
 }); // we manage timestamps manually as strings to preserve previous app logic
 
