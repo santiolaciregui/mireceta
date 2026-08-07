@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { 
   MessageSquare, 
   Send, 
@@ -13,36 +13,21 @@ import {
   Paperclip, 
   Play, 
   Pause, 
-  Volume2, 
-  FileText, 
-  User, 
-  Activity, 
   Search, 
-  Calendar, 
-  BadgeHelp,
-  Clock,
-  Trash2,
-  CornerDownRight,
-  ChevronRight,
-  Heart,
-  Sparkles,
-  CheckCircle,
   CheckCheck,
-  X,
-  Plus,
-  Reply,
-  Maximize2,
+  X, 
+  Reply, 
+  Maximize2, 
   Zap,
-  MoreVertical,
   PhoneCall,
-  Video
+  ExternalLink
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../types';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];
   currentUser: SystemUser;
-  onSendMessage: (orderId: string, message: any) => Promise<void>;
+  onSendMessage: (patientDniOrOrderId: string, message: any) => Promise<void>;
   initialSelectedOrderId?: string | null;
   onClearInitialOrderId?: () => void;
 }
@@ -64,13 +49,106 @@ export default function PatientDoctorChat({
 }: PatientDoctorChatProps) {
   const isPatient = currentUser.role === 'paciente';
   const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
-  
-  // List of candidate orders that can have chat messages
-  const chatOrders = isPatient 
-    ? orders.filter(o => cleanDni(o.patientDni) === cleanDni(currentUser.identifier))
-    : orders;
 
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  // Group orders and messages by unique Patient DNI
+  const patientConversations = useMemo(() => {
+    const map = new Map<string, {
+      dni: string;
+      cleanDni: string;
+      name: string;
+      lastName: string;
+      phone: string;
+      email: string;
+      obraSocial: string;
+      ordersCount: number;
+      latestOrderId: string;
+      latestOrderMedication: string;
+      orders: MedicalOrder[];
+      messages: ChatMessage[];
+      lastMessage: ChatMessage | null;
+      lastTimestamp: string;
+      hasPatientReplied: boolean;
+    }>();
+
+    // Filter candidate orders based on role
+    const sourceOrders = isPatient 
+      ? orders.filter(o => cleanDni(o.patientDni) === cleanDni(currentUser.identifier))
+      : orders;
+
+    for (const ord of sourceOrders) {
+      const clean = cleanDni(ord.patientDni);
+      if (!clean) continue;
+
+      let conv = map.get(clean);
+      if (!conv) {
+        conv = {
+          dni: ord.patientDni,
+          cleanDni: clean,
+          name: ord.patientName,
+          lastName: ord.patientLastName,
+          phone: ord.patientPhone || '',
+          email: ord.patientEmail || '',
+          obraSocial: ord.obraSocial || '',
+          ordersCount: 0,
+          latestOrderId: ord.id,
+          latestOrderMedication: ord.medicationText || '',
+          orders: [],
+          messages: [],
+          lastMessage: null,
+          lastTimestamp: ord.createdAt || new Date().toISOString(),
+          hasPatientReplied: false
+        };
+        map.set(clean, conv);
+      }
+
+      conv.ordersCount++;
+      conv.orders.push(ord);
+      if (!conv.phone && ord.patientPhone) conv.phone = ord.patientPhone;
+      if (!conv.email && ord.patientEmail) conv.email = ord.patientEmail;
+      if (!conv.obraSocial && ord.obraSocial) conv.obraSocial = ord.obraSocial;
+
+      if (ord.id && (!conv.latestOrderId || ord.id > conv.latestOrderId)) {
+        conv.latestOrderId = ord.id;
+        conv.latestOrderMedication = ord.medicationText || '';
+      }
+
+      if (Array.isArray(ord.messages)) {
+        conv.messages.push(...ord.messages);
+      }
+    }
+
+    // Deduplicate and sort messages per patient
+    const result = Array.from(map.values()).map(conv => {
+      const seen = new Set<string>();
+      const deduped: ChatMessage[] = [];
+
+      for (const m of conv.messages) {
+        if (!m) continue;
+        const key = m.id || `${m.timestamp}-${m.sender}-${m.text || ''}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          deduped.push(m);
+        }
+      }
+
+      deduped.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+      const lastMsg = deduped.length > 0 ? deduped[deduped.length - 1] : null;
+
+      return {
+        ...conv,
+        messages: deduped,
+        lastMessage: lastMsg,
+        lastTimestamp: lastMsg?.timestamp || conv.lastTimestamp,
+        hasPatientReplied: lastMsg?.sender === 'paciente'
+      };
+    });
+
+    // Sort conversations with most recent activity on top
+    result.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime());
+    return result;
+  }, [orders, isPatient, currentUser.identifier]);
+
+  const [selectedPatientDni, setSelectedPatientDni] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [inboxSearchQuery, setInboxSearchQuery] = useState('');
   const [chatSearchQuery, setChatSearchQuery] = useState('');
@@ -102,32 +180,36 @@ export default function PatientDoctorChat({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Derive selected order reference
-  const activeOrder = chatOrders.find(o => o.id === selectedOrderId) || (chatOrders.length > 0 ? chatOrders[0] : null);
+  // Active selected conversation
+  const activeConversation = patientConversations.find(p => p.cleanDni === selectedPatientDni) || (patientConversations.length > 0 ? patientConversations[0] : null);
 
-  // Sync programmatic selection changes
+  // Sync initial selection from external trigger (e.g. DoctorDashboard "Chatear con Paciente")
   useEffect(() => {
     if (initialSelectedOrderId) {
-      setSelectedOrderId(initialSelectedOrderId);
+      const matchOrder = orders.find(o => o.id === initialSelectedOrderId);
+      if (matchOrder) {
+        const orderCleanDni = cleanDni(matchOrder.patientDni);
+        setSelectedPatientDni(orderCleanDni);
+      }
       if (onClearInitialOrderId) {
         onClearInitialOrderId();
       }
     }
-  }, [initialSelectedOrderId, onClearInitialOrderId]);
+  }, [initialSelectedOrderId, orders, onClearInitialOrderId]);
 
-  // Set initial selected order ID
+  // Set default selected patient
   useEffect(() => {
-    if (activeOrder && !selectedOrderId) {
-      setSelectedOrderId(activeOrder.id);
+    if (activeConversation && !selectedPatientDni) {
+      setSelectedPatientDni(activeConversation.cleanDni);
     }
-  }, [chatOrders, activeOrder, selectedOrderId]);
+  }, [patientConversations, activeConversation, selectedPatientDni]);
 
-  // Scroll to bottom when messages list changes
+  // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [activeOrder?.messages, selectedOrderId]);
+  }, [activeConversation?.messages, selectedPatientDni]);
 
-  // Handle Audio Recording Timer
+  // Audio recording timer
   useEffect(() => {
     if (isRecording) {
       setRecordTime(0);
@@ -145,8 +227,7 @@ export default function PatientDoctorChat({
     };
   }, [isRecording]);
 
-  // Helper: Play simple synth alert chime
-  const playSynthBeep = (type: 'send' | 'record' | 'error' | 'play') => {
+  const playSynthBeep = (type: 'send' | 'record') => {
     try {
       const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioCtx) return;
@@ -175,11 +256,10 @@ export default function PatientDoctorChat({
         osc.stop(ctx.currentTime + 0.14);
       }
     } catch (e) {
-      // AudioContext blocked or not supported
+      // AudioContext optional
     }
   };
 
-  // Start Browser Microphone Recording
   const startRecording = async () => {
     playSynthBeep('record');
     try {
@@ -197,14 +277,13 @@ export default function PatientDoctorChat({
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {
-      console.warn('Microphone permission or support issue, falling back to simulated voice note:', err);
+      console.warn('Mic issue, using audio note simulator:', err);
       setIsRecording(true);
     }
   };
 
-  // Stop Microphone Recording and send audio
   const stopAndSendAudioRecording = async () => {
-    if (!activeOrder) return;
+    if (!activeConversation) return;
     playSynthBeep('send');
     setIsRecording(false);
 
@@ -218,13 +297,10 @@ export default function PatientDoctorChat({
           await sendAudioMessagePayload(base64Audio, duration);
         };
         reader.readAsDataURL(audioBlob);
-
-        // Stop all tracks
         mediaRecorderRef.current?.stream?.getTracks().forEach(track => track.stop());
       };
       mediaRecorderRef.current.stop();
     } else {
-      // Fallback audio simulation
       const duration = recordTime > 0 ? recordTime : 8;
       const simulatedAudioUrl = `AUDIO_NOTE_${Date.now()}_DURATION_${duration}`;
       await sendAudioMessagePayload(simulatedAudioUrl, duration);
@@ -241,12 +317,12 @@ export default function PatientDoctorChat({
   };
 
   const sendAudioMessagePayload = async (audioUrl: string, duration: number) => {
-    if (!activeOrder) return;
+    if (!activeConversation) return;
     const messageId = `audio-${Date.now()}`;
     const newMessage: ChatMessage = {
       id: messageId,
       sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : 'colaborador'),
-      senderName: `${currentUser.name} ${currentUser.lastName}`,
+      senderName: `${currentUser.name} ${currentUser.lastName}`.trim() || (currentUser.role === 'paciente' ? 'Paciente' : 'Equipo Médico'),
       timestamp: new Date().toISOString(),
       text: `Mensaje de voz (${formatTime(duration)})`,
       fileUrl: audioUrl,
@@ -258,15 +334,13 @@ export default function PatientDoctorChat({
     };
 
     setReplyingTo(null);
-    await onSendMessage(activeOrder.id, newMessage);
+    await onSendMessage(activeConversation.cleanDni, newMessage);
   };
 
-  // Trigger file browser for image sharing
   const handleFileClick = () => {
     fileInputRef.current?.click();
   };
 
-  // Convert uploaded image to Base64
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -283,24 +357,22 @@ export default function PatientDoctorChat({
     }
   };
 
-  // Format record duration as 0:00
   const formatTime = (secs: number) => {
     const mins = Math.floor(secs / 60);
     const remaining = secs % 60;
     return `${mins}:${remaining < 10 ? '0' : ''}${remaining}`;
   };
 
-  // Send textual/image message
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (!activeOrder) return;
+    if (!activeConversation) return;
     if (!inputText.trim() && !previewImage) return;
 
     const messageId = `msg-${Date.now()}`;
     const newMessage: ChatMessage = {
       id: messageId,
       sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : 'colaborador'),
-      senderName: `${currentUser.name} ${currentUser.lastName}`,
+      senderName: `${currentUser.name} ${currentUser.lastName}`.trim() || (currentUser.role === 'paciente' ? 'Paciente' : 'Equipo Médico'),
       timestamp: new Date().toISOString(),
       status: 'sent',
       ...(inputText.trim() ? { text: inputText.trim() } : {}),
@@ -316,12 +388,10 @@ export default function PatientDoctorChat({
     setInputText('');
     setPreviewImage(null);
     setReplyingTo(null);
-    await onSendMessage(activeOrder.id, newMessage);
+    await onSendMessage(activeConversation.cleanDni, newMessage);
   };
 
-  // Handle Audio Playback with real Audio element or smooth fallback progress
   const togglePlayAudio = (msgId: string, url: string, durationSecs: number = 8) => {
-    // If already playing this, stop it
     if (playingAudioId === msgId) {
       if (audioElementsRef.current[msgId]) {
         audioElementsRef.current[msgId].pause();
@@ -332,7 +402,6 @@ export default function PatientDoctorChat({
       return;
     }
 
-    // Stop currently playing if other
     if (playingAudioId) {
       if (audioElementsRef.current[playingAudioId]) {
         audioElementsRef.current[playingAudioId].pause();
@@ -344,7 +413,6 @@ export default function PatientDoctorChat({
 
     setPlayingAudioId(msgId);
 
-    // If real base64 audio URL
     if (url.startsWith('data:audio')) {
       if (!audioElementsRef.current[msgId]) {
         const audio = new Audio(url);
@@ -360,7 +428,6 @@ export default function PatientDoctorChat({
       }
       audioElementsRef.current[msgId].play();
     } else {
-      // Simulated audio playback progress
       const tickMs = 100;
       const progressPerTick = (tickMs / (durationSecs * 1000)) * 100;
       playbackIntervals.current[msgId] = setInterval(() => {
@@ -378,7 +445,6 @@ export default function PatientDoctorChat({
     }
   };
 
-  // Drag and drop image upload handlers
   const [isDragOver, setIsDragOver] = useState(false);
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -405,20 +471,21 @@ export default function PatientDoctorChat({
     }
   };
 
-  // Filter conversations list
-  const filteredInbox = chatOrders.filter(o => {
+  // Filter conversations list by patient search
+  const filteredConversations = patientConversations.filter(p => {
     const term = inboxSearchQuery.toLowerCase();
     return (
-      o.patientName.toLowerCase().includes(term) ||
-      o.patientLastName.toLowerCase().includes(term) ||
-      o.patientDni.includes(term) ||
-      o.id.toLowerCase().includes(term) ||
-      o.medicationText.toLowerCase().includes(term)
+      p.name.toLowerCase().includes(term) ||
+      p.lastName.toLowerCase().includes(term) ||
+      p.dni.includes(term) ||
+      p.phone.includes(term) ||
+      p.latestOrderId.toLowerCase().includes(term) ||
+      p.latestOrderMedication.toLowerCase().includes(term)
     );
   });
 
-  // Filter active chat messages by in-chat search query
-  const displayedMessages = (activeOrder?.messages || []).filter(msg => {
+  // Filter messages in active conversation by search query
+  const displayedMessages = (activeConversation?.messages || []).filter(msg => {
     if (!chatSearchQuery.trim()) return true;
     const term = chatSearchQuery.toLowerCase();
     return (
@@ -427,6 +494,14 @@ export default function PatientDoctorChat({
       (msg.fileName && msg.fileName.toLowerCase().includes(term))
     );
   });
+
+  const formatWaPhoneLink = (phone: string) => {
+    let clean = (phone || '').replace(/\D/g, '');
+    if (clean.startsWith('0')) clean = clean.substring(1);
+    if (!clean.startsWith('54')) clean = `549${clean}`;
+    else if (!clean.startsWith('549')) clean = `549${clean.substring(2)}`;
+    return clean;
+  };
 
   return (
     <div className="flex-1 flex w-full h-full bg-[#f0f2f5] overflow-hidden font-sans text-slate-800 animate-fadeIn selection:bg-[#00a884] selection:text-white">
@@ -462,11 +537,11 @@ export default function PatientDoctorChat({
         </div>
       )}
 
-      {/* LEFT PANEL: CONVERSATIONS LIST (WhatsApp Web Left Drawer Style) */}
+      {/* LEFT PANEL: PATIENT CONVERSATIONS LIST */}
       {!isPatient && (
-        <div className={`w-full md:w-96 border-r border-slate-250 flex flex-col shrink-0 bg-white ${selectedOrderId ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`w-full md:w-96 border-r border-slate-250 flex flex-col shrink-0 bg-white ${selectedPatientDni ? 'hidden md:flex' : 'flex'}`}>
           
-          {/* Header Bar (WhatsApp Teal `#075E54`) */}
+          {/* Header Bar */}
           <div className="px-4 py-3 bg-[#075E54] text-white flex items-center justify-between shadow-xs">
             <div className="flex items-center gap-3">
               <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold border border-white/30 shadow-inner">
@@ -474,14 +549,13 @@ export default function PatientDoctorChat({
               </div>
               <div>
                 <h3 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-                  <span>WhatsApp con pacientes</span>
-
+                  <span>WhatsApp con Pacientes</span>
                 </h3>
               </div>
             </div>
             <div className="flex items-center gap-1 text-white/80">
               <span className="px-2 py-0.5 bg-emerald-700/60 rounded-full text-[10px] font-bold font-mono text-emerald-100 border border-emerald-500/30">
-                {chatOrders.length} chats
+                {patientConversations.length} pacientes
               </span>
             </div>
           </div>
@@ -492,7 +566,7 @@ export default function PatientDoctorChat({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar paciente, DNI o número de receta..."
+                placeholder="Buscar por paciente, DNI, teléfono o receta..."
                 value={inboxSearchQuery}
                 onChange={(e) => setInboxSearchQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] placeholder:text-slate-400 text-slate-800 shadow-xs"
@@ -502,23 +576,21 @@ export default function PatientDoctorChat({
 
           {/* Conversations scrollable inbox */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
-            {filteredInbox.length === 0 ? (
+            {filteredConversations.length === 0 ? (
               <div className="p-8 text-center text-slate-400">
                 <MessageSquare className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-bold text-slate-600">No se encontraron chats</p>
+                <p className="text-xs font-bold text-slate-600">No se encontraron pacientes</p>
                 <p className="text-[11px] mt-0.5">Modifique los términos de búsqueda</p>
               </div>
             ) : (
-              filteredInbox.map((order) => {
-                const isSelected = selectedOrderId === order.id;
-                const lastMsg = order.messages && order.messages.length > 0 
-                  ? order.messages[order.messages.length - 1] 
-                  : null;
+              filteredConversations.map((conv) => {
+                const isSelected = selectedPatientDni === conv.cleanDni;
+                const lastMsg = conv.lastMessage;
 
                 return (
                   <button
-                    key={order.id}
-                    onClick={() => setSelectedOrderId(order.id)}
+                    key={conv.cleanDni}
+                    onClick={() => setSelectedPatientDni(conv.cleanDni)}
                     className={`w-full text-left p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
                       isSelected 
                         ? 'bg-[#f0f2f5] border-[#00a884]' 
@@ -528,16 +600,18 @@ export default function PatientDoctorChat({
                     {/* User Avatar */}
                     <div className="relative shrink-0">
                       <div className="h-11 w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-sm border border-teal-200 shadow-xs">
-                        {order.patientName.charAt(0)}{order.patientLastName.charAt(0)}
+                        {conv.name.charAt(0)}{conv.lastName.charAt(0)}
                       </div>
-                      <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                      {conv.hasPatientReplied && (
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                      )}
                     </div>
 
-                    {/* Chat details snippet */}
+                    {/* Patient summary snippet */}
                     <div className="flex-1 min-w-0">
                       <div className="flex justify-between items-baseline">
                         <h4 className="font-bold text-slate-800 text-xs truncate">
-                          {order.patientName} {order.patientLastName}
+                          {conv.name} {conv.lastName}
                         </h4>
                         <span className="text-[10px] text-slate-400 font-mono">
                           {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
@@ -545,7 +619,7 @@ export default function PatientDoctorChat({
                       </div>
 
                       <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                        DNI: {order.patientDni} • {order.obraSocial}
+                        DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial}
                       </p>
 
                       {/* Last message preview */}
@@ -555,12 +629,14 @@ export default function PatientDoctorChat({
                             {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
                               <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
                             ) : null}
-                            <span className="truncate text-slate-600 font-normal">
+                            <span className={`truncate ${conv.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
                               {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
                             </span>
                           </>
                         ) : (
-                          <span className="text-slate-400 italic text-[11px]">Conversación iniciada</span>
+                          <span className="text-slate-400 italic text-[11px]">
+                            {conv.ordersCount > 0 ? `${conv.ordersCount} trámite(s) (${conv.latestOrderId})` : 'Conversación iniciada'}
+                          </span>
                         )}
                       </div>
                     </div>
@@ -572,9 +648,9 @@ export default function PatientDoctorChat({
         </div>
       )}
 
-      {/* RIGHT PANEL: ACTIVE WHATSAPP CHAT CANVAS */}
+      {/* RIGHT PANEL: UNIFIED PATIENT CHAT CANVAS */}
       <div 
-        className={`flex-1 flex flex-col bg-[#efeae2] relative ${isDragOver ? 'ring-4 ring-[#00a884] ring-inset' : ''} ${!selectedOrderId && !isPatient ? 'hidden md:flex' : 'flex'}`}
+        className={`flex-1 flex flex-col bg-[#efeae2] relative ${isDragOver ? 'ring-4 ring-[#00a884] ring-inset' : ''} ${!selectedPatientDni && !isPatient ? 'hidden md:flex' : 'flex'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -598,38 +674,56 @@ export default function PatientDoctorChat({
           </div>
         )}
 
-        {activeOrder ? (
+        {activeConversation ? (
           <>
             {/* WHATSAPP TOP HEADER BAR */}
             <div className="px-4 py-2.5 bg-[#f0f2f5] border-b border-slate-250 flex items-center justify-between z-10 shadow-xs">
               <div className="flex items-center gap-3 min-w-0">
                 {!isPatient && (
                   <button 
-                    onClick={() => setSelectedOrderId(null)}
-                    className="md:hidden p-1.5 hover:bg-slate-200 rounded-full text-slate-600 shrink-0 mr-1"
-                    title="Volver a chats"
+                    onClick={() => setSelectedPatientDni(null)}
+                    className="md:hidden p-1.5 hover:bg-slate-200 rounded-full text-slate-600 shrink-0 mr-1 cursor-pointer"
+                    title="Volver a lista"
                   >
                     <X className="h-5 w-5" />
                   </button>
                 )}
 
                 <div className="h-10 w-10 bg-[#075E54] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
-                  {isPatient ? 'MR' : activeOrder.patientName.charAt(0)}
+                  {isPatient ? 'MR' : `${activeConversation.name.charAt(0)}${activeConversation.lastName.charAt(0)}`}
                 </div>
 
                 <div className="min-w-0">
                   <h4 className="font-bold text-slate-800 text-sm truncate">
-                    {isPatient ? 'Consultorio Médico - Mi Receta Online' : `${activeOrder.patientName} ${activeOrder.patientLastName}`}
+                    {isPatient ? 'Consultorio Médico - Mi Receta Online' : `${activeConversation.name} ${activeConversation.lastName}`}
                   </h4>
                   <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shrink-0" />
-                    <span>{isPatient ? 'Atención Médica Directa' : `DNI: ${activeOrder.patientDni} • WhatsApp: ${activeOrder.patientPhone || 'Conectado'}`}</span>
+                    <span>
+                      {isPatient 
+                        ? 'Atención Médica Directa y WhatsApp Oficial' 
+                        : `DNI: ${activeConversation.dni} • ${activeConversation.obraSocial || 'Particular'} ${activeConversation.phone ? `• Cel: ${activeConversation.phone}` : ''}`}
+                    </span>
                   </p>
                 </div>
               </div>
 
               {/* Action Toolbar */}
               <div className="flex items-center gap-2 shrink-0">
+                {!isPatient && activeConversation.phone && (
+                  <a
+                    href={`https://wa.me/${formatWaPhoneLink(activeConversation.phone)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-[#25D366] hover:bg-[#1EBE5D] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                    title="Abrir chat en WhatsApp Web"
+                  >
+                    <PhoneCall className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">WhatsApp Web</span>
+                    <ExternalLink className="h-3 w-3 opacity-70" />
+                  </a>
+                )}
+
                 <button
                   onClick={() => setShowChatSearch(!showChatSearch)}
                   className={`p-2 rounded-full transition-colors cursor-pointer ${showChatSearch ? 'bg-slate-300 text-slate-900' : 'hover:bg-slate-200 text-slate-600'}`}
@@ -637,6 +731,7 @@ export default function PatientDoctorChat({
                 >
                   <Search className="h-4.5 w-4.5" />
                 </button>
+
                 {!isPatient && (
                   <button
                     onClick={() => setShowQuickTemplates(!showQuickTemplates)}
@@ -647,8 +742,9 @@ export default function PatientDoctorChat({
                     <span className="hidden sm:inline">Plantillas</span>
                   </button>
                 )}
+
                 <div className="bg-white/80 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54]">
-                  #{activeOrder.id}
+                  {activeConversation.ordersCount} trámites
                 </div>
               </div>
             </div>
@@ -697,16 +793,14 @@ export default function PatientDoctorChat({
               </div>
             )}
 
-            {/* CONVERSATION ACTIVE TREATMENT BANNER */}
-            <div className="bg-white/80 backdrop-blur-xs border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs text-slate-600 font-medium">
+            {/* PATIENT ORDERS & TREATMENTS BANNER */}
+            <div className="bg-white/85 backdrop-blur-xs border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs text-slate-600 font-medium">
               <span className="truncate">
-                <strong>Solicitud de receta:</strong> {activeOrder.medicationText}
+                <strong>Paciente:</strong> {activeConversation.name} {activeConversation.lastName} (DNI: {activeConversation.dni})
+                {activeConversation.latestOrderMedication ? ` • Última medicación: ${activeConversation.latestOrderMedication}` : ''}
               </span>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 ${
-                activeOrder.status === 'Aprobada' ? 'bg-emerald-100 text-emerald-800' :
-                activeOrder.status === 'Pendiente' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'
-              }`}>
-                {activeOrder.status}
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800">
+                {activeConversation.latestOrderId || 'Paciente Registrado'}
               </span>
             </div>
 
@@ -723,7 +817,8 @@ export default function PatientDoctorChat({
               {/* Loop Messages */}
               {displayedMessages.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
-                  <p className="text-xs font-semibold">No se encontraron mensajes en esta conversación</p>
+                  <p className="text-xs font-semibold">No se encontraron mensajes en esta conversación con el paciente</p>
+                  <p className="text-[11px] mt-1">Escriba a continuación para iniciar la comunicación directa.</p>
                 </div>
               ) : (
                 displayedMessages.map((msg) => {
@@ -744,7 +839,7 @@ export default function PatientDoctorChat({
                         </span>
                       )}
 
-                      {/* Message Bubble Container (WhatsApp Green `#d9fdd3` for outgoing, White `#ffffff` for incoming) */}
+                      {/* Message Bubble Container */}
                       <div className={`relative p-2.5 sm:p-3 rounded-lg shadow-xs text-slate-800 text-xs sm:text-sm leading-relaxed ${
                         isOwn 
                           ? 'bg-[#d9fdd3] rounded-tr-none border border-emerald-200/50' 
@@ -760,7 +855,7 @@ export default function PatientDoctorChat({
                           <Reply className="h-3.5 w-3.5" />
                         </button>
 
-                        {/* QUOTED MESSAGE PREVIEW (IF REPLY) */}
+                        {/* QUOTED MESSAGE PREVIEW */}
                         {msg.replyTo && (
                           <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#00a884] rounded text-xs font-medium text-slate-700">
                             <p className="font-bold text-[#075E54] text-[10px]">{msg.replyTo.senderName}</p>
@@ -780,7 +875,7 @@ export default function PatientDoctorChat({
                           <div className="mt-1.5 overflow-hidden rounded-lg cursor-pointer group/img relative">
                             <img 
                               src={msg.fileUrl} 
-                              alt={msg.fileName} 
+                              alt={msg.fileName || 'Adjunto'} 
                               onClick={() => setLightboxImage({ url: msg.fileUrl!, title: msg.fileName || 'Imagen' })}
                               className="max-h-64 object-cover rounded-lg hover:brightness-95 transition-all"
                               referrerPolicy="no-referrer"
@@ -842,7 +937,7 @@ export default function PatientDoctorChat({
                           </div>
                         )}
 
-                        {/* TIMESTAMP & STATUS INDICATOR (WHATSAPP DOUBLE TICKS `✓✓`) */}
+                        {/* TIMESTAMP & STATUS INDICATOR */}
                         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-400 float-right">
                           <span>
                             {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
@@ -966,7 +1061,7 @@ export default function PatientDoctorChat({
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Escribe un mensaje de WhatsApp..."
+                      placeholder="Escribe un mensaje de WhatsApp al paciente..."
                       className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
                     />
                   </div>
@@ -990,9 +1085,9 @@ export default function PatientDoctorChat({
             <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center text-[#075E54] mb-4 shadow-sm">
               <MessageSquare className="h-10 w-10" />
             </div>
-            <h4 className="font-bold text-slate-800 text-base">WhatsApp Web Clínico</h4>
+            <h4 className="font-bold text-slate-800 text-base">WhatsApp Web con Pacientes</h4>
             <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed">
-              Seleccione un chat de la lista izquierda para iniciar o continuar la atención médica directa por WhatsApp.
+              Seleccione un paciente de la lista izquierda para iniciar o continuar la atención médica directa por WhatsApp.
             </p>
           </div>
         )}

@@ -65,8 +65,31 @@ export class NotificationService {
     const finalBody = this.interpolateVariables(body, variables);
 
     // Fetch config for channel from database
-    const configDoc = await this.configRepo.findByTenantAndChannel(tenantId, channel);
-    if (!configDoc || !configDoc.isEnabled) {
+    let configDoc = await this.configRepo.findByTenantAndChannel(tenantId, channel);
+    let credentials = configDoc?.credentials || {};
+    let isEnabled = configDoc ? configDoc.isEnabled : false;
+
+    // If channel is not explicitly configured in DB, check env vars or default tenant
+    if (!isEnabled) {
+      if (channel === 'whatsapp' && (process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || process.env.WHATSAPP_WEBHOOK_URL)) {
+        isEnabled = true;
+        credentials = {
+          phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID,
+          accessToken: process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN,
+          defaultCountryCode: process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54',
+          provider: process.env.WHATSAPP_PROVIDER || 'meta_cloud_api',
+          webhookUrl: process.env.WHATSAPP_WEBHOOK_URL
+        };
+      } else {
+        const defaultDoc = await this.configRepo.findByTenantAndChannel('TEN-0001', channel);
+        if (defaultDoc && defaultDoc.isEnabled) {
+          isEnabled = true;
+          credentials = defaultDoc.credentials;
+        }
+      }
+    }
+
+    if (!isEnabled) {
       const errorMsg = `El canal ${channel.toUpperCase()} no está configurado o está deshabilitado para el tenant ${tenantId}.`;
       await this.logRepo.createLog({
         tenantId,
@@ -92,7 +115,7 @@ export class NotificationService {
         templateCode,
         variables
       },
-      configDoc.credentials
+      credentials
     );
 
     // Persist Log in DB

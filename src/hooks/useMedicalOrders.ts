@@ -371,40 +371,60 @@ export function useMedicalOrders() {
     setOrders([]);
   };
 
-  const sendChatMessage = async (orderId: string, message: any) => {
+  const sendChatMessage = async (dniOrOrderId: string, message: any) => {
     try {
-      const order = orders.find((o) => o.id === orderId);
-      if (!order) return;
-      const currentMessages = order.messages || [];
-      const updatedMessages = [...currentMessages, message];
-
-      // Optimistic update
-      setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, messages: updatedMessages } : o))
+      const cleanTargetDni = (dniOrOrderId || '').replace(/\D/g, '');
+      const matchingOrders = orders.filter(
+        (o) => o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)
       );
 
-      // Call dedicated chat endpoint
-      const res = await fetch(`/api/orders/${orderId}/chat`, {
+      // Optimistic update across all matching orders for this patient
+      setOrders((prev) =>
+        prev.map((o) => {
+          if (o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)) {
+            const currentMessages = o.messages || [];
+            return {
+              ...o,
+              messages: [...currentMessages, message],
+              lastPatientWhatsAppInteractionAt: new Date().toISOString()
+            };
+          }
+          return o;
+        })
+      );
+
+      // 1. Try unified patient chat endpoint /api/chat/:dni
+      const chatEndpoint = cleanTargetDni ? `/api/chat/${cleanTargetDni}` : `/api/chat/${dniOrOrderId}`;
+      const res = await fetch(chatEndpoint, {
         method: 'POST',
         headers: fetchHeaders(),
         body: JSON.stringify(message),
       });
 
       if (res.ok) {
-        const updated = await res.json();
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+        const chatData = await res.json();
+        if (chatData?.messages) {
+          setOrders((prev) =>
+            prev.map((o) => {
+              if (o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)) {
+                return { ...o, messages: chatData.messages };
+              }
+              return o;
+            })
+          );
+        }
       } else {
-        // Fallback to PUT
-        const putRes = await fetch(`/api/orders/${orderId}`, {
-          method: 'PUT',
+        // 2. Fallback to order-level chat endpoint /api/orders/:id/chat
+        const orderIdToCall = matchingOrders[0]?.id || dniOrOrderId;
+        const orderRes = await fetch(`/api/orders/${orderIdToCall}/chat`, {
+          method: 'POST',
           headers: fetchHeaders(),
-          body: JSON.stringify({
-            messages: updatedMessages,
-          }),
+          body: JSON.stringify(message),
         });
-        if (putRes.ok) {
-          const updated = await putRes.json();
-          setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+
+        if (orderRes.ok) {
+          const updated = await orderRes.json();
+          setOrders((prev) => prev.map((o) => (o.id === orderIdToCall ? updated : o)));
         }
       }
     } catch (err) {

@@ -19,26 +19,58 @@ export interface WhatsAppConfig {
 export class WhatsAppAdapter implements NotificationAdapter {
   public readonly channel: NotificationChannel = 'whatsapp';
 
-  private parseConfig(config: Record<string, unknown>): WhatsAppConfig {
-    const phoneNumberId = String(config.phoneNumberId || '');
-    const accessToken = String(config.accessToken || '');
-    const businessAccountId = config.businessAccountId ? String(config.businessAccountId) : undefined;
-    const defaultCountryCode = config.defaultCountryCode ? String(config.defaultCountryCode) : '54';
-    const doctorInquiryTemplateCode = config.doctorInquiryTemplateCode ? String(config.doctorInquiryTemplateCode) : undefined;
-    const provider = (config.provider as WhatsAppConfig['provider']) || 'meta_cloud_api';
-    const webhookUrl = config.webhookUrl ? String(config.webhookUrl) : undefined;
+  private parseConfig(config: Record<string, unknown> = {}): WhatsAppConfig {
+    const phoneNumberId = String(config.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || '');
+    const accessToken = String(config.accessToken || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || '');
+    const businessAccountId = config.businessAccountId ? String(config.businessAccountId) : process.env.WHATSAPP_BUSINESS_ACCOUNT_ID;
+    const defaultCountryCode = config.defaultCountryCode ? String(config.defaultCountryCode) : (process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54');
+    const doctorInquiryTemplateCode = config.doctorInquiryTemplateCode ? String(config.doctorInquiryTemplateCode) : process.env.WHATSAPP_DOCTOR_TEMPLATE_CODE;
+    const provider = (config.provider as WhatsAppConfig['provider']) || (process.env.WHATSAPP_PROVIDER as any) || 'meta_cloud_api';
+    const webhookUrl = config.webhookUrl ? String(config.webhookUrl) : process.env.WHATSAPP_WEBHOOK_URL;
 
     if (provider === 'meta_cloud_api' && (!phoneNumberId || !accessToken)) {
-      throw new Error('Configuración de WhatsApp Incompleta: Phone Number ID y Access Token son requeridos.');
+      throw new Error('Configuración de WhatsApp Incompleta: Phone Number ID y Access Token son requeridos en la configuración del tenant o variables de entorno.');
     }
 
     return { phoneNumberId, accessToken, businessAccountId, defaultCountryCode, doctorInquiryTemplateCode, provider, webhookUrl };
   }
 
-  private formatPhoneNumber(phone: string, defaultCountryCode: string): string {
+  public formatPhoneNumber(phone: string, defaultCountryCode: string = '54'): string {
+    if (!phone) return '';
     let cleaned = phone.replace(/[^\d]/g, '');
-    if (!cleaned.startsWith(defaultCountryCode) && cleaned.length <= 10) {
-      cleaned = `${defaultCountryCode}${cleaned}`;
+
+    // Strip leading 00 (international dialing prefix)
+    if (cleaned.startsWith('00')) {
+      cleaned = cleaned.substring(2);
+    }
+
+    // If starts with Argentina country code '54'
+    if (cleaned.startsWith('54')) {
+      let national = cleaned.substring(2);
+      // Strip leading 0 if present (e.g. 54 0 11 -> 54 11)
+      if (national.startsWith('0')) national = national.substring(1);
+      // Meta WhatsApp Cloud API strictly requires mobile numbers in Argentina to have '9' before the area code
+      if (!national.startsWith('9')) {
+        national = `9${national}`;
+      }
+      return `54${national}`;
+    }
+
+    // If starts with local 0 (e.g. 02926 432000, 011 1234 5678)
+    if (cleaned.startsWith('0')) {
+      cleaned = cleaned.substring(1);
+    }
+
+    // Argentina local formatting
+    if (defaultCountryCode === '54') {
+      if (cleaned.startsWith('9')) {
+        return `54${cleaned}`;
+      }
+      return `549${cleaned}`;
+    }
+
+    if (!cleaned.startsWith(defaultCountryCode)) {
+      return `${defaultCountryCode}${cleaned}`;
     }
     return cleaned;
   }
@@ -88,7 +120,9 @@ export class WhatsAppAdapter implements NotificationAdapter {
             text: { preview_url: false, body: payload.body }
           };
 
-      const response = await fetch(url, {
+      console.log(`[WhatsAppAdapter] Despachando WhatsApp a ${recipientNumber} vía Meta Cloud API (Template: ${payload.templateCode || 'Texto Directo'})...`);
+
+      let response = await fetch(url, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${waConfig.accessToken}`,
@@ -97,10 +131,33 @@ export class WhatsAppAdapter implements NotificationAdapter {
         body: JSON.stringify(bodyPayload)
       });
 
-      const responseData = await response.json();
+      let responseData = await response.json();
+
+      // If template send failed (e.g. template not created/approved on Meta yet), retry immediately with direct text
+      if (!response.ok && payload.templateCode && payload.body) {
+        console.warn(`[WhatsAppAdapter] Plantilla "${payload.templateCode}" falló en Meta API (${responseData?.error?.message}). Reintentando con texto directo...`);
+        const fallbackPayload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipientNumber,
+          type: 'text',
+          text: { preview_url: false, body: payload.body }
+        };
+
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${waConfig.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(fallbackPayload)
+        });
+        responseData = await response.json();
+      }
 
       if (!response.ok) {
         const errorMsg = responseData?.error?.message || responseData?.error?.user_msg || 'Error devuelto por WhatsApp API';
+        console.error(`[WhatsAppAdapter] Error enviando WhatsApp a ${recipientNumber}:`, errorMsg);
         return {
           success: false,
           error: errorMsg,
@@ -109,6 +166,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       }
 
       const messageId = responseData?.messages?.[0]?.id || 'WA-SENT';
+      console.log(`[WhatsAppAdapter] Mensaje WhatsApp enviado exitosamente a ${recipientNumber} (ID: ${messageId})`);
       return {
         success: true,
         messageId,
@@ -116,6 +174,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       };
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido al enviar WhatsApp';
+      console.error('[WhatsAppAdapter] Excepción al enviar WhatsApp:', errorMessage);
       return {
         success: false,
         error: errorMessage
