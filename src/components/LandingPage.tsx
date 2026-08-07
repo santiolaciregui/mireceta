@@ -25,6 +25,8 @@ import {
 } from 'lucide-react';
 import InformationalModal from './InformationalModal';
 import Logo from './Logo';
+import MercadoPagoIcon from './MercadoPagoIcon';
+
 
 interface LandingPageProps {
   onGoToLogin: (mode?: 'login' | 'register') => void;
@@ -442,7 +444,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               </div>
 
               <div className="flex items-center justify-center gap-3 border-t md:border-t-0 md:border-l border-slate-300 pt-4 md:pt-0">
-                <CreditCard className="h-5 w-5 text-[#295EF3] shrink-0" />
+                <MercadoPagoIcon className="h-5 w-5" />
                 <span>Pago seguro a través de Mercado Pago</span>
               </div>
 

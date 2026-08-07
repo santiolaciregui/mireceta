@@ -22,6 +22,8 @@ import {
   CreditCard,
   Sparkles
 } from 'lucide-react';
+import MercadoPagoIcon from './MercadoPagoIcon';
+
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
@@ -294,7 +296,7 @@ export default function PatientStatus({
                           }}
                           className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[11px] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
                         >
-                          <Sparkles className="h-3.5 w-3.5 text-blue-200" />
+                          <MercadoPagoIcon className="h-4 w-4" />
                           <span>Pagar con Mercado Pago</span>
                         </button>
                       )}

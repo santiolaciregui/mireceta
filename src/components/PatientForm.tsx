@@ -38,6 +38,8 @@ import {
   UserPlus,
   ShieldCheck
 } from 'lucide-react';
+import MercadoPagoIcon from './MercadoPagoIcon';
+
 
 interface PatientFormProps {
   onSubmitOrder: (data: any) => Promise<string>;
@@ -2143,8 +2145,8 @@ export default function PatientForm({
                         : 'border-slate-200 bg-white text-slate-500 hover:text-slate-700'
                     }`}
                   >
-                    <Sparkles className="h-4 w-4 text-blue-500" />
-                    <span>Pago Mercado Pago (Online)</span>
+                    <MercadoPagoIcon className="h-4.5 w-4.5" />
+                    <span>Pago Mercado Pago</span>
                   </button>
 
                   <button
@@ -2186,7 +2188,6 @@ export default function PatientForm({
                         </span>
                         <p className="text-xs font-black text-slate-850">Mercado Pago Oficial</p>
                       </div>
-                      <span className="text-[11px] font-bold text-slate-400">Pago 100% Protegido</span>
                     </div>
 
                     {/* Method details */}
@@ -2217,7 +2218,7 @@ export default function PatientForm({
                         disabled={mpProcessing}
                         className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                       >
-                        <Sparkles className="h-4.5 w-4.5 text-blue-200 animate-pulse" />
+                        <MercadoPagoIcon className="h-5 w-5" />
                         <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
                       </button>
                     )}
