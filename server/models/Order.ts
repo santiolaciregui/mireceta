@@ -83,6 +83,7 @@ export interface IMedicalOrder extends Document {
   };
 
   auditLog: IAuditLogEntry[];
+  notificationsSent?: INotificationEntry[];
   messages?: any[];
   lastPatientWhatsAppInteractionAt?: string;
 }
@@ -114,6 +115,26 @@ const notificationEntrySchema = new Schema<INotificationEntry>({
   sentAt: { type: String, required: true },
   subject: { type: String, required: false, default: '' },
   content: { type: String, required: false, default: '' }
+}, { _id: false });
+
+const chatMessageSchema = new Schema({
+  id: { type: String, required: true },
+  sender: { type: String, enum: ['paciente', 'medico', 'colaborador', 'admin', 'sistema'], required: true },
+  senderName: { type: String, required: true },
+  senderRole: { type: String },
+  senderId: { type: String },
+  text: { type: String },
+  fileUrl: { type: String },
+  fileName: { type: String },
+  fileType: { type: String, enum: ['image', 'audio', 'text', 'pdf'] },
+  timestamp: { type: String, required: true },
+  status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
+  replyTo: {
+    id: { type: String },
+    senderName: { type: String },
+    text: { type: String }
+  },
+  audioDuration: { type: Number }
 }, { _id: false });
 
 const medicalOrderSchema = new Schema<IMedicalOrder>({
@@ -183,7 +204,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   
   auditLog: [auditLogEntrySchema],
   notificationsSent: [notificationEntrySchema],
-  messages: { type: Array, default: [] },
+  messages: [chatMessageSchema],
   lastPatientWhatsAppInteractionAt: { type: String }
 }); // we manage timestamps manually as strings to preserve previous app logic
 

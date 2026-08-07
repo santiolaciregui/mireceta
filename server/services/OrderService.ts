@@ -23,22 +23,16 @@ export class OrderService {
     const allOrders = await this.orderRepo.findByTenant(tenantId);
 
     if (currentUser.role === 'paciente') {
-      const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
+      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
       return allOrders.filter((o: any) => {
-        const orderDniClean = (o.patientDni || '').replace(/\s/g, '').replace(/\./g, '');
+        const orderDniClean = (o.patientDni || '').replace(/\D/g, '');
         return orderDniClean === patientDniClean;
       });
     }
 
-    if (currentUser.role === 'medico' || currentUser.role === 'colaborador') {
-      // Regla Médica: Los médicos solo visibilizan solicitudes con pago válido y aprobado (o PAMI/Ventanilla).
-      // Si el pago fue cancelado, rechazado o devuelto, la receta no se procesa.
-      return allOrders.filter((o: any) => {
-        if (o.obraSocial === 'PAMI (Inssjp)' || (o.paymentReceiptUrl && o.paymentReceiptUrl.includes('cobrado_ventanilla'))) {
-          return true;
-        }
-        return o.paymentStatus === 'approved' && o.status !== 'Rechazada';
-      });
+    if (currentUser.role === 'medico' || currentUser.role === 'colaborador' || currentUser.role === 'admin' || currentUser.role === 'superadmin') {
+      // Los médicos, colaboradores y administradores visualizan las solicitudes para auditoría y soporte directo
+      return allOrders;
     }
 
     return allOrders;
@@ -64,7 +58,8 @@ export class OrderService {
       status: orderData.status || 'Pendiente', // 'En revisión' if Oficio
       createdAt: new Date().toISOString(),
       auditLog: [],
-      notificationsSent: []
+      notificationsSent: [],
+      messages: orderData.messages || []
     };
 
     let creatorName = 'Paciente (Autogestión)';
@@ -116,13 +111,9 @@ export class OrderService {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
 
-    if (currentUser?.role === 'admin') {
-      throw new Error('Los administradores no tienen permiso para modificar solicitudes, solo pueden visualizarlas.');
-    }
-
     if (currentUser.role === 'paciente') {
-      const patientDniClean = currentUser.identifier.replace(/\s/g, '').replace(/\./g, '');
-      const orderDniClean = (order.patientDni || '').replace(/\s/g, '').replace(/\./g, '');
+      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
+      const orderDniClean = (order.patientDni || '').replace(/\D/g, '');
       if (patientDniClean !== orderDniClean) throw new Error('Acceso no autorizado a este pedido.');
       
       if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
@@ -139,12 +130,51 @@ export class OrderService {
         });
 
         return this.orderRepo.update(id, order);
+      } else if (updateData.messages) {
+        order.messages = updateData.messages;
+        order.lastPatientWhatsAppInteractionAt = new Date().toISOString();
+        
+        const lastMsg = updateData.messages[updateData.messages.length - 1];
+        addAuditLogEntry(
+          order,
+          'Mensaje recibido del paciente',
+          `${order.patientName} ${order.patientLastName} (Paciente)`,
+          lastMsg?.text || (lastMsg?.fileType === 'audio' ? 'Nota de voz adjunta' : 'Foto adjunta')
+        );
+
+        await auditLogService.log({
+          tenantId: order.tenantId || 'TEN-0001',
+          currentUser,
+          action: 'ORDER_CHAT_MESSAGE',
+          entity: 'Order',
+          entityId: id,
+          details: `Mensaje del paciente en receta ${id}: "${(lastMsg?.text || '').substring(0, 50)}"`
+        });
+
+        return this.orderRepo.update(id, order);
       } else {
-        throw new Error('Los pacientes solo pueden cancelar pedidos pendientes.');
+        throw new Error('Los pacientes solo pueden cancelar pedidos pendientes o enviar mensajes al equipo médico.');
       }
     }
 
-    // Medic / Admin / Colaborador updates
+    if (currentUser?.role === 'admin') {
+      if (updateData.messages) {
+        order.messages = updateData.messages;
+        const lastMsg = updateData.messages[updateData.messages.length - 1];
+        addAuditLogEntry(
+          order,
+          'Mensaje del administrador',
+          `${currentUser.name} ${currentUser.lastName} (Admin)`,
+          lastMsg?.text || (lastMsg?.fileType === 'audio' ? 'Nota de voz' : 'Archivo adjunto')
+        );
+        return this.orderRepo.update(id, order);
+      }
+      if (updateData.status && updateData.status !== order.status) {
+        throw new Error('Los administradores no tienen permiso para modificar el estado de solicitudes, solo pueden visualizarlas.');
+      }
+    }
+
+    // Medic / Colaborador updates
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
 
     if (updateData.status && updateData.status !== order.status) {
@@ -197,7 +227,7 @@ export class OrderService {
           }).catch(err => console.log('WhatsApp send issued receipt catch:', err));
         } else {
           const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-          const templateCode = waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode;
+          const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
 
           await notificationService.sendNotification({
             tenantId: order.tenantId || 'TEN-0001',
@@ -237,7 +267,7 @@ export class OrderService {
             }).catch(err => console.log('WhatsApp 24h direct send catch:', err));
           } else {
             const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-            const templateCode = waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode;
+            const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
 
             await notificationService.sendNotification({
               tenantId: order.tenantId || 'TEN-0001',
@@ -266,55 +296,93 @@ export class OrderService {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado');
 
-    const newMessage = {
-      id: `MSG-${Math.floor(1000 + Math.random() * 9000)}`,
-      senderId: currentUser.id,
-      senderName: `${currentUser.name} ${currentUser.lastName}`,
+    if (currentUser.role === 'paciente') {
+      const patientDniClean = (currentUser.identifier || '').replace(/\D/g, '');
+      const orderDniClean = (order.patientDni || '').replace(/\D/g, '');
+      if (patientDniClean !== orderDniClean) throw new Error('Acceso no autorizado a este pedido.');
+    }
+
+    const newMessage: any = {
+      id: messageData.id || `msg-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      sender: currentUser.role === 'paciente' ? 'paciente' : (currentUser.role === 'medico' ? 'medico' : (currentUser.role === 'admin' ? 'admin' : 'colaborador')),
+      senderName: `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim() || (currentUser.role === 'paciente' ? 'Paciente' : 'Equipo Médico'),
+      senderId: currentUser.id || currentUser.identifier,
       senderRole: currentUser.role,
-      text: messageData.text,
-      timestamp: new Date().toISOString(),
-      attachments: messageData.attachments || []
+      timestamp: messageData.timestamp || new Date().toISOString(),
+      status: 'sent',
+      ...(messageData.text ? { text: messageData.text } : {}),
+      ...(messageData.fileUrl ? { fileUrl: messageData.fileUrl } : {}),
+      ...(messageData.fileName ? { fileName: messageData.fileName } : {}),
+      ...(messageData.fileType ? { fileType: messageData.fileType } : (messageData.fileUrl?.startsWith('data:audio') || messageData.fileUrl?.includes('AUDIO_NOTE') ? { fileType: 'audio' } : (messageData.fileUrl ? { fileType: 'image' } : {}))),
+      ...(messageData.audioDuration ? { audioDuration: messageData.audioDuration } : {}),
+      ...(messageData.replyTo ? { replyTo: messageData.replyTo } : {})
     };
 
     if (!order.messages) order.messages = [];
     order.messages.push(newMessage);
 
-    if ((currentUser.role === 'medico' || currentUser.role === 'colaborador' || currentUser.role === 'admin') && order.patientPhone) {
-      try {
-        const { NotificationService } = await import('./NotificationService.js');
-        const notificationService = new NotificationService();
-        const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
+    if (currentUser.role === 'paciente') {
+      order.lastPatientWhatsAppInteractionAt = new Date().toISOString();
+      addAuditLogEntry(
+        order,
+        'Mensaje recibido del paciente',
+        `${order.patientName} ${order.patientLastName} (Paciente)`,
+        newMessage.text || (newMessage.fileType === 'audio' ? 'Nota de voz recibida' : 'Foto adjunta recibida')
+      );
 
-        if (isWithin24h) {
-          await notificationService.sendNotification({
-            tenantId: order.tenantId || 'TEN-0001',
-            channel: 'whatsapp',
-            to: order.patientPhone,
-            body: `[Consulta Dr. ${currentUser.name} - Receta #${order.id}]\n${messageData.text || 'Nuevo archivo adjunto en la consulta'}`
-          }).catch(err => console.log('WhatsApp chat 24h direct send catch:', err));
-        } else {
-          const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
-          const templateCode = waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode;
+      await auditLogService.log({
+        tenantId: order.tenantId || 'TEN-0001',
+        currentUser,
+        action: 'ORDER_CHAT_MESSAGE',
+        entity: 'Order',
+        entityId: id,
+        details: `Mensaje del paciente en receta ${id}: "${(newMessage.text || '').substring(0, 50)}"`
+      });
+    } else {
+      addAuditLogEntry(
+        order,
+        'Respuesta médica enviada',
+        `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`,
+        newMessage.text || (newMessage.fileType === 'audio' ? 'Nota de voz enviada' : 'Archivo adjunto')
+      );
 
-          await notificationService.sendNotification({
-            tenantId: order.tenantId || 'TEN-0001',
-            channel: 'whatsapp',
-            to: order.patientPhone,
-            templateCode: templateCode || undefined,
-            variables: templateCode ? {
-              patientName: `${order.patientName} ${order.patientLastName}`,
-              doctorName: `${currentUser.name} ${currentUser.lastName}`,
-              orderId: order.id,
-              messagePreview: (messageData.text || 'Consulta sobre su receta').substring(0, 60)
-            } : undefined,
-            body: `Hola ${order.patientName}, el Dr. ${currentUser.name} envió una consulta sobre su receta #${order.id}: "${(messageData.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
-          }).catch(err => console.log('WhatsApp chat template send catch:', err));
+      if (order.patientPhone) {
+        try {
+          const { NotificationService } = await import('./NotificationService.js');
+          const notificationService = new NotificationService();
+          const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
+
+          if (isWithin24h) {
+            await notificationService.sendNotification({
+              tenantId: order.tenantId || 'TEN-0001',
+              channel: 'whatsapp',
+              to: order.patientPhone,
+              body: `[Consulta Dr. ${currentUser.name} - Receta #${order.id}]\n${messageData.text || 'Nuevo archivo adjunto en la consulta'}`
+            }).catch(err => console.log('WhatsApp chat 24h direct send catch:', err));
+          } else {
+            const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
+            const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+
+            await notificationService.sendNotification({
+              tenantId: order.tenantId || 'TEN-0001',
+              channel: 'whatsapp',
+              to: order.patientPhone,
+              templateCode: templateCode || undefined,
+              variables: templateCode ? {
+                patientName: `${order.patientName} ${order.patientLastName}`,
+                doctorName: `${currentUser.name} ${currentUser.lastName}`,
+                orderId: order.id,
+                messagePreview: (messageData.text || 'Consulta sobre su receta').substring(0, 60)
+              } : undefined,
+              body: `Hola ${order.patientName}, el Dr. ${currentUser.name} envió una consulta sobre su receta #${order.id}: "${(messageData.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+            }).catch(err => console.log('WhatsApp chat template send catch:', err));
+          }
+        } catch (e) {
+          // Non-blocking
         }
-      } catch (e) {
-        // Non-blocking
       }
     }
 
-    return this.orderRepo.update(id, { messages: order.messages });
+    return this.orderRepo.update(id, order);
   }
 }

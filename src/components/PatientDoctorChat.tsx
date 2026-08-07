@@ -63,10 +63,11 @@ export default function PatientDoctorChat({
   onClearInitialOrderId
 }: PatientDoctorChatProps) {
   const isPatient = currentUser.role === 'paciente';
+  const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
   
   // List of candidate orders that can have chat messages
   const chatOrders = isPatient 
-    ? orders.filter(o => o.patientDni === currentUser.identifier)
+    ? orders.filter(o => cleanDni(o.patientDni) === cleanDni(currentUser.identifier))
     : orders;
 
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);

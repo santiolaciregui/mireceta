@@ -152,6 +152,13 @@ export class NotificationService {
   }
 
   /**
+   * Retrieves single notification channel config for a tenant.
+   */
+  public async getConfig(tenantId: string, channel: NotificationChannel) {
+    return this.configRepo.findByTenantAndChannel(tenantId, channel);
+  }
+
+  /**
    * Masks sensitive fields like passwords/tokens for UI view.
    */
   private sanitizeCredentials(channel: NotificationChannel, creds: Record<string, unknown> = {}) {

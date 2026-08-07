@@ -378,19 +378,37 @@ export function useMedicalOrders() {
       const currentMessages = order.messages || [];
       const updatedMessages = [...currentMessages, message];
 
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: 'PUT',
+      // Optimistic update
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, messages: updatedMessages } : o))
+      );
+
+      // Call dedicated chat endpoint
+      const res = await fetch(`/api/orders/${orderId}/chat`, {
+        method: 'POST',
         headers: fetchHeaders(),
-        body: JSON.stringify({
-          messages: updatedMessages,
-        }),
+        body: JSON.stringify(message),
       });
+
       if (res.ok) {
         const updated = await res.json();
         setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+      } else {
+        // Fallback to PUT
+        const putRes = await fetch(`/api/orders/${orderId}`, {
+          method: 'PUT',
+          headers: fetchHeaders(),
+          body: JSON.stringify({
+            messages: updatedMessages,
+          }),
+        });
+        if (putRes.ok) {
+          const updated = await putRes.json();
+          setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+        }
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error sending chat message:', err);
     }
   };
 

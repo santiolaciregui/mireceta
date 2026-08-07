@@ -36,6 +36,7 @@ interface SidebarProps {
   inRevisionCount: number;
   completedCount: number;
   rejectedCount?: number;
+  chatCount?: number;
 }
 
 export default function Sidebar({
@@ -50,6 +51,7 @@ export default function Sidebar({
   inRevisionCount,
   completedCount,
   rejectedCount = 0,
+  chatCount = 0,
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -69,7 +71,7 @@ export default function Sidebar({
           id: 'mensajeria',
           title: 'Soporte Directo',
           items: [
-            { id: 'chat', label: 'Chat de Consultas', icon: MessageSquare },
+            { id: 'chat', label: 'Chat de Consultas', icon: MessageSquare, count: chatCount, countColor: 'bg-emerald-500 text-white' },
           ]
         },
         {
@@ -86,7 +88,7 @@ export default function Sidebar({
           id: 'mensajeria',
           title: 'Centro de Mensajería',
           items: [
-            { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare },
+            { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare, count: chatCount, countColor: 'bg-emerald-500 text-white' },
           ]
         },
         {
@@ -117,7 +119,7 @@ export default function Sidebar({
           id: 'mensajeria',
           title: 'Centro de Mensajería',
           items: [
-            { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare },
+            { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare, count: chatCount, countColor: 'bg-emerald-500 text-white' },
           ]
         }
       ];
