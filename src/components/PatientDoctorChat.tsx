@@ -20,7 +20,9 @@ import {
   Maximize2, 
   Zap,
   PhoneCall,
-  ExternalLink
+  ExternalLink,
+  ArrowLeft,
+  ChevronLeft
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../types';
 
@@ -50,6 +52,31 @@ export default function PatientDoctorChat({
   const isPatient = currentUser.role === 'paciente';
   const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
 
+  const [serverConversations, setServerConversations] = useState<any[]>([]);
+
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/chat/conversations', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setServerConversations(data);
+        }
+      }
+    } catch {
+      // quiet
+    }
+  };
+
+  useEffect(() => {
+    fetchConversations();
+  }, []);
+
   // Group orders and messages by unique Patient DNI
   const patientConversations = useMemo(() => {
     const map = new Map<string, {
@@ -70,7 +97,31 @@ export default function PatientDoctorChat({
       hasPatientReplied: boolean;
     }>();
 
-    // Filter candidate orders based on role
+    // 1. Seed with server conversations (which contain unified Patient & WhatsApp inbound history)
+    for (const sc of serverConversations) {
+      const clean = sc.cleanDni || cleanDni(sc.patientDni || sc.dni);
+      if (!clean) continue;
+
+      map.set(clean, {
+        dni: sc.patientDni || sc.dni || clean,
+        cleanDni: clean,
+        name: sc.patientName || sc.name || 'Paciente',
+        lastName: sc.patientLastName || sc.lastName || '',
+        phone: sc.patientPhone || sc.phone || '',
+        email: sc.patientEmail || sc.email || '',
+        obraSocial: sc.obraSocial || '',
+        ordersCount: sc.ordersCount || (sc.orders ? sc.orders.length : 0),
+        latestOrderId: sc.latestOrderId || '',
+        latestOrderMedication: sc.latestMedicationText || '',
+        orders: Array.isArray(sc.orders) ? sc.orders : [],
+        messages: Array.isArray(sc.messages) ? [...sc.messages] : [],
+        lastMessage: null,
+        lastTimestamp: sc.lastMessageAt || sc.lastPatientWhatsAppInteractionAt || new Date().toISOString(),
+        hasPatientReplied: Boolean(sc.hasPatientReplied)
+      });
+    }
+
+    // 2. Merge candidate orders based on role
     const sourceOrders = isPatient 
       ? orders.filter(o => cleanDni(o.patientDni) === cleanDni(currentUser.identifier))
       : orders;
@@ -101,8 +152,10 @@ export default function PatientDoctorChat({
         map.set(clean, conv);
       }
 
-      conv.ordersCount++;
-      conv.orders.push(ord);
+      if (!conv.orders.some(o => o.id === ord.id)) {
+        conv.ordersCount++;
+        conv.orders.push(ord);
+      }
       if (!conv.phone && ord.patientPhone) conv.phone = ord.patientPhone;
       if (!conv.email && ord.patientEmail) conv.email = ord.patientEmail;
       if (!conv.obraSocial && ord.obraSocial) conv.obraSocial = ord.obraSocial;
@@ -117,7 +170,7 @@ export default function PatientDoctorChat({
       }
     }
 
-    // Deduplicate and sort messages per patient
+    // 3. Deduplicate and sort messages per patient
     const result = Array.from(map.values()).map(conv => {
       const seen = new Set<string>();
       const deduped: ChatMessage[] = [];
@@ -146,7 +199,7 @@ export default function PatientDoctorChat({
     // Sort conversations with most recent activity on top
     result.sort((a, b) => new Date(b.lastTimestamp).getTime() - new Date(a.lastTimestamp).getTime());
     return result;
-  }, [orders, isPatient, currentUser.identifier]);
+  }, [orders, serverConversations, isPatient, currentUser.identifier]);
 
   const [selectedPatientDni, setSelectedPatientDni] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
@@ -181,7 +234,9 @@ export default function PatientDoctorChat({
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Active selected conversation
-  const activeConversation = patientConversations.find(p => p.cleanDni === selectedPatientDni) || (patientConversations.length > 0 ? patientConversations[0] : null);
+  const activeConversation = isPatient 
+    ? (patientConversations.length > 0 ? patientConversations[0] : null)
+    : (patientConversations.find(p => p.cleanDni === selectedPatientDni) || null);
 
   // Sync initial selection from external trigger (e.g. DoctorDashboard "Chatear con Paciente")
   useEffect(() => {
@@ -197,12 +252,16 @@ export default function PatientDoctorChat({
     }
   }, [initialSelectedOrderId, orders, onClearInitialOrderId]);
 
-  // Set default selected patient
+  // Preselect first conversation ONLY once on initial large screen render if no selection
+  const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
-    if (activeConversation && !selectedPatientDni) {
-      setSelectedPatientDni(activeConversation.cleanDni);
+    if (!isPatient && !hasAutoSelectedRef.current && !selectedPatientDni && patientConversations.length > 0) {
+      if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+        setSelectedPatientDni(patientConversations[0].cleanDni);
+      }
+      hasAutoSelectedRef.current = true;
     }
-  }, [patientConversations, activeConversation, selectedPatientDni]);
+  }, [patientConversations, selectedPatientDni, isPatient]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -504,7 +563,7 @@ export default function PatientDoctorChat({
   };
 
   return (
-    <div className="flex-1 flex w-full h-full bg-[#f0f2f5] overflow-hidden font-sans text-slate-800 animate-fadeIn selection:bg-[#00a884] selection:text-white">
+    <div className="flex-1 min-h-0 flex w-full h-full bg-[#f0f2f5] overflow-hidden font-sans text-slate-800 animate-fadeIn selection:bg-[#00a884] selection:text-white">
       
       {/* LIGHTBOX IMAGE MODAL */}
       {lightboxImage && (
@@ -539,34 +598,32 @@ export default function PatientDoctorChat({
 
       {/* LEFT PANEL: PATIENT CONVERSATIONS LIST */}
       {!isPatient && (
-        <div className={`w-full md:w-96 border-r border-slate-250 flex flex-col shrink-0 bg-white ${selectedPatientDni ? 'hidden md:flex' : 'flex'}`}>
+        <div className={`w-full lg:w-80 xl:w-96 border-r border-slate-250 flex flex-col shrink-0 bg-white h-full overflow-hidden ${selectedPatientDni ? 'hidden lg:flex' : 'flex'}`}>
           
           {/* Header Bar */}
-          <div className="px-4 py-3 bg-[#075E54] text-white flex items-center justify-between shadow-xs">
-            <div className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-full bg-white/20 flex items-center justify-center text-white font-bold border border-white/30 shadow-inner">
-                <MessageSquare className="h-5 w-5 fill-current text-emerald-300" />
+          <div className="px-3.5 py-3 bg-[#075E54] text-white flex items-center justify-between shadow-xs shrink-0">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-white font-bold border border-white/30 shadow-inner shrink-0">
+                <MessageSquare className="h-4 w-4 fill-current text-emerald-300" />
               </div>
-              <div>
-                <h3 className="font-bold text-sm tracking-tight text-white flex items-center gap-1.5">
-                  <span>WhatsApp con Pacientes</span>
-                </h3>
-              </div>
+              <h3 className="font-bold text-xs sm:text-sm tracking-tight text-white truncate">
+                WhatsApp con Pacientes
+              </h3>
             </div>
-            <div className="flex items-center gap-1 text-white/80">
-              <span className="px-2 py-0.5 bg-emerald-700/60 rounded-full text-[10px] font-bold font-mono text-emerald-100 border border-emerald-500/30">
-                {patientConversations.length} pacientes
+            <div className="flex items-center shrink-0">
+              <span className="px-2 py-0.5 bg-emerald-700/60 rounded-full text-[10px] font-bold font-mono text-emerald-100 border border-emerald-500/30 whitespace-nowrap">
+                {patientConversations.length} {patientConversations.length === 1 ? 'paciente' : 'pacientes'}
               </span>
             </div>
           </div>
 
           {/* Search bar container */}
-          <div className="p-2.5 bg-[#f6f6f6] border-b border-slate-200">
+          <div className="p-2.5 bg-[#f6f6f6] border-b border-slate-200 shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar por paciente, DNI, teléfono o receta..."
+                placeholder="Buscar paciente, DNI, teléfono..."
                 value={inboxSearchQuery}
                 onChange={(e) => setInboxSearchQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] placeholder:text-slate-400 text-slate-800 shadow-xs"
@@ -591,7 +648,7 @@ export default function PatientDoctorChat({
                   <button
                     key={conv.cleanDni}
                     onClick={() => setSelectedPatientDni(conv.cleanDni)}
-                    className={`w-full text-left p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
+                    className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
                       isSelected 
                         ? 'bg-[#f0f2f5] border-[#00a884]' 
                         : 'border-transparent hover:bg-slate-50'
@@ -599,27 +656,27 @@ export default function PatientDoctorChat({
                   >
                     {/* User Avatar */}
                     <div className="relative shrink-0">
-                      <div className="h-11 w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-sm border border-teal-200 shadow-xs">
+                      <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-teal-200 shadow-xs">
                         {conv.name.charAt(0)}{conv.lastName.charAt(0)}
                       </div>
                       {conv.hasPatientReplied && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                       )}
                     </div>
 
                     {/* Patient summary snippet */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline">
-                        <h4 className="font-bold text-slate-800 text-xs truncate">
+                      <div className="flex justify-between items-baseline gap-1">
+                        <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
                           {conv.name} {conv.lastName}
                         </h4>
-                        <span className="text-[10px] text-slate-400 font-mono">
+                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
                           {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
 
                       <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                        DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial}
+                        DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial || 'Particular'}
                       </p>
 
                       {/* Last message preview */}
@@ -650,7 +707,7 @@ export default function PatientDoctorChat({
 
       {/* RIGHT PANEL: UNIFIED PATIENT CHAT CANVAS */}
       <div 
-        className={`flex-1 flex flex-col bg-[#efeae2] relative ${isDragOver ? 'ring-4 ring-[#00a884] ring-inset' : ''} ${!selectedPatientDni && !isPatient ? 'hidden md:flex' : 'flex'}`}
+        className={`flex-1 min-w-0 flex flex-col h-full bg-[#efeae2] relative overflow-hidden ${isDragOver ? 'ring-4 ring-[#00a884] ring-inset' : ''} ${!selectedPatientDni && !isPatient ? 'hidden lg:flex' : 'flex'}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -663,8 +720,8 @@ export default function PatientDoctorChat({
       >
         {/* DRAG DROP OVERLAY */}
         {isDragOver && (
-          <div className="absolute inset-0 z-30 bg-[#00a884]/20 backdrop-blur-xs flex items-center justify-center pointer-events-none">
-            <div className="bg-white shadow-2xl border-2 border-[#00a884] rounded-2xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all">
+          <div className="absolute inset-0 z-30 bg-[#00a884]/20 backdrop-blur-xs flex items-center justify-center pointer-events-none p-4">
+            <div className="bg-white shadow-2xl border-2 border-[#00a884] rounded-2xl p-6 flex flex-col items-center gap-3 text-center scale-105 transition-all max-w-sm">
               <ImageIcon className="h-12 w-12 text-[#00a884] animate-bounce" />
               <div>
                 <p className="font-bold text-base text-slate-800">Soltá tu imagen acá</p>
@@ -677,29 +734,30 @@ export default function PatientDoctorChat({
         {activeConversation ? (
           <>
             {/* WHATSAPP TOP HEADER BAR */}
-            <div className="px-4 py-2.5 bg-[#f0f2f5] border-b border-slate-250 flex items-center justify-between z-10 shadow-xs">
-              <div className="flex items-center gap-3 min-w-0">
+            <div className="px-3 sm:px-4 py-2 sm:py-2.5 bg-[#f0f2f5] border-b border-slate-250 flex items-center justify-between gap-2 z-10 shadow-xs shrink-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
                 {!isPatient && (
                   <button 
                     onClick={() => setSelectedPatientDni(null)}
-                    className="md:hidden p-1.5 hover:bg-slate-200 rounded-full text-slate-600 shrink-0 mr-1 cursor-pointer"
-                    title="Volver a lista"
+                    className="lg:hidden px-2 py-1 bg-white hover:bg-slate-200 rounded-lg text-slate-700 font-bold text-xs flex items-center gap-1 shrink-0 border border-slate-250 cursor-pointer shadow-xs transition-colors"
+                    title="Volver a la lista de pacientes"
                   >
-                    <X className="h-5 w-5" />
+                    <ArrowLeft className="h-4 w-4" />
+                    <span className="hidden xs:inline">Pacientes</span>
                   </button>
                 )}
 
-                <div className="h-10 w-10 bg-[#075E54] text-white rounded-full flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 bg-[#075E54] text-white rounded-full flex items-center justify-center font-bold text-xs sm:text-sm shrink-0 shadow-xs">
                   {isPatient ? 'MR' : `${activeConversation.name.charAt(0)}${activeConversation.lastName.charAt(0)}`}
                 </div>
 
-                <div className="min-w-0">
-                  <h4 className="font-bold text-slate-800 text-sm truncate">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
                     {isPatient ? 'Consultorio Médico - Mi Receta Online' : `${activeConversation.name} ${activeConversation.lastName}`}
                   </h4>
-                  <p className="text-[11px] text-slate-500 font-medium truncate flex items-center gap-1.5">
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 font-medium truncate flex items-center gap-1 sm:gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block shrink-0" />
-                    <span>
+                    <span className="truncate">
                       {isPatient 
                         ? 'Atención Médica Directa y WhatsApp Oficial' 
                         : `DNI: ${activeConversation.dni} • ${activeConversation.obraSocial || 'Particular'} ${activeConversation.phone ? `• Cel: ${activeConversation.phone}` : ''}`}
@@ -709,60 +767,60 @@ export default function PatientDoctorChat({
               </div>
 
               {/* Action Toolbar */}
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                 {!isPatient && activeConversation.phone && (
                   <a
                     href={`https://wa.me/${formatWaPhoneLink(activeConversation.phone)}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="bg-[#25D366] hover:bg-[#1EBE5D] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
+                    className="bg-[#25D366] hover:bg-[#1EBE5D] text-white px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 sm:gap-1.5 transition-colors shadow-xs"
                     title="Abrir chat en WhatsApp Web"
                   >
                     <PhoneCall className="h-3.5 w-3.5" />
                     <span className="hidden sm:inline">WhatsApp Web</span>
-                    <ExternalLink className="h-3 w-3 opacity-70" />
+                    <ExternalLink className="h-3 w-3 opacity-70 hidden sm:inline" />
                   </a>
                 )}
 
                 <button
                   onClick={() => setShowChatSearch(!showChatSearch)}
-                  className={`p-2 rounded-full transition-colors cursor-pointer ${showChatSearch ? 'bg-slate-300 text-slate-900' : 'hover:bg-slate-200 text-slate-600'}`}
+                  className={`p-1.5 sm:p-2 rounded-full transition-colors cursor-pointer ${showChatSearch ? 'bg-slate-300 text-slate-900' : 'hover:bg-slate-200 text-slate-600'}`}
                   title="Buscar en el chat"
                 >
-                  <Search className="h-4.5 w-4.5" />
+                  <Search className="h-4 w-4" />
                 </button>
 
                 {!isPatient && (
                   <button
                     onClick={() => setShowQuickTemplates(!showQuickTemplates)}
-                    className={`p-2 rounded-full transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold ${showQuickTemplates ? 'bg-[#00a884] text-white' : 'hover:bg-slate-200 text-[#075E54]'}`}
+                    className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 text-xs font-bold ${showQuickTemplates ? 'bg-[#00a884] text-white' : 'hover:bg-slate-200 text-[#075E54]'}`}
                     title="Plantillas médicas rápidas"
                   >
-                    <Zap className="h-4.5 w-4.5" />
-                    <span className="hidden sm:inline">Plantillas</span>
+                    <Zap className="h-4 w-4" />
+                    <span className="hidden md:inline">Plantillas</span>
                   </button>
                 )}
 
-                <div className="bg-white/80 px-2.5 py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54]">
-                  {activeConversation.ordersCount} trámites
+                <div className="hidden sm:inline-flex bg-white/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54] whitespace-nowrap">
+                  {activeConversation.ordersCount} {activeConversation.ordersCount === 1 ? 'trámite' : 'trámites'}
                 </div>
               </div>
             </div>
 
             {/* IN-CHAT SEARCH BAR (TOGGLEABLE) */}
             {showChatSearch && (
-              <div className="bg-white px-4 py-2 border-b border-slate-200 flex items-center gap-2 animate-fadeIn z-10 shadow-xs">
-                <Search className="h-4 w-4 text-slate-400" />
+              <div className="bg-white px-3 sm:px-4 py-2 border-b border-slate-200 flex items-center gap-2 animate-fadeIn z-10 shadow-xs shrink-0">
+                <Search className="h-4 w-4 text-slate-400 shrink-0" />
                 <input
                   type="text"
                   placeholder="Buscar texto en esta conversación..."
                   value={chatSearchQuery}
                   onChange={(e) => setChatSearchQuery(e.target.value)}
-                  className="flex-1 text-xs py-1 px-2 focus:outline-none text-slate-800"
+                  className="flex-1 min-w-0 text-xs py-1 px-2 focus:outline-none text-slate-800"
                   autoFocus
                 />
                 {chatSearchQuery && (
-                  <button onClick={() => setChatSearchQuery('')} className="text-slate-400 hover:text-slate-600">
+                  <button onClick={() => setChatSearchQuery('')} className="text-slate-400 hover:text-slate-600 shrink-0">
                     <X className="h-4 w-4" />
                   </button>
                 )}
@@ -771,12 +829,20 @@ export default function PatientDoctorChat({
 
             {/* QUICK RESPONSE TEMPLATES DROPDOWN */}
             {showQuickTemplates && (
-              <div className="bg-white border-b border-slate-200 p-3 z-10 shadow-md animate-fadeIn">
-                <p className="text-[10px] font-bold text-[#075E54] uppercase tracking-wider mb-2 flex items-center gap-1">
-                  <Zap className="h-3.5 w-3.5" />
-                  <span>Respuestas Médicas Rápidas</span>
-                </p>
-                <div className="flex flex-wrap gap-2">
+              <div className="bg-white border-b border-slate-200 p-2.5 sm:p-3 z-10 shadow-md animate-fadeIn max-h-48 overflow-y-auto shrink-0">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-[#075E54] uppercase tracking-wider flex items-center gap-1">
+                    <Zap className="h-3.5 w-3.5" />
+                    <span>Respuestas Médicas Rápidas</span>
+                  </p>
+                  <button 
+                    onClick={() => setShowQuickTemplates(false)}
+                    className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                   {QUICK_TEMPLATES.map((tmpl, idx) => (
                     <button
                       key={idx}
@@ -784,7 +850,8 @@ export default function PatientDoctorChat({
                         setInputText(tmpl);
                         setShowQuickTemplates(false);
                       }}
-                      className="text-left bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg p-2 text-xs text-slate-700 hover:text-[#075E54] transition-all cursor-pointer max-w-sm"
+                      className="text-left bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 rounded-lg p-2 text-xs text-slate-700 hover:text-[#075E54] transition-all cursor-pointer truncate"
+                      title={tmpl}
                     >
                       {tmpl}
                     </button>
@@ -794,22 +861,22 @@ export default function PatientDoctorChat({
             )}
 
             {/* PATIENT ORDERS & TREATMENTS BANNER */}
-            <div className="bg-white/85 backdrop-blur-xs border-b border-slate-200 px-4 py-2 flex items-center justify-between text-xs text-slate-600 font-medium">
-              <span className="truncate">
-                <strong>Paciente:</strong> {activeConversation.name} {activeConversation.lastName} (DNI: {activeConversation.dni})
-                {activeConversation.latestOrderMedication ? ` • Última medicación: ${activeConversation.latestOrderMedication}` : ''}
-              </span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800">
+            <div className="bg-white/90 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-600 font-medium min-w-0 shrink-0">
+              <div className="min-w-0 truncate flex-1">
+                <strong className="text-slate-800">Paciente:</strong> {activeConversation.name} {activeConversation.lastName} <span className="text-slate-500 font-mono">(DNI: {activeConversation.dni})</span>
+                {activeConversation.latestOrderMedication ? <span className="hidden md:inline text-slate-500">{` • Última medicación: ${activeConversation.latestOrderMedication}`}</span> : ''}
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800 font-mono">
                 {activeConversation.latestOrderId || 'Paciente Registrado'}
               </span>
             </div>
 
             {/* MESSAGES SCROLL CANVAS */}
-            <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 space-y-3">
+            <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 py-4 space-y-3">
               
               {/* WhatsApp Encryption baseline notice */}
-              <div className="text-center my-3">
-                <div className="inline-block bg-[#ffeebd] border border-[#f5d98b] text-[#544415] rounded-lg px-4 py-2 text-[11px] max-w-md shadow-xs text-center font-medium leading-tight">
+              <div className="text-center my-2">
+                <div className="inline-block bg-[#ffeebd] border border-[#f5d98b] text-[#544415] rounded-lg px-3 py-1.5 sm:px-4 sm:py-2 text-[10px] sm:text-[11px] max-w-md shadow-xs text-center font-medium leading-tight">
                   🔒 Los mensajes están protegidos con cifrado de grado clínico. WhatsApp Cloud API conectada.
                 </div>
               </div>
@@ -817,7 +884,7 @@ export default function PatientDoctorChat({
               {/* Loop Messages */}
               {displayedMessages.length === 0 ? (
                 <div className="text-center py-12 text-slate-400">
-                  <p className="text-xs font-semibold">No se encontraron mensajes en esta conversación con el paciente</p>
+                  <p className="text-xs font-semibold">No se encontraron mensajes en esta conversación</p>
                   <p className="text-[11px] mt-1">Escriba a continuación para iniciar la comunicación directa.</p>
                 </div>
               ) : (
@@ -828,7 +895,7 @@ export default function PatientDoctorChat({
                   return (
                     <div 
                       key={msg.id} 
-                      className={`group relative flex flex-col max-w-[85%] sm:max-w-[70%] ${
+                      className={`group relative flex flex-col max-w-[88%] sm:max-w-[75%] md:max-w-[70%] ${
                         isOwn ? 'ml-auto items-end' : 'mr-auto items-start'
                       }`}
                     >
@@ -840,7 +907,7 @@ export default function PatientDoctorChat({
                       )}
 
                       {/* Message Bubble Container */}
-                      <div className={`relative p-2.5 sm:p-3 rounded-lg shadow-xs text-slate-800 text-xs sm:text-sm leading-relaxed ${
+                      <div className={`relative p-2.5 sm:p-3 rounded-lg shadow-xs text-slate-800 text-xs sm:text-sm leading-relaxed max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word] ${
                         isOwn 
                           ? 'bg-[#d9fdd3] rounded-tr-none border border-emerald-200/50' 
                           : 'bg-white rounded-tl-none border border-slate-200/60'
@@ -857,27 +924,27 @@ export default function PatientDoctorChat({
 
                         {/* QUOTED MESSAGE PREVIEW */}
                         {msg.replyTo && (
-                          <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#00a884] rounded text-xs font-medium text-slate-700">
-                            <p className="font-bold text-[#075E54] text-[10px]">{msg.replyTo.senderName}</p>
+                          <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#00a884] rounded text-xs font-medium text-slate-700 max-w-full overflow-hidden">
+                            <p className="font-bold text-[#075E54] text-[10px] truncate">{msg.replyTo.senderName}</p>
                             <p className="truncate text-slate-600 text-[11px]">{msg.replyTo.text}</p>
                           </div>
                         )}
                         
                         {/* 1. TEXT CONTENT */}
                         {msg.text && (
-                          <p className="whitespace-pre-wrap font-normal text-slate-800 pr-4">
+                          <p className="whitespace-pre-wrap font-normal text-slate-800 pr-4 break-words [overflow-wrap:anywhere] [word-break:break-word]">
                             {msg.text}
                           </p>
                         )}
 
                         {/* 2. IMAGE ATTACHMENT */}
                         {msg.fileType === 'image' && msg.fileUrl && (
-                          <div className="mt-1.5 overflow-hidden rounded-lg cursor-pointer group/img relative">
+                          <div className="mt-1.5 overflow-hidden rounded-lg cursor-pointer group/img relative max-w-full">
                             <img 
                               src={msg.fileUrl} 
                               alt={msg.fileName || 'Adjunto'} 
                               onClick={() => setLightboxImage({ url: msg.fileUrl!, title: msg.fileName || 'Imagen' })}
-                              className="max-h-64 object-cover rounded-lg hover:brightness-95 transition-all"
+                              className="max-h-48 sm:max-h-64 w-auto max-w-full object-contain rounded-lg hover:brightness-95 transition-all"
                               referrerPolicy="no-referrer"
                             />
                             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
@@ -888,36 +955,36 @@ export default function PatientDoctorChat({
 
                         {/* 3. AUDIO VOICE NOTE CONTENT */}
                         {msg.fileType === 'audio' && msg.fileUrl && (
-                          <div className="flex items-center gap-3 py-1 min-w-[220px]">
+                          <div className="flex items-center gap-2 sm:gap-3 py-1 w-full max-w-[260px] min-w-0">
                             {/* Play Button */}
                             <button
                               onClick={() => togglePlayAudio(msg.id, msg.fileUrl!, msg.audioDuration || 8)}
-                              className={`h-10 w-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
+                              className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0 cursor-pointer transition-all ${
                                 isOwn 
                                   ? 'bg-[#00a884] text-white hover:bg-[#075E54]' 
                                   : 'bg-[#075E54] text-white hover:bg-[#00a884]'
                               }`}
                             >
                               {playingAudioId === msg.id ? (
-                                <Pause className="h-5 w-5 fill-current" />
+                                <Pause className="h-4 w-4 sm:h-5 sm:w-5 fill-current" />
                               ) : (
-                                <Play className="h-5 w-5 fill-current translate-x-0.5" />
+                                <Play className="h-4 w-4 sm:h-5 sm:w-5 fill-current translate-x-0.5" />
                               )}
                             </button>
 
                             {/* Voice Wave and Slider Progress bar */}
-                            <div className="flex-1 space-y-1">
-                              <div className="flex items-end gap-0.5 h-6">
-                                {[4, 7, 3, 9, 5, 8, 2, 6, 4, 8, 3, 6, 9, 4, 7, 2].map((val, idx) => {
+                            <div className="flex-1 min-w-0 space-y-1">
+                              <div className="flex items-end gap-0.5 h-5 sm:h-6">
+                                {[4, 7, 3, 9, 5, 8, 2, 6, 4, 8, 3, 6, 9, 4].map((val, idx) => {
                                   const isPlaying = playingAudioId === msg.id;
                                   const height = isPlaying 
-                                    ? Math.max(3, Math.min(22, val * 2.2 + Math.sin((audioProgress[msg.id] || 0) + idx) * 3))
-                                    : val * 2.2;
+                                    ? Math.max(3, Math.min(20, val * 2 + Math.sin((audioProgress[msg.id] || 0) + idx) * 3))
+                                    : val * 2;
 
                                   return (
                                     <span 
                                       key={idx} 
-                                      className={`w-1 rounded-full transition-all ${
+                                      className={`w-1 rounded-full transition-all shrink-0 ${
                                         isOwn ? 'bg-[#00a884]' : 'bg-slate-400'
                                       }`}
                                       style={{ height: `${height}px` }}
@@ -927,7 +994,7 @@ export default function PatientDoctorChat({
                               </div>
 
                               {/* Progress bar line */}
-                              <div className="h-1 w-full rounded-full bg-slate-200 relative">
+                              <div className="h-1 w-full rounded-full bg-slate-200 relative overflow-hidden">
                                 <div 
                                   className="h-full rounded-full bg-[#00a884] absolute left-0 top-0 transition-all duration-100"
                                   style={{ width: `${audioProgress[msg.id] || 0}%` }}
@@ -957,14 +1024,14 @@ export default function PatientDoctorChat({
 
             {/* QUOTED REPLY PREVIEW BANNER */}
             {replyingTo && (
-              <div className="px-4 py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between animate-fadeIn z-10">
-                <div className="border-l-4 border-[#00a884] pl-3 min-w-0">
-                  <p className="text-[10px] font-bold text-[#075E54]">Respondiendo a {replyingTo.senderName}</p>
+              <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between animate-fadeIn z-10 shrink-0">
+                <div className="border-l-4 border-[#00a884] pl-2.5 min-w-0 flex-1">
+                  <p className="text-[10px] font-bold text-[#075E54] truncate">Respondiendo a {replyingTo.senderName}</p>
                   <p className="text-xs text-slate-600 truncate">{replyingTo.text || replyingTo.fileName}</p>
                 </div>
                 <button 
                   onClick={() => setReplyingTo(null)}
-                  className="p-1 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer"
+                  className="p-1 hover:bg-slate-200 rounded-full text-slate-500 cursor-pointer shrink-0 ml-2"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -973,12 +1040,12 @@ export default function PatientDoctorChat({
 
             {/* PREVIEW UPLOADED IMAGE BANNER */}
             {previewImage && (
-              <div className="px-4 py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-4 animate-scaleUp z-10">
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-lg border border-slate-200 max-w-xs">
+              <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-3 animate-scaleUp z-10 shrink-0">
+                <div className="flex items-center gap-2.5 bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200 max-w-xs min-w-0 flex-1">
                   <img 
                     src={previewImage.url} 
                     alt="Preview" 
-                    className="h-10 w-10 object-cover rounded shrink-0"
+                    className="h-9 w-9 sm:h-10 sm:w-10 object-cover rounded shrink-0"
                     referrerPolicy="no-referrer"
                   />
                   <div className="min-w-0 flex-1">
@@ -988,7 +1055,7 @@ export default function PatientDoctorChat({
                 </div>
                 <button 
                   onClick={() => setPreviewImage(null)}
-                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
                 >
                   <X className="h-5 w-5" />
                 </button>
@@ -996,37 +1063,37 @@ export default function PatientDoctorChat({
             )}
 
             {/* WHATSAPP MESSAGE INPUT CONSOLE */}
-            <div className="p-3 bg-[#f0f2f5] border-t border-slate-250 z-10 shadow-lg">
+            <div className="p-2 sm:p-3 bg-[#f0f2f5] border-t border-slate-250 z-10 shadow-lg shrink-0">
               {isRecording ? (
                 /* AUDIO RECORDING ACTIVE BAR */
-                <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-xl py-2.5 px-4 animate-pulse">
-                  <div className="flex items-center gap-3">
-                    <span className="h-3 w-3 rounded-full bg-red-600 animate-ping shrink-0" />
-                    <span className="text-xs font-bold text-red-700">GRABANDO MENSAJE DE VOZ</span>
-                    <span className="font-mono text-xs font-bold text-red-950 bg-red-100 px-2 py-0.5 rounded">
+                <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 bg-red-50 border border-red-200 rounded-xl py-2 px-3 sm:py-2.5 sm:px-4 animate-pulse">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-red-600 animate-ping shrink-0" />
+                    <span className="text-[11px] sm:text-xs font-bold text-red-700 truncate">GRABANDO AUDIO</span>
+                    <span className="font-mono text-[11px] sm:text-xs font-bold text-red-950 bg-red-100 px-1.5 sm:px-2 py-0.5 rounded shrink-0">
                       {formatTime(recordTime)}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={cancelAudioRecording}
-                      className="px-3 py-1.5 hover:bg-red-100 rounded-lg text-xs font-bold text-red-600 cursor-pointer"
+                      className="px-2.5 py-1 sm:px-3 sm:py-1.5 hover:bg-red-100 rounded-lg text-[11px] sm:text-xs font-bold text-red-600 cursor-pointer"
                     >
                       Cancelar
                     </button>
                     <button
                       onClick={stopAndSendAudioRecording}
-                      className="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+                      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-lg text-[11px] sm:text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
                     >
-                      <MicOff className="h-4 w-4" />
+                      <MicOff className="h-3.5 w-3.5" />
                       <span>Enviar Audio</span>
                     </button>
                   </div>
                 </div>
               ) : (
                 /* STANDARD TEXT & MEDIA INPUT FORM */
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2 sm:gap-3">
+                <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2.5">
                   
                   {/* File attacher trigger */}
                   <input
@@ -1040,9 +1107,9 @@ export default function PatientDoctorChat({
                     type="button"
                     onClick={handleFileClick}
                     title="Adjuntar Imagen"
-                    className="p-2.5 hover:bg-slate-200 rounded-full text-slate-600 transition-colors shrink-0 cursor-pointer"
+                    className="p-2 sm:p-2.5 hover:bg-slate-200 rounded-full text-slate-600 transition-colors shrink-0 cursor-pointer"
                   >
-                    <Paperclip className="h-5 w-5" />
+                    <Paperclip className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
                   </button>
 
                   {/* Voice mic recorder trigger */}
@@ -1050,19 +1117,19 @@ export default function PatientDoctorChat({
                     type="button"
                     onClick={startRecording}
                     title="Grabar Mensaje de Voz"
-                    className="p-2.5 hover:bg-slate-200 rounded-full text-slate-600 hover:text-red-600 transition-colors shrink-0 cursor-pointer"
+                    className="p-2 sm:p-2.5 hover:bg-slate-200 rounded-full text-slate-600 hover:text-red-600 transition-colors shrink-0 cursor-pointer"
                   >
-                    <Mic className="h-5 w-5" />
+                    <Mic className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
                   </button>
 
                   {/* Input text box */}
-                  <div className="flex-1 relative">
+                  <div className="flex-1 min-w-0 relative">
                     <input
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Escribe un mensaje de WhatsApp al paciente..."
-                      className="w-full bg-white border border-slate-200 rounded-lg px-4 py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
+                      placeholder="Escribí un mensaje de WhatsApp..."
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
                     />
                   </div>
 
@@ -1070,7 +1137,7 @@ export default function PatientDoctorChat({
                   <button
                     type="submit"
                     disabled={!inputText.trim() && !previewImage}
-                    className="h-10 w-10 bg-[#00a884] hover:bg-[#075E54] disabled:opacity-50 text-white rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
+                    className="h-9 w-9 sm:h-10 sm:w-10 bg-[#00a884] hover:bg-[#075E54] disabled:opacity-50 text-white rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
                     title="Enviar mensaje"
                   >
                     <Send className="h-4 w-4 translate-x-0.5" />
@@ -1081,11 +1148,11 @@ export default function PatientDoctorChat({
           </>
         ) : (
           /* UNSELECTED WELCOME SPLASH PAGE */
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-[#f0f2f5]">
-            <div className="h-20 w-20 bg-emerald-100 rounded-full flex items-center justify-center text-[#075E54] mb-4 shadow-sm">
-              <MessageSquare className="h-10 w-10" />
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-8 bg-[#f0f2f5]">
+            <div className="h-16 w-16 sm:h-20 sm:w-20 bg-emerald-100 rounded-full flex items-center justify-center text-[#075E54] mb-3 sm:mb-4 shadow-xs">
+              <MessageSquare className="h-8 w-8 sm:h-10 sm:w-10" />
             </div>
-            <h4 className="font-bold text-slate-800 text-base">WhatsApp Web con Pacientes</h4>
+            <h4 className="font-bold text-slate-800 text-sm sm:text-base">WhatsApp Web con Pacientes</h4>
             <p className="text-xs text-slate-500 max-w-sm mt-1.5 leading-relaxed">
               Seleccione un paciente de la lista izquierda para iniciar o continuar la atención médica directa por WhatsApp.
             </p>

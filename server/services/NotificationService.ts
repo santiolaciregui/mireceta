@@ -4,6 +4,9 @@ import { NotificationConfigRepository } from '../repositories/NotificationConfig
 import { NotificationTemplateRepository } from '../repositories/NotificationTemplateRepository.js';
 import { NotificationLogRepository } from '../repositories/NotificationLogRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
+import { PatientRepository } from '../repositories/PatientRepository.js';
+import { auditLogService } from './AuditLogService.js';
+import { generatePatientId, generateMessageId } from '../utils/idGenerator.js';
 
 export interface SendDirectNotificationDto {
   tenantId: string;
@@ -20,11 +23,15 @@ export class NotificationService {
   private templateRepo: NotificationTemplateRepository;
   private logRepo: NotificationLogRepository;
   private registry: AdapterRegistry;
+  private orderRepo: OrderRepository;
+  private patientRepo: PatientRepository;
 
   constructor() {
     this.configRepo = new NotificationConfigRepository();
     this.templateRepo = new NotificationTemplateRepository();
     this.logRepo = new NotificationLogRepository();
+    this.orderRepo = new OrderRepository();
+    this.patientRepo = new PatientRepository();
     this.registry = AdapterRegistry.getInstance();
   }
 
@@ -251,11 +258,15 @@ export class NotificationService {
     return this.logRepo.findLogsByTenant(tenantId, limit);
   }
 
+  /**
+   * Processes inbound webhook from Meta WhatsApp Cloud API and persists incoming messages
+   * into both Patient and Order chat histories.
+   */
   public async processInboundWhatsAppPayload(body: any): Promise<{ success: boolean; processedMessages: number }> {
     try {
       const entries = body?.entry || [];
       let count = 0;
-      const orderRepo = new OrderRepository();
+      const nowIso = new Date().toISOString();
 
       for (const entry of entries) {
         const changes = entry?.changes || [];
@@ -265,31 +276,73 @@ export class NotificationService {
           const contacts = value?.contacts || [];
 
           for (const msg of messages) {
-            const senderPhone = msg.from;
+            const senderPhone = String(msg.from || '').trim();
+            if (!senderPhone) continue;
+
             const contactName = contacts.find((c: any) => c.wa_id === senderPhone)?.profile?.name || 'Paciente WhatsApp';
-            const textContent = msg.text?.body || (msg.type === 'image' ? '[Imagen recibida por WhatsApp]' : (msg.type === 'audio' ? '[Nota de voz por WhatsApp]' : '[Mensaje de WhatsApp]'));
+            const textContent = msg.text?.body || (msg.type === 'image' ? '[Imagen recibida por WhatsApp]' : (msg.type === 'audio' || msg.type === 'voice' ? '[Nota de voz por WhatsApp]' : (msg.type === 'document' ? `[Documento: ${msg.document?.filename || 'PDF'}]` : '[Mensaje de WhatsApp]')));
 
-            const matchingOrders = await orderRepo.findByPatientPhone(senderPhone);
-            if (matchingOrders.length > 0) {
-              const targetOrder: any = matchingOrders[0];
-              const newMessage = {
-                id: msg.id || `WA-${Date.now()}`,
-                sender: 'paciente',
-                senderName: contactName,
-                text: textContent,
-                timestamp: new Date().toISOString(),
-                status: 'read'
-              };
+            console.log(`[WhatsApp Webhook Inbound] Mensaje recibido de ${senderPhone} (${contactName}): "${textContent}"`);
 
-              const existingMessages = targetOrder.messages || [];
-              targetOrder.messages = [...existingMessages, newMessage];
-              targetOrder.lastPatientWhatsAppInteractionAt = new Date().toISOString();
-              await orderRepo.update(targetOrder.id, {
-                messages: targetOrder.messages,
-                lastPatientWhatsAppInteractionAt: targetOrder.lastPatientWhatsAppInteractionAt
+            const newMessage: any = {
+              id: msg.id || generateMessageId(),
+              sender: 'paciente',
+              senderName: contactName,
+              senderRole: 'paciente',
+              text: textContent,
+              timestamp: nowIso,
+              status: 'delivered'
+            };
+
+            // 1. Search existing patient by phone
+            const matchingPatients = await this.patientRepo.findByPhone(senderPhone);
+            let targetPatient = matchingPatients.length > 0 ? matchingPatients[0] : null;
+
+            if (targetPatient) {
+              const currentMessages = Array.isArray(targetPatient.messages) ? targetPatient.messages : [];
+              targetPatient.messages = [...currentMessages, newMessage];
+              targetPatient.lastPatientWhatsAppInteractionAt = nowIso;
+              await targetPatient.save();
+            } else {
+              // Create new patient record so the conversation is never lost and is immediately visible in chat history
+              const patientCount = (await this.patientRepo.findByTenant('TEN-0001')).length;
+              const newPatientId = generatePatientId(patientCount);
+
+              targetPatient = await this.patientRepo.create({
+                id: newPatientId,
+                dni: senderPhone,
+                name: contactName,
+                lastName: '',
+                phone: senderPhone,
+                tenantId: 'TEN-0001',
+                status: 'Activo',
+                messages: [newMessage],
+                lastPatientWhatsAppInteractionAt: nowIso
               });
-              count++;
             }
+
+            // 2. Also update any active orders for this patient
+            const matchingOrders = await this.orderRepo.findByPatientPhone(senderPhone);
+            for (const order of matchingOrders) {
+              const existingMessages = Array.isArray(order.messages) ? order.messages : [];
+              order.messages = [...existingMessages, newMessage];
+              order.lastPatientWhatsAppInteractionAt = nowIso;
+              await this.orderRepo.update(order.id, {
+                messages: order.messages,
+                lastPatientWhatsAppInteractionAt: order.lastPatientWhatsAppInteractionAt
+              });
+            }
+
+            // 3. Register in Audit Log
+            await auditLogService.log({
+              tenantId: targetPatient?.tenantId || 'TEN-0001',
+              action: 'WHATSAPP_INBOUND_MESSAGE',
+              entity: 'Patient',
+              entityId: targetPatient?.id || senderPhone,
+              details: `Mensaje de WhatsApp recibido de ${contactName} (${senderPhone}): "${textContent.substring(0, 80)}"`
+            });
+
+            count++;
           }
         }
       }

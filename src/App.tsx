@@ -189,7 +189,7 @@ export default function App() {
 
   // 3. Logged In -> Sidebar-driven layout with role-based workspace views
   return (
-    <div className="h-screen w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden grid lg:grid-cols-[260px_1fr] grid-cols-1">
+    <div className="h-screen w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden flex flex-col lg:grid lg:grid-cols-[260px_1fr]">
       {currentUser.requirePasswordChange && (
         <ForcePasswordChange 
           token={localStorage.getItem('mi-receta-jwt') || localStorage.getItem('token') || ''} 
@@ -220,10 +220,10 @@ export default function App() {
       />
 
       {/* Main Workspace Frame */}
-      <div className="main-content flex flex-col h-full overflow-y-auto">
-        <main className="flex-1 flex flex-col bg-[var(--white)]">
+      <div className="main-content flex flex-col flex-1 h-full min-h-0 overflow-hidden">
+        <main className="flex-1 flex flex-col bg-[var(--white)] min-h-0 overflow-hidden">
           
-          <div className="animate-fadeIn flex-1 flex flex-col h-full">
+          <div className="animate-fadeIn flex-1 flex flex-col h-full min-h-0 overflow-hidden">
             {/* 1. PACIENTE SUBVIEWS */}
             {activeRole === 'paciente' && (
               <>
@@ -473,15 +473,17 @@ export default function App() {
 
         </main>
 
-        {/* Minimalist layout footer */}
-        <footer className="border-t border-slate-200/60 py-6 text-slate-400 text-center text-[11px] font-semibold shrink-0 bg-white">
-          <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-            <span>Renovación medicación crónica © 2026</span>
-            <span className="text-[10px] text-slate-400/80">
-              Sistema de Salud Protegido por Firma Digital de la Provincia de Buenos Aires
-            </span>
-          </div>
-        </footer>
+        {/* Minimalist layout footer - only shown when not in full-screen chat view */}
+        {activeSubcategory !== 'chat' && (
+          <footer className="border-t border-slate-200/60 py-6 text-slate-400 text-center text-[11px] font-semibold shrink-0 bg-white">
+            <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+              <span>Renovación medicación crónica © 2026</span>
+              <span className="text-[10px] text-slate-400/80">
+                Sistema de Salud Protegido por Firma Digital de la Provincia de Buenos Aires
+              </span>
+            </div>
+          </footer>
+        )}
       </div>
 
     </div>
