@@ -124,7 +124,7 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
               <section className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
                 <h5 className="font-bold text-[#1C2435] text-sm">¿Cómo solicitar tu reembolso?</h5>
                 <p className="text-xs text-slate-600">
-                  Envianos un correo a <strong>misrecetaonline@gmail.com</strong> o escribinos vía WhatsApp indicando tu número de DNI y código de solicitud.
+                  Envianos un correo a <strong>mireceta.online.arg@gmail.com</strong> o escribinos vía WhatsApp indicando tu número de DNI y código de solicitud.
                 </p>
               </section>
             </>

@@ -587,7 +587,11 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 Por cualquier duda podés comunicarte con nosotros
               </p>
               <div className="text-xs text-slate-300 space-y-1 font-medium">
-                <p>misrecetaonline@gmail.com</p>
+                <p>
+                  <a href="mailto:mireceta.online.arg@gmail.com" className="hover:text-[#295EF3] transition-colors">
+                    mireceta.online.arg@gmail.com
+                  </a>
+                </p>
                 <p>Tel.: +54 9 2926 111111</p>
               </div>
             </div>
@@ -595,12 +599,18 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             {/* Col 5: Seguinos */}
             <div className="space-y-3">
               <h4 className="font-bold text-base text-white">SEGUINOS</h4>
-              <div className="flex gap-3">
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors">
-                  <Facebook className="h-4 w-4" />
-                </a>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors">
-                  <Instagram className="h-4 w-4" />
+              <div className="space-y-2">
+                <div className="flex gap-3">
+                  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors" title="Facebook">
+                    <Facebook className="h-4 w-4" />
+                  </a>
+                  <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors" title="@mireceta_online">
+                    <Instagram className="h-4 w-4" />
+                  </a>
+                </div>
+                <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-[#295EF3] transition-colors font-medium">
+                  <Instagram className="h-3.5 w-3.5 text-pink-400" />
+                  <span>@mireceta_online</span>
                 </a>
               </div>
             </div>
