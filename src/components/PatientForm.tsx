@@ -1173,7 +1173,7 @@ export default function PatientForm({
               onClick={() => setStep('identification')}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
-              <span>Entendido, Iniciar Solicitud</span>
+              <span>Iniciar Solicitud</span>
               <ArrowRight className="h-5 w-5" />
             </button>
           </div>
@@ -1580,6 +1580,20 @@ export default function PatientForm({
               
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
+                  id="btn-method-past-orders"
+                  type="button"
+                  onClick={() => setMedicationMethod('past_orders')}
+                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
+                    medicationMethod === 'past_orders'
+                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  <Clock className="h-5 w-5" />
+                  <span>Últimas Solicitudes</span>
+                </button>
+
+                <button
                   id="btn-method-new-manual"
                   type="button"
                   onClick={() => setMedicationMethod('new_manual')}
@@ -1605,20 +1619,6 @@ export default function PatientForm({
                 >
                   <Camera className="h-5 w-5" />
                   <span>Adjuntar foto de receta anterior o de la medicación</span>
-                </button>
-
-                <button
-                  id="btn-method-past-orders"
-                  type="button"
-                  onClick={() => setMedicationMethod('past_orders')}
-                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
-                    medicationMethod === 'past_orders'
-                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
-                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                  }`}
-                >
-                  <Clock className="h-5 w-5" />
-                  <span>Últimas Solicitudes</span>
                 </button>
               </div>
             </div>
@@ -1700,32 +1700,34 @@ export default function PatientForm({
                       </div>
                     </div>
 
-                    <div>
-                      <label htmlFor="cur-diagnostic" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Diagnóstico para este Medicamento <span className="text-slate-400 font-normal">(Motivo de prescripción)</span>
-                      </label>
-                      <input
-                        id="cur-diagnostic"
-                        type="text"
-                        value={curDiagnostic}
-                        onChange={(e) => setCurDiagnostic(e.target.value)}
-                        placeholder="Ej. Hipertensión arterial, Diabetes tipo 2, Hipotiroidismo..."
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label htmlFor="cur-diagnostic" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                          Diagnóstico o Motivo de prescripción
+                        </label>
+                        <input
+                          id="cur-diagnostic"
+                          type="text"
+                          value={curDiagnostic}
+                          onChange={(e) => setCurDiagnostic(e.target.value)}
+                          placeholder="Ej. Hipertensión arterial, Diabetes tipo 2, Hipotiroidismo..."
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
 
-                    <div>
-                      <label htmlFor="cur-comments" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Comentarios / Aclaraciones Adicionales <span className="text-slate-400 font-normal">(Opcional para esta medicación)</span>
-                      </label>
-                      <input
-                        id="cur-comments"
-                        type="text"
-                        value={curComments}
-                        onChange={(e) => setCurComments(e.target.value)}
-                        placeholder="Ej. Tomo 1 comprimido diario por la mañana. Marca habitual: Lotrial."
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      />
+                      <div>
+                        <label htmlFor="cur-comments" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                          Comentarios / Aclaraciones Adicionales <span className="text-slate-400 font-normal">(Opcional)</span>
+                        </label>
+                        <input
+                          id="cur-comments"
+                          type="text"
+                          value={curComments}
+                          onChange={(e) => setCurComments(e.target.value)}
+                          placeholder="Ej. Tomo 1 comprimido diario por la mañana. Marca habitual: Lotrial."
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                     </div>
 
                     <div className="pt-1">
@@ -1906,36 +1908,6 @@ export default function PatientForm({
                 )}
               </div>
             )}
-
-            {/* OPTIONAL DIAGNOSIS FIELD */}
-            <div>
-              <label htmlFor="diagnostic-text" className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
-                Diagnóstico que dio origen al tratamiento crónico <span className="text-slate-400 font-normal">(Opcional)</span>
-              </label>
-              <textarea
-                id="diagnostic-text"
-                rows={2}
-                value={diagnostic}
-                onChange={(e) => setDiagnostic(e.target.value)}
-                placeholder="Ej. Hipertensión arterial, Diabetes, Hipotiroidismo..."
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-250 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none text-xs font-semibold placeholder:text-slate-400"
-              />
-            </div>
-
-            {/* OPTIONAL COMMENTS FIELD */}
-            <div>
-              <label htmlFor="comments-text" className="block text-xs font-bold text-slate-600 uppercase mb-1.5">
-                Comentarios / Aclaraciones Adicionales (Opcional)
-              </label>
-              <textarea
-                id="comments-text"
-                rows={2}
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="Ej. Deseo que me receten la misma marca comercial si es posible. Tomo 1 comprimido diario por la mañana."
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-250 rounded-xl focus:ring-2 focus:ring-blue-500 focus:bg-white focus:outline-none text-xs font-semibold placeholder:text-slate-400"
-              />
-            </div>
 
             {/* CONTROL PREGUNTAS (OPCIONALES) */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
