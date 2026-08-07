@@ -387,7 +387,7 @@ export default function PatientForm({
   };
 
   // --- Step 2 Fields: Medication ---
-  const [medicationMethod, setMedicationMethod] = useState<'new_manual' | 'past_orders'>('new_manual');
+  const [medicationMethod, setMedicationMethod] = useState<'new_manual' | 'upload_photo' | 'past_orders'>('new_manual');
   const [selectedPastOrderId, setSelectedPastOrderId] = useState<string>('');
   
   // A. Manual Carga
@@ -696,8 +696,13 @@ export default function PatientForm({
   const validateStep2 = (): boolean => {
     setError(null);
     if (medicationMethod === 'new_manual') {
-      if (medicationItems.length === 0 && medicationPhotos.length === 0) {
-        setError('Debe cargar al menos un medicamento en su carrito o subir una foto de su envase o receta anterior para continuar.');
+      if (medicationItems.length === 0) {
+        setError('Debe cargar al menos un medicamento en su carrito para continuar.');
+        return false;
+      }
+    } else if (medicationMethod === 'upload_photo') {
+      if (medicationPhotos.length === 0) {
+        setError('Debe adjuntar al menos una foto de su receta anterior o de la medicación para continuar.');
         return false;
       }
     } else {
@@ -1466,15 +1471,15 @@ export default function PatientForm({
             {/* Input Method Toggle */}
             <div className="space-y-2">
               <label className="block text-xs font-bold text-slate-600 uppercase">
-                Método de Carga de Medicación <span className="text-red-500">*</span>
+                Método de Carga <span className="text-red-500">*</span>
               </label>
               
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   id="btn-method-new-manual"
                   type="button"
                   onClick={() => setMedicationMethod('new_manual')}
-                  className={`py-3.5 px-4 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
                     medicationMethod === 'new_manual'
                       ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
                       : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1485,10 +1490,24 @@ export default function PatientForm({
                 </button>
 
                 <button
+                  id="btn-method-upload-photo"
+                  type="button"
+                  onClick={() => setMedicationMethod('upload_photo')}
+                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
+                    medicationMethod === 'upload_photo'
+                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
+                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                  }`}
+                >
+                  <Camera className="h-5 w-5" />
+                  <span>Adjuntar foto de receta anterior o de la medicación</span>
+                </button>
+
+                <button
                   id="btn-method-past-orders"
                   type="button"
                   onClick={() => setMedicationMethod('past_orders')}
-                  className={`py-3.5 px-4 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
                     medicationMethod === 'past_orders'
                       ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
                       : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
@@ -1500,10 +1519,10 @@ export default function PatientForm({
               </div>
             </div>
 
-            {/* SECTION A: NUEVA CARGA MANUAL (CARRITO + PHOTOS) */}
+            {/* SECTION A: NUEVA CARGA MANUAL (CARRITO) */}
             {medicationMethod === 'new_manual' && (
               <div className="space-y-4 animate-fadeIn">
-                {/* A1. Formulario intuitivo para agregar remedio o foto */}
+                {/* A1. Formulario intuitivo para agregar medicación */}
                 <div className="bg-slate-50/75 p-5 rounded-2xl border border-slate-200 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -1516,7 +1535,7 @@ export default function PatientForm({
                   <div className="space-y-3">
                     <div>
                       <label htmlFor="cur-nombre-comercial" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Nombre Comercial del Remedio <span className="text-red-500">*</span>
+                        Nombre Comercial de la Medicación <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="cur-nombre-comercial"
@@ -1577,7 +1596,7 @@ export default function PatientForm({
                       </div>
                     </div>
 
-                    <div className="space-y-2.5 pt-1">
+                    <div className="pt-1">
                       <button
                         id="btn-add-medication-item"
                         type="button"
@@ -1587,43 +1606,23 @@ export default function PatientForm({
                         <Plus className="h-4.5 w-4.5" />
                         <span>Agregar al carrito</span>
                       </button>
-
-                      {/* Divider with 'ó' */}
-                      <div className="flex items-center gap-3 py-1">
-                        <div className="h-[1px] bg-slate-250 flex-1" />
-                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest px-1">ó</span>
-                        <div className="h-[1px] bg-slate-250 flex-1" />
-                      </div>
-
-                      <label className="w-full bg-white hover:bg-slate-100 border border-blue-200 text-blue-700 font-extrabold py-3.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs">
-                        <Camera className="h-4.5 w-4.5 text-blue-600" />
-                        <span>Adjuntar foto de receta anterior o de la medicación</span>
-                        <input
-                          id="input-medication-file"
-                          type="file"
-                          multiple
-                          accept=".jpg,.jpeg,.png,.heic,application/pdf"
-                          onChange={(e) => handleFileChange(e, 'medication')}
-                          className="hidden"
-                        />
-                      </label>
                     </div>
                   </div>
                 </div>
 
-                {/* A2. Lista / Carrito de Medicamentos Agregados */}
+                {/* Lista / Carrito de Medicamentos Agregados */}
                 <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-dashed border-slate-300 space-y-3">
                   <div className="flex items-center justify-between">
                     <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                       <span>🛒 Carrito de la Solicitud</span>
                       <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
-                        {medicationItems.length + medicationPhotos.length} items
+                        {medicationItems.length} {medicationItems.length === 1 ? 'medicamento' : 'medicamentos'}
                       </span>
                     </h5>
-                    {(medicationItems.length > 0 || medicationPhotos.length > 0) && (
+                    {medicationItems.length > 0 && (
                       <button
                         type="button"
-                        onClick={() => { setMedicationItems([]); setMedicationPhotos([]); }}
+                        onClick={() => setMedicationItems([])}
                         className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
                       >
                         Vaciar Todo
@@ -1631,13 +1630,12 @@ export default function PatientForm({
                     )}
                   </div>
 
-                  {medicationItems.length === 0 && medicationPhotos.length === 0 ? (
+                  {medicationItems.length === 0 ? (
                     <div className="py-6 text-center text-xs text-slate-400 font-medium">
-                      El recetario está vacío. Ingrese el nombre de su remedio o adjunte una foto arriba.
+                      El recetario está vacío. Ingrese el nombre de su medicación arriba y presione "Agregar al carrito".
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
-                      {/* Items ingresados por texto */}
                       {medicationItems.map((item, index) => (
                         <div 
                           key={`text-${index}`} 
@@ -1662,8 +1660,68 @@ export default function PatientForm({
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
-                      {/* Fotos de envase o receta agregadas */}
+            {/* SECTION B: ADJUNTAR FOTO DE RECETA O MEDICACIÓN */}
+            {medicationMethod === 'upload_photo' && (
+              <div className="space-y-4 animate-fadeIn">
+                <div className="bg-slate-50/75 p-5 rounded-2xl border border-slate-200 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Camera className="h-4 w-4 text-blue-600" />
+                      <span>Adjuntar Foto de Receta Anterior o Medicación</span>
+                    </h4>
+                  </div>
+
+                  <label className="w-full bg-white hover:bg-slate-100 border-2 border-dashed border-blue-300 hover:border-blue-500 text-slate-700 p-6 rounded-2xl transition-all flex flex-col items-center justify-center gap-2.5 cursor-pointer text-center shadow-xs">
+                    <Camera className="h-8 w-8 text-blue-600" />
+                    <span className="font-extrabold text-xs sm:text-sm text-blue-800">
+                      Adjuntar foto de receta anterior o de la medicación
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Formatos permitidos: JPG, PNG, HEIC, PDF. Puede adjuntar múltiples imágenes.
+                    </span>
+                    <input
+                      id="input-medication-file"
+                      type="file"
+                      multiple
+                      accept=".jpg,.jpeg,.png,.heic,application/pdf"
+                      onChange={(e) => handleFileChange(e, 'medication')}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Lista de Fotos / Documentos Adjuntos */}
+                <div className="bg-slate-50/50 p-4.5 rounded-2xl border border-dashed border-slate-300 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                      <span>📷 Fotos de Envases o Recetas Adjuntas</span>
+                      <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
+                        {medicationPhotos.length} {medicationPhotos.length === 1 ? 'archivo' : 'archivos'}
+                      </span>
+                    </h5>
+                    {medicationPhotos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setMedicationPhotos([])}
+                        className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
+                      >
+                        Vaciar Fotos
+                      </button>
+                    )}
+                  </div>
+
+                  {medicationPhotos.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-400 font-medium">
+                      No hay fotos adjuntas. Haga clic en el recuadro superior para seleccionar o tomar fotos de sus recetas o medicaciones.
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
                       {medicationPhotos.map((photo, index) => (
                         <div key={`photo-${index}`} className="bg-white p-2.5 rounded-xl border border-blue-200 flex items-center justify-between text-left text-xs shadow-xs">
                           <div className="flex items-center gap-2.5 truncate">
@@ -1671,7 +1729,7 @@ export default function PatientForm({
                               {photo.url.startsWith('data:application/pdf') ? (
                                 <span className="text-[9px] font-bold text-slate-500">PDF</span>
                               ) : (
-                                <img src={photo.url} alt="Caja" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                                <img src={photo.url} alt="Envase" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                               )}
                             </div>
                             <div className="truncate">
@@ -1967,7 +2025,7 @@ export default function PatientForm({
                   <>
                     <p className="font-semibold text-slate-200">¿Cómo se calcula el costo de arancel?</p>
                     <p className="text-slate-400 text-[11px]">
-                      La tasa de auditoría y renovación es de <strong>$10.000 ARS por cada dos (2) medicamentos</strong>. Se han cargado {medicationMethod === 'manual' ? medicationItems.length : medicationPhotos.length} medicamentos en su solicitud.
+                      La tasa de auditoría y renovación es de <strong>$10.000 ARS por cada dos (2) medicamentos</strong>. Se han cargado {medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length} medicamentos en su solicitud.
                     </p>
                   </>
                 )}

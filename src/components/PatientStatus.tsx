@@ -317,7 +317,7 @@ export default function PatientStatus({
                           />
                         </div>
                         <div>
-                          <p className="text-xs text-slate-400 font-semibold">Foto del Remedio Adjunta</p>
+                          <p className="text-xs text-slate-400 font-semibold">Foto del Medicamento Adjunta</p>
                           <p className="text-[11px] font-mono text-slate-600 truncate max-w-[200px] sm:max-w-xs">{order.medicationPhotoName}</p>
                         </div>
                       </div>
