@@ -195,18 +195,39 @@ export class OrderService {
     if (updateData.messages) {
       order.messages = updateData.messages;
       
-      // If last message was sent by doctor/collaborator, attempt sending via WhatsApp API if configured
+      // If last message was sent by doctor/collaborator, attempt sending via WhatsApp API considering 24h window
       const lastMsg = updateData.messages[updateData.messages.length - 1];
-      if (lastMsg && (lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador') && order.patientPhone) {
+      if (lastMsg && (lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' || lastMsg.sender === 'admin') && order.patientPhone) {
         try {
           const { NotificationService } = await import('./NotificationService.js');
           const notificationService = new NotificationService();
-          await notificationService.sendNotification({
-            tenantId: order.tenantId || 'TEN-0001',
-            channel: 'whatsapp',
-            to: order.patientPhone,
-            body: `Receta #${order.id} - ${lastMsg.senderName}: ${lastMsg.text || 'Nuevo archivo adjunto en la consulta'}`
-          }).catch(err => console.log('WhatsApp send direct catch:', err));
+          const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
+
+          if (isWithin24h) {
+            await notificationService.sendNotification({
+              tenantId: order.tenantId || 'TEN-0001',
+              channel: 'whatsapp',
+              to: order.patientPhone,
+              body: `[Consulta Dr. ${lastMsg.senderName} - Receta #${order.id}]\n${lastMsg.text || 'Nuevo mensaje adjunto en su consulta.'}`
+            }).catch(err => console.log('WhatsApp 24h direct send catch:', err));
+          } else {
+            const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
+            const templateCode = waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode;
+
+            await notificationService.sendNotification({
+              tenantId: order.tenantId || 'TEN-0001',
+              channel: 'whatsapp',
+              to: order.patientPhone,
+              templateCode: templateCode || undefined,
+              variables: templateCode ? {
+                patientName: `${order.patientName} ${order.patientLastName}`,
+                doctorName: lastMsg.senderName,
+                orderId: order.id,
+                messagePreview: (lastMsg.text || 'Consulta sobre su receta').substring(0, 60)
+              } : undefined,
+              body: `Hola ${order.patientName}, el Dr. ${lastMsg.senderName} envió una consulta sobre su receta #${order.id}: "${(lastMsg.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+            }).catch(err => console.log('WhatsApp template send catch:', err));
+          }
         } catch (e) {
           // Non-blocking
         }
@@ -232,6 +253,42 @@ export class OrderService {
 
     if (!order.chatMessages) order.chatMessages = [];
     order.chatMessages.push(newMessage);
+
+    if ((currentUser.role === 'medico' || currentUser.role === 'colaborador' || currentUser.role === 'admin') && order.patientPhone) {
+      try {
+        const { NotificationService } = await import('./NotificationService.js');
+        const notificationService = new NotificationService();
+        const isWithin24h = notificationService.isWithinWhatsApp24hWindow(order);
+
+        if (isWithin24h) {
+          await notificationService.sendNotification({
+            tenantId: order.tenantId || 'TEN-0001',
+            channel: 'whatsapp',
+            to: order.patientPhone,
+            body: `[Consulta Dr. ${currentUser.name} - Receta #${order.id}]\n${messageData.text || 'Nuevo archivo adjunto en la consulta'}`
+          }).catch(err => console.log('WhatsApp chat 24h direct send catch:', err));
+        } else {
+          const waConfig = await notificationService.getConfig(order.tenantId || 'TEN-0001', 'whatsapp');
+          const templateCode = waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode;
+
+          await notificationService.sendNotification({
+            tenantId: order.tenantId || 'TEN-0001',
+            channel: 'whatsapp',
+            to: order.patientPhone,
+            templateCode: templateCode || undefined,
+            variables: templateCode ? {
+              patientName: `${order.patientName} ${order.patientLastName}`,
+              doctorName: `${currentUser.name} ${currentUser.lastName}`,
+              orderId: order.id,
+              messagePreview: (messageData.text || 'Consulta sobre su receta').substring(0, 60)
+            } : undefined,
+            body: `Hola ${order.patientName}, el Dr. ${currentUser.name} envió una consulta sobre su receta #${order.id}: "${(messageData.text || '').substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+          }).catch(err => console.log('WhatsApp chat template send catch:', err));
+        }
+      } catch (e) {
+        // Non-blocking
+      }
+    }
 
     return this.orderRepo.update(id, { chatMessages: order.chatMessages });
   }

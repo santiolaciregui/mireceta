@@ -62,6 +62,7 @@ export default function NotificationConfigPanel() {
   const [waPhoneNumberId, setWaPhoneNumberId] = useState('');
   const [waAccessToken, setWaAccessToken] = useState('');
   const [waCountryCode, setWaCountryCode] = useState('54');
+  const [waDoctorInquiryTemplateCode, setWaDoctorInquiryTemplateCode] = useState('');
   const [showWaToken, setShowWaToken] = useState(false);
 
   // Templates State
@@ -123,6 +124,7 @@ export default function NotificationConfigPanel() {
           setWaPhoneNumberId(waConf.credentials.phoneNumberId || '');
           setWaAccessToken(waConf.credentials.accessToken || '');
           setWaCountryCode(waConf.credentials.defaultCountryCode || '54');
+          setWaDoctorInquiryTemplateCode(waConf.credentials.doctorInquiryTemplateCode || '');
         }
       }
 
@@ -189,7 +191,8 @@ export default function NotificationConfigPanel() {
           credentials: {
             phoneNumberId: waPhoneNumberId.trim(),
             accessToken: waAccessToken.trim(),
-            defaultCountryCode: waCountryCode.trim()
+            defaultCountryCode: waCountryCode.trim(),
+            doctorInquiryTemplateCode: waDoctorInquiryTemplateCode.trim()
           }
         })
       });
@@ -305,14 +308,7 @@ export default function NotificationConfigPanel() {
       {/* Header */}
       <div className="p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800 tracking-wider">
-              Arquitectura Modular
-            </span>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-indigo-100 text-indigo-800 tracking-wider">
-              Persistencia BD
-            </span>
-          </div>
+
           <h2 className="text-base font-extrabold text-[#1C2435] mt-1">Gestión de Notificaciones (Email & WhatsApp)</h2>
           <p className="text-xs text-slate-500 font-medium">
             Configuración de adaptadores, variables dinámicas en base de datos y trazabilidad de envíos.
@@ -571,6 +567,20 @@ export default function NotificationConfigPanel() {
                     />
                     <span className="text-[10px] text-slate-400 font-medium mt-1 block">
                       Se agregará automáticamente si el número introducido no tiene código internacional.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Plantilla Meta fuera de 24hs (Utility Template Code)</label>
+                    <input
+                      type="text"
+                      value={waDoctorInquiryTemplateCode}
+                      onChange={(e) => setWaDoctorInquiryTemplateCode(e.target.value)}
+                      placeholder="doctor_consultation_inquiry"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500"
+                    />
+                    <span className="text-[10px] text-slate-400 font-medium mt-1 block">
+                      Código de plantilla aprobada en Meta para iniciar conversación fuera de la ventana de 24hs.
                     </span>
                   </div>
                 </form>

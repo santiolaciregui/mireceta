@@ -18,7 +18,10 @@ import {
   Search,
   CheckCircle2,
   XCircle,
-  Hash
+  Hash,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -53,6 +56,8 @@ export default function UserManagement({
   const [status, setStatus] = useState<'Activo' | 'Inactivo'>('Activo');
   const [medicoId, setMedicoId] = useState('');
   const [medicoName, setMedicoName] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Error state
   const [errorMess, setErrorMess] = useState('');
@@ -67,6 +72,8 @@ export default function UserManagement({
     setStatus('Activo');
     setMedicoId('');
     setMedicoName('');
+    setPassword('');
+    setShowPassword(false);
     setErrorMess('');
     setShowModal(true);
   };
@@ -81,6 +88,8 @@ export default function UserManagement({
     setStatus(user.status);
     setMedicoId(user.medicoId || '');
     setMedicoName(user.medicoName || '');
+    setPassword('');
+    setShowPassword(false);
     setErrorMess('');
     setShowModal(true);
   };
@@ -91,6 +100,16 @@ export default function UserManagement({
 
     if (!firstName.trim() || !lastName.trim() || !identifier.trim()) {
       setErrorMess('Por favor, completa los campos requeridos (*).');
+      return;
+    }
+
+    if (!editingUserId && !password.trim()) {
+      setErrorMess('Por favor, defina la contraseña inicial del usuario.');
+      return;
+    }
+
+    if (password.trim() && password.trim().length < 6) {
+      setErrorMess('La contraseña debe tener al menos 6 caracteres.');
       return;
     }
 
@@ -106,6 +125,7 @@ export default function UserManagement({
       role,
       identifier: identifier.trim(),
       status,
+      ...(password.trim() ? { password: password.trim() } : {}),
       ...( (role === 'colaborador') && medicoId 
             ? { medicoId, medicoName } 
             : {} )
@@ -520,6 +540,37 @@ export default function UserManagement({
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                   required
                 />
+              </div>
+
+              {/* Password definition for Admin */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  {editingUserId 
+                    ? 'Nueva Contraseña (Opcional - dejar vacío para conservar)' 
+                    : 'Contraseña Inicial (Asignada por Administrador) *'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder={editingUserId ? 'Ingresar solo si desea cambiarla' : 'Mínimo 6 caracteres (ej. 123456)'}
+                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
+                    required={!editingUserId}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+                {!editingUserId && (
+                  <span className="text-[10px] text-amber-600 font-medium mt-1 block">
+                    Al acceder por primera vez, el usuario deberá cambiar obligatoriamente esta contraseña.
+                  </span>
+                )}
               </div>
 
               {/* Status toggler */}

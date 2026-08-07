@@ -85,6 +85,7 @@ export interface IMedicalOrder extends Document {
   auditLog: IAuditLogEntry[];
   notificationsSent: INotificationEntry[];
   chatMessages?: any[];
+  lastPatientWhatsAppInteractionAt?: string;
 }
 
 const medicationItemSchema = new Schema<IMedicationItem>({
@@ -182,7 +183,8 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   },
   
   auditLog: [auditLogEntrySchema],
-  notificationsSent: [notificationEntrySchema]
+  notificationsSent: [notificationEntrySchema],
+  lastPatientWhatsAppInteractionAt: { type: String }
 }); // we manage timestamps manually as strings to preserve previous app logic
 
 export const Order = mongoose.models.Order || mongoose.model<IMedicalOrder>('Order', medicalOrderSchema);

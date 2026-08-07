@@ -20,7 +20,8 @@ import {
   ArrowUp,
   ChevronRight,
   Facebook,
-  Instagram
+  Instagram,
+  Sparkles
 } from 'lucide-react';
 import InformationalModal from './InformationalModal';
 import Logo from './Logo';
@@ -227,45 +228,78 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
               </div>
 
-              {/* Right Column: Floating Interactive Mockup UI */}
+              {/* Right Column: Floating Interactive Mockup UI with Steps */}
               <div className="lg:col-span-5 relative">
                 <div className="relative mx-auto max-w-md bg-[#1C2435]/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-md">
                   
                   {/* Mockup Header */}
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-700">
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-700/80">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#295EF3]/20 text-[#295EF3] flex items-center justify-center font-bold">
-                        <Stethoscope className="h-5 w-5" />
+                      <div className="w-10 h-10 rounded-xl bg-[#295EF3]/20 text-[#38bdf8] flex items-center justify-center font-bold border border-[#295EF3]/30">
+                        <Sparkles className="h-5 w-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-white">Auditoría Médica Digital</h4>
-                        <p className="text-xs text-[#316F80] font-bold">Validación Profesional Oficial</p>
+                        <h4 className="text-sm sm:text-base font-bold text-white">¿Cómo funciona?</h4>
+                        <p className="text-xs text-[#38bdf8] font-semibold">Tu receta en 3 simples pasos</p>
                       </div>
                     </div>
-                    <span className="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold rounded-full border border-emerald-500/30">
-                      En línea
+                    <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 text-[11px] font-bold rounded-full border border-emerald-500/30 flex items-center gap-1.5">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      100% Digital
                     </span>
                   </div>
 
-                  {/* Mockup Content Card */}
+                  {/* Steps Content Cards */}
                   <div className="mt-5 space-y-3">
-                    <div className="bg-[#1C2435] rounded-2xl p-4 border border-slate-700 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-semibold">Solicitud #REC-2026-89</span>
-                        <span className="text-[#295EF3] font-extrabold">Validada</span>
+                    
+                    {/* Step 1 */}
+                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-[#295EF3]/50 transition-all flex items-start gap-3 group">
+                      <div className="w-9 h-9 rounded-xl bg-[#295EF3]/20 text-[#60a5fa] flex items-center justify-center shrink-0 border border-[#295EF3]/30 group-hover:scale-105 transition-transform mt-0.5">
+                        <Pill className="h-4.5 w-4.5" />
                       </div>
-                      <p className="text-sm font-bold text-white">Losartán 50mg — 30 comprimidos</p>
-                      <p className="text-xs text-slate-400">Tratamiento crónico renovado por 3 meses</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h5 className="text-sm font-bold text-white group-hover:text-[#60a5fa] transition-colors">1. Completás el formulario</h5>
+                          <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                          Ingresás tus datos y detallás el medicamento o estudio de rutina que necesitás.
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="bg-[#1C2435] rounded-2xl p-4 border border-slate-700 space-y-2">
-                      <div className="flex justify-between items-center text-xs">
-                        <span className="text-slate-400 font-semibold">Orden de Estudio</span>
-                        <span className="text-emerald-400 font-extrabold">PDF Generado</span>
+                    {/* Step 2 */}
+                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-[#38bdf8]/50 transition-all flex items-start gap-3 group">
+                      <div className="w-9 h-9 rounded-xl bg-[#316F80]/20 text-[#38bdf8] flex items-center justify-center shrink-0 border border-[#316F80]/40 group-hover:scale-105 transition-transform mt-0.5">
+                        <UserCheck className="h-4.5 w-4.5" />
                       </div>
-                      <p className="text-sm font-bold text-white">Amoxicilina 500mg — 10 cápsulas</p>
-                      <p className="text-xs text-slate-400">Incluye Hemograma, Perfil Lipídico y Glucemia</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h5 className="text-sm font-bold text-white group-hover:text-[#38bdf8] transition-colors">2. Validación Médica</h5>
+                          <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                          Un profesional de la salud matriculado evalúa tu solicitud y verifica tus antecedentes.
+                        </p>
+                      </div>
                     </div>
+
+                    {/* Step 3 */}
+                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-emerald-500/50 transition-all flex items-start gap-3 group">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 group-hover:scale-105 transition-transform mt-0.5">
+                        <FileCheck2 className="h-4.5 w-4.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h5 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">3. Recibís tu receta PDF</h5>
+                          <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
+                        </div>
+                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                          Obtenés tu receta u orden digital en PDF firmada, lista para la farmacia.
+                        </p>
+                      </div>
+                    </div>
+
                   </div>
 
                   {/* Floating Badge overlay */}

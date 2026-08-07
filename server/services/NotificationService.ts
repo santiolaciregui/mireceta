@@ -264,7 +264,11 @@ export class NotificationService {
 
               const existingMessages = targetOrder.messages || [];
               targetOrder.messages = [...existingMessages, newMessage];
-              await orderRepo.update(targetOrder.id, { messages: targetOrder.messages });
+              targetOrder.lastPatientWhatsAppInteractionAt = new Date().toISOString();
+              await orderRepo.update(targetOrder.id, {
+                messages: targetOrder.messages,
+                lastPatientWhatsAppInteractionAt: targetOrder.lastPatientWhatsAppInteractionAt
+              });
               count++;
             }
           }
@@ -276,5 +280,13 @@ export class NotificationService {
       console.error('Error procesando webhook de WhatsApp:', err);
       return { success: false, processedMessages: 0 };
     }
+  }
+
+  public isWithinWhatsApp24hWindow(order: any): boolean {
+    if (!order || !order.lastPatientWhatsAppInteractionAt) return false;
+    const lastInteraction = new Date(order.lastPatientWhatsAppInteractionAt).getTime();
+    if (isNaN(lastInteraction)) return false;
+    const hoursDifference = (Date.now() - lastInteraction) / (1000 * 60 * 60);
+    return hoursDifference < 24;
   }
 }

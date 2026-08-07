@@ -29,6 +29,7 @@ export class UserService {
       birthDate: user.birthDate,
       obraSocial: user.obraSocial,
       obraSocialNumber: user.obraSocialNumber,
+      requirePasswordChange: user.requirePasswordChange,
     };
 
     if (user.role === 'colaborador') {

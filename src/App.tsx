@@ -191,7 +191,7 @@ export default function App() {
     <div className="h-screen w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden grid lg:grid-cols-[260px_1fr] grid-cols-1">
       {currentUser.requirePasswordChange && (
         <ForcePasswordChange 
-          token={localStorage.getItem('token') || ''} 
+          token={localStorage.getItem('mi-receta-jwt') || localStorage.getItem('token') || ''} 
           onSuccess={() => {
             // Force a reload or update the current user state to remove the flag
             window.location.reload();
@@ -237,7 +237,7 @@ export default function App() {
                     <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
                       {/* Notification alert of successful submission */}
                       {successSubmissionId && (
-                        <div className="max-w-5xl mx-auto bg-emerald-600/90 text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
+                        <div className="max-w-6xl mx-auto bg-emerald-600/90 text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
                           <div className="flex items-center gap-2">
                             <ShieldCheck className="h-5.5 w-5.5 text-emerald-250 shrink-0" />
                             <h4 className="font-bold text-sm">¡Pedido cargado correctamente!</h4>

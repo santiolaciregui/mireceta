@@ -130,6 +130,7 @@ export default function PatientForm({
   const [depBirthDate, setDepBirthDate] = useState('');
   const [depRelationship, setDepRelationship] = useState('Hijo/a');
   const [depObraSocial, setDepObraSocial] = useState('');
+  const [depCustomObraSocial, setDepCustomObraSocial] = useState('');
   const [depObraSocialNumber, setDepObraSocialNumber] = useState('');
   const [depEmail, setDepEmail] = useState('');
   const [depPhone, setDepPhone] = useState('');
@@ -187,13 +188,14 @@ export default function PatientForm({
     setEditingCardId(cardId);
     setDepFormError(null);
 
+    let osVal = '';
     if (cardId === 'titular') {
       setDepName(patientName || currentUser?.name || initialName || '');
       setDepLastName(patientLastName || currentUser?.lastName || initialLastName || '');
       setDepDni(patientDni || currentUser?.identifier || recentDni || '');
       setDepBirthDate(patientBirthDate || currentUser?.birthDate || '');
       setDepRelationship('Titular');
-      setDepObraSocial(selectedObraSocial || currentUser?.obraSocial || '');
+      osVal = selectedObraSocial || currentUser?.obraSocial || '';
       setDepObraSocialNumber(obraSocialNumber || currentUser?.obraSocialNumber || '');
       setDepEmail(patientEmail || currentUser?.email || '');
       setDepPhone(patientPhone || currentUser?.phone || '');
@@ -205,12 +207,25 @@ export default function PatientForm({
         setDepDni(dep.dni);
         setDepBirthDate(dep.birthDate || '');
         setDepRelationship(dep.relationship || 'A Cargo');
-        setDepObraSocial(dep.obraSocial || '');
+        osVal = dep.obraSocial || '';
         setDepObraSocialNumber(dep.obraSocialNumber || '');
         setDepEmail(dep.email || '');
         setDepPhone(dep.phone || '');
       }
     }
+
+    const matchOS = OBRA_SOCIAL_OPTIONS.find((o) => o.name === osVal);
+    if (matchOS) {
+      setDepObraSocial(osVal);
+      setDepCustomObraSocial('');
+    } else if (osVal) {
+      setDepObraSocial('Otra Obra Social / Prepaga');
+      setDepCustomObraSocial(osVal);
+    } else {
+      setDepObraSocial('');
+      setDepCustomObraSocial('');
+    }
+
     setShowAddDependentModal(true);
   };
 
@@ -223,6 +238,7 @@ export default function PatientForm({
     setDepBirthDate('');
     setDepRelationship('Hijo/a');
     setDepObraSocial('');
+    setDepCustomObraSocial('');
     setDepObraSocialNumber('');
     setDepEmail(currentUser?.email || '');
     setDepPhone(currentUser?.phone || '');
@@ -236,12 +252,21 @@ export default function PatientForm({
       return;
     }
 
+    let finalObraSocial = depObraSocial;
+    if (depObraSocial === 'Otra Obra Social / Prepaga') {
+      if (!depCustomObraSocial.trim()) {
+        setDepFormError('Por favor escriba el nombre de la Obra Social / Prepaga.');
+        return;
+      }
+      finalObraSocial = depCustomObraSocial.trim();
+    }
+
     if (editingCardId === 'titular') {
       setPatientName(depName.trim());
       setPatientLastName(depLastName.trim());
       setPatientDni(depDni.trim());
       setPatientBirthDate(depBirthDate);
-      setSelectedObraSocial(depObraSocial);
+      setSelectedObraSocial(finalObraSocial);
       setObraSocialNumber(depObraSocialNumber);
       setPatientEmail(depEmail);
       setPatientPhone(depPhone);
@@ -263,7 +288,7 @@ export default function PatientForm({
             dni: depDni.trim(),
             birthDate: depBirthDate,
             relationship: depRelationship,
-            obraSocial: depObraSocial,
+            obraSocial: finalObraSocial,
             obraSocialNumber: depObraSocialNumber,
             email: depEmail,
             phone: depPhone,
@@ -278,7 +303,7 @@ export default function PatientForm({
         setPatientLastName(depLastName.trim());
         setPatientDni(depDni.trim());
         setPatientBirthDate(depBirthDate);
-        setSelectedObraSocial(depObraSocial);
+        setSelectedObraSocial(finalObraSocial);
         setObraSocialNumber(depObraSocialNumber);
         setPatientEmail(depEmail);
         setPatientPhone(depPhone);
@@ -298,7 +323,7 @@ export default function PatientForm({
       dni: depDni.trim(),
       birthDate: depBirthDate,
       relationship: depRelationship,
-      obraSocial: depObraSocial,
+      obraSocial: finalObraSocial,
       obraSocialNumber: depObraSocialNumber,
       email: depEmail || currentUser?.email || '',
       phone: depPhone || currentUser?.phone || '',
@@ -702,19 +727,28 @@ export default function PatientForm({
   const validateStep2 = (): boolean => {
     setError(null);
     if (medicationMethod === 'new_manual') {
-      if (medicationItems.length === 0) {
-        setError('Debe cargar al menos un medicamento en su carrito para continuar.');
+      if (medicationItems.length === 0 && medicationPhotos.length === 0) {
+        setError('Aún no ha ingresado ningún medicamento al carrito. Por favor complete los datos del medicamento y presione "Agregar al carrito" para continuar.');
         return false;
       }
     } else if (medicationMethod === 'upload_photo') {
-      if (medicationPhotos.length === 0) {
-        setError('Debe adjuntar al menos una foto de su receta anterior o de la medicación para continuar.');
+      if (medicationPhotos.length === 0 && medicationItems.length === 0) {
+        setError('Aún no ha adjuntado ninguna foto de su receta anterior o medicación. Por favor seleccione o tome una foto para continuar.');
         return false;
       }
-    } else {
-      // past_orders: must have copied an order
+    } else if (medicationMethod === 'past_orders') {
       if (medicationItems.length === 0 && medicationPhotos.length === 0) {
-        setError('Debe elegir una de sus solicitudes anteriores y hacer clic en "Repetir" para copiar la medicación y continuar.');
+        if (patientOrders.length === 0) {
+          setError('Aún no ha realizado solicitudes previamente, debe ingresar una nueva carga manual o adjuntar una foto.');
+          return false;
+        } else {
+          setError('Debe seleccionar una de sus solicitudes anteriores y presionar "Repetir" para cargar la medicación, o elegir otro Método de Carga.');
+          return false;
+        }
+      }
+    } else {
+      if (medicationItems.length === 0 && medicationPhotos.length === 0) {
+        setError('Debe cargar al menos un medicamento o foto de receta para continuar.');
         return false;
       }
     }
@@ -1031,7 +1065,7 @@ export default function PatientForm({
   }
 
   return (
-    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-5xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
+    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
       <div className="bg-[#1C2435] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="relative">
@@ -1503,69 +1537,110 @@ export default function PatientForm({
                   El recetario está vacío. Seleccione un <strong>Método de Carga</strong> a continuación para ingresar medicamentos o adjuntar fotos.
                 </div>
               ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
                   {/* Items ingresados por texto / manual */}
                   {medicationItems.map((item, index) => (
                     <div 
                       key={`text-${index}`} 
-                      className="flex items-center justify-between bg-white border border-slate-200 p-3 rounded-xl text-xs shadow-xs"
+                      className="bg-white border border-slate-200 p-3.5 rounded-2xl text-xs shadow-xs space-y-2"
                     >
-                      <div>
-                        <p className="font-extrabold text-slate-900">
-                          {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
-                        </p>
-                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
-                          {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
-                        </p>
-                        {item.diagnostic && (
-                          <p className="text-[10.5px] text-indigo-700 font-bold mt-1 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md inline-block mr-1">
-                            Diagnóstico: {item.diagnostic}
-                          </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            Medicamento #{index + 1}
+                          </span>
+                          <h6 className="font-extrabold text-[#1C2435] text-sm mt-1">
+                            {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
+                          </h6>
+                        </div>
+                        <button
+                          id={`btn-remove-med-item-${index}`}
+                          type="button"
+                          onClick={() => removeMedicationItem(index)}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                          title="Quitar medicamento"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                        {item.miligramos && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">Dosis / Miligramos:</span>
+                            <span className="font-bold text-slate-800">{item.miligramos}</span>
+                          </div>
                         )}
+
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-400">Cantidad:</span>
+                          <span className="font-bold text-slate-800">
+                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
+                          </span>
+                        </div>
+
+                        {item.diagnostic && (
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">Diagnóstico:</span>
+                            <span className="font-bold text-indigo-700 bg-indigo-50 border border-indigo-150 px-2 py-0.5 rounded-md text-right max-w-[220px] truncate">
+                              {item.diagnostic}
+                            </span>
+                          </div>
+                        )}
+
                         {item.comments && (
-                          <p className="text-[10.5px] text-slate-700 font-medium mt-1 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md inline-block">
-                            Aclaración: {item.comments}
-                          </p>
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-slate-400">Aclaraciones:</span>
+                            <span className="font-medium text-slate-700 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md text-right max-w-[220px] truncate">
+                              {item.comments}
+                            </span>
+                          </div>
                         )}
                       </div>
-                      <button
-                        id={`btn-remove-med-item-${index}`}
-                        type="button"
-                        onClick={() => removeMedicationItem(index)}
-                        className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
-                        title="Quitar"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
                     </div>
                   ))}
 
                   {/* Fotos de envase o receta agregadas */}
                   {medicationPhotos.map((photo, index) => (
-                    <div key={`photo-${index}`} className="bg-white p-2.5 rounded-xl border border-blue-200 flex items-center justify-between text-left text-xs shadow-xs">
-                      <div className="flex items-center gap-2.5 truncate">
-                        <div className="h-10 w-12 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
-                          {photo.url.startsWith('data:application/pdf') ? (
-                            <span className="text-[9px] font-bold text-slate-500">PDF</span>
-                          ) : (
-                            <img src={photo.url} alt="Envase" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
-                          )}
+                    <div 
+                      key={`photo-${index}`} 
+                      className="bg-white p-3.5 rounded-2xl border border-blue-200 text-xs shadow-xs space-y-2"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-3">
+                          <div className="h-12 w-14 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
+                            {photo.url.startsWith('data:application/pdf') ? (
+                              <span className="text-[10px] font-black text-slate-600">PDF</span>
+                            ) : (
+                              <img src={photo.url} alt="Receta" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                            )}
+                          </div>
+                          <div>
+                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              Adjunto #{index + 1}
+                            </span>
+                            <h6 className="font-extrabold text-[#1C2435] text-xs mt-1 truncate max-w-[170px] sm:max-w-[240px]">
+                              {photo.name}
+                            </h6>
+                          </div>
                         </div>
-                        <div className="truncate">
-                          <p className="font-extrabold text-slate-900 truncate max-w-[150px] sm:max-w-[220px]">
-                            {photo.name}
-                          </p>
-                          <p className="text-[10px] text-emerald-600 font-bold">Foto de envase / receta adjuntada</p>
+                        <button
+                          id={`btn-remove-photo-${index}`}
+                          type="button"
+                          onClick={() => setMedicationPhotos(prev => prev.filter((_, i) => i !== index))}
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                          title="Quitar adjunto"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-slate-400">Tipo de Documento:</span>
+                          <span className="font-bold text-emerald-700">Foto de Receta / Envase</span>
                         </div>
                       </div>
-                      <button
-                        id={`btn-remove-photo-${index}`}
-                        type="button"
-                        onClick={() => setMedicationPhotos(prev => prev.filter((_, i) => i !== index))}
-                        className="text-[11px] text-red-600 hover:text-red-800 hover:bg-red-50 font-bold px-2 py-1 rounded-lg cursor-pointer shrink-0"
-                      >
-                        Quitar
-                      </button>
                     </div>
                   ))}
                 </div>
@@ -1604,7 +1679,7 @@ export default function PatientForm({
                   }`}
                 >
                   <ClipboardCheck className="h-5 w-5" />
-                  <span>Nueva Carga Manual (Carrito)</span>
+                  <span>Nueva Carga Manual</span>
                 </button>
 
                 <button
@@ -2306,11 +2381,11 @@ export default function PatientForm({
                 </div>
               )}
 
-              {/* Section 1: Identification */}
+              {/* Section 1: Identification & Contact */}
               <div className="space-y-3">
                 <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
                   <User className="h-4 w-4 text-[#295EF3]" />
-                  1. Datos de Identificación del Paciente
+                  1. Datos del Paciente y Contacto
                 </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2389,13 +2464,40 @@ export default function PatientForm({
                     </select>
                   </div>
                 )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      WhatsApp / Celular
+                    </label>
+                    <input
+                      type="tel"
+                      value={depPhone}
+                      onChange={(e) => setDepPhone(e.target.value)}
+                      placeholder="Ej. 2926442385"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      value={depEmail}
+                      onChange={(e) => setDepEmail(e.target.value)}
+                      placeholder="ejemplo@gmail.com"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
               </div>
 
-              {/* Section 2: Coverage & Contact */}
+              {/* Section 2: Coverage */}
               <div className="space-y-3 pt-2">
                 <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
                   <ShieldCheck className="h-4 w-4 text-[#295EF3]" />
-                  2. Cobertura Médica y Contacto
+                  2. Cobertura Médica
                 </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2428,32 +2530,21 @@ export default function PatientForm({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
+                {depObraSocial === 'Otra Obra Social / Prepaga' && (
+                  <div className="animate-fadeIn">
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      WhatsApp / Celular
+                      Nombre de la Obra Social / Prepaga <span className="text-red-500">*</span>
                     </label>
                     <input
-                      type="tel"
-                      value={depPhone}
-                      onChange={(e) => setDepPhone(e.target.value)}
-                      placeholder="Ej. 2926442385"
+                      type="text"
+                      value={depCustomObraSocial}
+                      onChange={(e) => setDepCustomObraSocial(e.target.value)}
+                      placeholder="Escriba el nombre de la obra social o prepaga..."
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      required
                     />
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Correo Electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={depEmail}
-                      onChange={(e) => setDepEmail(e.target.value)}
-                      placeholder="ejemplo@gmail.com"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Modal Actions */}

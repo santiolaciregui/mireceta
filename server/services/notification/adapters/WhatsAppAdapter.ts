@@ -11,6 +11,7 @@ export interface WhatsAppConfig {
   accessToken: string;
   businessAccountId?: string;
   defaultCountryCode?: string;
+  doctorInquiryTemplateCode?: string;
   provider?: 'meta_cloud_api' | 'twilio' | 'custom_webhook';
   webhookUrl?: string;
 }
@@ -23,6 +24,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
     const accessToken = String(config.accessToken || '');
     const businessAccountId = config.businessAccountId ? String(config.businessAccountId) : undefined;
     const defaultCountryCode = config.defaultCountryCode ? String(config.defaultCountryCode) : '54';
+    const doctorInquiryTemplateCode = config.doctorInquiryTemplateCode ? String(config.doctorInquiryTemplateCode) : undefined;
     const provider = (config.provider as WhatsAppConfig['provider']) || 'meta_cloud_api';
     const webhookUrl = config.webhookUrl ? String(config.webhookUrl) : undefined;
 
@@ -30,7 +32,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       throw new Error('Configuración de WhatsApp Incompleta: Phone Number ID y Access Token son requeridos.');
     }
 
-    return { phoneNumberId, accessToken, businessAccountId, defaultCountryCode, provider, webhookUrl };
+    return { phoneNumberId, accessToken, businessAccountId, defaultCountryCode, doctorInquiryTemplateCode, provider, webhookUrl };
   }
 
   private formatPhoneNumber(phone: string, defaultCountryCode: string): string {

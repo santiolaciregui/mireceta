@@ -80,15 +80,26 @@ export default function Sidebar({
           ]
         }
       ];
-    } else if (role === 'medico' || role === 'colaborador' || role === 'admin') {
+    } else if (role === 'admin') {
+      return [
+        {
+          id: 'admin_panel',
+          title: 'Sistema',
+          items: [
+            { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
+            { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
+            { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
+          ]
+        }
+      ];
+    } else if (role === 'medico' || role === 'colaborador') {
       const isMedic = role === 'medico';
-      const isAdmin = role === 'admin';
       return [
         {
           id: 'solicitudes',
           title: 'Bandeja de Pedidos',
           items: [
-            ...(!isAdmin ? [{ id: 'nueva', label: 'Cargar Nueva Solicitud', icon: PlusCircle }] : []),
+            { id: 'nueva', label: 'Cargar Nueva Solicitud', icon: PlusCircle },
             { id: 'pendientes', label: 'Pedidos Pendientes', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
             { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#295EF3] text-white' },
             { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#316F80] text-white' },
@@ -104,14 +115,12 @@ export default function Sidebar({
         },
         ...(role !== 'colaborador' ? [{
           id: 'admin_panel',
-          title: isAdmin ? 'Sistema' : 'Administración',
+          title: 'Administración',
           items: [
-            ...(!isAdmin ? [{ id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp }] : []),
-            ...(isMedic || isAdmin ? [
-              { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
-              { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
-              { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
-            ] : []),
+            { id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp },
+            { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
+            { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
+            { id: 'notificaciones', label: 'Notificaciones & Canales', icon: Bell },
           ]
         }] : [])
       ];
