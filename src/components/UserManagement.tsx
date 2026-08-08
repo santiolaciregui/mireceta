@@ -458,7 +458,6 @@ export default function UserManagement({
                     type="button"
                     onClick={() => {
                       setRole('medico');
-                      if (!editingUserId) setIdentifier('Mat. ');
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'medico'
@@ -472,7 +471,6 @@ export default function UserManagement({
                     type="button"
                     onClick={() => {
                       setRole('admin');
-                      if (!editingUserId) setIdentifier('admin.');
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'admin'
@@ -487,7 +485,6 @@ export default function UserManagement({
                     type="button"
                     onClick={() => {
                       setRole('colaborador');
-                      if (!editingUserId) setIdentifier('colab.');
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'colaborador'
@@ -529,7 +526,7 @@ export default function UserManagement({
                   {role === 'paciente' 
                     ? 'Documento (DNI) *' 
                     : role === 'medico' 
-                      ? 'Nro de Matrícula (Mat.) *' 
+                      ? 'Nro de Matrícula *' 
                       : 'Identificador / Usuario *'}
                 </label>
                 <input
