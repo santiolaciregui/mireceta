@@ -369,7 +369,7 @@ export default function App() {
                       />
                     </div>
                   </div>
-                ) : activeSubcategory === 'usuarios' && activeRole === 'admin' ? (
+                ) : activeSubcategory === 'usuarios' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -387,7 +387,7 @@ export default function App() {
                       />
                     </div>
                   </div>
-                ) : activeSubcategory === 'auditoria' && activeRole === 'admin' ? (
+                ) : activeSubcategory === 'auditoria' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -400,7 +400,7 @@ export default function App() {
                       <AuditLogView orders={orders} currentUser={currentUser} />
                     </div>
                   </div>
-                ) : activeSubcategory === 'pagos' && activeRole === 'admin' ? (
+                ) : activeSubcategory === 'pagos' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
@@ -415,7 +415,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                ) : activeSubcategory === 'notificaciones' && activeRole === 'admin' ? (
+                ) : activeSubcategory === 'notificaciones' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
