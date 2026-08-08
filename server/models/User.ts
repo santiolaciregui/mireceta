@@ -39,7 +39,7 @@ const userSchema = new Schema<IUser>({
   obraSocial: { type: String },
   obraSocialNumber: { type: String },
   dependents: { type: Schema.Types.Mixed, default: [] },
-  requirePasswordChange: { type: Boolean, default: true }
+  requirePasswordChange: { type: Boolean, default: false }
 }, {
   timestamps: true, 
 });

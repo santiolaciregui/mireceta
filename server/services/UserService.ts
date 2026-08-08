@@ -90,7 +90,7 @@ export class UserService {
       id: newId,
       tenantId: currentUser.tenantId,
       password: hashedPassword,
-      requirePasswordChange: true
+      requirePasswordChange: userData.role === 'medico' || userData.role === 'colaborador'
     });
 
     if (newUser.role === 'paciente') {

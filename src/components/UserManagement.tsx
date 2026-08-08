@@ -401,7 +401,7 @@ export default function UserManagement({
                     type="text"
                     value={firstName}
                     onChange={(e) => setFirstName(e.target.value)}
-                    placeholder="Ej. Juan"
+                    placeholder="Nombre"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     required
                   />
@@ -414,7 +414,7 @@ export default function UserManagement({
                     type="text"
                     value={lastName}
                     onChange={(e) => setLastName(e.target.value)}
-                    placeholder="Ej. Pérez"
+                    placeholder="Apellido"
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     required
                   />
@@ -430,7 +430,7 @@ export default function UserManagement({
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="ejemplo@correo.com"
+                  placeholder="correo@ejemplo.com"
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
                 />
               </div>
@@ -447,7 +447,8 @@ export default function UserManagement({
                       setRole('paciente');
                       if (!editingUserId) setIdentifier('');
                     }}
-                    className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition                      role === 'paciente'
+                    className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition ${
+                      role === 'paciente'
                         ? 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/40 ring-2 ring-[#295EF3]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
@@ -533,7 +534,7 @@ export default function UserManagement({
                   type="text"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder={role === 'paciente' ? 'Ej. 20123456' : role === 'medico' ? 'Ej. Mat. 12345' : 'Ej. usuario_admin'}
+                  placeholder={role === 'paciente' ? 'Número de DNI' : role === 'medico' ? 'Número de matrícula' : 'Nombre de usuario'}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                   required
                 />
@@ -551,7 +552,7 @@ export default function UserManagement({
                     type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder={editingUserId ? 'Ingresar solo si desea cambiarla' : 'Mínimo 6 caracteres (ej. 123456)'}
+                    placeholder={editingUserId ? 'Dejar vacío para conservar' : 'Mínimo 6 caracteres'}
                     className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
                     required={!editingUserId}
                   />
@@ -563,9 +564,9 @@ export default function UserManagement({
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
-                {!editingUserId && (
+                {!editingUserId && (role === 'medico' || role === 'colaborador') && (
                   <span className="text-[10px] text-amber-600 font-medium mt-1 block">
-                    Al acceder por primera vez, el usuario deberá cambiar obligatoriamente esta contraseña.
+                    Al acceder por primera vez, el profesional o colaborador deberá cambiar obligatoriamente esta contraseña.
                   </span>
                 )}
               </div>
