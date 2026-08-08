@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   PlusCircle, 
   FileText, 
@@ -21,7 +21,6 @@ import {
   XCircle,
   Bell,
   ChevronDown,
-  ChevronRight,
   CreditCard,
   Check
 } from 'lucide-react';
@@ -59,75 +58,37 @@ export default function Sidebar({
 }: SidebarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
-  // Configuration subitems configuration definition
+  // Configuration subitems definition
   const configMenuItems = [
     {
       id: 'reportes',
       label: 'Liquidaciones y Métricas',
-      description: 'Honorarios médicos, tarifas por receta y métricas de operadores.',
       icon: TrendingUp,
-      badge: 'Métricas',
-      iconBg: 'bg-amber-500/20 text-amber-400',
     },
     {
       id: 'notificaciones',
       label: 'Notificaciones & Canales',
-      description: 'WhatsApp API (Meta), servidor SMTP y plantillas dinámicas.',
       icon: Bell,
-      badge: 'Canales',
-      iconBg: 'bg-emerald-500/20 text-emerald-400',
     },
     {
       id: 'pagos',
       label: 'Pasarela de Pagos (MP)',
-      description: 'Credenciales de Mercado Pago, tasas y recaudación.',
       icon: CreditCard,
-      badge: 'Mercado Pago',
-      iconBg: 'bg-[#295EF3]/20 text-[#295EF3]',
     },
   ];
 
   const isConfigActive = ['reportes', 'notificaciones', 'pagos'].includes(activeSubcategory);
   const [isConfigExpanded, setIsConfigExpanded] = useState(isConfigActive);
-  const [showFlyout, setShowFlyout] = useState(false);
-  const flyoutRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
-  // Auto-expand if activeSubcategory belongs to configuration
+  // Auto-expand dropdown if activeSubcategory belongs to configuration
   useEffect(() => {
     if (['reportes', 'notificaciones', 'pagos'].includes(activeSubcategory)) {
       setIsConfigExpanded(true);
     }
   }, [activeSubcategory]);
 
-  // Click outside listener to dismiss the desktop flyout
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        flyoutRef.current && 
-        !flyoutRef.current.contains(event.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(event.target as Node)
-      ) {
-        setShowFlyout(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
-  const handleToggleConfig = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsConfigExpanded(prev => !prev);
-    setShowFlyout(prev => !prev);
-  };
-
   const handleConfigSubItemClick = (subId: string) => {
     onSelect('admin_panel', subId);
-    setShowFlyout(false);
     setIsOpen(false); // Close mobile drawer if on mobile
   };
 
@@ -204,83 +165,12 @@ export default function Sidebar({
   const menu = getMenuStructure();
 
   const handleItemClick = (categoryId: string, subcategoryId: string) => {
-    setShowFlyout(false);
     onSelect(categoryId, subcategoryId);
     setIsOpen(false); // Close mobile menu drawer
   };
 
   const SidebarContent = () => (
-    <aside className="bg-[#1C2435] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg relative">
-      {/* Desktop Flyout Menu anchored to the right of the sidebar */}
-      {showFlyout && (role === 'admin' || role === 'superadmin') && (
-        <div 
-          ref={flyoutRef}
-          className="hidden lg:block absolute left-[calc(100%+12px)] top-20 z-50 w-80 bg-[#161D2B]/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-4 animate-slideRight text-white"
-        >
-          {/* Flyout Header */}
-          <div className="flex items-center justify-between pb-3 mb-3 border-b border-white/10">
-            <div className="flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-xl bg-[#295EF3]/20 border border-[#295EF3]/40 flex items-center justify-center text-[#295EF3]">
-                <Settings className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Configuración</h3>
-                <p className="text-[10px] text-slate-400 font-medium">Seleccioná un módulo para gestionar</p>
-              </div>
-            </div>
-            <button 
-              onClick={() => setShowFlyout(false)}
-              className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-              title="Cerrar menú"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Flyout Option Cards */}
-          <div className="space-y-2">
-            {configMenuItems.map((item) => {
-              const isActive = activeSubcategory === item.id;
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => handleConfigSubItemClick(item.id)}
-                  className={`w-full text-left p-3 rounded-xl transition-all cursor-pointer flex items-start gap-3 border ${
-                    isActive
-                      ? 'bg-[#295EF3]/25 border-[#295EF3] text-white shadow-md'
-                      : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/15 text-slate-200'
-                  }`}
-                >
-                  <div className={`p-2 rounded-lg shrink-0 mt-0.5 ${item.iconBg}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <span className="text-xs font-bold truncate">{item.label}</span>
-                      {isActive && (
-                        <span className="flex items-center gap-1 text-[9px] font-bold text-[#295EF3] bg-white px-1.5 py-0.5 rounded-full">
-                          <Check className="h-2.5 w-2.5" /> Activo
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-snug font-normal line-clamp-2">
-                      {item.description}
-                    </p>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Flyout Footer info */}
-          <div className="mt-3 pt-2.5 border-t border-white/10 flex items-center justify-between text-[10px] text-slate-400">
-            <span>3 módulos de configuración</span>
-            <span className="text-[#316F80] font-mono text-[9px]">v2.6 Admin</span>
-          </div>
-        </div>
-      )}
-
+    <aside className="bg-[#1C2435] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg">
       <div className="p-6 pb-4 overflow-y-auto">
         {/* Brand Header */}
         <div className="flex items-center gap-3 mb-8 pt-2">
@@ -333,70 +223,66 @@ export default function Sidebar({
               </div>
             </div>
           ))}
-
-          {/* Configuración Dropdown & Right-Flyout Section for Admin & Superadmin */}
-          {(role === 'admin' || role === 'superadmin') && (
-            <div className="mb-3">
-              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#316F80] px-3 py-1.5 block mt-4 mb-1 font-[700]">
-                Ajustes
-              </span>
-              <div className="space-y-1">
-                <button
-                  ref={buttonRef}
-                  onClick={handleToggleConfig}
-                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[0.85rem] font-[600] cursor-pointer transition-all ${
-                    isConfigActive
-                      ? 'bg-[#295EF3]/20 border border-[#295EF3] text-white font-bold shadow-xs'
-                      : 'text-slate-300 hover:bg-white/10 hover:text-white border border-transparent'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <Settings className={`h-4.5 w-4.5 transition-transform duration-300 ${isConfigActive ? 'text-[#295EF3]' : 'text-slate-400'} ${isConfigExpanded ? 'rotate-45' : ''}`} />
-                    <span>Configuración</span>
-                  </div>
-                  
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/10 text-slate-300 font-bold">
-                      3
-                    </span>
-                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isConfigExpanded ? 'rotate-180' : ''}`} />
-                  </div>
-                </button>
-
-                {/* Inline Collapsible Submenu */}
-                {isConfigExpanded && (
-                  <div className="mt-1 ml-3 pl-3 border-l-2 border-[#295EF3]/30 space-y-1 animate-fadeIn">
-                    {configMenuItems.map((item) => {
-                      const isActive = activeSubcategory === item.id;
-                      const Icon = item.icon;
-                      return (
-                        <button
-                          key={item.id}
-                          onClick={() => handleConfigSubItemClick(item.id)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-[0.8rem] font-[600] cursor-pointer transition-all ${
-                            isActive
-                              ? 'bg-[#295EF3] text-white font-bold shadow-xs'
-                              : 'text-slate-300 hover:bg-white/10 hover:text-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-                            <span className="truncate">{item.label}</span>
-                          </div>
-                          {isActive && <Check className="h-3.5 w-3.5 shrink-0 text-white ml-1" />}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         </nav>
       </div>
 
-      <div className="p-6 pt-4 border-t border-white/10 bg-[#161D2B]">
-        <div className="flex items-center gap-3 mb-3.5">
+      {/* Bottom section: Configuración collapsible above User Profile */}
+      <div className="p-5 pt-3 border-t border-white/10 bg-[#161D2B]">
+        {/* Configuración Dropdown for Admin & Superadmin */}
+        {(role === 'admin' || role === 'superadmin') && (
+          <div className="mb-3">
+            <button
+              onClick={() => setIsConfigExpanded(prev => !prev)}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[0.82rem] font-[600] cursor-pointer transition-all ${
+                isConfigActive
+                  ? 'bg-[#295EF3]/20 border border-[#295EF3] text-white font-bold shadow-xs'
+                  : 'text-slate-300 hover:bg-white/10 hover:text-white border border-transparent'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <Settings className={`h-4.5 w-4.5 transition-transform duration-300 ${isConfigActive ? 'text-[#295EF3]' : 'text-slate-400'} ${isConfigExpanded ? 'rotate-45' : ''}`} />
+                <span>Configuración</span>
+              </div>
+              
+              <div className="flex items-center gap-1.5">
+                <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/10 text-slate-300 font-bold">
+                  3
+                </span>
+                <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${isConfigExpanded ? 'rotate-180' : ''}`} />
+              </div>
+            </button>
+
+            {/* Inline Collapsible Submenu */}
+            {isConfigExpanded && (
+              <div className="mt-1.5 ml-2 pl-2.5 border-l-2 border-[#295EF3]/30 space-y-1 animate-fadeIn">
+                {configMenuItems.map((item) => {
+                  const isActive = activeSubcategory === item.id;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => handleConfigSubItemClick(item.id)}
+                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[0.78rem] font-[600] cursor-pointer transition-all ${
+                        isActive
+                          ? 'bg-[#295EF3] text-white font-bold shadow-xs'
+                          : 'text-slate-300 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                        <span className="truncate">{item.label}</span>
+                      </div>
+                      {isActive && <Check className="h-3.5 w-3.5 shrink-0 text-white ml-1" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* User Profile Info */}
+        <div className="flex items-center gap-3 mb-3.5 pt-1">
           <div className="h-9 w-9 rounded-full bg-[#295EF3]/20 border border-[#295EF3]/40 text-[#295EF3] font-black text-xs flex items-center justify-center shrink-0">
             {userName.charAt(0)}{userLastName.charAt(0)}
           </div>
