@@ -608,24 +608,16 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               </button>
             </div>
 
-            {/* Expand / Collapse All (Only in by_patient mode) */}
+            {/* Collapse All (Only in by_patient mode) */}
             {viewMode === 'by_patient' && filteredPatientGroups.length > 0 && (
               <div className="flex items-center gap-1">
-                <button
-                  onClick={expandAll}
-                  className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Expandir todos los historiales"
-                >
-                  <ChevronDown className="h-3 w-3" />
-                  <span>Expandir</span>
-                </button>
                 <button
                   onClick={collapseAll}
                   className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
                   title="Colapsar todos los historiales"
                 >
                   <ChevronUp className="h-3 w-3" />
-                  <span>Colapsar</span>
+                  <span>Colapsar Todo</span>
                 </button>
               </div>
             )}
