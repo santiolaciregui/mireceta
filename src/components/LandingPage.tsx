@@ -80,40 +80,48 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
   const faqs = [
     {
-      q: "¿Cómo abono la consulta digital?",
-      a: "El costo de la consulta digital para renovación de receta u orden de estudio se abonará una vez enviada la solicitud y confirmada por el sistema. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional."
+      q: "¿Cuánto cuesta?",
+      a: "Tiene un costo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
     },
     {
-      q: "¿Cómo recibo la receta u orden?",
-      a: "Recibirás la receta u orden en formato PDF con firma digital válida y código QR directamente en tu WhatsApp o casilla de correo electrónico registrado."
+      q: "¿Cuánto tarda en llegar mi receta?",
+      a: "El tiempo estimado de revisión por nuestro cuerpo médico es de menos de 24 horas hábiles. En la mayoría de los casos, la recibís en cuestión de pocas horas."
     },
     {
-      q: "¿Cuánto tarda en llegar mi receta u orden?",
-      a: "El plazo promedio de procesamiento y firma médica es de 2 a 24 horas hábiles."
-    },
-    {
-      q: "¿Qué tipo de consultas se pueden resolver con Mi Receta Online?",
-      a: "Podés resolver la renovación de recetas de medicamentos crónicos de uso habitual y la emisión de órdenes de estudio de rutina o control (laboratorios, ecografías, radiografías, etc.)."
-    },
-    {
-      q: "¿La receta o orden emitida es legal y válida en farmacias?",
+      q: "¿Es legal?",
       a: "Sí, 100% legal. Cumplimos con la Ley de Telemedicina y Receta Electrónica. Todas las órdenes y prescripciones son emitidas y firmadas digitalmente por profesionales médicos matriculados."
     },
     {
-      q: "¿Puedo solicitar una orden de estudios médicos de rutina?",
-      a: "Sí, podés solicitar la emisión de órdenes para estudios preventivos y de rutina habitual."
-    },
-    {
       q: "¿Siempre me van a dar una receta?",
-      a: "La emisión de la receta u orden médica queda siempre sujeta al criterio y evaluación del profesional médico actuante."
+      a: "La emisión de la receta u orden médica queda siempre sujeta al criterio y evaluación del profesional médico actuante. Si no es posible realizar la receta, se te dará una explicación, sugerencia y se te reintegrará lo abonado. Para evitar rechazos incorporá todos los detalles del tratamiento."
     },
     {
-      q: "¿Qué pasa si el médico considera que no corresponde la emisión?",
-      a: "Si el médico determina que tu cuadro requiere evaluación presencial, la solicitud será cancelada y no se generará el cobro."
+      q: "¿Qué pasa si rechazan mi solicitud?",
+      a: "En caso de que el profesional considere que no corresponde la prescripción sin una evaluación presencial previa, se te notificará la razón y no se te cobrará ningún arancel."
     },
     {
-      q: "¿Qué medicamentos NO se prescriben a través de esta plataforma?",
-      a: "No se prescriben psicofármacos de alto control restrictivo, estupefacientes, antibióticos sin diagnóstico comprobado ni medicamentos sujetos a venta bajo receta archivada de lista especial."
+      q: "¿Qué medicamentos no se pueden solicitar?",
+      a: "No se emiten recetas para medicamentos de uso restringido, controlado o que requieren seguimiento especializado, psicofármacos, opioides o trámites de excepción."
+    },
+    {
+      q: "¿Puedo solicitar para un familiar?",
+      a: "Sí, podés cargar familiares a tu cargo y realizar las solicitudes. Los menores de edad no pueden solicitar recetas, deben ser realizadas por un mayor a cargo."
+    },
+    {
+      q: "¿Cómo recibo la receta?",
+      a: "Recibirás la receta por correo electrónico, WhatsApp o en la farmacia con la plataforma de tu Obra Social. No tendrás inconvenientes con el formato para realizar la solicitud en tu farmacia."
+    },
+    {
+      q: "¿Mis datos están protegidos?",
+      a: "Totalmente. Tu información médica y personal está protegida y encriptada cumpliendo con la Ley de Protección de Datos Personales (Ley 25.326) y normas de secreto médico."
+    },
+    {
+      q: "¿Necesito tener una App?",
+      a: "No, no requerís descargar ninguna aplicación. Podés realizar todo el trámite directamente desde el navegador de tu celular o computadora."
+    },
+    {
+      q: "¿Cómo es la modalidad?",
+      a: "Mi Receta Online funciona bajo el modelo de consulta médica asincrónica, donde un médico matriculado evalúa tu caso de manera remota. Si corresponde, el profesional emitirá una receta u orden médica válida a través de plataformas habilitadas según la normativa vigente en Argentina. La emisión de una receta u orden médica depende exclusivamente del criterio del médico. Si el profesional considera que no corresponde, podrá solicitar más información, o recomendar una consulta presencial. Si es rechazada se te devolverá el total del dinero."
     }
   ];
 
@@ -470,7 +478,11 @@ Solicitar Receta
                   <div className="w-12 h-12 rounded-2xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center mb-6">
                     <Pill className="h-6 w-6" />
                   </div>
-                  <h3 className="text-2xl font-black text-[#1C2435] mb-2">Renovación de Receta</h3>
+                  <h3 className="text-2xl font-black text-[#1C2435] mb-1">Renovación de Receta</h3>
+                  <div className="flex items-baseline gap-2 mb-3">
+                    <span className="text-3xl font-black text-[#295EF3]">$10.000</span>
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">/ hasta 2 medicamentos</span>
+                  </div>
                   <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
                     Para medicamentos crónicos o de uso habitual evaluados y autorizados por un médico matriculado.
                   </p>

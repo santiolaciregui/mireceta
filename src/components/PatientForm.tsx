@@ -1384,7 +1384,7 @@ export default function PatientForm({
                 Aviso: Medicación Restringida y Controlada
               </p>
               <p className="font-medium leading-relaxed">
-                <strong>NO está permitido</strong> solicitar psicofármacos (recetas rosas, archivadas, listas de psicotrópicos), opioides, morfina o derivados, ni medicamentos de uso clínico crítico controlado. Cualquier pedido de estos productos será <strong>rechazado automáticamente</strong> sin excepción.
+                <strong className="font-black text-red-950">NO está permitido</strong> solicitar psicofármacos (recetas rosas, archivadas, listas de psicotrópicos), opioides, morfina o derivados, ni medicamentos de uso clínico crítico controlado, uso restringido o trámites de excepción. Cualquier pedido de estos productos será <strong className="font-black text-red-950">rechazado automáticamente</strong> sin excepción.
               </p>
             </div>
 
