@@ -279,8 +279,16 @@ export default function App() {
                       <PatientStatus
                         orders={orders}
                         onCancelOrder={deleteOrder}
-                        recentDni={currentPatientDni}
-                        onSetDni={() => {}} // locked to authenticated patient
+                        currentUser={currentUser}
+                        onNavigateToChat={(orderId) => {
+                          setActiveCategory('mensajeria');
+                          setActiveSubcategory('chat');
+                          setChatSelectedOrderId(orderId);
+                        }}
+                        onNavigateToNew={() => {
+                          setActiveCategory('tramites');
+                          setActiveSubcategory('solicitar');
+                        }}
                       />
                     </div>
                   </div>

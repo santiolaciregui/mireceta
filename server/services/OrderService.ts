@@ -19,9 +19,13 @@ export class OrderService {
 
     if (currentUser?.role === 'paciente') {
       const patientDniClean = cleanDni(currentUser.identifier);
+      const dependentDnis = (currentUser.dependents || [])
+        .map((d: any) => cleanDni(d.dni || d.identifier))
+        .filter(Boolean);
+
       return allOrders.filter((o: any) => {
         const orderDniClean = cleanDni(o.patientDni);
-        return orderDniClean === patientDniClean;
+        return orderDniClean === patientDniClean || dependentDnis.includes(orderDniClean);
       });
     }
 
