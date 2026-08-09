@@ -1362,15 +1362,6 @@ export default function PatientForm({
         {/* STEP 0: INFO */}
         {step === 'info' && (
           <div className="space-y-6 animate-fadeIn">
-            <div className="text-center space-y-2 max-w-md mx-auto py-2">
-              <ClipboardCheck className="h-10 w-10 text-blue-600 mx-auto stroke-[1.5]" />
-              <h3 className="text-base font-extrabold text-slate-800">
-                Condiciones y Requisitos de Renovación
-              </h3>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Por favor, lea con atención las siguientes condiciones antes de iniciar el trámite de renovación de su receta digital.
-              </p>
-            </div>
 
             {/* Informative service info block */}
             <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/80 text-xs text-blue-900 leading-relaxed space-y-3 shadow-xs">

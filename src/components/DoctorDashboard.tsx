@@ -628,12 +628,6 @@ export default function DoctorDashboard({
                       </div>
                     ) : (
                       <>
-                        {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
-                          <div style={{ background: '#FFFBEB', border: '1px solid #FEF3C7', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
-                            <strong>Atención:</strong> Esta solicitud requiere revisión clínica. Verifique medicación antes de firmar.
-                          </div>
-                        )}
-                        
                         {selectedOrder.status === 'Rechazada' && (
                           <div style={{ background: '#FFF1F2', border: '1px solid #FECACA', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
                             <strong>Estado Rechazada:</strong> Esta solicitud ha sido desestimada tras evaluación.

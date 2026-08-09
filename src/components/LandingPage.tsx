@@ -21,7 +21,9 @@ import {
   ChevronRight,
   Facebook,
   Instagram,
-  Sparkles
+  Sparkles,
+  Menu,
+  X
 } from 'lucide-react';
 import InformationalModal from './InformationalModal';
 import Logo from './Logo';
@@ -34,6 +36,7 @@ interface LandingPageProps {
 
 export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
   // Modal state
   const [modalState, setModalState] = useState<{
@@ -63,6 +66,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   };
 
   const scrollToSection = (id: string) => {
+    setMobileMenuOpen(false);
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
@@ -70,6 +74,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   };
 
   const scrollToTop = () => {
+    setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -125,45 +130,92 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <Logo variant="full" size="md" />
             </div>
 
-            {/* Navigation links */}
+            {/* Navigation links (Desktop) */}
             <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-[#1C2435]/80">
-              <button onClick={scrollToTop} className="hover:text-[#295EF3] transition-colors border-b-2 border-[#295EF3] pb-1 text-[#295EF3] font-bold">
+              <button onClick={scrollToTop} className="hover:text-[#295EF3] transition-colors border-b-2 border-[#295EF3] pb-1 text-[#295EF3] font-bold cursor-pointer">
                 Inicio
               </button>
-              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] transition-colors">
-                Cómo Funciona
+              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+                Cómo funciona
               </button>
-              <button onClick={() => scrollToSection('por-que')} className="hover:text-[#295EF3] transition-colors">
-                Quiénes Somos
+              <button onClick={() => scrollToSection('cuanto-cuesta')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+                Cuánto cuesta
               </button>
-              <button onClick={() => scrollToSection('faq')} className="hover:text-[#295EF3] transition-colors">
-                Preguntas Frecuentes
+              <button onClick={() => scrollToSection('faq')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+                Preguntas frecuentes
               </button>
-              <button onClick={() => scrollToSection('contacto')} className="hover:text-[#295EF3] transition-colors">
+              <button onClick={() => scrollToSection('contacto')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
                 Contacto
               </button>
             </nav>
 
-            {/* User action */}
+            {/* User actions & Mobile menu toggle */}
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => onGoToLogin('login')}
-                className="flex items-center gap-2 text-sm font-bold text-[#1C2435] hover:text-[#295EF3] px-4 py-2.5 rounded-xl border border-[#1C2435]/15 hover:border-[#295EF3] transition-all bg-slate-50"
+                className="flex items-center gap-2 text-sm font-bold text-[#1C2435] hover:text-[#295EF3] px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-[#1C2435]/15 hover:border-[#295EF3] transition-all bg-slate-50 cursor-pointer"
               >
                 <User className="h-4 w-4" />
-                Ingresar
+                <span className="hidden xs:inline">Ingresar</span>
               </button>
 
               <button 
                 onClick={() => onGoToLogin('register')}
-                className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-sm font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer"
               >
                 Registrarse
+              </button>
+
+              {/* Mobile hamburger button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="md:hidden p-2 rounded-xl text-[#1C2435] hover:bg-slate-100 transition-colors focus:outline-hidden"
+                aria-label="Abrir menú"
+              >
+                {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
               </button>
             </div>
 
           </div>
         </div>
+
+        {/* Mobile Navigation Drawer */}
+        {mobileMenuOpen && (
+          <div className="md:hidden bg-white border-b border-[#1C2435]/10 px-4 pt-2 pb-6 space-y-3 shadow-lg animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col space-y-2 text-base font-semibold text-[#1C2435]">
+              <button 
+                onClick={scrollToTop} 
+                className="text-left px-3 py-2 rounded-lg text-[#295EF3] bg-[#295EF3]/10 font-bold"
+              >
+                Inicio
+              </button>
+              <button 
+                onClick={() => scrollToSection('como-funciona')} 
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+              >
+                Cómo funciona
+              </button>
+              <button 
+                onClick={() => scrollToSection('cuanto-cuesta')} 
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+              >
+                Cuánto cuesta
+              </button>
+              <button 
+                onClick={() => scrollToSection('faq')} 
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+              >
+                Preguntas frecuentes
+              </button>
+              <button 
+                onClick={() => scrollToSection('contacto')} 
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+              >
+                Contacto
+              </button>
+            </nav>
+          </div>
+        )}
       </header>
 
       {/* MAIN CONTENT */}
@@ -191,14 +243,12 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   Atención por profesionales matriculados
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.1] text-white">
-                  Renová tu medicación <br />
-                  o gestioná tus estudios <br />
-                  <span className="text-[#295EF3]">sin esperas.</span>
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
+                  Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#295EF3]">en 24 hs.</span>
                 </h1>
 
                 <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                  Consultas médicas digitales, seguras y rápidas. Atención por profesionales matriculados de la República Argentina.
+                  Un médico matriculado evaluará tu pedido y renovará tu receta para que la entregues en la farmacia, con un mínimo costo.
                 </p>
 
                 {/* Action Buttons */}
@@ -207,7 +257,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     onClick={() => onGoToLogin('login')}
                     className="bg-[#295EF3] hover:bg-[#316F80] text-white font-bold text-base px-8 py-4 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    Renovar Medicación Crónica
+Solicitar Receta
                     <ArrowRight className="h-5 w-5" />
                   </button>
                 </div>
@@ -265,7 +315,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                           <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
                         </div>
                         <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Ingresás tus datos y detallás el medicamento o estudio de rutina que necesitás.
+                          Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
                         </p>
                       </div>
                     </div>
@@ -281,7 +331,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                           <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
                         </div>
                         <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Un profesional de la salud matriculado evalúa tu solicitud y verifica tus antecedentes.
+                          Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                         </p>
                       </div>
                     </div>
@@ -297,7 +347,8 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                           <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
                         </div>
                         <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Obtenés tu receta u orden digital en PDF firmada, lista para la farmacia.
+                          Recibís por mail o Whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
+
                         </p>
                       </div>
                     </div>
@@ -331,7 +382,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 ¿Cómo funciona?
               </h2>
               <p className="text-slate-600 text-base sm:text-lg font-semibold">
-                <strong className="text-[#1C2435]">Tres simples pasos</strong> para obtener tu receta u orden médica
+                <strong className="text-[#1C2435]">Tres simples pasos</strong> para obtener tu receta electrónica
               </p>
             </div>
 
@@ -349,7 +400,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Completás el formulario</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Ingresás tus datos y detallás el medicamento o estudio de rutina que necesitás renovar de forma rápida y sencilla.
+                    Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
                   </p>
                 </div>
               </div>
@@ -365,7 +416,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Validación Médica</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Un profesional de la salud matriculado evalúa tu solicitud y verifica tus antecedentes clínicos de manera individual.
+                    Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                   </p>
                 </div>
               </div>
@@ -381,12 +432,130 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Recibís tu receta</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Obtenés la receta u orden médica digital firmada en formato PDF lista para presentar directamente en la farmacia.
+                    Recibís por mail o Whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
                   </p>
                 </div>
               </div>
 
             </div>
+          </div>
+        </section>
+
+        {/* SECTION: ¿Cuánto cuesta? */}
+        <section id="cuanto-cuesta" className="py-20 bg-slate-50 border-b border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+            
+            <div className="text-center max-w-3xl mx-auto space-y-3">
+              <div className="inline-flex items-center gap-2 bg-[#295EF3]/10 text-[#295EF3] px-3.5 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider border border-[#295EF3]/20">
+                <CreditCard className="h-4 w-4" />
+                Tarifas transparentes
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
+                ¿Cuánto cuesta?
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg font-semibold">
+                Sin abonos mensuales ni costos ocultos. Abonás únicamente por trámite gestionado.
+              </p>
+            </div>
+
+            {/* Pricing Cards */}
+            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8 items-stretch">
+              
+              {/* Card 1: Renovación de Receta */}
+              <div className="bg-white rounded-3xl p-8 border-2 border-[#295EF3] shadow-xl relative flex flex-col justify-between overflow-hidden">
+                <div className="absolute top-0 right-0 bg-[#295EF3] text-white text-[11px] font-extrabold uppercase px-4 py-1.5 rounded-bl-2xl tracking-wider">
+                  Más Solicitado
+                </div>
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center mb-6">
+                    <Pill className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-2xl font-black text-[#1C2435] mb-2">Renovación de Receta</h3>
+                  <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
+                    Para medicamentos crónicos o de uso habitual evaluados y autorizados por un médico matriculado.
+                  </p>
+                  <div className="space-y-3 border-t border-slate-100 pt-6">
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
+                      <span>Emisión de receta digital oficial con QR</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
+                      <span>Válida en farmacias y obras sociales del país</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
+                      <span>Entrega en formato PDF vía WhatsApp / Email</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
+                      <span>Si el médico no autoriza, no se genera cobro</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
+                  <button 
+                    onClick={() => onGoToLogin('login')}
+                    className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    Solicitar Receta
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 font-medium">
+                    <MercadoPagoIcon className="h-4 w-4" />
+                    <span>Pago protegido por Mercado Pago</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Órdenes de Estudios Médicos */}
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-md relative flex flex-col justify-between">
+                <div>
+                  <div className="w-12 h-12 rounded-2xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center mb-6">
+                    <FileCheck2 className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-2xl font-black text-[#1C2435] mb-2">Orden de Estudios</h3>
+                  <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
+                    Gestión de prescripciones para estudios de laboratorio, imágenes y controles preventivos de rutina.
+                  </p>
+                  <div className="space-y-3 border-t border-slate-100 pt-6">
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
+                      <span>Laboratorios, ecografías, radiografías y chequeos</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
+                      <span>Firma digital con matrícula médica nacional</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
+                      <span>Procesamiento rápido de 2 a 24 horas hábiles</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
+                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
+                      <span>Cancelación sin costo si requiere atención presencial</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
+                  <button 
+                    onClick={() => onGoToLogin('login')}
+                    className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    Solicitar Estudio
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 font-medium">
+                    <MercadoPagoIcon className="h-4 w-4" />
+                    <span>Pago protegido por Mercado Pago</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
           </div>
         </section>
 
@@ -539,6 +708,11 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 <li>
                   <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
                     <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Cómo Funciona
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection('cuanto-cuesta')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
+                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Cuánto Cuesta
                   </button>
                 </li>
               </ul>
