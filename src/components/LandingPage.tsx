@@ -12,7 +12,6 @@ import {
   CheckCircle2, 
   ArrowRight, 
   UserCheck, 
-  CreditCard, 
   Pill, 
   Scale, 
   MessageCircle, 
@@ -27,7 +26,6 @@ import {
 } from 'lucide-react';
 import InformationalModal from './InformationalModal';
 import Logo from './Logo';
-import MercadoPagoIcon from './MercadoPagoIcon';
 
 
 interface LandingPageProps {
@@ -76,6 +74,11 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   const scrollToTop = () => {
     setMobileMenuOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleNavCuantoCuesta = () => {
+    setOpenFaq(0);
+    scrollToSection('faq');
   };
 
   const faqs = [
@@ -146,7 +149,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
                 Cómo funciona
               </button>
-              <button onClick={() => scrollToSection('cuanto-cuesta')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+              <button onClick={handleNavCuantoCuesta} className="hover:text-[#295EF3] transition-colors cursor-pointer">
                 Cuánto cuesta
               </button>
               <button onClick={() => scrollToSection('faq')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
@@ -204,7 +207,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 Cómo funciona
               </button>
               <button 
-                onClick={() => scrollToSection('cuanto-cuesta')} 
+                onClick={handleNavCuantoCuesta} 
                 className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
               >
                 Cuánto cuesta
@@ -248,130 +251,111 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 
                 <div className="inline-flex items-center gap-2 bg-[#316F80] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md border border-white/10">
                   <Pill className="h-4 w-4" />
-                  Atención por profesionales matriculados
+                  Atención Médica Online
                 </div>
 
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
-                  Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#295EF3]">en 24 hs.</span>
-                </h1>
+                <div className="space-y-4">
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15]">
+                    Renová tu receta o pedí estudios médicos <br className="hidden sm:inline" />
+                    <span className="text-[#295EF3] bg-clip-text">100% online</span>
+                  </h1>
+                  
+                  <p className="text-lg sm:text-xl text-slate-300 font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                    Gestioná tus recetas de medicamentos crónicos y órdenes de estudio en minutos, evaluadas por médicos matriculados. Rápido, seguro y oficial.
+                  </p>
+                </div>
 
-                <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                  Un médico matriculado evaluará tu pedido y renovará tu receta para que la entregues en la farmacia, con un mínimo costo.
-                </p>
+                {/* Benefits List */}
+                <div className="grid sm:grid-cols-3 gap-3 pt-2">
+                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
+                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                    <span>Sin turnos ni esperas</span>
+                  </div>
+                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
+                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                    <span>Médicos matriculados</span>
+                  </div>
+                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
+                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                    <span>Entrega digital rápida</span>
+                  </div>
+                </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-4 pt-2">
+                {/* Primary CTA */}
+                <div className="pt-2 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <button 
                     onClick={() => onGoToLogin('login')}
-                    className="bg-[#295EF3] hover:bg-[#316F80] text-white font-bold text-base px-8 py-4 rounded-xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 cursor-pointer"
+                    className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#295EF3]"
                   >
-Solicitar Receta
-                    <ArrowRight className="h-5 w-5" />
+                    <span>Solicitá tu Receta Online</span>
+                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </button>
-                </div>
-
-                {/* Fast Trust Indicators */}
-                <div className="pt-6 border-t border-slate-800 grid grid-cols-3 gap-4 text-xs font-semibold text-slate-300 max-w-lg mx-auto lg:mx-0">
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>Sin traslados</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>100% Digital</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>Firma oficial</span>
-                  </div>
                 </div>
 
               </div>
 
-              {/* Right Column: Floating Interactive Mockup UI with Steps */}
-              <div className="lg:col-span-5 relative">
-                <div className="relative mx-auto max-w-md bg-[#1C2435]/90 border border-slate-700/80 rounded-3xl p-6 shadow-2xl backdrop-blur-md">
+              {/* Right Column: Hero Visual Graphic / Card */}
+              <div className="lg:col-span-5 flex justify-center">
+                <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-[#1C2435] shadow-2xl border border-white/20 relative">
                   
-                  {/* Mockup Header */}
-                  <div className="flex items-center justify-between pb-4 border-b border-slate-700/80">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[#295EF3]/20 text-[#38bdf8] flex items-center justify-center font-bold border border-[#295EF3]/30">
-                        <Sparkles className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h4 className="text-sm sm:text-base font-bold text-white">¿Cómo funciona?</h4>
-                        <p className="text-xs text-[#38bdf8] font-semibold">Tu receta en 3 simples pasos</p>
-                      </div>
-                    </div>
-                    <span className="px-2.5 py-1 bg-emerald-500/15 text-emerald-400 text-[11px] font-bold rounded-full border border-emerald-500/30 flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      100% Digital
-                    </span>
+                  {/* Floating badge */}
+                  <div className="absolute -top-3 -right-3 bg-[#316F80] text-white text-[11px] font-extrabold uppercase px-3.5 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-1.5">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Fácil y Rápido
                   </div>
 
-                  {/* Steps Content Cards */}
-                  <div className="mt-5 space-y-3">
-                    
-                    {/* Step 1 */}
-                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-[#295EF3]/50 transition-all flex items-start gap-3 group">
-                      <div className="w-9 h-9 rounded-xl bg-[#295EF3]/20 text-[#60a5fa] flex items-center justify-center shrink-0 border border-[#295EF3]/30 group-hover:scale-105 transition-transform mt-0.5">
+                  <h3 className="text-xl font-black text-[#1C2435] mb-4 flex items-center gap-2">
+                    <Stethoscope className="h-6 w-6 text-[#295EF3]" />
+                    ¿Qué necesitás hoy?
+                  </h3>
+
+                  <div className="space-y-3">
+                    {/* Action Card 1: Receta */}
+                    <button 
+                      onClick={() => onGoToLogin('login')}
+                      className="w-full text-left p-4 rounded-2xl border-2 border-[#295EF3]/20 hover:border-[#295EF3] hover:bg-[#295EF3]/5 transition-all group flex items-start gap-4 cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <Pill className="h-4.5 w-4.5" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h5 className="text-sm font-bold text-white group-hover:text-[#60a5fa] transition-colors">1. Completás el formulario</h5>
-                          <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
-                        </div>
-                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
+                      <div className="flex-1">
+                        <h4 className="font-bold text-[#1C2435] text-base group-hover:text-[#295EF3] transition-colors">
+                          Renovación de Receta
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                          Para medicación crónica o tratamientos habituales.
                         </p>
                       </div>
-                    </div>
+                      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#295EF3] group-hover:translate-x-1 transition-all shrink-0 self-center" />
+                    </button>
 
-                    {/* Step 2 */}
-                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-[#38bdf8]/50 transition-all flex items-start gap-3 group">
-                      <div className="w-9 h-9 rounded-xl bg-[#316F80]/20 text-[#38bdf8] flex items-center justify-center shrink-0 border border-[#316F80]/40 group-hover:scale-105 transition-transform mt-0.5">
-                        <UserCheck className="h-4.5 w-4.5" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h5 className="text-sm font-bold text-white group-hover:text-[#38bdf8] transition-colors">2. Validación Médica</h5>
-                          <span className="text-[10px] font-extrabold text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
-                        </div>
-                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="bg-[#151C2C]/90 rounded-2xl p-3.5 border border-slate-700/70 hover:border-emerald-500/50 transition-all flex items-start gap-3 group">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30 group-hover:scale-105 transition-transform mt-0.5">
+                    {/* Action Card 2: Estudio */}
+                    <button 
+                      onClick={() => onGoToLogin('login')}
+                      className="w-full text-left p-4 rounded-2xl border border-slate-200 hover:border-[#316F80] hover:bg-[#316F80]/5 transition-all group flex items-start gap-4 cursor-pointer"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
                         <FileCheck2 className="h-4.5 w-4.5" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h5 className="text-sm font-bold text-white group-hover:text-emerald-400 transition-colors">3. Recibís tu receta PDF</h5>
-                          <span className="text-[10px] font-extrabold text-emerald-400 bg-emerald-950/60 border border-emerald-800/50 px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
-                        </div>
-                        <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                          Recibís por mail o Whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
-
+                      <div className="flex-1">
+                        <h4 className="font-bold text-[#1C2435] text-base group-hover:text-[#316F80] transition-colors">
+                          Orden de Estudios
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium mt-0.5">
+                          Laboratorios, imágenes y chequeos preventivos.
                         </p>
                       </div>
-                    </div>
-
+                      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#316F80] group-hover:translate-x-1 transition-all shrink-0 self-center" />
+                    </button>
                   </div>
 
-                  {/* Floating Badge overlay */}
-                  <div className="absolute -bottom-5 -left-5 bg-white text-[#1C2435] p-4 rounded-2xl shadow-2xl border border-slate-200 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center shrink-0">
-                      <ShieldCheck className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#316F80]">Validez Nacional</p>
-                      <p className="text-xs font-extrabold text-[#1C2435]">Apto Farmacias y Obras Sociales</p>
-                    </div>
+                  {/* Trust note */}
+                  <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                    <span className="flex items-center gap-1.5">
+                      <ShieldCheck className="h-4 w-4 text-[#316F80]" />
+                      100% Confidencial y Seguro
+                    </span>
+                    <span className="font-bold text-[#295EF3]">Ley 27.553</span>
                   </div>
 
                 </div>
@@ -381,20 +365,114 @@ Solicitar Receta
           </div>
         </section>
 
-        {/* SECTION: ¿Cómo funciona? */}
-        <section id="como-funciona" className="py-20 bg-slate-50 border-b border-slate-200">
+        {/* SECTION: ¿Qué podés solicitar? */}
+        <section className="py-20 bg-slate-50 border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
               <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
-                ¿Cómo funciona?
+                ¿Qué trámites podés realizar?
               </h2>
-              <p className="text-slate-600 text-base sm:text-lg font-semibold">
-                <strong className="text-[#1C2435]">Tres simples pasos</strong> para obtener tu receta electrónica
+              <p className="text-slate-600 text-base sm:text-lg font-medium">
+                Soluciones ágiles para que no interrumpas tus tratamientos ni controles médicos.
               </p>
             </div>
 
-            {/* 3 Step Cards */}
+            <div className="grid md:grid-cols-2 gap-8">
+              
+              {/* Option 1: Recetas */}
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-6 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center">
+                    <Pill className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-2xl font-black text-[#1C2435]">Renovación de Recetas</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                    Solicitá la prescripción de medicamentos que ya consumís de forma crónica o habitual. Un médico matriculado evalúa tu pedido y emite la receta digital válida en farmacias de todo el país.
+                  </p>
+                  <ul className="space-y-2.5 text-sm text-slate-700 font-semibold pt-2">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
+                      <span>Medicamentos de uso prolongado o crónico</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
+                      <span>Anticonceptivos y tratamientos regulares</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
+                      <span>Hasta 2 medicamentos por solicitud</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => onGoToLogin('login')}
+                    className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    <span>Renovar Receta</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Option 2: Estudios */}
+              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-6 flex flex-col justify-between">
+                <div className="space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center">
+                    <FileCheck2 className="h-7 w-7" />
+                  </div>
+                  <h3 className="text-2xl font-black text-[#1C2435]">Órdenes de Estudios Médicos</h3>
+                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
+                    Gestioná órdenes para análisis de laboratorio, estudios de diagnóstico por imágenes y controles preventivos de rutina con firma médica autorizada.
+                  </p>
+                  <ul className="space-y-2.5 text-sm text-slate-700 font-semibold pt-2">
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                      <span>Análisis clínicos de rutina y sangre</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                      <span>Ecografías, radiografías y mamografías</span>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
+                      <span>Chequeos anuales y preventivos</span>
+                    </li>
+                  </ul>
+                </div>
+
+                <div className="pt-4 border-t border-slate-100">
+                  <button 
+                    onClick={() => onGoToLogin('login')}
+                    className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  >
+                    <span>Pedir Orden Médica</span>
+                    <ArrowRight className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        </section>
+
+        {/* SECTION: Cómo Funciona */}
+        <section id="como-funciona" className="py-20 bg-white border-b border-slate-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
+            
+            <div className="text-center max-w-3xl mx-auto space-y-3">
+              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
+                Cómo funciona
+              </h2>
+              <p className="text-slate-600 text-base sm:text-lg font-medium">
+                Un proceso 100% digital, simple y seguro en solo 3 pasos.
+              </p>
+            </div>
+
+            {/* Steps Cards Grid */}
             <div className="grid md:grid-cols-3 gap-8">
               
               {/* Step Card 1 */}
@@ -406,9 +484,9 @@ Solicitar Receta
                     </div>
                     <span className="text-4xl font-black text-slate-300 group-hover:text-[#295EF3] transition-colors">01</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1C2435]">Completás el formulario</h3>
+                  <h3 className="text-xl font-bold text-[#1C2435]">Completá tus datos</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
+                    Ingresá a la plataforma, seleccioná la medicación o estudio que necesitás y cargá tus datos de cobertura.
                   </p>
                 </div>
               </div>
@@ -424,7 +502,7 @@ Solicitar Receta
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Validación Médica</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                    Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                   </p>
                 </div>
               </div>
@@ -449,130 +527,8 @@ Solicitar Receta
           </div>
         </section>
 
-        {/* SECTION: ¿Cuánto cuesta? */}
-        <section id="cuanto-cuesta" className="py-20 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-            
-            <div className="text-center max-w-3xl mx-auto space-y-3">
-              <div className="inline-flex items-center gap-2 bg-[#295EF3]/10 text-[#295EF3] px-3.5 py-1.5 rounded-xl font-bold text-xs uppercase tracking-wider border border-[#295EF3]/20">
-                <CreditCard className="h-4 w-4" />
-                Tarifas transparentes
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
-                ¿Cuánto cuesta?
-              </h2>
-              <p className="text-slate-600 text-base sm:text-lg font-semibold">
-                Sin abonos mensuales ni costos ocultos. Abonás únicamente por trámite gestionado.
-              </p>
-            </div>
-
-            {/* Pricing Cards */}
-            <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8 items-stretch">
-              
-              {/* Card 1: Renovación de Receta */}
-              <div className="bg-white rounded-3xl p-8 border-2 border-[#295EF3] shadow-xl relative flex flex-col justify-between overflow-hidden">
-                <div className="absolute top-0 right-0 bg-[#295EF3] text-white text-[11px] font-extrabold uppercase px-4 py-1.5 rounded-bl-2xl tracking-wider">
-                  Más Solicitado
-                </div>
-                <div>
-                  <div className="w-12 h-12 rounded-2xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center mb-6">
-                    <Pill className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-2xl font-black text-[#1C2435] mb-1">Renovación de Receta</h3>
-                  <div className="flex items-baseline gap-2 mb-3">
-                    <span className="text-3xl font-black text-[#295EF3]">$10.000</span>
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">/ hasta 2 medicamentos</span>
-                  </div>
-                  <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
-                    Para medicamentos crónicos o de uso habitual evaluados y autorizados por un médico matriculado.
-                  </p>
-                  <div className="space-y-3 border-t border-slate-100 pt-6">
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
-                      <span>Emisión de receta digital oficial con QR</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
-                      <span>Válida en farmacias y obras sociales del país</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
-                      <span>Entrega en formato PDF vía WhatsApp / Email</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#295EF3] shrink-0" />
-                      <span>Si el médico no autoriza, no se genera cobro</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
-                  <button 
-                    onClick={() => onGoToLogin('login')}
-                    className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
-                  >
-                    Solicitar Receta
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 font-medium">
-                    <MercadoPagoIcon className="h-4 w-4" />
-                    <span>Pago protegido por Mercado Pago</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Card 2: Órdenes de Estudios Médicos */}
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-md relative flex flex-col justify-between">
-                <div>
-                  <div className="w-12 h-12 rounded-2xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center mb-6">
-                    <FileCheck2 className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-2xl font-black text-[#1C2435] mb-2">Orden de Estudios</h3>
-                  <p className="text-slate-600 text-sm font-medium leading-relaxed mb-6">
-                    Gestión de prescripciones para estudios de laboratorio, imágenes y controles preventivos de rutina.
-                  </p>
-                  <div className="space-y-3 border-t border-slate-100 pt-6">
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
-                      <span>Laboratorios, ecografías, radiografías y chequeos</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
-                      <span>Firma digital con matrícula médica nacional</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
-                      <span>Procesamiento rápido de 2 a 24 horas hábiles</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-sm text-slate-700 font-semibold">
-                      <CheckCircle2 className="h-5 w-5 text-[#316F80] shrink-0" />
-                      <span>Cancelación sin costo si requiere atención presencial</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="mt-8 pt-6 border-t border-slate-100 flex flex-col gap-3">
-                  <button 
-                    onClick={() => onGoToLogin('login')}
-                    className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
-                  >
-                    Solicitar Estudio
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                  <div className="flex items-center justify-center gap-2 text-xs text-slate-500 font-medium">
-                    <MercadoPagoIcon className="h-4 w-4" />
-                    <span>Pago protegido por Mercado Pago</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </section>
-
         {/* SECTION: ¿Por qué Mi Receta Online? */}
-        <section id="por-que" className="py-20 bg-white">
+        <section id="por-que" className="py-20 bg-slate-50 border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
@@ -584,7 +540,7 @@ Solicitar Receta
             {/* 3 Columns Benefits Cards */}
             <div className="grid md:grid-cols-3 gap-8">
               
-              <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
+              <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
                 <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Clock className="h-8 w-8" />
                 </div>
@@ -594,7 +550,7 @@ Solicitar Receta
                 </p>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
+              <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
                 <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Scale className="h-8 w-8" />
                 </div>
@@ -604,7 +560,7 @@ Solicitar Receta
                 </p>
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
+              <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
                 <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <ShieldCheck className="h-8 w-8" />
                 </div>
@@ -612,26 +568,6 @@ Solicitar Receta
                 <p className="text-slate-600 text-sm leading-relaxed font-medium">
                   Tus datos de salud están encriptados y protegidos bajo normas de secreto médico.
                 </p>
-              </div>
-
-            </div>
-
-            {/* Three light bar highlights */}
-            <div className="bg-slate-100/70 rounded-2xl p-6 sm:p-8 grid md:grid-cols-3 gap-6 text-[#1C2435] font-semibold text-sm border border-slate-200">
-              
-              <div className="flex items-center justify-center gap-3">
-                <UserCheck className="h-5 w-5 text-[#295EF3] shrink-0" />
-                <span>Médicos con Matrícula Nacional vigente</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-3 border-t md:border-t-0 md:border-l border-slate-300 pt-4 md:pt-0">
-                <MercadoPagoIcon className="h-5 w-5" />
-                <span>Pago seguro a través de Mercado Pago</span>
-              </div>
-
-              <div className="flex items-center justify-center gap-3 border-t md:border-t-0 md:border-l border-slate-300 pt-4 md:pt-0">
-                <FileCheck2 className="h-5 w-5 text-[#295EF3] shrink-0" />
-                <span>Firma digital válida por el médico emisor</span>
               </div>
 
             </div>
@@ -660,34 +596,69 @@ Solicitar Receta
             </h2>
 
             {/* Accordion 2 Columns Grid */}
-            <div className="grid md:grid-cols-2 gap-4">
-              {faqs.map((faq, idx) => {
-                const isOpen = openFaq === idx;
-                return (
-                  <div 
-                    key={idx} 
-                    className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/10"
-                  >
-                    <button
-                      onClick={() => toggleFaq(idx)}
-                      className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
+            <div className="grid md:grid-cols-2 gap-4 items-start">
+              {/* Column 1 */}
+              <div className="flex flex-col gap-4">
+                {faqs.slice(0, Math.ceil(faqs.length / 2)).map((faq, idx) => {
+                  const isOpen = openFaq === idx;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/10"
                     >
-                      <span className="flex items-center gap-2.5">
-                        <span className="text-lg font-black text-[#295EF3]">
-                          {isOpen ? '−' : '+'}
+                      <button
+                        onClick={() => toggleFaq(idx)}
+                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span className="text-lg font-black text-[#295EF3]">
+                            {isOpen ? '−' : '+'}
+                          </span>
+                          {faq.q}
                         </span>
-                        {faq.q}
-                      </span>
-                    </button>
+                      </button>
 
-                    {isOpen && (
-                      <div className="p-4 pt-2 text-xs sm:text-sm text-slate-200 font-medium leading-relaxed border-t border-white/10 bg-[#1C2435]">
-                        {faq.a}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                      {isOpen && (
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-200 font-medium leading-relaxed border-t border-white/10 bg-[#1C2435]">
+                          {faq.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Column 2 */}
+              <div className="flex flex-col gap-4">
+                {faqs.slice(Math.ceil(faqs.length / 2)).map((faq, sliceIdx) => {
+                  const idx = sliceIdx + Math.ceil(faqs.length / 2);
+                  const isOpen = openFaq === idx;
+                  return (
+                    <div 
+                      key={idx} 
+                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/10"
+                    >
+                      <button
+                        onClick={() => toggleFaq(idx)}
+                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
+                      >
+                        <span className="flex items-center gap-2.5">
+                          <span className="text-lg font-black text-[#295EF3]">
+                            {isOpen ? '−' : '+'}
+                          </span>
+                          {faq.q}
+                        </span>
+                      </button>
+
+                      {isOpen && (
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-200 font-medium leading-relaxed border-t border-white/10 bg-[#1C2435]">
+                          {faq.a}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
           </div>
@@ -723,7 +694,7 @@ Solicitar Receta
                   </button>
                 </li>
                 <li>
-                  <button onClick={() => scrollToSection('cuanto-cuesta')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
+                  <button onClick={handleNavCuantoCuesta} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
                     <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Cuánto Cuesta
                   </button>
                 </li>
