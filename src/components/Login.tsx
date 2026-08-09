@@ -211,10 +211,6 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
           <div />
         )}
 
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-          <ShieldCheck className="h-4 w-4 text-[#316F80]" />
-          <span className="hidden sm:inline">Portal Seguro de Pacientes</span>
-        </div>
       </header>
 
       {/* Center Main Card */}
@@ -797,10 +793,6 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       {/* Footer Security / Trust Bar */}
       <footer className="relative z-10 py-6 text-center text-[11px] text-slate-400 font-medium">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-          <div className="flex items-center gap-1.5 text-slate-300">
-            <ShieldCheck className="h-4 w-4 text-[#316F80]" />
-            <span>Conexión cifrada SSL de 256 bits</span>
-          </div>
           <span className="hidden sm:inline text-slate-600">·</span>
           <span>Protección de datos personales Ley 25.326</span>
           <span className="hidden sm:inline text-slate-600">·</span>

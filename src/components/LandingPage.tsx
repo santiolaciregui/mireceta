@@ -267,7 +267,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 
                 <div className="inline-flex items-center gap-2 bg-[#316F80] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md border border-white/10">
                   <Pill className="h-4 w-4" />
-                  Atención Médica Online
+                  Tu portal de recetas médicas electrónicas
                 </div>
 
                 <div className="space-y-4">
@@ -280,21 +280,6 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </p>
                 </div>
 
-                {/* Benefits List */}
-                <div className="grid sm:grid-cols-3 gap-3 pt-2">
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>Sin turnos ni esperas</span>
-                  </div>
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>Médicos matriculados</span>
-                  </div>
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-sm text-slate-200 font-semibold bg-white/5 border border-white/10 rounded-xl p-3">
-                    <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                    <span>Entrega digital rápida</span>
-                  </div>
-                </div>
 
                 {/* Primary CTA */}
                 <div className="pt-2 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
@@ -302,7 +287,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     onClick={() => onGoToLogin('login')}
                     className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#295EF3]"
                   >
-                    <span>Solicitá tu Receta Online</span>
+                    <span>Solicitar Receta</span>
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                   </button>
                 </div>

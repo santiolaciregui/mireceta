@@ -643,6 +643,7 @@ export default function PatientForm({
           setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
         } else {
           setPaymentReceipt({ url: base64String, name: file.name });
+          setError(null);
         }
       };
       reader.readAsDataURL(file);
@@ -878,14 +879,27 @@ export default function PatientForm({
     e.preventDefault();
     setError(null);
 
-    // Final checks
+    // Final payment checks
     if (selectedObraSocial !== 'PAMI (Inssjp)' && paymentMethod !== 'cash_desk') {
       if (paymentMethod === 'mp' && !mpPaymentApproved) {
-        setError('Debe completar el pago mediante Mercado Pago para poder enviar la solicitud.');
+        setError('Debe abonar la solicitud mediante Mercado Pago (haciendo clic en "Pagar con Mercado Pago") o adjuntar un comprobante de transferencia bancaria para poder enviarla.');
+        setTimeout(() => {
+          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return;
       }
       if (paymentMethod === 'transfer' && !paymentReceipt) {
-        setError('Debe subir el comprobante de transferencia bancaria para poder enviar la solicitud.');
+        setError('Debe adjuntar el comprobante de transferencia bancaria o realizar el pago mediante Mercado Pago para poder enviar la solicitud.');
+        setTimeout(() => {
+          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+        return;
+      }
+      if (!mpPaymentApproved && !paymentReceipt) {
+        setError('Debe abonar por alguno de los medios de pago disponibles (Mercado Pago o Transferencia Bancaria con comprobante) para poder enviar la solicitud.');
+        setTimeout(() => {
+          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return;
       }
     }
@@ -2308,7 +2322,10 @@ export default function PatientForm({
                     <button
                       id="btn-pay-cash-desk"
                       type="button"
-                      onClick={() => setPaymentMethod('cash_desk')}
+                      onClick={() => {
+                        setPaymentMethod('cash_desk');
+                        setError(null);
+                      }}
                       className={`py-3 px-3 rounded-2xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                         paymentMethod === 'cash_desk'
                           ? 'border-emerald-600 bg-emerald-50 text-emerald-800 font-black ring-2 ring-emerald-500/20 shadow-xs'
@@ -2323,7 +2340,10 @@ export default function PatientForm({
                   <button
                     id="btn-pay-mp"
                     type="button"
-                    onClick={() => setPaymentMethod('mp')}
+                    onClick={() => {
+                      setPaymentMethod('mp');
+                      setError(null);
+                    }}
                     className={`py-3 px-3 rounded-2xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentMethod === 'mp'
                         ? 'border-blue-600 bg-blue-50 text-blue-700 font-black ring-2 ring-blue-500/20'
@@ -2337,7 +2357,10 @@ export default function PatientForm({
                   <button
                     id="btn-pay-transfer"
                     type="button"
-                    onClick={() => setPaymentMethod('transfer')}
+                    onClick={() => {
+                      setPaymentMethod('transfer');
+                      setError(null);
+                    }}
                     className={`py-3 px-3 rounded-2xl border font-extrabold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer ${
                       paymentMethod === 'transfer'
                         ? 'border-blue-600 bg-blue-50 text-blue-700 font-black ring-2 ring-blue-500/20'
@@ -2370,9 +2393,6 @@ export default function PatientForm({
                       <div className="flex items-center gap-2">
                         <MercadoPagoIcon variant="full" className="h-6 w-auto" />
                       </div>
-                      <span className="text-[10px] uppercase font-extrabold tracking-wider bg-blue-50 text-blue-700 px-2 py-0.5 rounded border border-blue-200">
-                        Pago 100% Protegido
-                      </span>
                     </div>
 
                     {/* Submit checkout preference button */}
@@ -2386,16 +2406,21 @@ export default function PatientForm({
                         </div>
                       </div>
                     ) : (
-                      <button
-                        id="btn-submit-mp-payment"
-                        type="button"
-                        onClick={processMercadoPagoPayment}
-                        disabled={mpProcessing}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                      >
-                        <MercadoPagoIcon className="h-5 w-5" />
-                        <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
-                      </button>
+                      <div className="space-y-3">
+                        <button
+                          id="btn-submit-mp-payment"
+                          type="button"
+                          onClick={processMercadoPagoPayment}
+                          disabled={mpProcessing}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                          <MercadoPagoIcon className="h-5 w-5" />
+                          <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
+                        </button>
+                        <p className="text-center text-[11px] text-slate-500 font-medium">
+                          Presione el botón azul para abonar con Mercado Pago. Una vez aprobado el pago, podrá enviar su solicitud.
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
@@ -2444,7 +2469,10 @@ export default function PatientForm({
                           <button
                             id="btn-remove-receipt"
                             type="button"
-                            onClick={() => setPaymentReceipt(null)}
+                            onClick={() => {
+                              setPaymentReceipt(null);
+                              setError(null);
+                            }}
                             className="text-[11px] text-red-650 hover:text-red-800 hover:bg-red-50 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
                           >
                             Quitar
@@ -2468,6 +2496,20 @@ export default function PatientForm({
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Step 4 Inline Warning/Error Banner */}
+            {error && (
+              <div 
+                id="payment-step-error"
+                className="p-4 bg-rose-50 border border-rose-200 text-rose-900 rounded-2xl flex items-start gap-3 text-xs font-semibold animate-fadeIn shadow-xs"
+              >
+                <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="space-y-0.5">
+                  <p className="font-extrabold text-rose-950 text-sm">Pago Requerido</p>
+                  <p className="text-rose-850 leading-relaxed font-normal">{error}</p>
+                </div>
               </div>
             )}
 
