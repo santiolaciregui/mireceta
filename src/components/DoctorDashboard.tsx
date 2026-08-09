@@ -429,74 +429,6 @@ export default function DoctorDashboard({
 
       {activeDashboardTab === 'requests' || (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {(!forcedSubview || forcedSubview === 'pendientes') && (
-             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-               <div className="space-y-1">
-                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Pedidos Pendientes de Auditoría</h1>
-                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Visualizá y auditá las nuevas solicitudes de renovación médica.</p>
-               </div>
-               {currentUser?.role !== 'admin' && (
-                 <button
-                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
-                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-                 >
-                   <Plus className="h-4 w-4" /> Nueva Solicitud
-                 </button>
-               )}
-             </header>
-          )}
-
-          {forcedSubview === 'revision' && (
-             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-               <div className="space-y-1">
-                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Pedidos En Revisión Médica</h1>
-                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión y seguimiento de trámites en proceso de auditoría y emisión.</p>
-               </div>
-               {currentUser?.role !== 'admin' && (
-                 <button
-                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
-                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-                 >
-                   <Plus className="h-4 w-4" /> Nueva Solicitud
-                 </button>
-               )}
-             </header>
-          )}
-
-          {forcedSubview === 'completadas' && (
-             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-               <div className="space-y-1">
-                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Recetas Emitidas y Completadas</h1>
-                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de recetas digitales firmadas y entregadas a pacientes.</p>
-               </div>
-               {currentUser?.role !== 'admin' && (
-                 <button
-                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
-                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-                 >
-                   <Plus className="h-4 w-4" /> Nueva Solicitud
-                 </button>
-               )}
-             </header>
-          )}
-
-          {forcedSubview === 'rechazadas' && (
-             <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-               <div className="space-y-1">
-                  <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Solicitudes Rechazadas</h1>
-                  <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Historial de solicitudes médicas rechazadas o desestimadas por auditoría.</p>
-               </div>
-               {currentUser?.role !== 'admin' && (
-                 <button
-                   onClick={() => onNavigateToSubview && onNavigateToSubview('nueva')}
-                   className="bg-[var(--accent)] text-white px-5 py-3 rounded-lg text-[0.8rem] font-[600] flex items-center gap-2 cursor-pointer hover:opacity-90"
-                 >
-                   <Plus className="h-4 w-4" /> Nueva Solicitud
-                 </button>
-               )}
-             </header>
-          )}
-
           <section className="workspace flex-1">
             {/* List Pane */}
             <div className={`list-pane ${selectedOrderId ? 'hidden lg:flex' : 'flex'}`}>
@@ -596,22 +528,24 @@ export default function DoctorDashboard({
                     <button onClick={() => setSelectedOrderId(null)} className="lg:hidden block text-[var(--ink-muted)] text-sm mb-4">&larr; Volver</button>
                     
                     <span className="status-pill">{selectedOrder.status}</span>
-                    <h2 style={{ fontSize: '2rem', letterSpacing: '-0.04em', fontWeight: 700, lineHeight: 1.2 }}>
-                      {selectedOrder.patientLastName}, {selectedOrder.patientName}
-                    </h2>
-                    <p style={{ fontFamily: '"Geist Mono", monospace', fontSize: '0.75rem', color: 'var(--ink-muted)', marginTop: '0.5rem' }}>
-                      ID: {selectedOrder.id} | DNI: {selectedOrder.patientDni} | {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR')}
-                    </p>
-                    {onNavigateToChat && (
-                      <div style={{ marginTop: '1.5rem' }}>
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h2 style={{ fontSize: '2rem', letterSpacing: '-0.04em', fontWeight: 700, lineHeight: 1.2 }}>
+                          {selectedOrder.patientLastName}, {selectedOrder.patientName}
+                        </h2>
+                        <p style={{ fontFamily: '"Geist Mono", monospace', fontSize: '0.75rem', color: 'var(--ink-muted)', marginTop: '0.5rem' }}>
+                          ID: {selectedOrder.id} | DNI: {selectedOrder.patientDni} | {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR')}
+                        </p>
+                      </div>
+                      {onNavigateToChat && (
                         <button
                           onClick={() => onNavigateToChat(selectedOrder.id)}
-                          className="bg-[var(--bg)] text-[var(--ink)] border border-[var(--ink-faint)] px-4 py-2 rounded-lg text-[0.85rem] font-[600] flex items-center gap-2"
+                          className="bg-[var(--bg)] hover:bg-slate-100 text-[var(--ink)] border border-[var(--ink-faint)] px-4 py-2 rounded-lg text-[0.85rem] font-[600] flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-sm"
                         >
-                          <MessageSquare className="h-4 w-4" /> Chatear con Paciente
+                          <MessageSquare className="h-4 w-4 text-[var(--ink-muted)]" /> Chatear con Paciente
                         </button>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex-1 overflow-y-auto">
