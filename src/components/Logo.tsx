@@ -18,31 +18,59 @@ export default function Logo({
   theme = 'light',
   className = '',
 }: LogoProps) {
-  // Dimension maps based on size and variant
   const iconHeightClasses = {
     sm: 'h-6 w-6',
-    md: 'h-8 w-8',
+    md: 'h-9 w-9',
     lg: 'h-11 w-11',
-    xl: 'h-16 w-16',
+    xl: 'h-14 w-14',
   };
 
-  const textHeightClasses = {
-    sm: 'h-5',
-    md: 'h-7',
-    lg: 'h-9',
-    xl: 'h-14',
+  const titleSizeClasses = {
+    sm: 'text-sm',
+    md: 'text-xl',
+    lg: 'text-2xl',
+    xl: 'text-3xl',
   };
+
+  const subtitleSizeClasses = {
+    sm: 'text-[7.5px]',
+    md: 'text-[9.5px]',
+    lg: 'text-xs',
+    xl: 'text-sm',
+  };
+
+  const isDark = theme === 'dark';
+
+  const renderText = () => (
+    <div className="flex flex-col justify-center leading-none select-none">
+      <div className={`font-black tracking-tight flex items-baseline ${titleSizeClasses[size]}`}>
+        <span className={isDark ? 'text-white' : 'text-[#1C2435]'}>mireceta</span>
+        <span className="text-[#295EF3]">.online</span>
+      </div>
+      <span
+        className={`font-semibold tracking-tight mt-0.5 whitespace-nowrap ${subtitleSizeClasses[size]} ${
+          isDark ? 'text-slate-300' : 'text-slate-500'
+        }`}
+      >
+        Tu portal de recetas médicas electrónicas
+      </span>
+    </div>
+  );
+
+  const renderIcon = () => (
+    <img
+      src="/assets/logo-icon.svg"
+      alt="Mi Receta Online Icon"
+      className={`${iconHeightClasses[size]} object-contain drop-shadow-xs transition-all shrink-0 ${
+        isDark ? 'brightness-110 contrast-105' : ''
+      }`}
+    />
+  );
 
   if (variant === 'icon') {
     return (
       <div className={`inline-flex items-center select-none ${className}`}>
-        <img
-          src="/assets/logo-icon.svg"
-          alt="Mi Receta Online Icon"
-          className={`${iconHeightClasses[size]} object-contain drop-shadow-xs transition-all ${
-            theme === 'dark' ? 'brightness-110 contrast-105' : ''
-          }`}
-        />
+        {renderIcon()}
       </div>
     );
   }
@@ -50,33 +78,16 @@ export default function Logo({
   if (variant === 'text') {
     return (
       <div className={`inline-flex items-center select-none ${className}`}>
-        <img
-          src="/assets/logo-text.svg"
-          alt="Mi Receta Online - Tu Portal de Recetas Médicas"
-          className={`${textHeightClasses[size]} object-contain drop-shadow-xs transition-all ${
-            theme === 'dark' ? 'brightness-0 invert' : ''
-          }`}
-        />
+        {renderText()}
       </div>
     );
   }
 
   return (
     <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
-      <img
-        src="/assets/logo-icon.svg"
-        alt="Mi Receta Online Icon"
-        className={`${iconHeightClasses[size]} object-contain drop-shadow-xs transition-all ${
-          theme === 'dark' ? 'brightness-110 contrast-105' : ''
-        }`}
-      />
-      <img
-        src="/assets/logo-text.svg"
-        alt="Mi Receta Online"
-        className={`${textHeightClasses[size]} object-contain drop-shadow-xs transition-all ${
-          theme === 'dark' ? 'brightness-0 invert' : ''
-        }`}
-      />
+      {renderIcon()}
+      {renderText()}
     </div>
   );
 }
+

@@ -164,15 +164,15 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => onGoToLogin('login')}
-                className="flex items-center gap-2 text-sm font-bold text-[#1C2435] hover:text-[#295EF3] px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-[#1C2435]/15 hover:border-[#295EF3] transition-all bg-slate-50 cursor-pointer"
+                className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
               >
-                <User className="h-4 w-4" />
-                <span className="hidden xs:inline">Ingresar</span>
+                <User className="h-4.5 w-4.5" />
+                <span>Ingresar</span>
               </button>
 
               <button 
                 onClick={() => onGoToLogin('register')}
-                className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-sm font-bold px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl transition-all shadow-sm hover:shadow-md cursor-pointer"
+                className="text-sm font-bold text-[#1C2435] hover:text-[#295EF3] px-3.5 sm:px-4 py-2.5 rounded-xl border border-[#1C2435]/15 hover:border-[#295EF3] transition-all bg-slate-50 cursor-pointer hidden sm:inline-flex"
               >
                 Registrarse
               </button>
@@ -225,6 +225,22 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 Contacto
               </button>
             </nav>
+
+            <div className="pt-2 flex flex-col gap-2 border-t border-slate-100">
+              <button 
+                onClick={() => { setMobileMenuOpen(false); onGoToLogin('login'); }}
+                className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white text-base font-extrabold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <User className="h-5 w-5" />
+                <span>Ingresar</span>
+              </button>
+              <button 
+                onClick={() => { setMobileMenuOpen(false); onGoToLogin('register'); }}
+                className="w-full text-center text-sm font-bold text-[#1C2435] py-2.5 rounded-xl border border-[#1C2435]/15 bg-slate-50"
+              >
+                Registrarse
+              </button>
+            </div>
           </div>
         )}
       </header>
@@ -255,13 +271,12 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 </div>
 
                 <div className="space-y-4">
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15]">
-                    Renová tu receta o pedí estudios médicos <br className="hidden sm:inline" />
-                    <span className="text-[#295EF3] bg-clip-text">100% online</span>
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
+                    Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#295EF3]">en 24 hs.</span>
                   </h1>
                   
-                  <p className="text-lg sm:text-xl text-slate-300 font-normal leading-relaxed max-w-2xl mx-auto lg:mx-0">
-                    Gestioná tus recetas de medicamentos crónicos y órdenes de estudio en minutos, evaluadas por médicos matriculados. Rápido, seguro y oficial.
+                  <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                    Un médico matriculado evaluará tu pedido y renovará tu receta para que la entregues en la farmacia, con un mínimo costo.
                   </p>
                 </div>
 
@@ -294,9 +309,9 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
               </div>
 
-              {/* Right Column: Hero Visual Graphic / Card */}
+              {/* Right Column: Hero Visual Graphic / Card with Vertical Steps */}
               <div className="lg:col-span-5 flex justify-center">
-                <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-[#1C2435] shadow-2xl border border-white/20 relative">
+                <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 text-[#1C2435] shadow-2xl border border-white/20 relative">
                   
                   {/* Floating badge */}
                   <div className="absolute -top-3 -right-3 bg-[#316F80] text-white text-[11px] font-extrabold uppercase px-3.5 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-1.5">
@@ -304,53 +319,72 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     Fácil y Rápido
                   </div>
 
-                  <h3 className="text-xl font-black text-[#1C2435] mb-4 flex items-center gap-2">
-                    <Stethoscope className="h-6 w-6 text-[#295EF3]" />
-                    ¿Qué necesitás hoy?
-                  </h3>
+                  {/* Header */}
+                  <div className="mb-4">
+                    <h3 className="text-xl font-black text-[#1C2435] flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-[#295EF3]" />
+                      ¿Cómo funciona?
+                    </h3>
+                    <p className="text-xs text-slate-500 font-semibold mt-0.5">
+                      Tu receta médica en 3 simples pasos
+                    </p>
+                  </div>
 
+                  {/* Vertical Steps Cards */}
                   <div className="space-y-3">
-                    {/* Action Card 1: Receta */}
-                    <button 
-                      onClick={() => onGoToLogin('login')}
-                      className="w-full text-left p-4 rounded-2xl border-2 border-[#295EF3]/20 hover:border-[#295EF3] hover:bg-[#295EF3]/5 transition-all group flex items-start gap-4 cursor-pointer"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    
+                    {/* Step 1 */}
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#295EF3]/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center shrink-0 mt-0.5">
                         <Pill className="h-4.5 w-4.5" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-[#1C2435] text-base group-hover:text-[#295EF3] transition-colors">
-                          Renovación de Receta
-                        </h4>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
-                          Para medicación crónica o tratamientos habituales.
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h4 className="text-sm font-bold text-[#1C2435]">1. Completás el formulario</h4>
+                          <span className="text-[10px] font-extrabold text-[#295EF3] bg-[#295EF3]/10 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
                         </p>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#295EF3] group-hover:translate-x-1 transition-all shrink-0 self-center" />
-                    </button>
+                    </div>
 
-                    {/* Action Card 2: Estudio */}
-                    <button 
-                      onClick={() => onGoToLogin('login')}
-                      className="w-full text-left p-4 rounded-2xl border border-slate-200 hover:border-[#316F80] hover:bg-[#316F80]/5 transition-all group flex items-start gap-4 cursor-pointer"
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    {/* Step 2 */}
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#316F80]/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center shrink-0 mt-0.5">
+                        <UserCheck className="h-4.5 w-4.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h4 className="text-sm font-bold text-[#1C2435]">2. Validación Médica</h4>
+                          <span className="text-[10px] font-extrabold text-[#316F80] bg-[#316F80]/10 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-emerald-500/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-100">
                         <FileCheck2 className="h-4.5 w-4.5" />
                       </div>
-                      <div className="flex-1">
-                        <h4 className="font-bold text-[#1C2435] text-base group-hover:text-[#316F80] transition-colors">
-                          Orden de Estudios
-                        </h4>
-                        <p className="text-xs text-slate-500 font-medium mt-0.5">
-                          Laboratorios, imágenes y chequeos preventivos.
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2 mb-0.5">
+                          <h4 className="text-sm font-bold text-[#1C2435]">3. Recibís tu receta</h4>
+                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
+                        </div>
+                        <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                          Recibís por mail o whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
                         </p>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-slate-400 group-hover:text-[#316F80] group-hover:translate-x-1 transition-all shrink-0 self-center" />
-                    </button>
+                    </div>
+
                   </div>
 
                   {/* Trust note */}
-                  <div className="mt-6 pt-5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
                     <span className="flex items-center gap-1.5">
                       <ShieldCheck className="h-4 w-4 text-[#316F80]" />
                       100% Confidencial y Seguro
@@ -365,110 +399,16 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           </div>
         </section>
 
-        {/* SECTION: ¿Qué podés solicitar? */}
-        <section className="py-20 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
-            
-            <div className="text-center max-w-3xl mx-auto space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
-                ¿Qué trámites podés realizar?
-              </h2>
-              <p className="text-slate-600 text-base sm:text-lg font-medium">
-                Soluciones ágiles para que no interrumpas tus tratamientos ni controles médicos.
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-8">
-              
-              {/* Option 1: Recetas */}
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center">
-                    <Pill className="h-7 w-7" />
-                  </div>
-                  <h3 className="text-2xl font-black text-[#1C2435]">Renovación de Recetas</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Solicitá la prescripción de medicamentos que ya consumís de forma crónica o habitual. Un médico matriculado evalúa tu pedido y emite la receta digital válida en farmacias de todo el país.
-                  </p>
-                  <ul className="space-y-2.5 text-sm text-slate-700 font-semibold pt-2">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
-                      <span>Medicamentos de uso prolongado o crónico</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
-                      <span>Anticonceptivos y tratamientos regulares</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#295EF3] shrink-0" />
-                      <span>Hasta 2 medicamentos por solicitud</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <button 
-                    onClick={() => onGoToLogin('login')}
-                    className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
-                  >
-                    <span>Renovar Receta</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Option 2: Estudios */}
-              <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm hover:shadow-md transition-shadow space-y-6 flex flex-col justify-between">
-                <div className="space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center">
-                    <FileCheck2 className="h-7 w-7" />
-                  </div>
-                  <h3 className="text-2xl font-black text-[#1C2435]">Órdenes de Estudios Médicos</h3>
-                  <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Gestioná órdenes para análisis de laboratorio, estudios de diagnóstico por imágenes y controles preventivos de rutina con firma médica autorizada.
-                  </p>
-                  <ul className="space-y-2.5 text-sm text-slate-700 font-semibold pt-2">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                      <span>Análisis clínicos de rutina y sangre</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                      <span>Ecografías, radiografías y mamografías</span>
-                    </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-[#316F80] shrink-0" />
-                      <span>Chequeos anuales y preventivos</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div className="pt-4 border-t border-slate-100">
-                  <button 
-                    onClick={() => onGoToLogin('login')}
-                    className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2 cursor-pointer text-sm"
-                  >
-                    <span>Pedir Orden Médica</span>
-                    <ArrowRight className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-            </div>
-
-          </div>
-        </section>
-
         {/* SECTION: Cómo Funciona */}
-        <section id="como-funciona" className="py-20 bg-white border-b border-slate-200">
+        <section id="como-funciona" className="py-20 bg-slate-50 border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
               <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
-                Cómo funciona
+                ¿Cómo funciona?
               </h2>
               <p className="text-slate-600 text-base sm:text-lg font-medium">
-                Un proceso 100% digital, simple y seguro en solo 3 pasos.
+                <span className="font-bold text-[#1C2435]">Tres simples pasos</span> para obtener tu receta electrónica.
               </p>
             </div>
 
@@ -484,9 +424,9 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     </div>
                     <span className="text-4xl font-black text-slate-300 group-hover:text-[#295EF3] transition-colors">01</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1C2435]">Completá tus datos</h3>
+                  <h3 className="text-xl font-bold text-[#1C2435]">Completás el formulario</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Ingresá a la plataforma, seleccioná la medicación o estudio que necesitás y cargá tus datos de cobertura.
+                    Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
                   </p>
                 </div>
               </div>
@@ -502,7 +442,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Validación Médica</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                    Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                   </p>
                 </div>
               </div>
@@ -518,7 +458,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#1C2435]">Recibís tu receta</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Recibís por mail o Whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
+                    Recibís por mail o whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
                   </p>
                 </div>
               </div>
@@ -528,7 +468,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         </section>
 
         {/* SECTION: ¿Por qué Mi Receta Online? */}
-        <section id="por-que" className="py-20 bg-slate-50 border-b border-slate-200">
+        <section id="por-que" className="py-20 bg-white border-b border-slate-200">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
@@ -540,7 +480,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             {/* 3 Columns Benefits Cards */}
             <div className="grid md:grid-cols-3 gap-8">
               
-              <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
+              <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
                 <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Clock className="h-8 w-8" />
                 </div>
