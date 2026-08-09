@@ -368,15 +368,6 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
                   </div>
 
-                  {/* Trust note */}
-                  <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
-                    <span className="flex items-center gap-1.5">
-                      <ShieldCheck className="h-4 w-4 text-[#316F80]" />
-                      100% Confidencial y Seguro
-                    </span>
-                    <span className="font-bold text-[#295EF3]">Ley 27.553</span>
-                  </div>
-
                 </div>
               </div>
 
