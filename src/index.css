@@ -186,7 +186,8 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
     display: flex;
     flex-direction: column;
     overflow-y: auto;
-    padding: 2.5rem;
+    padding: 1.75rem 2rem;
+    height: 100%;
 }
 
 .detail-header {
@@ -196,15 +197,19 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
 }
 
 .status-pill {
-    display: inline-block;
-    padding: 4px 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 10px;
+    height: 24px;
     background: #FEF3C7;
     color: #92400E;
     font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     border-radius: 999px;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
+    line-height: 1;
 }
 
 .detail-section {

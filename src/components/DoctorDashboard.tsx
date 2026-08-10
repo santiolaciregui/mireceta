@@ -33,7 +33,11 @@ import {
   FileUp,
   Trash2,
   File,
-  RotateCcw
+  RotateCcw,
+  Pill,
+  Shield,
+  Phone,
+  Eye
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -81,6 +85,7 @@ export default function DoctorDashboard({
 
   // Sync with forcedSubview from sidebar
   React.useEffect(() => {
+    setSelectedOrderId(null);
     if (forcedSubview) {
       if (forcedSubview === 'pendientes') {
         setFilter('Pendientes');
@@ -146,8 +151,39 @@ export default function DoctorDashboard({
     )
   );
 
-  // Compute selected order reference
-  const selectedOrder = orders.find(o => o.id === selectedOrderId) || (orders.length > 0 ? orders[0] : null);
+  // Filters logic
+  const filteredOrders = orders.filter(order => {
+    // Status Filter
+    if (filter === 'Pendientes' && order.status !== 'Pendiente') return false;
+    if (filter === 'En revisión' && order.status !== 'En revisión' && order.status !== 'Aprobada' && order.status !== 'Solicita más información') return false;
+    if (filter === 'Listos' && order.status !== 'Emitida' && order.status !== 'Enviada') return false;
+    if (filter === 'Rechazadas' && order.status !== 'Rechazada') return false;
+
+    // Operator Filter
+    if (selectedOperatorFilter !== 'Todos') {
+      if (selectedOperatorFilter === 'Paciente') {
+        if (order.createdByOperatorName) return false;
+      } else {
+        if (order.createdByOperatorName !== selectedOperatorFilter) return false;
+      }
+    }
+
+    // Search Query (Patient Name, LastName, Dni, OS)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const patientFullName = `${order.patientName} ${order.patientLastName}`.toLowerCase();
+      const matchName = patientFullName.includes(q);
+      const matchDni = order.patientDni.includes(q);
+      const matchOs = order.obraSocial.toLowerCase().includes(q);
+      const matchId = order.id.toLowerCase().includes(q);
+      return matchName || matchDni || matchOs || matchId;
+    }
+
+    return true;
+  });
+
+  // Compute selected order reference (strictly scoped to currently filtered list)
+  const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
 
   const [extractedTextCache, setExtractedTextCache] = useState<Record<string, string>>({});
   const [isExtractingCache, setIsExtractingCache] = useState<Record<string, boolean>>({});
@@ -204,39 +240,11 @@ export default function DoctorDashboard({
            setIsExtractingCache(prev => ({ ...prev, [selectedOrder.id]: false }));
         });
       }
+    } else {
+      setDoctorNotes('');
+      setUploadedRecipe(null);
     }
   }, [selectedOrderId, selectedOrder]);
-
-  // Filters logic
-  const filteredOrders = orders.filter(order => {
-    // Status Filter
-    if (filter === 'Pendientes' && order.status !== 'Pendiente') return false;
-    if (filter === 'En revisión' && order.status !== 'En revisión' && order.status !== 'Aprobada' && order.status !== 'Solicita más información') return false;
-    if (filter === 'Listos' && order.status !== 'Emitida' && order.status !== 'Enviada') return false;
-    if (filter === 'Rechazadas' && order.status !== 'Rechazada') return false;
-
-    // Operator Filter
-    if (selectedOperatorFilter !== 'Todos') {
-      if (selectedOperatorFilter === 'Paciente') {
-        if (order.createdByOperatorName) return false;
-      } else {
-        if (order.createdByOperatorName !== selectedOperatorFilter) return false;
-      }
-    }
-
-    // Search Query (Patient Name, LastName, Dni, OS)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const patientFullName = `${order.patientName} ${order.patientLastName}`.toLowerCase();
-      const matchName = patientFullName.includes(q);
-      const matchDni = order.patientDni.includes(q);
-      const matchOs = order.obraSocial.toLowerCase().includes(q);
-      const matchId = order.id.toLowerCase().includes(q);
-      return matchName || matchDni || matchOs || matchId;
-    }
-
-    return true;
-  });
 
   const pendingCount = orders.filter(o => o.status === 'Pendiente').length;
   const inProcessCount = orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length;
@@ -503,7 +511,10 @@ export default function DoctorDashboard({
                   <div className="grid grid-cols-2 gap-2 mt-2">
                     <select
                       value={filter}
-                      onChange={(e) => setFilter(e.target.value as any)}
+                      onChange={(e) => {
+                        setFilter(e.target.value as any);
+                        setSelectedOrderId(null);
+                      }}
                       className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--ink-faint)] rounded-md text-[0.75rem] outline-none"
                     >
                       <option value="Todos">Todos</option>
@@ -514,7 +525,10 @@ export default function DoctorDashboard({
                     </select>
                     <select
                       value={selectedOperatorFilter}
-                      onChange={(e) => setSelectedOperatorFilter(e.target.value)}
+                      onChange={(e) => {
+                        setSelectedOperatorFilter(e.target.value);
+                        setSelectedOrderId(null);
+                      }}
                       className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--ink-faint)] rounded-md text-[0.75rem] outline-none"
                     >
                       <option value="Todos">Operador: Todos</option>
@@ -590,162 +604,219 @@ export default function DoctorDashboard({
             {/* Detail Pane */}
             <div className={`detail-pane ${!selectedOrderId ? 'hidden lg:flex' : 'flex'}`}>
               {selectedOrder ? (
-                <div className="animate-fadeIn flex flex-col h-full">
-                  <div className="detail-header shrink-0">
-                    <button onClick={() => setSelectedOrderId(null)} className="lg:hidden block text-[var(--ink-muted)] hover:text-[var(--ink)] text-sm mb-4 cursor-pointer">&larr; Volver</button>
+                <div className="animate-fadeIn space-y-6 pb-12 w-full max-w-5xl mx-auto">
+                  {/* Detail Header */}
+                  <div className="border-b border-slate-200/80 pb-6">
+                    <button
+                      onClick={() => setSelectedOrderId(null)}
+                      className="lg:hidden flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-semibold mb-4 cursor-pointer"
+                    >
+                      &larr; Volver al listado
+                    </button>
                     
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="status-pill">{selectedOrder.status}</span>
-                      {(() => {
-                        const pStatus = selectedOrder.paymentStatus;
-                        const isExempt = pStatus === 'exempt' || selectedOrder.obraSocial === 'PAMI (Inssjp)' || String(selectedOrder.paymentAmount) === '0';
-                        if (pStatus === 'approved') {
+                    <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="status-pill !m-0">{selectedOrder.status}</span>
+                        {(() => {
+                          const pStatus = selectedOrder.paymentStatus;
+                          const isExempt = pStatus === 'exempt' || selectedOrder.obraSocial === 'PAMI (Inssjp)' || String(selectedOrder.paymentAmount) === '0';
+                          if (pStatus === 'approved') {
+                            return (
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 leading-none">
+                                <Check className="h-3.5 w-3.5" /> Pagado (${selectedOrder.paymentAmount || '10000'})
+                              </span>
+                            );
+                          }
+                          if (pStatus === 'refunded') {
+                            return (
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300 leading-none" title="Arancel en proceso de devolución al paciente">
+                                <RotateCcw className="h-3.5 w-3.5" /> En devolución (${selectedOrder.paymentAmount || '0'})
+                              </span>
+                            );
+                          }
+                          if (isExempt) {
+                            return (
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 leading-none">
+                                Exento / Bonificado
+                              </span>
+                            );
+                          }
+                          if (pStatus === 'rejected') {
+                            return (
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 leading-none">
+                                Pago Rechazado
+                              </span>
+                            );
+                          }
                           return (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
-                              <Check className="h-3 w-3" /> Pagado (${selectedOrder.paymentAmount || '10000'})
+                            <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300 leading-none">
+                              <Clock className="h-3.5 w-3.5" /> Pago Pendiente
                             </span>
                           );
-                        }
-                        if (pStatus === 'refunded') {
-                          return (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300" title="Arancel en proceso de devolución al paciente">
-                              <RotateCcw className="h-3 w-3" /> En devolución (${selectedOrder.paymentAmount || '0'})
-                            </span>
-                          );
-                        }
-                        if (isExempt) {
-                          return (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
-                              Exento / Bonificado
-                            </span>
-                          );
-                        }
-                        if (pStatus === 'rejected') {
-                          return (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
-                              Pago Rechazado
-                            </span>
-                          );
-                        }
-                        return (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
-                            <Clock className="h-3 w-3" /> Pago Pendiente
-                          </span>
-                        );
-                      })()}
-                    </div>
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h2 style={{ fontSize: '2rem', letterSpacing: '-0.04em', fontWeight: 700, lineHeight: 1.2 }}>
-                          {selectedOrder.patientLastName}, {selectedOrder.patientName}
-                        </h2>
-                        <p style={{ fontFamily: '"Geist Mono", monospace', fontSize: '0.75rem', color: 'var(--ink-muted)', marginTop: '0.5rem' }}>
-                          ID: {selectedOrder.id} | DNI: {selectedOrder.patientDni} | {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR')}
-                        </p>
+                        })()}
                       </div>
+
                       {onNavigateToChat && (
                         <button
                           onClick={() => onNavigateToChat(selectedOrder.id)}
-                          className="bg-[var(--bg)] hover:bg-slate-100 text-[var(--ink)] border border-[var(--ink-faint)] px-4 py-2 rounded-lg text-[0.85rem] font-[600] flex items-center gap-2 cursor-pointer transition-colors shrink-0 shadow-sm"
+                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shadow-xs"
                         >
-                          <MessageSquare className="h-4 w-4 text-[var(--ink-muted)]" /> Chatear con Paciente
+                          <MessageSquare className="h-4 w-4 text-emerald-600" />
+                          <span>Chatear con Paciente</span>
                         </button>
                       )}
                     </div>
+
+                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                      <div>
+                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                          {selectedOrder.patientLastName}, {selectedOrder.patientName}
+                        </h2>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-500 font-mono">
+                          <span className="font-bold text-slate-700">ID: {selectedOrder.id}</span>
+                          <span>•</span>
+                          <span>DNI: {selectedOrder.patientDni}</span>
+                          <span>•</span>
+                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString('es-AR')} {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 text-xs">
+                        <div className="bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 flex items-center gap-2 text-slate-700">
+                          <Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                          <span className="font-bold">{selectedOrder.obraSocial}</span>
+                          {selectedOrder.obraSocialNumber && (
+                            <span className="text-slate-400 font-mono text-[11px]">({selectedOrder.obraSocialNumber})</span>
+                          )}
+                        </div>
+                        {selectedOrder.patientPhone && (
+                          <div className="bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-slate-700">
+                            <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                            <span className="font-mono text-[11px]">{selectedOrder.patientPhone}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex-1 overflow-y-auto">
-                    <div className="detail-section">
-                      <span className="section-label">Medicación Requerida</span>
-                      <div className="medic-box">
+                  {/* Medication Section */}
+                  <div className="space-y-4">
+                    <span className="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
+                      <Pill className="h-4 w-4 text-blue-600" /> Medicación Solicitada
+                    </span>
+
+                    {/* Structured items if available */}
+                    {selectedOrder.medicationItems && selectedOrder.medicationItems.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {selectedOrder.medicationItems.map((item, idx) => (
+                          <div key={idx} className="bg-slate-50/90 hover:bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 transition-all shadow-xs">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-extrabold text-slate-900 text-sm">{item.nombreComercial}</span>
+                                  {item.droga && (
+                                    <span className="text-xs text-slate-500 font-normal">({item.droga})</span>
+                                  )}
+                                </div>
+                                {(item.presentacion || item.posologia) && (
+                                  <p className="text-xs text-slate-600 mt-0.5">
+                                    {item.presentacion} {item.posologia ? `• ${item.posologia}` : ''}
+                                  </p>
+                                )}
+                              </div>
+                              <span className="bg-white border border-slate-200/90 text-slate-800 font-extrabold text-xs px-2.5 py-1 rounded-lg shrink-0 shadow-2xs">
+                                {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                              </span>
+                            </div>
+
+                            {item.diagnostico && (
+                              <div className="text-[11px] text-blue-700 bg-blue-50/80 border border-blue-100 rounded-lg px-2.5 py-1">
+                                <strong>Diag:</strong> {item.diagnostico}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : selectedOrder.medicationText ? (
+                      <div className="bg-slate-50/90 border border-slate-200 rounded-2xl p-4 text-slate-800 text-sm font-medium leading-relaxed">
                         {selectedOrder.medicationText}
                       </div>
-                      
-                      {/* Box Photo Attachments */}
-                      {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                        <div className="mt-4 flex flex-wrap gap-4">
+                    ) : null}
+
+                    {/* Photo attachments */}
+                    {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
+                      <div className="mt-4 pt-3 border-t border-slate-100">
+                        <span className="text-xs font-bold text-slate-500 block mb-2">Fotos de envases / Recetas adjuntas:</span>
+                        <div className="flex flex-wrap gap-3">
                           {(selectedOrder.medicationPhotos || 
                             (selectedOrder.medicationPhotoUrl ? [{ url: selectedOrder.medicationPhotoUrl, name: selectedOrder.medicationPhotoName || 'foto.jpg' }] : [])
                           ).map((photo, i) => (
-                            <div key={i} className="border border-[var(--ink-faint)] rounded-lg overflow-hidden max-w-[200px]">
+                            <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs max-w-[220px]">
                               {photo.url.startsWith('MOCK') || photo.url.startsWith('RECIPE') ? (
-                                <div className="h-24 bg-slate-100 flex items-center justify-center text-[10px] text-slate-500 font-medium">Archivo Adjunto</div>
+                                <div className="h-28 bg-slate-100 flex flex-col items-center justify-center text-xs text-slate-500 font-medium p-3 text-center">
+                                  <FileText className="h-6 w-6 text-slate-400 mb-1" />
+                                  <span>Archivo Adjunto</span>
+                                </div>
                               ) : photo.url.startsWith('data:application/pdf') ? (
-                                <div className="h-24 bg-slate-50 flex items-center justify-center p-2"><FileText className="h-6 w-6 text-red-500" /></div>
+                                <div className="h-28 bg-slate-50 flex flex-col items-center justify-center p-3">
+                                  <FileText className="h-8 w-8 text-rose-500 mb-1" />
+                                  <span className="text-[10px] text-slate-500 font-mono truncate max-w-full">Documento PDF</span>
+                                </div>
                               ) : (
-                                <img src={photo.url} alt="Envase" className="h-24 w-full object-cover" />
+                                <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
+                                  <img src={photo.url} alt="Envase" className="h-28 w-full object-cover group-hover:opacity-90 transition-opacity" />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                    <Eye className="h-4 w-4" /> Ver foto
+                                  </div>
+                                </a>
                               )}
-                              <div className="p-2 text-[0.65rem] truncate bg-[var(--bg)] font-mono">{photo.name}</div>
+                              <div className="p-2 text-[10px] truncate bg-slate-50 font-mono text-slate-600 border-t border-slate-100">
+                                {photo.name}
+                              </div>
                             </div>
                           ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* AI Feedback */}
-                    {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                      <div className="detail-section">
-                        <span className="section-label">Análisis de Inteligencia Artificial</span>
-                        <div className="ia-feedback">
-                          <Sparkles className="h-5 w-5" />
-                          <div className="flex-1">
-                            {isExtractingCache[selectedOrder.id] ? (
-                              'Esperando inicio de análisis de envase...'
-                            ) : extractedTextCache[selectedOrder.id] ? (
-                              <div className="font-mono text-[0.75rem] whitespace-pre-wrap">{extractedTextCache[selectedOrder.id]}</div>
-                            ) : (
-                              'La IA no logró extraer información del envase.'
-                            )}
-                          </div>
                         </div>
                       </div>
                     )}
 
-                    {/* Audit Log (Registro de Cambios) */}
-                    {selectedOrder.auditLog && selectedOrder.auditLog.length > 0 && (
-                      <div className="detail-section mt-6">
-                        <span className="section-label mb-3 flex items-center gap-2"><FileCheck className="h-4 w-4"/> Registro de Cambios (Auditoría)</span>
-                        <div className="space-y-3">
-                          {selectedOrder.auditLog.map((log, idx) => (
-                            <div key={idx} className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">
-                              <div className="flex justify-between items-start mb-1">
-                                <span className="font-bold text-slate-900">{log.action}</span>
-                                <span className="text-[10px] text-slate-500 font-mono">{new Date(log.timestamp).toLocaleString('es-AR')}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5 text-slate-600 mb-1">
-                                <User className="h-3.5 w-3.5" />
-                                <span className="font-medium">{log.user}</span>
-                              </div>
-                              {log.notes && (
-                                <p className="text-slate-500 italic mt-1 border-l-2 border-slate-300 pl-2 py-0.5">"{log.notes}"</p>
-                              )}
+                    {/* AI Analysis feedback */}
+                    {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
+                      <div className="mt-3 bg-teal-50/50 border border-dashed border-teal-300 rounded-2xl p-4 flex gap-3 items-start text-xs text-teal-900">
+                        <Sparkles className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <strong className="block text-teal-800 font-bold mb-1">Análisis Automático de Envase (IA):</strong>
+                          {isExtractingCache[selectedOrder.id] ? (
+                            <span className="text-teal-600 italic">Analizando imagen de envase...</span>
+                          ) : extractedTextCache[selectedOrder.id] ? (
+                            <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/80 p-2.5 rounded-xl border border-teal-200/60 mt-1">
+                              {extractedTextCache[selectedOrder.id]}
                             </div>
-                          ))}
+                          ) : (
+                            <span className="text-teal-600">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
+                          )}
                         </div>
                       </div>
                     )}
                   </div>
 
-                  {/* Action Area */}
-                  <div style={{ paddingTop: '2rem' }} className="shrink-0 border-t border-[var(--ink-faint)] mt-4">
+                  {/* Doctor Actions & Prescribing Workflow */}
+                  <div className="mt-6 pt-6 border-t border-slate-200/80">
                     {currentUser?.role === 'admin' ? (
                       <div className="bg-slate-100 border border-slate-200 p-4 rounded-xl text-center text-slate-600 text-xs font-medium">
                         Modo solo lectura (Administrador). Los administradores pueden visualizar solicitudes pero no crearlas ni modificar su estado.
                       </div>
                     ) : (
                       <>
-                        {selectedOrder.status === 'Rechazada' && (
-                          <div style={{ background: '#FFF1F2', border: '1px solid #FECACA', padding: '1rem', borderRadius: '8px', fontSize: '0.75rem', marginBottom: '1.5rem', lineHeight: 1.4 }}>
-                            <strong>Estado Rechazada:</strong> Esta solicitud ha sido desestimada tras evaluación.
-                          </div>
-                        )}
-                        
-                        <div className="space-y-4">
-                          {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
-                            <div className="flex gap-2">
+                        {selectedOrder.status === 'Pendiente' && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
+                          <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                            <div>
+                              <h4 className="font-bold text-amber-900 text-sm">Solicitud Pendiente de Revisión Médica</h4>
+                              <p className="text-xs text-amber-700 mt-0.5">Al iniciar la revisión médica, el paciente será notificado y la solicitud pasará al estado activo.</p>
+                            </div>
+                            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
                               <button
                                 onClick={() => handleMarkInProcess(selectedOrder.id)}
-                                className="bg-[var(--accent)] hover:bg-blue-600 active:scale-[0.99] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow"
+                                className="flex-1 sm:flex-initial bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white px-6 py-3 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md"
                               >
                                 EMPEZAR REVISIÓN CLÍNICA
                               </button>
@@ -754,151 +825,223 @@ export default function DoctorDashboard({
                                   onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
                                   showToast('La solicitud ha sido rechazada.');
                                 }}
-                                className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 active:scale-[0.99] px-4 py-4 rounded-lg text-[0.85rem] font-[600] cursor-pointer transition-all"
+                                className="bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 px-4 py-3 rounded-xl text-xs font-bold cursor-pointer transition-colors"
                               >
                                 Rechazar
                               </button>
                             </div>
-                          )}
-                          {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
-                              <div className="bg-[var(--bg)] p-6 rounded-xl border border-[var(--ink-faint)]">
-                                <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Notas Clínicas / Motivo de Rechazo</label>
-                                <textarea
-                                  className="w-full p-3 bg-white border border-[var(--ink-faint)] rounded-md text-[0.85rem] mb-4 outline-none focus:border-[var(--accent)]"
-                                  rows={3}
-                                  placeholder="Indicaciones para el paciente o motivo de rechazo..."
-                                  value={doctorNotes}
-                                  onChange={e => setDoctorNotes(e.target.value)}
-                                />
-                                <div className="mb-4">
-                                  <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2 flex items-center justify-between">
-                                    <span>Adjuntar Receta Firmada (PDF)</span>
-                                    <span className="text-[10px] text-slate-400 normal-case font-sans">Formato exclusivo: .pdf</span>
-                                  </label>
+                          </div>
+                        )}
 
-                                  {uploadedRecipe ? (
-                                    <div className="bg-white border-2 border-emerald-400/80 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
-                                          <FileText className="h-5 w-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
-                                          <div className="flex items-center gap-2 mt-0.5">
-                                            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
-                                              <Check className="h-3 w-3" /> PDF Listo para emisión
-                                            </span>
-                                            {uploadedRecipe.size && (
-                                              <span className="text-[10px] text-slate-400 font-mono">
-                                                ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
-                                              </span>
-                                            )}
-                                          </div>
-                                        </div>
-                                      </div>
+                        {(selectedOrder.status === 'En revisión' || selectedOrder.status === 'Aprobada' || selectedOrder.status === 'Solicita más información') && (currentUser?.role === 'medico' || currentUser?.role === 'colaborador') && (
+                          <div className="bg-slate-50/90 border border-slate-200 rounded-2xl p-5 sm:p-6 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <span className="font-mono text-xs uppercase tracking-wider text-slate-500 font-bold">
+                                Gestión Médica y Emisión
+                              </span>
+                            </div>
 
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        <button
-                                          type="button"
-                                          onClick={() => pdfInputRef.current?.click()}
-                                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg border border-blue-200 transition-colors cursor-pointer"
-                                        >
-                                          Cambiar
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            setUploadedRecipe(null);
-                                            setPdfUploadError(null);
-                                          }}
-                                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                                          title="Quitar archivo"
-                                        >
-                                          <Trash2 className="h-4 w-4" />
-                                        </button>
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                Notas Clínicas / Indicaciones al Paciente
+                              </label>
+                              <textarea
+                                className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                rows={3}
+                                placeholder="Indicaciones para el paciente, posología especial o motivo en caso de rechazo..."
+                                value={doctorNotes}
+                                onChange={e => setDoctorNotes(e.target.value)}
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                                <span>Adjuntar Receta Firmada Digitalmente (PDF)</span>
+                                <span className="text-[11px] text-slate-400 font-normal">Formato obligatorio: .pdf</span>
+                              </label>
+
+                              {uploadedRecipe ? (
+                                <div className="bg-white border-2 border-emerald-400 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                                      <FileText className="h-5 w-5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
+                                      <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                          <Check className="h-3 w-3" /> PDF Listo para emisión oficial
+                                        </span>
+                                        {uploadedRecipe.size && (
+                                          <span className="text-[10px] text-slate-400 font-mono">
+                                            ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
+                                          </span>
+                                        )}
                                       </div>
                                     </div>
-                                  ) : (
-                                    <div
-                                      onDragOver={handlePdfDragOver}
-                                      onDragLeave={handlePdfDragLeave}
-                                      onDrop={handlePdfDrop}
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                      type="button"
                                       onClick={() => pdfInputRef.current?.click()}
-                                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer select-none ${
-                                        isDraggingPdf
-                                          ? 'border-blue-500 bg-blue-50/90 scale-[1.01] ring-4 ring-blue-100'
-                                          : 'border-slate-300 hover:border-blue-400 bg-white hover:bg-slate-50/50'
-                                      }`}
+                                      className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors cursor-pointer"
                                     >
-                                      <div className="h-10 w-10 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
-                                        <FileUp className="h-5 w-5" />
-                                      </div>
-                                      <p className="text-xs font-bold text-slate-800">
-                                        {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí'}
-                                      </p>
-                                      <p className="text-[11px] text-slate-500 mt-0.5">
-                                        o haga clic para seleccionar desde su equipo (únicamente archivos .pdf)
-                                      </p>
-                                    </div>
-                                  )}
-
-                                  <input
-                                    ref={pdfInputRef}
-                                    type="file"
-                                    accept="application/pdf,.pdf"
-                                    onChange={handleFileInputChange}
-                                    className="hidden"
-                                  />
-
-                                  {pdfUploadError && (
-                                    <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1">
-                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                      <span>{pdfUploadError}</span>
-                                    </p>
-                                  )}
+                                      Cambiar
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setUploadedRecipe(null);
+                                        setPdfUploadError(null);
+                                      }}
+                                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                      title="Quitar archivo"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
                                 </div>
-                                <div className="flex gap-3">
-                                  <button onClick={() => {
-                                    onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
-                                    showToast('Receta emitida y enviada con éxito.');
-                                  }} className="flex-1 bg-[var(--accent)] hover:bg-blue-600 active:scale-[0.99] text-white py-3 rounded-lg text-[0.9rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow">
-                                    EMITIR RECETA FINAL
-                                  </button>
-                                  <button onClick={() => {
-                                    onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
-                                    showToast('La solicitud ha sido rechazada.');
-                                  }} className="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow">
-                                    RECHAZAR SOLICITUD
-                                  </button>
+                              ) : (
+                                <div
+                                  onDragOver={handlePdfDragOver}
+                                  onDragLeave={handlePdfDragLeave}
+                                  onDrop={handlePdfDrop}
+                                  onClick={() => pdfInputRef.current?.click()}
+                                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
+                                    isDraggingPdf
+                                      ? 'border-blue-500 bg-blue-50 scale-[1.01] ring-4 ring-blue-100'
+                                      : 'border-slate-300 hover:border-blue-400 bg-white hover:bg-slate-50/50'
+                                  }`}
+                                >
+                                  <div className="h-10 w-10 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                                    <FileUp className="h-5 w-5" />
+                                  </div>
+                                  <p className="text-xs font-bold text-slate-800">
+                                    {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">
+                                    o haga clic para seleccionar desde su equipo (únicamente archivos .pdf)
+                                  </p>
                                 </div>
-                              </div>
-                          )}
-                          {selectedOrder.status === 'Emitida' && (
-                              <div className="bg-green-50 border border-green-200 p-6 rounded-xl text-center">
-                                <CheckCircle className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                                <h4 className="font-[600] text-green-900">Receta Emitida</h4>
-                                <p className="text-[0.75rem] text-green-700 mt-1">El proceso ha concluido correctamente.</p>
-                                {selectedOrder.recipePdfUrl && (
-                                  <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-[0.8rem] font-[600] cursor-pointer transition-colors shadow-sm">Descargar PDF</a>
-                                )}
-                              </div>
-                          )}
-                          {selectedOrder.status === 'Rechazada' && (
-                              <div className="bg-rose-50 border border-rose-200 p-6 rounded-xl text-center">
-                                <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
-                                <h4 className="font-[600] text-rose-900">Solicitud Rechazada</h4>
-                                <p className="text-[0.75rem] text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue rechazada por el profesional médico.'}</p>
-                              </div>
-                          )}
-                        </div>
+                              )}
+
+                              <input
+                                ref={pdfInputRef}
+                                type="file"
+                                accept="application/pdf,.pdf"
+                                onChange={handleFileInputChange}
+                                className="hidden"
+                              />
+
+                              {pdfUploadError && (
+                                <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1">
+                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                  <span>{pdfUploadError}</span>
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Buttons */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                              <button
+                                onClick={() => {
+                                  onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
+                                  showToast('Receta emitida y enviada con éxito.');
+                                }}
+                                className="flex-1 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                                <span>EMITIR RECETA FINAL</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
+                                  showToast('La solicitud ha sido rechazada.');
+                                }}
+                                className="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white px-6 py-3.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-sm hover:shadow"
+                              >
+                                RECHAZAR SOLICITUD
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {selectedOrder.status === 'Emitida' && (
+                          <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center">
+                            <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+                            <h4 className="font-bold text-emerald-900 text-base">Receta Digital Emitida</h4>
+                            <p className="text-xs text-emerald-700 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
+                            {selectedOrder.recipePdfUrl && (
+                              <a
+                                href={selectedOrder.recipePdfUrl}
+                                download={selectedOrder.recipePdfName || 'receta.pdf'}
+                                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                              >
+                                <Download className="h-4 w-4" />
+                                <span>Descargar Receta PDF</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {selectedOrder.status === 'Rechazada' && (
+                          <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center">
+                            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
+                            <h4 className="font-bold text-rose-900 text-base">Solicitud Rechazada</h4>
+                            <p className="text-xs text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue desestimada tras evaluación clínica.'}</p>
+                          </div>
+                        )}
                       </>
                     )}
                   </div>
+
+                  {/* Audit Log (Registro de Cambios) */}
+                  {selectedOrder.auditLog && selectedOrder.auditLog.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-slate-200/80">
+                      <span className="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5 mb-3">
+                        <FileCheck className="h-4 w-4 text-slate-500" /> Registro de Cambios (Auditoría)
+                      </span>
+                      <div className="space-y-2.5">
+                        {selectedOrder.auditLog.map((log, idx) => (
+                          <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-700">
+                            <div className="flex justify-between items-start mb-1">
+                              <span className="font-bold text-slate-900">{log.action}</span>
+                              <span className="text-[10px] text-slate-500 font-mono">{new Date(log.timestamp).toLocaleString('es-AR')}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-slate-600">
+                              <User className="h-3.5 w-3.5" />
+                              <span className="font-medium">{log.user}</span>
+                            </div>
+                            {log.notes && (
+                              <p className="text-slate-500 italic mt-1 border-l-2 border-slate-300 pl-2 py-0.5">"{log.notes}"</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                <div className="m-auto text-[var(--ink-muted)] text-[0.85rem] text-center max-w-xs">
-                  <FileText className="h-10 w-10 mx-auto mb-4 opacity-20" />
-                  <p>Seleccione un pedido del listado para ver el detalle y realizar la auditoría.</p>
+                <div className="m-auto text-center max-w-sm p-8 space-y-3">
+                  <div className="h-16 w-16 bg-blue-50 text-[#295EF3] rounded-2xl flex items-center justify-center mx-auto shadow-xs border border-blue-100/80">
+                    <FileText className="h-8 w-8 stroke-[1.75]" />
+                  </div>
+                  <h3 className="text-base font-extrabold text-slate-800">
+                    {filteredOrders.length > 0 ? 'Seleccione una solicitud' : 'Sin solicitudes en esta sección'}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {filteredOrders.length > 0 
+                      ? 'Elija un pedido de la lista lateral para visualizar sus datos clínicos, auditar la medicación y emitir la receta digital.' 
+                      : 'No hay trámites en esta categoría actualmente.'}
+                  </p>
+                  {filteredOrders.length > 0 && (
+                    <div className="pt-2">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                        👈 {filteredOrders.length} {filteredOrders.length === 1 ? 'solicitud disponible' : 'solicitudes disponibles'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
