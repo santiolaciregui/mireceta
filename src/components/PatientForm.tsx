@@ -91,6 +91,7 @@ export default function PatientForm({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [returnedOrder, setReturnedOrder] = useState<any>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
   const [searchStatus, setSearchStatus] = useState<{ found: boolean; message: string } | null>(null);
@@ -122,7 +123,14 @@ export default function PatientForm({
             payment_id: collectionId,
             preference_id: preferenceId,
           })
-        }).catch(err => {
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.order) {
+            setReturnedOrder(data.order);
+          }
+        })
+        .catch(err => {
           console.warn('[Payment Return Sync Warning]:', err);
         });
       } else if (payment === 'rejected') {
@@ -1160,7 +1168,7 @@ export default function PatientForm({
 
   // --- Render Confirmation View ---
   if (step === 'confirmation') {
-    const matchedOrder = orders.find((o: any) => o.id === createdOrderId);
+    const matchedOrder = returnedOrder || orders.find((o: any) => o.id === createdOrderId);
     const displayPatientName = patientName || matchedOrder?.patientName || currentUser?.name || 'Paciente';
     const displayPatientLastName = patientLastName || matchedOrder?.patientLastName || currentUser?.lastName || '';
     const displayPatientDni = patientDni || matchedOrder?.patientDni || currentUser?.identifier || '';
@@ -1173,6 +1181,10 @@ export default function PatientForm({
     const displayMedicationPhotos = (medicationPhotos && medicationPhotos.length > 0)
       ? medicationPhotos
       : (matchedOrder?.medicationPhotos || []);
+    const displayMedicationText = matchedOrder?.medicationText || '';
+    const displayDiagnostic = diagnostic || matchedOrder?.diagnostic || '';
+    const displayComments = comments || matchedOrder?.comments || '';
+    const displayPaymentAmount = paymentAmount || matchedOrder?.paymentAmount || '';
 
     const handleCopyOrderId = () => {
       if (createdOrderId) {
@@ -1204,10 +1216,10 @@ export default function PatientForm({
             deliveryMethod={displayDeliveryMethod}
             medicationItems={displayMedicationItems}
             medicationPhotos={displayMedicationPhotos}
-            medicationText={medicationText || matchedOrder?.medicationText}
-            diagnostic={diagnostic || matchedOrder?.diagnostic}
-            comments={comments || matchedOrder?.comments}
-            paymentAmount={paymentAmount || matchedOrder?.paymentAmount}
+            medicationText={displayMedicationText}
+            diagnostic={displayDiagnostic}
+            comments={displayComments}
+            paymentAmount={displayPaymentAmount}
             paymentMethod={paymentMethod}
             paymentId={matchedOrder?.paymentId || (paymentMethod === 'cash_desk' ? 'Cobro en ventanilla' : paymentMethod === 'mp' ? mpTransactionId : 'Transferencia')}
             paymentStatus={matchedOrder?.paymentStatus || 'approved'}
