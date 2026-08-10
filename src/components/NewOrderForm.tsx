@@ -230,7 +230,7 @@ export default function NewOrderForm({
         paymentReceiptUrl: simulatedReceiptSvg,
         paymentReceiptName: 'registro_oficio.png',
         paymentAmount: paymentMethod === 'bonificado' ? '0' : paymentAmount,
-        paymentStatus: 'approved',
+        paymentStatus: paymentMethod === 'bonificado' ? 'exempt' : 'approved',
         status: 'En revisión',
         consentsAccepted: {
           isOfAge: true,

@@ -33,4 +33,17 @@ export class PaymentController {
       res.status(404).json({ error: err.message });
     }
   };
+
+  syncReturn = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { orderId, ...returnData } = req.body;
+      if (!orderId) {
+        return res.status(400).json({ error: 'orderId es requerido' });
+      }
+      const result = await paymentService.syncReturn(orderId, returnData);
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  };
 }

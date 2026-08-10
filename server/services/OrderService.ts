@@ -41,6 +41,13 @@ export class OrderService {
     const newId = generateOrderId();
     const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
+    const isExempt = orderData.obraSocial === 'PAMI (Inssjp)' || 
+      orderData.paymentMethod === 'bonificado' || 
+      String(orderData.paymentAmount) === '0' ||
+      orderData.paymentStatus === 'exempt';
+
+    const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
+
     const newOrder: any = {
       ...orderData,
       id: newId,
@@ -50,6 +57,8 @@ export class OrderService {
       patientEmail: orderData.patientEmail || currentUser?.email || '',
       tenantId: currentUser?.tenantId || orderData.tenantId || 'TEN-0001',
       paymentId: finalPaymentId,
+      paymentStatus: calculatedPaymentStatus,
+      paymentAmount: isExempt ? '0' : (orderData.paymentAmount || '10000'),
       status: orderData.status || 'Pendiente',
       createdAt: new Date().toISOString(),
       auditLog: [],
@@ -81,6 +90,13 @@ export class OrderService {
         'Pago aprobado',
         'Sistema (Mercado Pago)',
         `Se acreditó el pago de $${newOrder.paymentAmount} con código de operación ${newOrder.paymentId}`
+      );
+    } else if (newOrder.paymentStatus === 'exempt') {
+      addAuditLogEntry(
+        newOrder,
+        'Arancel exento',
+        'Sistema (Convenio / PAMI)',
+        `Solicitud registrada como exenta / bonificada (arancel $0).`
       );
     }
 
@@ -114,6 +130,17 @@ export class OrderService {
 
       if (updateData.status === 'Cancelada' && (order.status === 'Pendiente' || order.status === 'En revisión')) {
         order.status = 'Cancelada';
+        
+        if (order.paymentStatus === 'approved') {
+          order.paymentStatus = 'refunded';
+          addAuditLogEntry(
+            order,
+            'En devolución (Reembolso iniciado)',
+            'Sistema (Reembolso)',
+            `Cancelación de orden paga. Se inició proceso de reintegro por $${order.paymentAmount || '0'}.`
+          );
+        }
+
         addAuditLogEntry(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.');
 
         await auditLogService.log({
@@ -175,6 +202,17 @@ export class OrderService {
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
 
     if (updateData.status && updateData.status !== order.status) {
+      const isBeingRejected = updateData.status === 'Rechazada';
+      if (isBeingRejected && order.paymentStatus === 'approved') {
+        order.paymentStatus = 'refunded';
+        addAuditLogEntry(
+          order,
+          'En devolución (Reembolso iniciado)',
+          operatorName,
+          `Solicitud rechazada en revisión médica. Se inició automáticamente el proceso de reembolso de los $${order.paymentAmount || '0'} abonados.`
+        );
+      }
+
       addAuditLogEntry(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes);
       order.status = updateData.status;
 
@@ -186,6 +224,16 @@ export class OrderService {
         entityId: id,
         details: `Cambio de estado a "${updateData.status}" por ${operatorName}`
       });
+    }
+
+    if (updateData.paymentStatus && updateData.paymentStatus !== order.paymentStatus) {
+      order.paymentStatus = updateData.paymentStatus;
+      addAuditLogEntry(
+        order,
+        `Estado de pago actualizado: ${updateData.paymentStatus}`,
+        operatorName,
+        `El estado del pago fue modificado a "${updateData.paymentStatus}".`
+      );
     }
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;

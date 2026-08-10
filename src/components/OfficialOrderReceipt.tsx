@@ -71,6 +71,14 @@ export default function OfficialOrderReceipt({
     return 'Pago Electrónico Verificado';
   };
 
+  const getPaymentStatusDisplay = () => {
+    if (paymentStatus === 'approved') return { label: 'Pagado / Verificado', color: 'text-emerald-700' };
+    if (paymentStatus === 'refunded') return { label: 'En devolución / Reembolso', color: 'text-amber-700' };
+    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || obraSocial === 'PAMI (Inssjp)') return { label: 'Exento / Bonificado', color: 'text-blue-700' };
+    if (paymentStatus === 'rejected') return { label: 'Rechazado', color: 'text-rose-700' };
+    return { label: 'Pendiente de Acreditación', color: 'text-yellow-700' };
+  };
+
   return (
     <div className="receipt-document bg-white text-slate-900 font-sans p-8 sm:p-10 max-w-[820px] mx-auto border border-slate-300 shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
       {/* Header Institucional */}
@@ -231,8 +239,8 @@ export default function OfficialOrderReceipt({
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Estado del Pago</span>
-            <span className="font-bold text-emerald-700">
-              {paymentStatus === 'approved' ? 'Aprobado / Verificado' : 'En proceso'}
+            <span className={`font-bold ${getPaymentStatusDisplay().color}`}>
+              {getPaymentStatusDisplay().label}
             </span>
           </div>
         </div>

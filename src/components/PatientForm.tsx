@@ -99,8 +99,10 @@ export default function PatientForm({
   // Check URL query parameters for Mercado Pago payment return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const payment = params.get('payment');
+    const payment = params.get('payment') || params.get('collection_status') || params.get('status');
     const orderId = params.get('orderId') || params.get('external_reference');
+    const collectionId = params.get('collection_id') || params.get('payment_id');
+    const preferenceId = params.get('preference_id');
 
     if (payment && orderId) {
       if (payment === 'approved' || payment === 'pending') {
@@ -108,6 +110,21 @@ export default function PatientForm({
         setDraftRestored(false);
         setCreatedOrderId(orderId);
         setStep('confirmation');
+
+        // Active server synchronization to immediately confirm payment in MongoDB
+        fetch('/api/payments/sync-return', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            orderId,
+            payment,
+            collection_id: collectionId,
+            payment_id: collectionId,
+            preference_id: preferenceId,
+          })
+        }).catch(err => {
+          console.warn('[Payment Return Sync Warning]:', err);
+        });
       } else if (payment === 'rejected') {
         setError(`El pago para la receta ${orderId} fue rechazado por Mercado Pago. Puede reintentar el pago o seleccionar otro método.`);
         setStep('payment');
@@ -1110,7 +1127,7 @@ export default function PatientForm({
       paymentId: paymentMethod === 'cash_desk'
         ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
         : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`),
-      paymentStatus: 'approved', // automatic approval
+      paymentStatus: (selectedObraSocial === 'PAMI (Inssjp)' || paymentAmount === '0') ? 'exempt' : 'approved',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics

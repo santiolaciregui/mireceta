@@ -278,4 +278,111 @@ export class PaymentService {
       createdAt: order.createdAt,
     };
   }
+
+  async syncReturn(orderId: string, returnData: any = {}) {
+    const order: any = await this.orderRepo.findById(orderId);
+    if (!order) {
+      throw new Error(`Receta con ID ${orderId} no encontrada`);
+    }
+
+    const paymentParam = returnData.payment || returnData.collection_status || returnData.status;
+    const paymentId = returnData.payment_id || returnData.collection_id || returnData.id || order.paymentId;
+    const isApproved = paymentParam === 'approved';
+    const isRejected = paymentParam === 'rejected' || paymentParam === 'cancelled';
+
+    // 1. Try to verify officially with Mercado Pago API if access token is available
+    const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
+    const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
+
+    let verifiedWithApi = false;
+
+    if (accessToken && paymentId && !String(paymentId).startsWith('REC-')) {
+      try {
+        const client = new MercadoPagoConfig({ accessToken });
+        const paymentApi = new Payment(client);
+        let paymentInfo: any = null;
+
+        try {
+          paymentInfo = await paymentApi.get({ id: String(paymentId) });
+        } catch {
+          // If paymentId not found directly, search by external_reference
+          const searchRes = await paymentApi.search({
+            options: { external_reference: orderId }
+          });
+          if (searchRes.results && searchRes.results.length > 0) {
+            paymentInfo = searchRes.results[0];
+          }
+        }
+
+        if (paymentInfo) {
+          verifiedWithApi = true;
+          const status = paymentInfo.status;
+          if (status === 'approved') {
+            order.paymentStatus = 'approved';
+            order.paymentId = String(paymentInfo.id);
+            order.paymentDate = new Date().toISOString();
+            if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
+              order.status = 'Pendiente';
+            }
+            addAuditLogEntry(
+              order,
+              'Pago acreditado (Mercado Pago API)',
+              'Sistema (Mercado Pago)',
+              `Verificación en tiempo real: Se acreditó el pago de $${order.paymentAmount} con código de operación oficial #${paymentInfo.id}.`
+            );
+          } else if (status === 'rejected' || status === 'cancelled') {
+            order.paymentStatus = 'rejected';
+            order.status = 'Rechazada';
+            addAuditLogEntry(
+              order,
+              'Pago rechazado (Mercado Pago API)',
+              'Sistema (Mercado Pago)',
+              `Pago ID #${paymentInfo.id} rechazado por la pasarela de pagos.`
+            );
+          }
+        }
+      } catch (apiErr: any) {
+        console.warn('[PaymentService syncReturn API check warning]:', apiErr.message || apiErr);
+      }
+    }
+
+    // 2. If API was not able to verify (e.g. sandbox token delay or missing token) but return params state approved
+    if (!verifiedWithApi && isApproved && order.paymentStatus !== 'approved') {
+      order.paymentStatus = 'approved';
+      if (paymentId) {
+        order.paymentId = String(paymentId);
+      }
+      order.paymentDate = new Date().toISOString();
+      if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
+        order.status = 'Pendiente';
+      }
+      addAuditLogEntry(
+        order,
+        'Pago confirmado al retornar de Mercado Pago',
+        'Sistema (Retorno de Checkout)',
+        `El usuario completó el checkout exitosamente con ID de transacción ${order.paymentId || paymentId}.`
+      );
+    } else if (!verifiedWithApi && isRejected && order.paymentStatus !== 'rejected') {
+      order.paymentStatus = 'rejected';
+      addAuditLogEntry(
+        order,
+        'Pago declinado en pasarela',
+        'Sistema (Retorno de Checkout)',
+        `El pago fue rechazado al retornar de la pasarela.`
+      );
+    }
+
+    await this.orderRepo.update(orderId, order);
+
+    return {
+      orderId: order.id,
+      status: order.status,
+      paymentStatus: order.paymentStatus,
+      paymentAmount: order.paymentAmount,
+      paymentId: order.paymentId,
+      patientName: `${order.patientName} ${order.patientLastName}`,
+      createdAt: order.createdAt,
+      order,
+    };
+  }
 }

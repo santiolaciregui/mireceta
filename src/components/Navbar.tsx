@@ -32,7 +32,7 @@ export default function Navbar({
           <div className="flex items-center space-x-3">
             <Logo variant="full" size="md" />
             <span className="hidden xl:inline-block text-[10px] sm:text-xs px-2.5 py-0.5 bg-[#295EF3]/10 text-[#295EF3] font-extrabold rounded-full border border-[#295EF3]/20">
-              Renovación Medicación Crónica
+              Mi Receta Online
             </span>
           </div>
 

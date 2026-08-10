@@ -8,5 +8,7 @@ router.post('/create-preference', controller.createPreference);
 router.post('/webhook', controller.webhook);
 router.get('/webhook', controller.webhook);
 router.get('/status/:orderId', controller.getStatus);
+router.post('/sync-return', controller.syncReturn);
+router.get('/sync-return', controller.syncReturn);
 
 export default router;

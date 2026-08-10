@@ -32,7 +32,8 @@ import {
   X,
   FileUp,
   Trash2,
-  File
+  File,
+  RotateCcw
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -549,9 +550,20 @@ export default function DoctorDashboard({
                         <p className="order-name">
                           {order.patientLastName}, {order.patientName}
                         </p>
-                        <p className="order-sub">
-                          {order.obraSocial} • DNI: {order.patientDni}
-                        </p>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <p className="order-sub truncate">
+                            {order.obraSocial} • DNI: {order.patientDni}
+                          </p>
+                          {(() => {
+                            const pStatus = order.paymentStatus;
+                            const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
+                            if (pStatus === 'approved') return <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">Pagado</span>;
+                            if (pStatus === 'refunded') return <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">En dev.</span>;
+                            if (isExempt) return <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0">Exento</span>;
+                            if (pStatus === 'rejected') return <span className="text-[9px] font-extrabold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 shrink-0">Rechazado</span>;
+                            return <span className="text-[9px] font-extrabold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 shrink-0">Pendiente</span>;
+                          })()}
+                        </div>
 
                         {hasMessages && (
                           <div className={`mt-2 flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md ${
@@ -582,7 +594,46 @@ export default function DoctorDashboard({
                   <div className="detail-header shrink-0">
                     <button onClick={() => setSelectedOrderId(null)} className="lg:hidden block text-[var(--ink-muted)] hover:text-[var(--ink)] text-sm mb-4 cursor-pointer">&larr; Volver</button>
                     
-                    <span className="status-pill">{selectedOrder.status}</span>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="status-pill">{selectedOrder.status}</span>
+                      {(() => {
+                        const pStatus = selectedOrder.paymentStatus;
+                        const isExempt = pStatus === 'exempt' || selectedOrder.obraSocial === 'PAMI (Inssjp)' || String(selectedOrder.paymentAmount) === '0';
+                        if (pStatus === 'approved') {
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <Check className="h-3 w-3" /> Pagado (${selectedOrder.paymentAmount || '10000'})
+                            </span>
+                          );
+                        }
+                        if (pStatus === 'refunded') {
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300" title="Arancel en proceso de devolución al paciente">
+                              <RotateCcw className="h-3 w-3" /> En devolución (${selectedOrder.paymentAmount || '0'})
+                            </span>
+                          );
+                        }
+                        if (isExempt) {
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                              Exento / Bonificado
+                            </span>
+                          );
+                        }
+                        if (pStatus === 'rejected') {
+                          return (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300">
+                              Pago Rechazado
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-300">
+                            <Clock className="h-3 w-3" /> Pago Pendiente
+                          </span>
+                        );
+                      })()}
+                    </div>
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h2 style={{ fontSize: '2rem', letterSpacing: '-0.04em', fontWeight: 700, lineHeight: 1.2 }}>

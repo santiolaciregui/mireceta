@@ -30,7 +30,8 @@ import {
   AlertTriangle,
   Search,
   Filter,
-  Printer
+  Printer,
+  RotateCcw
 } from 'lucide-react';
 import MercadoPagoIcon from './MercadoPagoIcon';
 import OfficialOrderReceipt from './OfficialOrderReceipt';
@@ -174,7 +175,7 @@ export default function PatientStatus({
   const allExpanded = filteredOrders.length > 0 && filteredOrders.every(o => expandedOrderIds[o.id]);
 
   return (
-    <div className="max-w-4xl mx-auto w-full space-y-5 animate-fadeIn pb-16">
+    <div className="max-w-6xl mx-auto w-full space-y-5 animate-fadeIn pb-16">
       
       {/* Toast Notification */}
       {toast && (
@@ -680,9 +681,64 @@ export default function PatientStatus({
 
                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-xl">
                             <span className="text-slate-500 font-medium">Estado del Pago:</span>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                              <Check className="h-3 w-3" /> {order.paymentStatus === 'approved' ? 'Aprobado' : 'Exento'}
-                            </span>
+                            {(() => {
+                              const pStatus = order.paymentStatus;
+                              const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
+
+                              if (pStatus === 'approved') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <Check className="h-3 w-3" /> Pagado
+                                  </span>
+                                );
+                              }
+                              if (pStatus === 'refunded') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200" title="Proceso de reintegro de arancel activado">
+                                    <RotateCcw className="h-3 w-3" /> En devolución
+                                  </span>
+                                );
+                              }
+                              if (isExempt) {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                    <ShieldCheck className="h-3 w-3" /> Exento
+                                  </span>
+                                );
+                              }
+                              if (pStatus === 'rejected') {
+                                return (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                                    <AlertCircle className="h-3 w-3" /> Rechazado
+                                  </span>
+                                );
+                              }
+                              return (
+                                <div className="flex items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-yellow-100 text-yellow-800 border border-yellow-200">
+                                    <Clock className="h-3 w-3" /> Pendiente
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={async (e) => {
+                                      e.stopPropagation();
+                                      try {
+                                        const res = await fetch(`/api/payments/status/${order.id}`);
+                                        if (res.ok) {
+                                          window.location.reload();
+                                        }
+                                      } catch (err) {
+                                        console.warn('Sync error', err);
+                                      }
+                                    }}
+                                    className="text-[9px] font-bold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                                    title="Consultar estado de acreditación en Mercado Pago"
+                                  >
+                                    Verificar
+                                  </button>
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
 

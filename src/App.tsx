@@ -231,8 +231,8 @@ export default function App() {
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Renovación Medicación Crónica</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Cargá la información de tu medicación crónica de forma segura y ágil.</p>
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mi Receta Online</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Solicita tu medicación de forma ágil y segura.</p>
                       </div>
                     </header>
 
@@ -485,7 +485,7 @@ export default function App() {
         {activeSubcategory !== 'chat' && (
           <footer className="border-t border-slate-200/60 py-6 text-slate-400 text-center text-[11px] font-semibold shrink-0 bg-white">
             <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <span>Renovación medicación crónica © 2026</span>
+              <span>Mi Receta Online © 2026</span>
               <span className="text-[10px] text-slate-400/80">
                 Sistema de Salud Protegido por Firma Digital de la Provincia de Buenos Aires
               </span>

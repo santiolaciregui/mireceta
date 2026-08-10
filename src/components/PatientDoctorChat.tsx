@@ -801,9 +801,11 @@ export default function PatientDoctorChat({
                   </button>
                 )}
 
-                <div className="hidden sm:inline-flex bg-white/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54] whitespace-nowrap">
-                  {activeConversation.ordersCount} {activeConversation.ordersCount === 1 ? 'trámite' : 'trámites'}
-                </div>
+                {!isPatient && (
+                  <div className="hidden sm:inline-flex bg-white/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-full border border-slate-200 text-[10px] font-bold font-mono text-[#075E54] whitespace-nowrap">
+                    {activeConversation.ordersCount} {activeConversation.ordersCount === 1 ? 'trámite' : 'trámites'}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -860,16 +862,18 @@ export default function PatientDoctorChat({
               </div>
             )}
 
-            {/* PATIENT ORDERS & TREATMENTS BANNER */}
-            <div className="bg-white/90 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-600 font-medium min-w-0 shrink-0">
-              <div className="min-w-0 truncate flex-1">
-                <strong className="text-slate-800">Paciente:</strong> {activeConversation.name} {activeConversation.lastName} <span className="text-slate-500 font-mono">(DNI: {activeConversation.dni})</span>
-                {activeConversation.latestOrderMedication ? <span className="hidden md:inline text-slate-500">{` • Última medicación: ${activeConversation.latestOrderMedication}`}</span> : ''}
+            {/* PATIENT ORDERS & TREATMENTS BANNER (Visible only to medical staff / admin / colab) */}
+            {!isPatient && (
+              <div className="bg-white/90 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-600 font-medium min-w-0 shrink-0">
+                <div className="min-w-0 truncate flex-1">
+                  <strong className="text-slate-800">Paciente:</strong> {activeConversation.name} {activeConversation.lastName} <span className="text-slate-500 font-mono">(DNI: {activeConversation.dni})</span>
+                  {activeConversation.latestOrderMedication ? <span className="hidden md:inline text-slate-500">{` • Última medicación: ${activeConversation.latestOrderMedication}`}</span> : ''}
+                </div>
+                <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800 font-mono">
+                  {activeConversation.latestOrderId || 'Paciente Registrado'}
+                </span>
               </div>
-              <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800 font-mono">
-                {activeConversation.latestOrderId || 'Paciente Registrado'}
-              </span>
-            </div>
+            )}
 
             {/* MESSAGES SCROLL CANVAS */}
             <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 py-4 space-y-3">
