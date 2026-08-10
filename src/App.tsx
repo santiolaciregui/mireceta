@@ -19,6 +19,7 @@ import SuperadminDashboard from './components/SuperadminDashboard';
 import AuditLogView from './components/AuditLogView';
 import PaymentConfigPanel from './components/PaymentConfigPanel';
 import NotificationConfigPanel from './components/NotificationConfigPanel';
+import SettlementMetricsView from './components/SettlementMetricsView';
 import { 
   PlusCircle, 
   Search, 
@@ -362,12 +363,11 @@ export default function App() {
               </>
             )}
 
-            {/* 2. MEDICO / ADMIN / COLABORADOR SUBVIEWS */}
-            {(activeRole === 'medico' || activeRole === 'colaborador' || activeRole === 'admin') && (
+            {/* 2. MEDICO / ADMIN / COLABORADOR / SUPERADMIN SUBVIEWS */}
+            {(activeRole === 'medico' || activeRole === 'colaborador' || activeRole === 'admin' || activeRole === 'superadmin') && (
               <>
                 {activeSubcategory === 'chat' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-
                     <div className="flex-1 flex overflow-hidden">
                       <PatientDoctorChat
                         orders={orders}
@@ -378,6 +378,12 @@ export default function App() {
                       />
                     </div>
                   </div>
+                ) : activeSubcategory === 'reportes' ? (
+                  <SettlementMetricsView
+                    orders={orders}
+                    users={users}
+                    currentUser={currentUser}
+                  />
                 ) : activeSubcategory === 'usuarios' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
@@ -439,6 +445,19 @@ export default function App() {
                       </div>
                     </div>
                   </div>
+                ) : activeRole === 'superadmin' && activeCategory === 'superadmin_panel' ? (
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                      <div className="space-y-1">
+                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Panel de Superadmin</h1>
+                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión global de Tenants (Instituciones / Clínicas).</p>
+                      </div>
+                    </header>
+
+                    <div className="flex-1 overflow-y-auto p-8">
+                      <SuperadminDashboard />
+                    </div>
+                  </div>
                 ) : (
                   /* Render DoctorDashboard with the selected subcategory passed as forcedSubview */
                   <DoctorDashboard
@@ -461,22 +480,6 @@ export default function App() {
                   />
                 )}
               </>
-            )}
-
-            {/* 3. SUPERADMIN SUBVIEWS */}
-            {activeRole === 'superadmin' && (
-              <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-                  <div className="space-y-1">
-                    <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Panel de Superadmin</h1>
-                    <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión global de Tenants (Instituciones / Clínicas).</p>
-                  </div>
-                </header>
-
-                <div className="flex-1 overflow-y-auto p-8">
-                  <SuperadminDashboard />
-                </div>
-              </div>
             )}
 
           </div>

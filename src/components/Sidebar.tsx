@@ -156,6 +156,13 @@ export default function Sidebar({
           items: [
             { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare, count: chatCount, countColor: 'bg-emerald-500 text-white' },
           ]
+        },
+        {
+          id: 'reportes_cat',
+          title: 'Reportes',
+          items: [
+            { id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp },
+          ]
         }
       ];
     }

@@ -82,8 +82,8 @@ export function useMedicalOrders() {
       .then((data) => setOrders(data))
       .catch((err) => console.error(err));
 
-    // Fetch users (only if administrator)
-    if (currentUser?.role === 'admin') {
+    // Fetch users (if admin, superadmin, medico or colaborador)
+    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico' || currentUser?.role === 'colaborador') {
       fetch('/api/users', { headers })
         .then((res) => {
           if (res.ok) return res.json();
@@ -196,7 +196,7 @@ export function useMedicalOrders() {
   };
 
   const refreshUsers = () => {
-    if (!token || currentUser?.role !== 'admin') return;
+    if (!token || (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin' && currentUser?.role !== 'medico')) return;
     fetch('/api/users', { headers: fetchHeaders() })
       .then((res) => res.ok && res.json())
       .then((data) => data && setUsers(data))

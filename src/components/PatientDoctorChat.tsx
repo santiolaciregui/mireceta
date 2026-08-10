@@ -22,7 +22,9 @@ import {
   PhoneCall,
   ExternalLink,
   ArrowLeft,
-  ChevronLeft
+  ChevronLeft,
+  FileText,
+  Download
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../types';
 
@@ -936,12 +938,53 @@ export default function PatientDoctorChat({
                         
                         {/* 1. TEXT CONTENT */}
                         {msg.text && (
-                          <p className="whitespace-pre-wrap font-normal text-slate-800 pr-4 break-words [overflow-wrap:anywhere] [word-break:break-word]">
-                            {msg.text}
-                          </p>
+                          <div className="whitespace-pre-wrap font-normal text-slate-800 pr-4 break-words [overflow-wrap:anywhere] [word-break:break-word]">
+                            {msg.text.split(/(https?:\/\/[^\s]+)/g).map((part, idx) => {
+                              if (part.match(/^https?:\/\//)) {
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={part}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-600 hover:text-blue-800 underline font-semibold break-all"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
+                                    {part}
+                                  </a>
+                                );
+                              }
+                              return <span key={idx}>{part}</span>;
+                            })}
+                          </div>
                         )}
 
-                        {/* 2. IMAGE ATTACHMENT */}
+                        {/* 2. PDF ATTACHMENT CARD */}
+                        {msg.fileType === 'pdf' && msg.fileUrl && (
+                          <div className="mt-2.5 p-3 bg-white/95 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 max-w-full">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
+                                <FileText className="h-5 w-5" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-slate-800 truncate">{msg.fileName || 'Receta_Digital.pdf'}</p>
+                                <span className="text-[10px] text-slate-500 font-mono">Receta Oficial (PDF)</span>
+                              </div>
+                            </div>
+                            <a
+                              href={msg.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              download={msg.fileName || 'receta.pdf'}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#00a884] hover:bg-[#075E54] text-white rounded-lg text-xs font-bold shrink-0 transition-colors shadow-xs"
+                            >
+                              <Download className="h-3.5 w-3.5" />
+                              <span>PDF</span>
+                            </a>
+                          </div>
+                        )}
+
+                        {/* 3. IMAGE ATTACHMENT */}
                         {msg.fileType === 'image' && msg.fileUrl && (
                           <div className="mt-1.5 overflow-hidden rounded-lg cursor-pointer group/img relative max-w-full">
                             <img 

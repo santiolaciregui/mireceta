@@ -1,17 +1,20 @@
 import { OrderRepository } from '../repositories/OrderRepository.js';
+import { PatientRepository } from '../repositories/PatientRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { notificationService } from './NotificationService.js';
 import { chatService } from './ChatService.js';
 import { storageService } from './storage/StorageService.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { cleanDni } from '../utils/formatters.js';
-import { generateOrderId } from '../utils/idGenerator.js';
+import { generateOrderId, generateMessageId } from '../utils/idGenerator.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
+  private patientRepo: PatientRepository;
 
   constructor() {
     this.orderRepo = new OrderRepository();
+    this.patientRepo = new PatientRepository();
   }
 
   async getOrdersForUser(currentUser: any) {
@@ -216,6 +219,11 @@ export class OrderService {
       addAuditLogEntry(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes);
       order.status = updateData.status;
 
+      if (currentUser?.role === 'medico' && (updateData.status === 'Emitida' || updateData.status === 'Enviada' || updateData.status === 'Aprobada')) {
+        order.issuedByDoctorId = currentUser.id;
+        order.issuedByDoctorName = `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
+      }
+
       await auditLogService.log({
         tenantId: order.tenantId || 'TEN-0001',
         currentUser,
@@ -265,7 +273,7 @@ export class OrderService {
       });
     }
 
-    // 4. Auto-dispatch notifications when recipe is issued
+    // 4. Auto-dispatch notifications & chat message when recipe is issued
     if (updateData.status === 'Emitida' || updateData.status === 'Enviada') {
       const host = process.env.PUBLIC_URL || 'https://mireceta.com';
       const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
@@ -290,6 +298,38 @@ export class OrderService {
           orderId: order.id,
           recipeLink
         }).catch((err) => console.error('Error enviando Email de receta emitida:', err));
+      }
+
+      // Persist recipe link message in patient conversation
+      const doctorDisplayName = currentUser?.name
+        ? `${currentUser.name} ${currentUser.lastName || ''}`.trim()
+        : 'Equipo Médico';
+
+      const emissionChatMessage: any = {
+        id: generateMessageId(),
+        sender: currentUser?.role === 'medico' ? 'medico' : (currentUser?.role === 'admin' ? 'admin' : (currentUser?.role === 'colaborador' ? 'colaborador' : 'sistema')),
+        senderName: doctorDisplayName,
+        senderRole: currentUser?.role || 'medico',
+        timestamp: new Date().toISOString(),
+        status: 'sent',
+        text: `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`,
+        fileUrl: order.recipePdfUrl || recipeLink,
+        fileName: order.recipePdfName || `receta_${order.id}.pdf`,
+        fileType: 'pdf'
+      };
+
+      const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];
+      order.messages = [...currentOrderMsgs, emissionChatMessage];
+
+      if (order.patientDni) {
+        const cleanPatientDni = cleanDni(order.patientDni);
+        this.patientRepo.findByDni(cleanPatientDni, order.tenantId || 'TEN-0001').then((pDoc) => {
+          if (pDoc) {
+            const currentPatientMsgs = Array.isArray(pDoc.messages) ? pDoc.messages : [];
+            pDoc.messages = [...currentPatientMsgs, emissionChatMessage];
+            pDoc.save().catch((pErr) => console.error('Error guardando mensaje en paciente:', pErr));
+          }
+        }).catch((pErr) => console.error('Error buscando paciente para chat:', pErr));
       }
     }
 
@@ -448,6 +488,34 @@ export class OrderService {
     if (emailResult && !emailResult.success) channelsFailed.push(`Email (${emailResult.error})`);
 
     const logDetails = `Reenvío de link de receta solicitado por ${operatorName}. Exitosos: [${channelsSent.join(', ') || 'ninguno'}]. Fallidos: [${channelsFailed.join(', ') || 'ninguno'}].`;
+
+    // Persist resend event as chat message in patient conversation
+    const channelText = channel === 'both' ? 'WhatsApp y Correo electrónico' : channel === 'whatsapp' ? 'WhatsApp' : 'Correo electrónico';
+    const resendChatMessage: any = {
+      id: generateMessageId(),
+      sender: currentUser?.role === 'medico' ? 'medico' : (currentUser?.role === 'admin' ? 'admin' : (currentUser?.role === 'colaborador' ? 'colaborador' : 'sistema')),
+      senderName: operatorName,
+      senderRole: currentUser?.role || 'medico',
+      timestamp: new Date().toISOString(),
+      status: 'sent',
+      text: `Se ha enviado el enlace de tu receta digital #${order.id} mediante ${channelText}.\n\nEnlace de descarga directa del PDF:\n${recipeLink}`,
+      fileUrl: order.recipePdfUrl || recipeLink,
+      fileName: order.recipePdfName || `receta_${order.id}.pdf`,
+      fileType: 'pdf'
+    };
+
+    const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];
+    order.messages = [...currentOrderMsgs, resendChatMessage];
+
+    if (order.patientDni) {
+      const cleanPatientDni = cleanDni(order.patientDni);
+      const patientDoc = await this.patientRepo.findByDni(cleanPatientDni, tenantId);
+      if (patientDoc) {
+        const currentPatientMsgs = Array.isArray(patientDoc.messages) ? patientDoc.messages : [];
+        patientDoc.messages = [...currentPatientMsgs, resendChatMessage];
+        await patientDoc.save();
+      }
+    }
 
     addAuditLogEntry(order, 'Reenvío de link de receta', operatorName, logDetails);
     await this.orderRepo.update(id, order);

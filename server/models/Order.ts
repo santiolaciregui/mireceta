@@ -64,6 +64,8 @@ export interface IMedicalOrder extends Document {
   recipePdfUrl: string | null;
   recipePdfName: string | null;
   doctorNotes?: string;
+  issuedByDoctorId?: string;
+  issuedByDoctorName?: string;
 
   lastConsultationTime?: string;
   lastConsultationDoctor?: string;
@@ -179,6 +181,8 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   recipePdfUrl: { type: String },
   recipePdfName: { type: String },
   doctorNotes: { type: String },
+  issuedByDoctorId: { type: String },
+  issuedByDoctorName: { type: String },
   
   lastConsultationTime: { type: String },
   lastConsultationDoctor: { type: String },

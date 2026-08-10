@@ -20,7 +20,9 @@ export interface MedicationItem {
   unidadesPorCaja?: number;
   cantidadCajas: number;
   diagnostic?: string;
+  diagnostico?: string;
   comments?: string;
+  posologia?: string;
   photoUrl?: string;
 }
 
@@ -81,6 +83,8 @@ export interface MedicalOrder {
   recipePdfUrl: string | null;
   recipePdfName: string | null;
   doctorNotes?: string;
+  issuedByDoctorId?: string;
+  issuedByDoctorName?: string;
 
   // Chronic renewal questions
   lastConsultationTime?: string; // e.g. "Hace menos de 3 meses" | "Hace entre 3 y 6 meses" | "Hace más de 6 meses"
@@ -141,6 +145,7 @@ export interface DependentPatient {
   name: string;
   lastName: string;
   dni: string;
+  identifier?: string;
   birthDate: string;
   relationship: string; // e.g. 'Titular', 'Hijo/a', 'Padre/Madre', 'Cónyuge', 'Otro'
   obraSocial?: string;
