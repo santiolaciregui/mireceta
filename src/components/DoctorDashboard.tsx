@@ -37,7 +37,13 @@ import {
   Pill,
   Shield,
   Phone,
-  Eye
+  Eye,
+  Send,
+  Mail,
+  Share2,
+  Loader2,
+  Copy,
+  CheckCheck
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -51,6 +57,16 @@ interface DoctorDashboardProps {
     recipePdfName?: string
   ) => void;
   onCreateOrder?: (data: any) => Promise<string>;
+  onSendRecipeLink?: (
+    orderId: string,
+    channel: 'whatsapp' | 'email' | 'both'
+  ) => Promise<{
+    success: boolean;
+    channel: 'whatsapp' | 'email' | 'both';
+    whatsapp?: { success: boolean; error?: string };
+    email?: { success: boolean; error?: string };
+    message: string;
+  }>;
   currentUser?: {
     id: string;
     username: string;
@@ -70,6 +86,7 @@ export default function DoctorDashboard({
   users = [],
   onUpdateStatus, 
   onCreateOrder, 
+  onSendRecipeLink,
   currentUser, 
   forcedSubview,
   onNavigateToChat,
@@ -140,6 +157,51 @@ export default function DoctorDashboard({
     setTimeout(() => {
       setToast(null);
     }, 4500);
+  };
+
+  // Send Recipe Link Modal States
+  const [isSendLinkModalOpen, setIsSendLinkModalOpen] = useState(false);
+  const [sendChannel, setSendChannel] = useState<'whatsapp' | 'email' | 'both'>('whatsapp');
+  const [isSendingLink, setIsSendingLink] = useState(false);
+  const [sendLinkFeedback, setSendLinkFeedback] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleSendLinkSubmit = async () => {
+    if (!selectedOrder) return;
+    setIsSendingLink(true);
+    setSendLinkFeedback(null);
+
+    try {
+      let result;
+      if (onSendRecipeLink) {
+        result = await onSendRecipeLink(selectedOrder.id, sendChannel);
+      } else {
+        const res = await fetch(`/api/orders/${selectedOrder.id}/send-link`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
+          },
+          body: JSON.stringify({ channel: sendChannel }),
+        });
+        result = await res.json();
+      }
+
+      if (result.success) {
+        showToast(result.message || 'Link de receta enviado correctamente.');
+        setSendLinkFeedback({ success: true, message: result.message || 'Enviado exitosamente' });
+        setTimeout(() => {
+          setIsSendLinkModalOpen(false);
+          setSendLinkFeedback(null);
+        }, 1400);
+      } else {
+        setSendLinkFeedback({ success: false, message: result.message || 'Error al enviar el link.' });
+      }
+    } catch (err: any) {
+      setSendLinkFeedback({ success: false, message: err.message || 'Error de conexión.' });
+    } finally {
+      setIsSendingLink(false);
+    }
   };
 
   // Derive unique operators in current orders
@@ -972,16 +1034,38 @@ export default function DoctorDashboard({
                             <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
                             <h4 className="font-bold text-emerald-900 text-base">Receta Digital Emitida</h4>
                             <p className="text-xs text-emerald-700 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
-                            {selectedOrder.recipePdfUrl && (
-                              <a
-                                href={selectedOrder.recipePdfUrl}
-                                download={selectedOrder.recipePdfName || 'receta.pdf'}
-                                className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                            <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+                              {selectedOrder.recipePdfUrl && (
+                                <a
+                                  href={selectedOrder.recipePdfUrl}
+                                  download={selectedOrder.recipePdfName || 'receta.pdf'}
+                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  <span>Descargar Receta PDF</span>
+                                </a>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (selectedOrder.patientPhone && selectedOrder.patientEmail) {
+                                    setSendChannel('both');
+                                  } else if (selectedOrder.patientPhone) {
+                                    setSendChannel('whatsapp');
+                                  } else if (selectedOrder.patientEmail) {
+                                    setSendChannel('email');
+                                  } else {
+                                    setSendChannel('whatsapp');
+                                  }
+                                  setSendLinkFeedback(null);
+                                  setIsSendLinkModalOpen(true);
+                                }}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm hover:shadow"
                               >
-                                <Download className="h-4 w-4" />
-                                <span>Descargar Receta PDF</span>
-                              </a>
-                            )}
+                                <Send className="h-4 w-4" />
+                                <span>Enviar link de receta</span>
+                              </button>
+                            </div>
                           </div>
                         )}
 
@@ -1106,6 +1190,259 @@ export default function DoctorDashboard({
                   })}
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Enviar link de receta (WhatsApp / Correo / Ambos) */}
+      {isSendLinkModalOpen && selectedOrder && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-scaleUp">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xs">
+                  <Send className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold">Enviar link de receta</h3>
+                  <p className="text-xs text-blue-100 mt-0.5">Seleccioná los canales de entrega al paciente</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSendingLink) {
+                    setIsSendLinkModalOpen(false);
+                    setSendLinkFeedback(null);
+                  }
+                }}
+                className="text-white/80 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+              {/* Patient Info Card */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-sm">
+                    {selectedOrder.patientName} {selectedOrder.patientLastName}
+                  </span>
+                  <span className="bg-blue-100 text-[#295EF3] font-bold px-2 py-0.5 rounded-md text-[10px]">
+                    Orden #{selectedOrder.id}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 text-slate-600">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <span className="truncate">{selectedOrder.patientPhone || 'Sin teléfono registrado'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 truncate">
+                    <Mail className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                    <span className="truncate">{selectedOrder.patientEmail || 'Sin email registrado'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Channel Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
+                  Canal de envío
+                </label>
+                <div className="space-y-2.5">
+                  {/* WhatsApp Option */}
+                  <label
+                    onClick={() => setSendChannel('whatsapp')}
+                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      sendChannel === 'whatsapp'
+                        ? 'border-emerald-500 bg-emerald-50/50 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sendChannel"
+                      value="whatsapp"
+                      checked={sendChannel === 'whatsapp'}
+                      onChange={() => setSendChannel('whatsapp')}
+                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-emerald-600" />
+                        <span className="font-bold text-slate-900 text-xs">WhatsApp</span>
+                        {selectedOrder.patientPhone ? (
+                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-mono font-medium">
+                            {selectedOrder.patientPhone}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-medium">
+                            Sin teléfono
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Envía un mensaje de WhatsApp con el enlace de descarga directa del PDF.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Email Option */}
+                  <label
+                    onClick={() => setSendChannel('email')}
+                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      sendChannel === 'email'
+                        ? 'border-blue-500 bg-blue-50/50 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sendChannel"
+                      value="email"
+                      checked={sendChannel === 'email'}
+                      onChange={() => setSendChannel('email')}
+                      className="mt-1 text-blue-600 focus:ring-blue-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        <span className="font-bold text-slate-900 text-xs">Correo Electrónico</span>
+                        {selectedOrder.patientEmail ? (
+                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono font-medium">
+                            {selectedOrder.patientEmail}
+                          </span>
+                        ) : (
+                          <span className="text-[10px] bg-rose-100 text-rose-700 px-1.5 py-0.5 rounded font-medium">
+                            Sin correo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Envía un correo con diseño oficial, detalles de la solicitud y botón de descarga.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Both Option */}
+                  <label
+                    onClick={() => setSendChannel('both')}
+                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                      sendChannel === 'both'
+                        ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sendChannel"
+                      value="both"
+                      checked={sendChannel === 'both'}
+                      onChange={() => setSendChannel('both')}
+                      className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <Share2 className="h-4 w-4 text-indigo-600" />
+                        <span className="font-bold text-slate-900 text-xs">Ambos (WhatsApp y Correo)</span>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">
+                          Recomendado
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Despacha simultáneamente la notificación por WhatsApp y por correo para asegurar la recepción.
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Link Direct Preview & Copy */}
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1.5">
+                  <span>Enlace público del PDF:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const link = `${window.location.origin}/api/orders/public/${selectedOrder.id}/pdf`;
+                      navigator.clipboard.writeText(link);
+                      setCopiedLink(true);
+                      setTimeout(() => setCopiedLink(false), 2000);
+                    }}
+                    className="text-[#295EF3] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    {copiedLink ? (
+                      <>
+                        <CheckCheck className="h-3 w-3 text-emerald-600" />
+                        <span className="text-emerald-600">Copiado</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3" />
+                        <span>Copiar link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[11px] font-mono text-slate-500 truncate select-all bg-white p-2 rounded-xl border border-slate-200/80">
+                  {`${window.location.origin}/api/orders/public/${selectedOrder.id}/pdf`}
+                </p>
+              </div>
+
+              {/* Feedback Message */}
+              {sendLinkFeedback && (
+                <div
+                  className={`p-3 rounded-xl text-xs flex items-start gap-2 ${
+                    sendLinkFeedback.success
+                      ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                      : 'bg-rose-50 text-rose-800 border border-rose-200'
+                  }`}
+                >
+                  {sendLinkFeedback.success ? (
+                    <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+                  )}
+                  <span>{sendLinkFeedback.message}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                disabled={isSendingLink}
+                onClick={() => {
+                  setIsSendLinkModalOpen(false);
+                  setSendLinkFeedback(null);
+                }}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSendingLink}
+                onClick={handleSendLinkSubmit}
+                className="px-5 py-2.5 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+              >
+                {isSendingLink ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Enviando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    <span>Enviar link</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>

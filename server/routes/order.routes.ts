@@ -15,5 +15,6 @@ router.post('/', controller.createOrder);
 router.put('/:id', controller.updateOrder);
 router.delete('/:id', controller.deleteOrder);
 router.post('/:id/chat', controller.addChatMessage);
+router.post('/:id/send-link', controller.sendRecipeLink);
 
 export default router;

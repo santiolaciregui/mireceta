@@ -463,6 +463,83 @@ export class NotificationService {
   }
 
   /**
+   * Dispatches Email notification when an order is issued/ready with PDF link.
+   */
+  public async sendRecipeIssuedEmail(params: {
+    tenantId: string;
+    patientEmail: string;
+    patientName: string;
+    orderId: string;
+    recipeLink: string;
+  }): Promise<SendNotificationResult> {
+    const { tenantId, patientEmail, patientName, orderId, recipeLink } = params;
+    if (!patientEmail) {
+      return { success: false, error: 'Correo electrónico no disponible para este paciente.' };
+    }
+
+    try {
+      const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+    <tr>
+      <td style="background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
+        <div style="font-size: 28px; margin-bottom: 8px;">📋</div>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.025em; color: #ffffff;">Tu Receta Digital está Lista</h1>
+        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; color: #e0e7ff;">Mi Receta Digital • Prescripción Médica Electrónica</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 32px 24px;">
+        <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hola <strong style="color: #0f172a;">${patientName}</strong>,</p>
+        <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
+          El profesional médico ha completado la auditoría clínica y emitido tu receta digital oficial correspondiente a la solicitud <strong>#${orderId}</strong>.
+        </p>
+        <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 28px 0; text-align: center;">
+          <tr>
+            <td align="center">
+              <a href="${recipeLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                Descargar Receta en PDF 📄
+              </a>
+            </td>
+          </tr>
+        </table>
+        <div style="background-color: #f1f5f9; border-radius: 10px; padding: 14px; margin-top: 24px; font-size: 12px; color: #64748b; line-height: 1.5;">
+          <strong>¿Problemas con el botón?</strong><br/>
+          También podés acceder directamente copiando y pegando el siguiente enlace en tu navegador:<br/>
+          <a href="${recipeLink}" style="color: #2563eb; word-break: break-all;">${recipeLink}</a>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+        Este es un mensaje automático de notificación médica. Si tienes dudas, puedes consultar en el portal de pacientes.
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `.trim();
+
+      return await this.sendNotification({
+        tenantId,
+        channel: 'email',
+        to: patientEmail,
+        subject: `Tu receta digital #${orderId} ha sido emitida`,
+        body: htmlBody
+      });
+    } catch (err: any) {
+      console.error('Error enviando notificación de receta emitida por Email:', err);
+      return { success: false, error: err.message || 'Error al despachar Email' };
+    }
+  }
+
+  /**
    * Dispatches WhatsApp notification when an order is rejected, notifying the patient that
    * the clinical audit did not approve it and that support will coordinate the full refund.
    */

@@ -47,6 +47,7 @@ export default function App() {
     currentPatientDni,
     createOrder,
     updateOrderStatus,
+    sendRecipeLink,
     deleteOrder,
     createUser,
     updateUser,
@@ -444,6 +445,7 @@ export default function App() {
                     orders={orders}
                     users={users}
                     onUpdateStatus={updateOrderStatus}
+                    onSendRecipeLink={sendRecipeLink}
                     onCreateOrder={createOrder}
                     currentUser={currentUser}
                     forcedSubview={activeSubcategory as any}

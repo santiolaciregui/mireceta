@@ -271,6 +271,38 @@ export function useMedicalOrders() {
     }
   };
 
+  // Resend recipe link via WhatsApp, Email, or Both
+  const sendRecipeLink = async (
+    orderId: string,
+    channel: 'whatsapp' | 'email' | 'both'
+  ): Promise<{
+    success: boolean;
+    channel: 'whatsapp' | 'email' | 'both';
+    whatsapp?: { success: boolean; error?: string };
+    email?: { success: boolean; error?: string };
+    message: string;
+  }> => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}/send-link`, {
+        method: 'POST',
+        headers: fetchHeaders(),
+        body: JSON.stringify({ channel }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al enviar el link de la receta.');
+      }
+      return data;
+    } catch (err: any) {
+      console.error('Error enviando link de receta:', err);
+      return {
+        success: false,
+        channel,
+        message: err.message || 'Error de conexión al enviar el enlace.',
+      };
+    }
+  };
+
   // Delete/Cancel medical order
   const deleteOrder = async (orderId: string) => {
     try {
@@ -455,6 +487,7 @@ export function useMedicalOrders() {
     createOrder,
     updateOrderPhotos,
     updateOrderStatus,
+    sendRecipeLink,
     deleteOrder,
     createUser,
     updateUser,

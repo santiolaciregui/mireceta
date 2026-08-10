@@ -80,5 +80,19 @@ export class OrderController {
       res.status(isNotFound ? 404 : 400).json({ error: err.message });
     }
   };
+
+  sendRecipeLink = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { channel } = req.body;
+      if (!channel || !['whatsapp', 'email', 'both'].includes(channel)) {
+        return res.status(400).json({ error: 'Canal no válido. Debe ser whatsapp, email o both.' });
+      }
+
+      const result = await orderService.sendRecipeLink(req.params.id, channel, getCurrentUser(req));
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  };
 }
 
