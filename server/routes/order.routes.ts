@@ -13,6 +13,7 @@ router.use(authenticateToken);
 router.get('/', controller.getOrders);
 router.post('/', controller.createOrder);
 router.put('/:id', controller.updateOrder);
+router.delete('/:id', controller.deleteOrder);
 router.post('/:id/chat', controller.addChatMessage);
 
 export default router;

@@ -245,4 +245,44 @@ export class OrderService {
   async addChatMessage(id: string, messageData: any, currentUser: any) {
     return chatService.sendMessage(id, messageData, currentUser);
   }
+
+  async deleteOrder(id: string, currentUser: any) {
+    const order: any = await this.orderRepo.findById(id);
+    if (!order) {
+      throw new Error('Solicitud no encontrada.');
+    }
+
+    // Tenant check
+    if (currentUser?.role !== 'superadmin' && order.tenantId && currentUser?.tenantId && order.tenantId !== currentUser.tenantId) {
+      throw new Error('No tiene permisos para eliminar solicitudes de otro centro médico.');
+    }
+
+    // Patient check: can only delete/cancel their own order
+    if (currentUser?.role === 'paciente') {
+      const patientDniClean = cleanDni(currentUser.identifier);
+      const dependentDnis = (currentUser.dependents || [])
+        .map((d: any) => cleanDni(d.dni || d.identifier))
+        .filter(Boolean);
+      const orderDniClean = cleanDni(order.patientDni);
+
+      const isOwner = orderDniClean === patientDniClean || dependentDnis.includes(orderDniClean) || (order.patientEmail && order.patientEmail === currentUser.email);
+      if (!isOwner) {
+        throw new Error('No tiene permiso para eliminar esta solicitud.');
+      }
+    }
+
+    const result = await this.orderRepo.delete(id);
+
+    await auditLogService.log({
+      tenantId: order.tenantId || currentUser?.tenantId || 'TEN-0001',
+      currentUser,
+      action: 'ORDER_DELETE',
+      entity: 'Order',
+      entityId: id,
+      details: `Eliminó la orden ${id} del paciente ${order.patientName || ''} ${order.patientLastName || ''} (DNI: ${order.patientDni || ''})`
+    });
+
+    return { success: result, id };
+  }
 }
+

@@ -70,4 +70,15 @@ export class OrderController {
       res.status(500).send('Error al obtener el archivo de la receta.');
     }
   };
+
+  deleteOrder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const result = await orderService.deleteOrder(req.params.id, getCurrentUser(req));
+      res.json(result);
+    } catch (err: any) {
+      const isNotFound = err.message === 'Solicitud no encontrada.';
+      res.status(isNotFound ? 404 : 400).json({ error: err.message });
+    }
+  };
 }
+

@@ -38,9 +38,11 @@ import {
   UserPlus,
   ShieldCheck,
   Printer,
-  Pill
+  Pill,
+  RotateCcw
 } from 'lucide-react';
 import MercadoPagoIcon from './MercadoPagoIcon';
+import { useFormDraft } from '../hooks/useFormDraft';
 
 
 interface PatientFormProps {
@@ -79,9 +81,12 @@ export default function PatientForm({
   onRemoveDependent,
 }: PatientFormProps) {
   const isThirdPartyUser = Boolean(isOficio || (currentUser && currentUser.role !== 'paciente'));
+  const userKey = currentUser?.id || currentUser?.identifier || recentDni;
+  const { saveDraft, loadDraft, clearDraft } = useFormDraft(userKey);
 
   // Wizard steps: 'info' -> 'identification' -> 'medication' -> 'payment' -> 'confirmation'
   const [step, setStep] = useState<'info' | 'identification' | 'medication' | 'payment' | 'confirmation'>('info');
+  const [draftRestored, setDraftRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
@@ -98,15 +103,17 @@ export default function PatientForm({
 
     if (payment && orderId) {
       if (payment === 'approved' || payment === 'pending') {
+        clearDraft();
+        setDraftRestored(false);
         setCreatedOrderId(orderId);
         setStep('confirmation');
-        onSuccess(orderId);
       } else if (payment === 'rejected') {
-        setError(`El pago para la receta ${orderId} fue rechazado. Puede reintentar el pago.`);
+        setError(`El pago para la receta ${orderId} fue rechazado por Mercado Pago. Puede reintentar el pago o seleccionar otro método.`);
+        setStep('payment');
       }
       window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, []);
+  }, [clearDraft]);
 
   // --- Step 1 Fields: Identification ---
   const [patientDni, setPatientDni] = useState(isThirdPartyUser ? '' : recentDni);
@@ -548,10 +555,10 @@ export default function PatientForm({
   }, [lastOrder, currentUser]);
 
   useEffect(() => {
-    if (patientOrders && patientOrders.length > 0) {
+    if (!draftRestored && patientOrders && patientOrders.length > 0) {
       setMedicationMethod('past_orders');
     }
-  }, [patientOrders.length]);
+  }, [patientOrders.length, draftRestored]);
 
   const handleRepeatLastOrder = () => {
     if (!lastOrder) return;
@@ -627,6 +634,161 @@ export default function PatientForm({
       age--;
     }
     return age;
+  };
+
+  // --- Draft Restoration, Persistence, and Reset Handlers ---
+
+  // 1. Restore draft on mount
+  useEffect(() => {
+    if (isThirdPartyUser) return;
+
+    const draft = loadDraft();
+    if (draft) {
+      if (draft.step && draft.step !== 'confirmation') {
+        setStep(draft.step);
+      }
+      if (draft.patientDni) setPatientDni(draft.patientDni);
+      if (draft.patientName) setPatientName(draft.patientName);
+      if (draft.patientLastName) setPatientLastName(draft.patientLastName);
+      if (draft.patientBirthDate) setPatientBirthDate(draft.patientBirthDate);
+      if (draft.patientEmail) setPatientEmail(draft.patientEmail);
+      if (draft.patientPhone) setPatientPhone(draft.patientPhone);
+      if (draft.deliveryMethod) setDeliveryMethod(draft.deliveryMethod);
+      if (draft.selectedObraSocial) setSelectedObraSocial(draft.selectedObraSocial);
+      if (draft.obraSocialNumber) setObraSocialNumber(draft.obraSocialNumber);
+      if (draft.selectedCardId) setSelectedCardId(draft.selectedCardId);
+
+      if (draft.medicationMethod) setMedicationMethod(draft.medicationMethod);
+      if (draft.selectedPastOrderId) setSelectedPastOrderId(draft.selectedPastOrderId);
+      if (Array.isArray(draft.medicationItems) && draft.medicationItems.length > 0) {
+        setMedicationItems(draft.medicationItems);
+      }
+      if (Array.isArray(draft.medicationPhotos) && draft.medicationPhotos.length > 0) {
+        setMedicationPhotos(draft.medicationPhotos);
+      }
+      if (draft.diagnostic) setDiagnostic(draft.diagnostic);
+      if (draft.comments) setComments(draft.comments);
+      if (draft.lastConsultationTime) setLastConsultationTime(draft.lastConsultationTime);
+      if (draft.lastConsultationDoctor) setLastConsultationDoctor(draft.lastConsultationDoctor);
+
+      if (typeof draft.consentAge === 'boolean') setConsentAge(draft.consentAge);
+      if (typeof draft.consentTerms === 'boolean') setConsentTerms(draft.consentTerms);
+      if (typeof draft.consentInformed === 'boolean') setConsentInformed(draft.consentInformed);
+      if (typeof draft.consentSworn === 'boolean') setConsentSworn(draft.consentSworn);
+
+      if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
+      if (draft.paymentAmount) setPaymentAmount(draft.paymentAmount);
+
+      setDraftRestored(true);
+    }
+  }, []);
+
+  // 2. Auto-Save Draft on state change
+  useEffect(() => {
+    if (isThirdPartyUser || step === 'confirmation') return;
+
+    const hasMeaningfulData =
+      step !== 'info' ||
+      patientDni.trim() ||
+      patientName.trim() ||
+      medicationItems.length > 0 ||
+      medicationPhotos.length > 0;
+
+    if (hasMeaningfulData) {
+      saveDraft({
+        step,
+        patientDni,
+        patientName,
+        patientLastName,
+        patientBirthDate,
+        patientEmail,
+        patientPhone,
+        deliveryMethod,
+        selectedObraSocial,
+        obraSocialNumber,
+        selectedCardId,
+        medicationMethod,
+        selectedPastOrderId,
+        medicationItems,
+        medicationPhotos,
+        diagnostic,
+        comments,
+        lastConsultationTime,
+        lastConsultationDoctor,
+        consentAge,
+        consentTerms,
+        consentInformed,
+        consentSworn,
+        paymentMethod,
+        paymentAmount,
+      });
+    }
+  }, [
+    isThirdPartyUser,
+    step,
+    patientDni,
+    patientName,
+    patientLastName,
+    patientBirthDate,
+    patientEmail,
+    patientPhone,
+    deliveryMethod,
+    selectedObraSocial,
+    obraSocialNumber,
+    selectedCardId,
+    medicationMethod,
+    selectedPastOrderId,
+    medicationItems,
+    medicationPhotos,
+    diagnostic,
+    comments,
+    lastConsultationTime,
+    lastConsultationDoctor,
+    consentAge,
+    consentTerms,
+    consentInformed,
+    consentSworn,
+    paymentMethod,
+    paymentAmount,
+    saveDraft,
+  ]);
+
+  // 3. Reset form and discard draft
+  const handleResetForm = () => {
+    clearDraft();
+    setDraftRestored(false);
+    setStep('info');
+    if (!isThirdPartyUser) {
+      setPatientDni(currentUser?.identifier || recentDni || '');
+      setPatientName(currentUser?.name || initialName || '');
+      setPatientLastName(currentUser?.lastName || initialLastName || '');
+      setPatientBirthDate(currentUser?.birthDate || '');
+      setPatientEmail(currentUser?.email || '');
+      setPatientPhone(currentUser?.phone || '');
+      setSelectedObraSocial(currentUser?.obraSocial || '');
+      setObraSocialNumber(currentUser?.obraSocialNumber || '');
+    } else {
+      setPatientDni('');
+      setPatientName('');
+      setPatientLastName('');
+      setPatientBirthDate('');
+      setPatientEmail('');
+      setPatientPhone('');
+      setSelectedObraSocial('');
+      setObraSocialNumber('');
+    }
+    setSelectedCardId('titular');
+    setMedicationMethod('new_manual');
+    setSelectedPastOrderId('');
+    setMedicationItems([]);
+    setMedicationPhotos([]);
+    setDiagnostic('');
+    setComments('');
+    setLastConsultationTime('');
+    setLastConsultationDoctor('');
+    setPaymentReceipt(null);
+    setMpPaymentApproved(false);
+    setError(null);
   };
 
   // --- File Conversion and drag & drop handling ---
@@ -882,21 +1044,12 @@ export default function PatientForm({
     // Final payment checks
     if (selectedObraSocial !== 'PAMI (Inssjp)' && paymentMethod !== 'cash_desk') {
       if (paymentMethod === 'mp' && !mpPaymentApproved) {
-        setError('Debe abonar la solicitud mediante Mercado Pago (haciendo clic en "Pagar con Mercado Pago") o adjuntar un comprobante de transferencia bancaria para poder enviarla.');
-        setTimeout(() => {
-          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 50);
+        // Direct execution of Mercado Pago payment redirect
+        processMercadoPagoPayment();
         return;
       }
       if (paymentMethod === 'transfer' && !paymentReceipt) {
-        setError('Debe adjuntar el comprobante de transferencia bancaria o realizar el pago mediante Mercado Pago para poder enviar la solicitud.');
-        setTimeout(() => {
-          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }, 50);
-        return;
-      }
-      if (!mpPaymentApproved && !paymentReceipt) {
-        setError('Debe abonar por alguno de los medios de pago disponibles (Mercado Pago o Transferencia Bancaria con comprobante) para poder enviar la solicitud.');
+        setError('Debe adjuntar el comprobante de transferencia bancaria para poder enviar la solicitud.');
         setTimeout(() => {
           document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
@@ -976,6 +1129,8 @@ export default function PatientForm({
 
     try {
       const orderId = await onSubmitOrder(fullOrderPayload);
+      clearDraft();
+      setDraftRestored(false);
       setCreatedOrderId(orderId);
       setStep('confirmation');
     } catch (err: any) {
@@ -987,6 +1142,20 @@ export default function PatientForm({
 
   // --- Render Confirmation View ---
   if (step === 'confirmation') {
+    const matchedOrder = orders.find((o: any) => o.id === createdOrderId);
+    const displayPatientName = patientName || matchedOrder?.patientName || currentUser?.name || 'Paciente';
+    const displayPatientLastName = patientLastName || matchedOrder?.patientLastName || currentUser?.lastName || '';
+    const displayPatientDni = patientDni || matchedOrder?.patientDni || currentUser?.identifier || '';
+    const displayObraSocial = selectedObraSocial || matchedOrder?.obraSocial || currentUser?.obraSocial || 'Particular';
+    const displayObraSocialNumber = obraSocialNumber || matchedOrder?.obraSocialNumber || currentUser?.obraSocialNumber || '';
+    const displayDeliveryMethod = deliveryMethod || matchedOrder?.deliveryMethod || 'email';
+    const displayMedicationItems = (medicationItems && medicationItems.length > 0)
+      ? medicationItems
+      : (matchedOrder?.medicationItems || []);
+    const displayMedicationPhotos = (medicationPhotos && medicationPhotos.length > 0)
+      ? medicationPhotos
+      : (matchedOrder?.medicationPhotos || []);
+
     const handleCopyOrderId = () => {
       if (createdOrderId) {
         navigator.clipboard.writeText(createdOrderId);
@@ -1126,31 +1295,31 @@ export default function PatientForm({
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Paciente</p>
-                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{patientName} {patientLastName}</p>
+                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientName} {displayPatientLastName}</p>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">DNI / Documento</p>
-                  <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">{patientDni}</p>
+                  <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientDni}</p>
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Cobertura Médica</p>
-                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{selectedObraSocial || 'Particular'}</p>
-                  {obraSocialNumber && (
-                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">N° {obraSocialNumber}</p>
+                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayObraSocial || 'Particular'}</p>
+                  {displayObraSocialNumber && (
+                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">N° {displayObraSocialNumber}</p>
                   )}
                 </div>
 
                 <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Medio de Recepción</p>
                   <div className="flex flex-wrap gap-1 mt-1">
-                    {deliveryMethod === 'both' || deliveryMethod === 'whatsapp' ? (
+                    {displayDeliveryMethod === 'both' || displayDeliveryMethod === 'whatsapp' ? (
                       <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Phone className="h-2.5 w-2.5" /> WhatsApp
                       </span>
                     ) : null}
-                    {deliveryMethod === 'both' || deliveryMethod === 'email' ? (
+                    {displayDeliveryMethod === 'both' || displayDeliveryMethod === 'email' ? (
                       <span className="bg-blue-50 text-blue-700 border border-blue-200 font-extrabold text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1">
                         <Mail className="h-2.5 w-2.5" /> Email
                       </span>
@@ -1162,9 +1331,9 @@ export default function PatientForm({
               {/* Medication Section */}
               <div className="border-t border-slate-100 pt-4">
                 <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">Medicamentos Solicitados</p>
-                {medicationMethod === 'manual' || (medicationMethod === 'new_manual' && medicationItems.length > 0) ? (
+                {displayMedicationItems.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {medicationItems.map((item, idx) => (
+                    {displayMedicationItems.map((item, idx) => (
                       <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-start justify-between gap-2">
                         <div className="flex items-start gap-2">
                           <Pill className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
@@ -1186,8 +1355,8 @@ export default function PatientForm({
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-800">
-                        {medicationPhotos.length > 0
-                          ? `Adjuntada(s) ${medicationPhotos.length} foto(s) de envase o receta anterior`
+                        {displayMedicationPhotos.length > 0
+                          ? `Adjuntada(s) ${displayMedicationPhotos.length} foto(s) de envase o receta anterior`
                           : 'Cargado mediante foto de envase o receta'}
                       </p>
                       <p className="text-[11px] text-slate-500">El médico evaluará las imágenes adjuntas para emitir la prescripción.</p>
@@ -1243,7 +1412,7 @@ export default function PatientForm({
               onClick={() => onSuccess(createdOrderId || '')}
               className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-extrabold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer text-sm sm:text-base active:scale-[0.99]"
             >
-              <span>Ir al Panel de Seguimiento</span>
+              <span>Ir a Mis Solicitudes</span>
               <ArrowRight className="h-5 w-5" />
             </button>
 
@@ -1355,9 +1524,28 @@ export default function PatientForm({
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'payment' ? 'bg-[#295EF3] text-white shadow' : 'bg-slate-200 text-slate-400'
           }`}>4</span>
-          <span>Pago y Firma</span>
+          <span>Pagar y Enviar Solicitud</span>
         </div>
       </div>
+
+      {/* Draft Restored Banner */}
+      {draftRestored && (
+        <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-blue-50/90 border border-blue-200/80 text-blue-900 rounded-2xl flex items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <RotateCcw className="h-4 w-4 text-[#295EF3] shrink-0" />
+            <span>
+              Restauramos tu solicitud en el <strong>paso en el que habías quedado</strong> con tus datos guardados.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleResetForm}
+            className="text-[11px] font-bold text-red-600 hover:text-red-800 hover:underline shrink-0 cursor-pointer px-2.5 py-1 bg-white/80 hover:bg-white rounded-lg border border-red-200/60 transition-all"
+          >
+            Empezar de nuevo
+          </button>
+        </div>
+      )}
 
       {/* Main Error Box */}
       {error && (
@@ -2387,38 +2575,32 @@ export default function PatientForm({
 
                 {/* OPTION 1: MERCADO PAGO CHECKOUT PRO */}
                 {paymentMethod === 'mp' && (
-                  <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-4 animate-fadeIn">
-                    
+                  <div className="bg-slate-50 p-5 rounded-3xl border border-slate-200 space-y-3.5 animate-fadeIn">
                     <div className="flex justify-between items-center pb-3 border-b border-slate-200/80">
                       <div className="flex items-center gap-2">
                         <MercadoPagoIcon variant="full" className="h-6 w-auto" />
                       </div>
+                      <span className="text-xs font-extrabold text-slate-700 bg-white border border-slate-200 px-3 py-1 rounded-full">
+                        Total: ${paymentAmount} ARS
+                      </span>
                     </div>
 
-                    {/* Submit checkout preference button */}
                     {mpPaymentApproved ? (
                       <div className="bg-emerald-50 text-emerald-900 border border-emerald-200 p-3.5 rounded-2xl flex items-start gap-2.5 text-xs animate-scaleUp font-semibold leading-relaxed">
                         <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
                         <div>
                           <p className="font-extrabold text-emerald-950">Pago Online Autorizado con Éxito</p>
                           <p>Id de Operación Mercado Pago: <strong className="font-mono text-[11px] bg-white border border-emerald-200 px-1 py-0.5 rounded text-emerald-800">{mpTransactionId}</strong></p>
-                          <p className="text-[10px] text-slate-500 mt-1">Haga click en "Enviar Solicitud" abajo para finalizar el trámite.</p>
                         </div>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <button
-                          id="btn-submit-mp-payment"
-                          type="button"
-                          onClick={processMercadoPagoPayment}
-                          disabled={mpProcessing}
-                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs sm:text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                        >
-                          <MercadoPagoIcon className="h-5 w-5" />
-                          <span>{mpProcessing ? 'Generando preferencia de cobro...' : `Pagar $${paymentAmount} ARS con Mercado Pago`}</span>
-                        </button>
-                        <p className="text-center text-[11px] text-slate-500 font-medium">
-                          Presione el botón azul para abonar con Mercado Pago. Una vez aprobado el pago, podrá enviar su solicitud.
+                      <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 text-xs text-blue-900 leading-relaxed space-y-1.5">
+                        <p className="font-bold flex items-center gap-1.5 text-blue-950">
+                          <MercadoPagoIcon className="h-4 w-4" />
+                          <span>Cobro digital oficial con Mercado Pago</span>
+                        </p>
+                        <p className="text-[11px] text-blue-800 font-medium">
+                          Al presionar el botón <strong>"Pagar con Mercado Pago y Enviar"</strong>, serás redirigido a la pasarela segura de Mercado Pago para abonar con tarjeta de crédito, débito o dinero en cuenta. Al confirmarse el pago, tu solicitud ingresará automáticamente.
                         </p>
                       </div>
                     )}
@@ -2527,21 +2709,44 @@ export default function PatientForm({
               <button
                 id="btn-submit-order"
                 type="submit"
-                disabled={submitting}
-                className="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                disabled={submitting || mpProcessing}
+                className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
+                  paymentMethod === 'mp' && !mpPaymentApproved && selectedObraSocial !== 'PAMI (Inssjp)'
+                    ? 'bg-[#009EE3] hover:bg-[#0081b8]'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } disabled:opacity-50`}
               >
-                {submitting ? (
+                {submitting || mpProcessing ? (
                   <>
                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
-                    <span>Guardando Prescripción...</span>
+                    <span>{mpProcessing ? 'Conectando con Mercado Pago...' : 'Guardando Prescripción...'}</span>
                   </>
                 ) : (
                   <>
-                    <Check className="h-5 w-5" />
-                    <span>Enviar Solicitud</span>
+                    {paymentMethod === 'mp' && !mpPaymentApproved && selectedObraSocial !== 'PAMI (Inssjp)' ? (
+                      <>
+                        <MercadoPagoIcon className="h-5 w-5" />
+                        <span>Pagar con Mercado Pago y Enviar</span>
+                      </>
+                    ) : paymentMethod === 'transfer' ? (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>Enviar Solicitud con Comprobante</span>
+                      </>
+                    ) : paymentMethod === 'cash_desk' ? (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>Registrar Solicitud Cobrada</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>{selectedObraSocial === 'PAMI (Inssjp)' ? 'Enviar Solicitud Bonificada' : 'Enviar Solicitud'}</span>
+                      </>
+                    )}
                   </>
                 )}
               </button>
