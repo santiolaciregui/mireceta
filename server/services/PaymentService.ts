@@ -98,12 +98,18 @@ export class PaymentService {
 
     const result = await preference.create({ body: preferenceBody });
 
+    const isTestToken = accessToken.startsWith('TEST-');
+    const redirectUrl = isTestToken
+      ? (result.sandbox_init_point || result.init_point)
+      : (result.init_point || result.sandbox_init_point);
+
     return {
       orderId,
-      initPoint: result.init_point,
+      initPoint: redirectUrl,
       sandboxInitPoint: result.sandbox_init_point,
       preferenceId: result.id,
       publicKey: tenant?.mpPublicKey || process.env.MP_PUBLIC_KEY || '',
+      isTestMode: isTestToken,
     };
   }
 
@@ -129,9 +135,14 @@ export class PaymentService {
       console.log(`[MercadoPago Webhook Security] Valid x-signature for Payment ID: ${paymentId}`);
     }
 
-    const accessToken = process.env.MP_ACCESS_TOKEN;
+    let accessToken = process.env.MP_ACCESS_TOKEN;
     if (!accessToken) {
-      console.warn('[MercadoPago Webhook] Warning: No MP_ACCESS_TOKEN configured in environment.');
+      const tenants = await this.tenantRepo.findAll();
+      accessToken = tenants.find(t => t.mpAccessToken)?.mpAccessToken;
+    }
+
+    if (!accessToken) {
+      console.warn('[MercadoPago Webhook] Warning: No MP_ACCESS_TOKEN configured in environment or database.');
       return { received: true, note: 'Webhook received but MP_ACCESS_TOKEN not configured' };
     }
 
@@ -199,7 +210,8 @@ export class PaymentService {
       throw new Error(`Receta con ID ${orderId} no encontrada`);
     }
 
-    const accessToken = process.env.MP_ACCESS_TOKEN;
+    const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
+    const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
     if (order.paymentStatus === 'pending' && accessToken) {
       try {
         const client = new MercadoPagoConfig({ accessToken });
