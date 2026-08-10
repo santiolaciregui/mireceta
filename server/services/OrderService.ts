@@ -2,6 +2,7 @@ import { OrderRepository } from '../repositories/OrderRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { notificationService } from './NotificationService.js';
 import { chatService } from './ChatService.js';
+import { storageService } from './storage/StorageService.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generateOrderId } from '../utils/idGenerator.js';
@@ -189,7 +190,20 @@ export class OrderService {
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;
     if (updateData.recipePdfUrl) {
-      order.recipePdfUrl = updateData.recipePdfUrl;
+      // If the PDF is sent as Base64 from the client, persist it to storage
+      if (updateData.recipePdfUrl.startsWith('data:') || updateData.recipePdfUrl.length > 500) {
+        try {
+          const fileName = updateData.recipePdfName || `receta_${order.id}.pdf`;
+          const savedUrl = await storageService.saveRecipePdf(fileName, updateData.recipePdfUrl);
+          order.recipePdfUrl = savedUrl;
+        } catch (storageErr) {
+          console.error('[OrderService] Error guardando PDF en almacenamiento, utilizando URL directa:', storageErr);
+          order.recipePdfUrl = updateData.recipePdfUrl;
+        }
+      } else {
+        order.recipePdfUrl = updateData.recipePdfUrl;
+      }
+      
       order.recipePdfName = updateData.recipePdfName;
       addAuditLogEntry(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
 
@@ -216,6 +230,19 @@ export class OrderService {
         recipeLink,
         interactionRecord: order
       }).catch((err) => console.error('Error enviando WhatsApp de receta emitida:', err));
+    }
+
+    // 4b. Auto-dispatch WhatsApp notification when recipe is rejected (coordinating full refund)
+    if (updateData.status === 'Rechazada' && order.patientPhone) {
+      notificationService.sendRecipeRejectedWhatsApp({
+        tenantId: order.tenantId || 'TEN-0001',
+        patientPhone: order.patientPhone,
+        patientName: order.patientName,
+        orderId: order.id,
+        reason: updateData.doctorNotes || order.doctorNotes || 'No cumple con los criterios clínicos requeridos para la prescripción.',
+        refundAmount: order.paymentAmount,
+        interactionRecord: order
+      }).catch((err) => console.error('Error enviando WhatsApp de solicitud rechazada:', err));
     }
 
     // 5. If messages are updated by doctor, dispatch WhatsApp notification

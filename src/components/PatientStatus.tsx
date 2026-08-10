@@ -29,9 +29,11 @@ import {
   Calendar,
   AlertTriangle,
   Search,
-  Filter
+  Filter,
+  Printer
 } from 'lucide-react';
 import MercadoPagoIcon from './MercadoPagoIcon';
+import OfficialOrderReceipt from './OfficialOrderReceipt';
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
@@ -61,6 +63,7 @@ export default function PatientStatus({
   // Modal / Preview state
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
+  const [orderToPrint, setOrderToPrint] = useState<MedicalOrder | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -78,6 +81,14 @@ export default function PatientStatus({
     setTimeout(() => {
       setCopiedOrderId(null);
     }, 2500);
+  };
+
+  const handlePrintOrder = (e: React.MouseEvent, order: MedicalOrder) => {
+    e.stopPropagation();
+    setOrderToPrint(order);
+    setTimeout(() => {
+      window.print();
+    }, 150);
   };
 
   const toggleExpand = (orderId: string) => {
@@ -719,7 +730,18 @@ export default function PatientStatus({
 
                     {/* Bottom Action Buttons */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Imprimir Comprobante Oficial */}
+                        <button
+                          type="button"
+                          onClick={(e) => handlePrintOrder(e, order)}
+                          className="bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                          title="Imprimir comprobante oficial de la solicitud"
+                        >
+                          <Printer className="h-3.5 w-3.5 text-slate-600" />
+                          <span>Comprobante</span>
+                        </button>
+
                         {/* Chat with doctor button */}
                         {onNavigateToChat && (
                           <button
@@ -768,6 +790,34 @@ export default function PatientStatus({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Hidden Printable Area for Official Receipt */}
+      {orderToPrint && (
+        <div id="official-receipt-print-area" className="hidden print:block">
+          <OfficialOrderReceipt
+            orderId={orderToPrint.id}
+            createdAt={orderToPrint.createdAt}
+            patientName={orderToPrint.patientName}
+            patientLastName={orderToPrint.patientLastName}
+            patientDni={orderToPrint.patientDni}
+            patientBirthDate={orderToPrint.patientBirthDate}
+            patientEmail={orderToPrint.patientEmail}
+            patientPhone={orderToPrint.patientPhone}
+            obraSocial={orderToPrint.obraSocial}
+            obraSocialNumber={orderToPrint.obraSocialNumber}
+            deliveryMethod={orderToPrint.deliveryMethod}
+            medicationItems={orderToPrint.medicationItems}
+            medicationPhotos={orderToPrint.medicationPhotos}
+            medicationText={orderToPrint.medicationText}
+            diagnostic={orderToPrint.diagnostic}
+            comments={orderToPrint.comments}
+            paymentAmount={orderToPrint.paymentAmount}
+            paymentId={orderToPrint.paymentId}
+            paymentStatus={orderToPrint.paymentStatus}
+            status={orderToPrint.status}
+          />
         </div>
       )}
 

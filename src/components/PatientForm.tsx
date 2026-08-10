@@ -42,6 +42,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import MercadoPagoIcon from './MercadoPagoIcon';
+import OfficialOrderReceipt from './OfficialOrderReceipt';
 import { useFormDraft } from '../hooks/useFormDraft';
 
 
@@ -1169,277 +1170,238 @@ export default function PatientForm({
     };
 
     return (
-      <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden animate-scaleUp">
-        {/* Top Celebration Banner */}
-        <div className="bg-gradient-to-br from-[#0F4C81] via-[#1B365D] to-[#0A192F] p-7 sm:p-9 text-white text-center relative overflow-hidden">
-          {/* Subtle glow background rings */}
-          <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none" />
-          <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-blue-500/15 blur-3xl pointer-events-none" />
-          
-          <div className="relative z-10 flex flex-col items-center gap-3.5 max-w-2xl mx-auto">
-            {/* Animated Checkmark Badge */}
-            <div className="relative">
-              <div className="h-16 w-16 bg-gradient-to-tr from-emerald-500 to-teal-400 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-emerald-950/40 ring-4 ring-white/10 animate-scaleUp">
-                <CheckCircle2 className="h-10 w-10 stroke-[2.5]" />
+      <>
+        {/* Printable Official Receipt Area (Hidden on screen, rendered exclusively during print/PDF) */}
+        <div id="official-receipt-print-area" className="hidden print:block">
+          <OfficialOrderReceipt
+            orderId={createdOrderId || 'ORD-CONFIRMADO'}
+            createdAt={matchedOrder?.createdAt || new Date().toISOString()}
+            patientName={displayPatientName}
+            patientLastName={displayPatientLastName}
+            patientDni={displayPatientDni}
+            patientBirthDate={patientBirthDate || matchedOrder?.patientBirthDate}
+            patientEmail={patientEmail || matchedOrder?.patientEmail}
+            patientPhone={patientPhone || matchedOrder?.patientPhone}
+            obraSocial={displayObraSocial}
+            obraSocialNumber={displayObraSocialNumber}
+            deliveryMethod={displayDeliveryMethod}
+            medicationItems={displayMedicationItems}
+            medicationPhotos={displayMedicationPhotos}
+            medicationText={medicationText || matchedOrder?.medicationText}
+            diagnostic={diagnostic || matchedOrder?.diagnostic}
+            comments={comments || matchedOrder?.comments}
+            paymentAmount={paymentAmount || matchedOrder?.paymentAmount}
+            paymentMethod={paymentMethod}
+            paymentId={matchedOrder?.paymentId || (paymentMethod === 'cash_desk' ? 'Cobro en ventanilla' : paymentMethod === 'mp' ? mpTransactionId : 'Transferencia')}
+            paymentStatus={matchedOrder?.paymentStatus || 'approved'}
+            status={matchedOrder?.status || 'En revisión'}
+          />
+        </div>
+
+        {/* Interactive Screen View */}
+        <div className="no-print screen-only-view max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden animate-scaleUp">
+          {/* Formal Header */}
+          <div className="bg-[#1C2435] p-6 sm:p-8 text-white relative overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  <span>Trámite Ingresado Correctamente</span>
+                </div>
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Solicitud Registrada con Éxito
+                </h2>
+                <p className="text-xs text-slate-300 font-medium">
+                  Su solicitud ha ingresado formalmente al circuito de auditoría médica.
+                </p>
               </div>
-              <span className="absolute -bottom-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 ring-2 ring-[#0F4C81]"></span>
-              </span>
+
+              {/* Official Code Badge */}
+              <div className="bg-white/10 backdrop-blur-md border border-white/15 rounded-2xl p-3 sm:px-4 sm:py-3 shrink-0 flex items-center justify-between sm:flex-col sm:items-end gap-3 sm:gap-1 shadow-inner">
+                <span className="text-[10px] uppercase font-bold tracking-widest text-slate-400">Código de Gestión</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-base sm:text-lg font-black font-mono tracking-wider text-emerald-300">
+                    {createdOrderId || 'ORD-CONFIRMADO'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyOrderId}
+                    className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer select-none ${
+                      copiedOrderId 
+                        ? 'bg-emerald-500 text-white shadow-xs' 
+                        : 'bg-white/15 hover:bg-white/25 text-white active:scale-95'
+                    }`}
+                    title="Copiar código de seguimiento"
+                  >
+                    {copiedOrderId ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5 text-slate-200" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Body Content */}
+          <div className="p-6 sm:p-8 space-y-6">
+            {/* 3-Step Process Stepper */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 text-center">
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                    <Check className="h-3.5 w-3.5 stroke-[2.5]" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-900">1. Registrada</p>
+                    <p className="text-[10px] text-emerald-600 font-semibold">Completado</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-[#295EF3] text-white flex items-center justify-center text-xs font-bold shadow-xs ring-4 ring-blue-100 animate-pulse">
+                    2
+                  </div>
+                  <div>
+                    <p className="text-xs font-black text-slate-900">2. Auditoría Médica</p>
+                    <p className="text-[10px] text-[#295EF3] font-bold">En evaluación</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-1.5">
+                  <div className="h-7 w-7 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-xs font-bold">
+                    3
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-slate-500">3. Emisión y Receta</p>
+                    <p className="text-[10px] text-slate-400 font-medium">Pendiente</p>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-white/15 text-emerald-300 border border-white/10 mb-2">
-                <ShieldCheck className="h-3.5 w-3.5" />
-                Trámite Ingresado con Éxito
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
-                ¡Solicitud Registrada!
-              </h2>
-              <p className="text-xs sm:text-sm text-slate-200 mt-1 font-medium leading-relaxed">
-                Su trámite ha ingresado correctamente al sistema y se encuentra en proceso de auditoría médica.
+            {/* Executive Summary Grid */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+              <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                  <FileText className="h-4 w-4 text-[#295EF3]" />
+                  <span>Resumen del Trámite</span>
+                </h4>
+                <span className="text-[11px] text-slate-500 font-semibold font-mono">
+                  {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                </span>
+              </div>
+
+              <div className="p-5 space-y-4 text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Paciente</p>
+                    <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientName} {displayPatientLastName}</p>
+                    <p className="text-slate-500 font-mono text-[11px] mt-0.5">DNI: {displayPatientDni || 'S/D'}</p>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Cobertura</p>
+                    <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayObraSocial || 'Particular'}</p>
+                    {displayObraSocialNumber && (
+                      <p className="text-[11px] text-slate-500 font-mono mt-0.5">Afiliado N° {displayObraSocialNumber}</p>
+                    )}
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Entrega y Notificación</p>
+                    <p className="font-extrabold text-slate-900 text-sm mt-0.5">
+                      {displayDeliveryMethod === 'both' ? 'WhatsApp y Email' : displayDeliveryMethod === 'whatsapp' ? 'WhatsApp' : 'Correo Electrónico'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {patientPhone || patientEmail || 'Canal confirmado'}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                    <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Arancel de Gestión</p>
+                    <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">
+                      {paymentAmount ? `$${paymentAmount} ARS` : 'Bonificado'}
+                    </p>
+                    <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                      <Check className="h-3 w-3" /> Pago Confirmado
+                    </p>
+                  </div>
+                </div>
+
+                {/* Medication Summary */}
+                <div className="border-t border-slate-100 pt-3">
+                  <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">Medicación Solicitada</p>
+                  {displayMedicationItems.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {displayMedicationItems.map((item, idx) => (
+                        <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Pill className="h-3.5 w-3.5 text-[#295EF3] shrink-0" />
+                            <span className="font-bold text-slate-800 text-xs truncate">{item.nombreComercial}</span>
+                            {item.droga && <span className="text-[11px] text-slate-500 truncate font-normal">({item.droga})</span>}
+                          </div>
+                          <span className="bg-white border border-slate-200 text-slate-800 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0">
+                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
+                      <Camera className="h-4 w-4 text-[#295EF3] shrink-0" />
+                      <span>
+                        {displayMedicationPhotos.length > 0
+                          ? `Se adjuntaron ${displayMedicationPhotos.length} foto(s) de envase / receta previa para auditoría.`
+                          : 'Medicación cargada mediante imagen/documentación adjunta.'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Compact Formal Institutional Note */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs text-slate-600">
+              <Clock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <p className="leading-relaxed">
+                <strong className="text-slate-800">Plazo de auditoría y emisión:</strong> Las solicitudes se evalúan en un plazo de hasta 24 hs hábiles. Una vez aprobada por el médico matriculado, recibirá la receta digital oficial con firma electrónica y código QR por el medio seleccionado.
               </p>
             </div>
 
-            {/* Official Order ID Badge */}
-            <div className="w-full max-w-md bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 sm:p-3.5 flex items-center justify-between gap-3 shadow-inner mt-1">
-              <div className="text-left">
-                <p className="text-[10px] uppercase font-bold tracking-widest text-slate-300">Código de Gestión Oficial</p>
-                <p className="text-base sm:text-lg font-black font-mono tracking-wider text-emerald-300">{createdOrderId || 'ORD-CONFIRMADO'}</p>
-              </div>
+            {/* Actions */}
+            <div className="space-y-3 pt-1">
               <button
+                id="btn-confirm-finish"
                 type="button"
-                onClick={handleCopyOrderId}
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer select-none ${
-                  copiedOrderId 
-                    ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-300' 
-                    : 'bg-white/20 hover:bg-white/30 text-white active:scale-95'
-                }`}
-                title="Copiar código de seguimiento"
+                onClick={() => onSuccess(createdOrderId || '')}
+                className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm active:scale-[0.99]"
               >
-                {copiedOrderId ? (
-                  <>
-                    <Check className="h-3.5 w-3.5" />
-                    <span>¡Copiado!</span>
-                  </>
-                ) : (
-                  <>
-                    <Copy className="h-3.5 w-3.5" />
-                    <span>Copiar</span>
-                  </>
-                )}
+                <span>Ir a Mis Solicitudes</span>
+                <ArrowRight className="h-4 w-4" />
               </button>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={handlePrint}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2.5 px-4 rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-2 text-xs cursor-pointer"
+                >
+                  <Printer className="h-4 w-4 text-slate-600" />
+                  <span>Imprimir / Guardar Comprobante Oficial</span>
+                </button>
+
+                <a
+                  href={`https://wa.me/5492926414331?text=${encodeURIComponent(`Hola! Acabo de ingresar la solicitud con Nro de Gestión ${createdOrderId}. Quisiera hacer una consulta.`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold py-2.5 px-4 rounded-xl border border-emerald-200 transition-colors flex items-center justify-center gap-2 text-xs text-center"
+                >
+                  <Phone className="h-4 w-4 text-emerald-600" />
+                  <span>Consultar por WhatsApp</span>
+                </a>
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Content Body */}
-        <div className="p-6 sm:p-8 space-y-6">
-          
-          {/* 3-Step Process Roadmap */}
-          <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 sm:p-5">
-            <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 mb-3.5 flex items-center gap-1.5">
-              <Clock className="h-3.5 w-3.5 text-blue-600" />
-              <span>¿Cómo continúa su trámite?</span>
-            </h4>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-white p-3.5 rounded-xl border border-emerald-200 shadow-xs flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
-                  ✓
-                </div>
-                <div>
-                  <p className="text-xs font-black text-emerald-950">1. Solicitud Recibida</p>
-                  <p className="text-[11px] text-slate-600 leading-snug mt-0.5">Datos y medicación registrados en la plataforma.</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-3.5 rounded-xl border border-blue-200 shadow-xs flex items-start gap-3 relative overflow-hidden ring-2 ring-blue-500/20">
-                <div className="h-7 w-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs shrink-0 mt-0.5 animate-pulse">
-                  2
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-xs font-black text-blue-950">2. Auditoría Médica</p>
-                    <span className="text-[9px] font-bold bg-blue-100 text-blue-800 px-1.5 py-0.2 rounded-full">En curso</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600 leading-snug mt-0.5">Un médico matriculado evalúa su prescripción.</p>
-                </div>
-              </div>
-
-              <div className="bg-white p-3.5 rounded-xl border border-slate-200 shadow-xs flex items-start gap-3">
-                <div className="h-7 w-7 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center font-black text-xs shrink-0 mt-0.5">
-                  3
-                </div>
-                <div>
-                  <p className="text-xs font-black text-slate-800">3. Firma y Envío</p>
-                  <p className="text-[11px] text-slate-600 leading-snug mt-0.5">Recibe la receta oficial con firma digital y QR.</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Details Card */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="bg-slate-50/80 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between">
-              <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-[#295EF3]" />
-                <span>Resumen del Trámite</span>
-              </h4>
-              <span className="text-[11px] text-slate-500 font-semibold">
-                {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
-              </span>
-            </div>
-
-            <div className="p-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Paciente</p>
-                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientName} {displayPatientLastName}</p>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">DNI / Documento</p>
-                  <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientDni}</p>
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Cobertura Médica</p>
-                  <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayObraSocial || 'Particular'}</p>
-                  {displayObraSocialNumber && (
-                    <p className="text-[11px] text-slate-500 font-mono mt-0.5">N° {displayObraSocialNumber}</p>
-                  )}
-                </div>
-
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                  <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Medio de Recepción</p>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {displayDeliveryMethod === 'both' || displayDeliveryMethod === 'whatsapp' ? (
-                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Phone className="h-2.5 w-2.5" /> WhatsApp
-                      </span>
-                    ) : null}
-                    {displayDeliveryMethod === 'both' || displayDeliveryMethod === 'email' ? (
-                      <span className="bg-blue-50 text-blue-700 border border-blue-200 font-extrabold text-[10px] px-2 py-0.5 rounded-md flex items-center gap-1">
-                        <Mail className="h-2.5 w-2.5" /> Email
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              {/* Medication Section */}
-              <div className="border-t border-slate-100 pt-4">
-                <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">Medicamentos Solicitados</p>
-                {displayMedicationItems.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {displayMedicationItems.map((item, idx) => (
-                      <div key={idx} className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2">
-                          <Pill className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-extrabold text-slate-900 text-xs">{item.nombreComercial}</p>
-                            <p className="text-[11px] text-slate-500 font-medium">{item.droga} {item.miligramos}</p>
-                          </div>
-                        </div>
-                        <span className="bg-white border border-slate-200 text-slate-800 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0">
-                          {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                      <Camera className="h-4 w-4" />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">
-                        {displayMedicationPhotos.length > 0
-                          ? `Adjuntada(s) ${displayMedicationPhotos.length} foto(s) de envase o receta anterior`
-                          : 'Cargado mediante foto de envase o receta'}
-                      </p>
-                      <p className="text-[11px] text-slate-500">El médico evaluará las imágenes adjuntas para emitir la prescripción.</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Delivery and Guarantee Info Box */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-            {/* Delivery Confirmation */}
-            <div className="bg-blue-50/70 p-4.5 rounded-2xl border border-blue-200/70 flex items-start gap-3.5 text-blue-950">
-              <div className="h-9 w-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                <Clock className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-extrabold text-blue-950 text-sm">Tiempo de Respuesta</p>
-                <p className="text-blue-900 leading-relaxed font-medium">
-                  {patientEmail && patientPhone ? (
-                    <>Hemos enviado la confirmación a <strong>{patientEmail}</strong> y recibirá aviso por WhatsApp en <strong>{patientPhone}</strong>.</>
-                  ) : patientEmail ? (
-                    <>Hemos enviado la confirmación a su correo <strong>{patientEmail}</strong>.</>
-                  ) : patientPhone ? (
-                    <>Recibirá las notificaciones y su receta en su WhatsApp <strong>{patientPhone}</strong>.</>
-                  ) : (
-                    <>Recibirá su receta digital firmada apenas finalice la auditoría médica (plazo máx. 24 hs hábiles).</>
-                  )}
-                </p>
-              </div>
-            </div>
-
-            {/* Medical Guarantee */}
-            <div className="bg-amber-50/70 p-4.5 rounded-2xl border border-amber-200/70 flex items-start gap-3.5 text-amber-950">
-              <div className="h-9 w-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-xs mt-0.5">
-                <ShieldCheck className="h-5 w-5" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-extrabold text-amber-950 text-sm">Garantía Médica de Devolución</p>
-                <p className="text-amber-900 leading-relaxed font-medium">
-                  La prescripción depende del criterio clínico del médico habilitado. Si no es aprobada, el arancel transferido {paymentAmount ? `de $${paymentAmount} ARS` : ''} será devuelto en su totalidad de manera inmediata.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3 pt-2">
-            <button
-              id="btn-confirm-finish"
-              type="button"
-              onClick={() => onSuccess(createdOrderId || '')}
-              className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-extrabold py-4 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer text-sm sm:text-base active:scale-[0.99]"
-            >
-              <span>Ir a Mis Solicitudes</span>
-              <ArrowRight className="h-5 w-5" />
-            </button>
-
-            <div className="flex flex-col sm:flex-row gap-3">
-              <button
-                type="button"
-                onClick={handlePrint}
-                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl border border-slate-200 transition-colors flex items-center justify-center gap-2 text-xs cursor-pointer"
-              >
-                <Printer className="h-4 w-4 text-slate-500" />
-                <span>Imprimir / Guardar Comprobante</span>
-              </button>
-
-              <a
-                href={`https://wa.me/5492926414331?text=${encodeURIComponent(`Hola! Acabo de ingresar la solicitud con Nro de Gestión ${createdOrderId}. Quisiera hacer una consulta.`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold py-3 px-4 rounded-xl border border-emerald-200 transition-colors flex items-center justify-center gap-2 text-xs text-center"
-              >
-                <Phone className="h-4 w-4 text-emerald-600" />
-                <span>Consultar por WhatsApp</span>
-              </a>
-            </div>
-          </div>
-
-        </div>
-      </div>
+      </>
     );
   }
 

@@ -29,7 +29,10 @@ import {
   Coins,
   Download,
   MessageSquare,
-  X
+  X,
+  FileUp,
+  Trash2,
+  File
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -98,7 +101,10 @@ export default function DoctorDashboard({
 
   // Doctor Action Inputs
   const [doctorNotes, setDoctorNotes] = useState('');
-  const [uploadedRecipe, setUploadedRecipe] = useState<{ url: string; name: string } | null>(null);
+  const [uploadedRecipe, setUploadedRecipe] = useState<{ url: string; name: string; size?: number } | null>(null);
+  const [isDraggingPdf, setIsDraggingPdf] = useState(false);
+  const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
+  const pdfInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   // Operator Payout settings
@@ -241,20 +247,69 @@ export default function DoctorDashboard({
     showToast('El pedido ha sido marcado en estado "En Revisión". El paciente lo verá actualizado en tiempo real.');
   };
 
-  // Helper to convert co-signed recipe upload from Doctor to Base64
-  const handleDoctorRecipeUploadChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Helper to validate and process PDF files (Drag & Drop or File Input)
+  const processPdfFile = (file: File) => {
+    setPdfUploadError(null);
+
+    // Validate MIME type and extension
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      setPdfUploadError('Formato no válido. Solo se admiten archivos en formato PDF (.pdf).');
+      showToast('Error: Solo se admiten archivos PDF.');
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setPdfUploadError('El archivo excede el tamaño máximo permitido (15 MB).');
+      showToast('Error: El PDF no puede superar los 15 MB.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
       setUploadedRecipe({
         url: base64String,
-        name: file.name
+        name: file.name,
+        size: file.size
       });
+      showToast(`Archivo PDF "${file.name}" adjuntado correctamente.`);
+    };
+    reader.onerror = () => {
+      setPdfUploadError('Error al leer el archivo PDF seleccionado.');
+      showToast('Error al leer el archivo PDF.');
     };
     reader.readAsDataURL(file);
+  };
+
+  const handlePdfDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPdf(true);
+  };
+
+  const handlePdfDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPdf(false);
+  };
+
+  const handlePdfDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPdf(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processPdfFile(file);
+    }
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processPdfFile(file);
+    }
   };
 
   // Auto generator for digital recipes
@@ -405,7 +460,7 @@ export default function DoctorDashboard({
         <div className="flex border-b border-[var(--ink-faint)] bg-white px-8 pt-4 shrink-0">
           <button
             onClick={() => setActiveDashboardTab('requests')}
-            className={`pb-3 px-4 font-[600] text-[0.85rem] border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-4 font-[600] text-[0.85rem] border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeDashboardTab === 'requests'
                 ? 'border-[var(--accent)] text-[var(--ink)]'
                 : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
@@ -416,7 +471,7 @@ export default function DoctorDashboard({
           
           <button
             onClick={() => setActiveDashboardTab('operators')}
-            className={`pb-3 px-4 font-[600] text-[0.85rem] border-b-2 transition-all flex items-center gap-2 ${
+            className={`pb-3 px-4 font-[600] text-[0.85rem] border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
               activeDashboardTab === 'operators'
                 ? 'border-[var(--accent)] text-[var(--ink)]'
                 : 'border-transparent text-[var(--ink-muted)] hover:text-[var(--ink)]'
@@ -525,7 +580,7 @@ export default function DoctorDashboard({
               {selectedOrder ? (
                 <div className="animate-fadeIn flex flex-col h-full">
                   <div className="detail-header shrink-0">
-                    <button onClick={() => setSelectedOrderId(null)} className="lg:hidden block text-[var(--ink-muted)] text-sm mb-4">&larr; Volver</button>
+                    <button onClick={() => setSelectedOrderId(null)} className="lg:hidden block text-[var(--ink-muted)] hover:text-[var(--ink)] text-sm mb-4 cursor-pointer">&larr; Volver</button>
                     
                     <span className="status-pill">{selectedOrder.status}</span>
                     <div className="flex items-start justify-between gap-4">
@@ -639,7 +694,7 @@ export default function DoctorDashboard({
                             <div className="flex gap-2">
                               <button
                                 onClick={() => handleMarkInProcess(selectedOrder.id)}
-                                className="bg-[var(--accent)] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600]"
+                                className="bg-[var(--accent)] hover:bg-blue-600 active:scale-[0.99] text-white flex-1 py-4 rounded-lg text-[0.9rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow"
                               >
                                 EMPEZAR REVISIÓN CLÍNICA
                               </button>
@@ -648,7 +703,7 @@ export default function DoctorDashboard({
                                   onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
                                   showToast('La solicitud ha sido rechazada.');
                                 }}
-                                className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-4 py-4 rounded-lg text-[0.85rem] font-[600]"
+                                className="bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 active:scale-[0.99] px-4 py-4 rounded-lg text-[0.85rem] font-[600] cursor-pointer transition-all"
                               >
                                 Rechazar
                               </button>
@@ -664,19 +719,104 @@ export default function DoctorDashboard({
                                   value={doctorNotes}
                                   onChange={e => setDoctorNotes(e.target.value)}
                                 />
-                                <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2">Adjuntar Receta Firmada (PDF)</label>
-                                <input type="file" accept="application/pdf" onChange={handleDoctorRecipeUploadChange} className="text-[0.75rem] mb-4 w-full" />
+                                <div className="mb-4">
+                                  <label className="block text-[0.65rem] font-mono uppercase text-[var(--ink-muted)] mb-2 flex items-center justify-between">
+                                    <span>Adjuntar Receta Firmada (PDF)</span>
+                                    <span className="text-[10px] text-slate-400 normal-case font-sans">Formato exclusivo: .pdf</span>
+                                  </label>
+
+                                  {uploadedRecipe ? (
+                                    <div className="bg-white border-2 border-emerald-400/80 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                                          <FileText className="h-5 w-5" />
+                                        </div>
+                                        <div className="min-w-0">
+                                          <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
+                                          <div className="flex items-center gap-2 mt-0.5">
+                                            <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-1">
+                                              <Check className="h-3 w-3" /> PDF Listo para emisión
+                                            </span>
+                                            {uploadedRecipe.size && (
+                                              <span className="text-[10px] text-slate-400 font-mono">
+                                                ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                          type="button"
+                                          onClick={() => pdfInputRef.current?.click()}
+                                          className="text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                                        >
+                                          Cambiar
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setUploadedRecipe(null);
+                                            setPdfUploadError(null);
+                                          }}
+                                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                          title="Quitar archivo"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div
+                                      onDragOver={handlePdfDragOver}
+                                      onDragLeave={handlePdfDragLeave}
+                                      onDrop={handlePdfDrop}
+                                      onClick={() => pdfInputRef.current?.click()}
+                                      className={`border-2 border-dashed rounded-xl p-5 text-center transition-all cursor-pointer select-none ${
+                                        isDraggingPdf
+                                          ? 'border-blue-500 bg-blue-50/90 scale-[1.01] ring-4 ring-blue-100'
+                                          : 'border-slate-300 hover:border-blue-400 bg-white hover:bg-slate-50/50'
+                                      }`}
+                                    >
+                                      <div className="h-10 w-10 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                                        <FileUp className="h-5 w-5" />
+                                      </div>
+                                      <p className="text-xs font-bold text-slate-800">
+                                        {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí'}
+                                      </p>
+                                      <p className="text-[11px] text-slate-500 mt-0.5">
+                                        o haga clic para seleccionar desde su equipo (únicamente archivos .pdf)
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  <input
+                                    ref={pdfInputRef}
+                                    type="file"
+                                    accept="application/pdf,.pdf"
+                                    onChange={handleFileInputChange}
+                                    className="hidden"
+                                  />
+
+                                  {pdfUploadError && (
+                                    <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1">
+                                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                      <span>{pdfUploadError}</span>
+                                    </p>
+                                  )}
+                                </div>
                                 <div className="flex gap-3">
                                   <button onClick={() => {
                                     onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
                                     showToast('Receta emitida y enviada con éxito.');
-                                  }} className="flex-1 bg-[var(--accent)] text-white py-3 rounded-lg text-[0.9rem] font-[600]">
+                                  }} className="flex-1 bg-[var(--accent)] hover:bg-blue-600 active:scale-[0.99] text-white py-3 rounded-lg text-[0.9rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow">
                                     EMITIR RECETA FINAL
                                   </button>
                                   <button onClick={() => {
                                     onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
                                     showToast('La solicitud ha sido rechazada.');
-                                  }} className="bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600]">
+                                  }} className="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white px-5 py-3 rounded-lg text-[0.85rem] font-[600] cursor-pointer transition-all shadow-sm hover:shadow">
                                     RECHAZAR SOLICITUD
                                   </button>
                                 </div>
@@ -688,7 +828,7 @@ export default function DoctorDashboard({
                                 <h4 className="font-[600] text-green-900">Receta Emitida</h4>
                                 <p className="text-[0.75rem] text-green-700 mt-1">El proceso ha concluido correctamente.</p>
                                 {selectedOrder.recipePdfUrl && (
-                                  <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 text-white rounded-md text-[0.8rem] font-[600]">Descargar PDF</a>
+                                  <a href={selectedOrder.recipePdfUrl} download={selectedOrder.recipePdfName || 'receta.pdf'} className="mt-4 inline-block px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md text-[0.8rem] font-[600] cursor-pointer transition-colors shadow-sm">Descargar PDF</a>
                                 )}
                               </div>
                           )}

@@ -442,18 +442,18 @@ export class NotificationService {
       }
 
       const waConfig = await this.getConfig(tenantId, 'whatsapp');
-      const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+      const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode || 'receta_emitida') as string;
 
       return await this.sendNotification({
         tenantId,
         channel: 'whatsapp',
         to: patientPhone,
         templateCode: templateCode || undefined,
-        variables: templateCode ? {
+        variables: {
           patientName,
           orderId,
           recipeLink
-        } : undefined,
+        },
         body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
       });
     } catch (err: any) {
@@ -461,6 +461,66 @@ export class NotificationService {
       return { success: false, error: err.message || 'Error al despachar WhatsApp' };
     }
   }
+
+  /**
+   * Dispatches WhatsApp notification when an order is rejected, notifying the patient that
+   * the clinical audit did not approve it and that support will coordinate the full refund.
+   */
+  public async sendRecipeRejectedWhatsApp(params: {
+    tenantId: string;
+    patientPhone: string;
+    patientName: string;
+    orderId: string;
+    reason?: string;
+    refundAmount?: string;
+    interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
+  }): Promise<SendNotificationResult> {
+    const { 
+      tenantId, 
+      patientPhone, 
+      patientName, 
+      orderId, 
+      reason = 'Evaluación clínica del profesional médico', 
+      interactionRecord 
+    } = params;
+
+    if (!patientPhone) {
+      return { success: false, error: 'Número de teléfono no disponible para este paciente.' };
+    }
+
+    try {
+      const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
+
+      if (isWithin24h) {
+        return await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          body: `Hola ${patientName}, le informamos que su solicitud de receta #${orderId} no pudo ser aprobada tras la auditoría médica.\n\nMotivo clínico: ${reason}\n\nNuestro equipo se pondrá en contacto con usted a la brevedad para coordinar la devolución total del dinero abonado.`
+        });
+      }
+
+      const waConfig = await this.getConfig(tenantId, 'whatsapp');
+      const templateCode = (waConfig?.credentials?.rejectedTemplateCode || waConfig?.credentials?.templateCode || 'receta_rechazada') as string;
+
+      return await this.sendNotification({
+        tenantId,
+        channel: 'whatsapp',
+        to: patientPhone,
+        templateCode: templateCode || undefined,
+        variables: {
+          patientName,
+          orderId,
+          reason
+        },
+        body: `Hola ${patientName}, su solicitud #${orderId} no pudo ser aprobada (${reason}). Nos pondremos en contacto para coordinar la devolución del dinero.`
+      });
+    } catch (err: any) {
+      console.error('Error enviando notificación de receta rechazada:', err);
+      return { success: false, error: err.message || 'Error al despachar WhatsApp' };
+    }
+  }
 }
 
 export const notificationService = new NotificationService();
+
