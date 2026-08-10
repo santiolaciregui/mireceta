@@ -8,7 +8,7 @@ import path from 'path';
 
 /**
  * StorageProvider Interface
- * Designed with Strategy Pattern to allow seamless switching from local disk to AWS S3, Azure Blob, or Cloudflare R2.
+ * Designed with Strategy Pattern to allow seamless switching between Database (Vercel Serverless safe), Local Disk, and AWS S3.
  */
 export interface StorageProvider {
   saveFile(filename: string, buffer: Buffer, mimeType: string): Promise<string>;
@@ -17,53 +17,106 @@ export interface StorageProvider {
 }
 
 /**
- * Local Storage Provider: saves files to server disk in ./uploads/recipes/
+ * Database Storage Provider (Default & Serverless Safe):
+ * Stores the file as a Base64 data URI directly inside the MongoDB document.
+ * 100% compatible with Vercel Serverless (zero filesystem dependency, persistent across all serverless invocations).
+ */
+export class DatabaseStorageProvider implements StorageProvider {
+  async saveFile(filename: string, buffer: Buffer, mimeType: string): Promise<string> {
+    const base64 = buffer.toString('base64');
+    return `data:${mimeType};base64,${base64}`;
+  }
+
+  async getFile(fileKeyOrUrl: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
+    if (fileKeyOrUrl.startsWith('data:')) {
+      const clean = fileKeyOrUrl.replace(/^data:[^;]+;base64,/, '');
+      return { buffer: Buffer.from(clean, 'base64'), mimeType: 'application/pdf' };
+    }
+    return null;
+  }
+}
+
+/**
+ * Local Disk Storage Provider (For standalone VPS / Docker deployments where STORAGE_PROVIDER=local)
  */
 export class LocalStorageProvider implements StorageProvider {
   private uploadDir: string;
 
   constructor() {
+    // Do NOT perform synchronous filesystem operations in constructor to prevent Serverless crash
     this.uploadDir = path.resolve(process.cwd(), 'uploads', 'recipes');
-    if (!fs.existsSync(this.uploadDir)) {
-      fs.mkdirSync(this.uploadDir, { recursive: true });
+  }
+
+  private async ensureDir(): Promise<boolean> {
+    try {
+      await fs.promises.mkdir(this.uploadDir, { recursive: true });
+      return true;
+    } catch {
+      return false;
     }
   }
 
   async saveFile(filename: string, buffer: Buffer, mimeType: string): Promise<string> {
-    const timestamp = Date.now();
-    const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
-    const safeFilename = `${timestamp}_${cleanName}`;
-    const filePath = path.join(this.uploadDir, safeFilename);
+    // If running in Vercel or read-only filesystem, use database storage provider
+    const isDirReady = await this.ensureDir();
+    if (!isDirReady) {
+      const dbProvider = new DatabaseStorageProvider();
+      return dbProvider.saveFile(filename, buffer, mimeType);
+    }
 
-    await fs.promises.writeFile(filePath, buffer);
-    // Relative URL served statically by express at /uploads/recipes/...
-    return `/uploads/recipes/${safeFilename}`;
+    try {
+      const timestamp = Date.now();
+      const cleanName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const safeFilename = `${timestamp}_${cleanName}`;
+      const filePath = path.join(this.uploadDir, safeFilename);
+
+      await fs.promises.writeFile(filePath, buffer);
+      return `/uploads/recipes/${safeFilename}`;
+    } catch {
+      const dbProvider = new DatabaseStorageProvider();
+      return dbProvider.saveFile(filename, buffer, mimeType);
+    }
   }
 
   async getFile(fileKeyOrUrl: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
-    const filename = path.basename(fileKeyOrUrl);
-    const filePath = path.join(this.uploadDir, filename);
-
-    if (!fs.existsSync(filePath)) {
-      return null;
+    if (fileKeyOrUrl.startsWith('data:')) {
+      const dbProvider = new DatabaseStorageProvider();
+      return dbProvider.getFile(fileKeyOrUrl);
     }
 
-    const buffer = await fs.promises.readFile(filePath);
-    return { buffer, mimeType: 'application/pdf' };
+    try {
+      const filename = path.basename(fileKeyOrUrl);
+      const filePath = path.join(this.uploadDir, filename);
+
+      const exists = fs.existsSync(filePath);
+      if (!exists) {
+        return null;
+      }
+
+      const buffer = await fs.promises.readFile(filePath);
+      return { buffer, mimeType: 'application/pdf' };
+    } catch {
+      return null;
+    }
   }
 
   async deleteFile(fileKeyOrUrl: string): Promise<void> {
-    const filename = path.basename(fileKeyOrUrl);
-    const filePath = path.join(this.uploadDir, filename);
-    if (fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
+    if (fileKeyOrUrl.startsWith('data:')) return;
+    try {
+      const filename = path.basename(fileKeyOrUrl);
+      const filePath = path.join(this.uploadDir, filename);
+      if (fs.existsSync(filePath)) {
+        await fs.promises.unlink(filePath);
+      }
+    } catch {
+      // Ignore cleanup error on read-only environments
     }
   }
 }
 
 /**
- * S3 Storage Provider (Ready for future AWS S3 / Cloudflare R2 / MinIO integration)
- * To switch to S3 in the future:
+ * S3 Storage Provider (Ready for AWS S3 / Cloudflare R2 / MinIO integration)
+ * To enable:
  * 1. Set environment variable: STORAGE_PROVIDER=s3
  * 2. Configure AWS_S3_BUCKET, AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY.
  */
@@ -74,13 +127,13 @@ export class S3StorageProvider implements StorageProvider {
     // const key = `recipes/${Date.now()}_${filename}`;
     // await s3Client.send(new PutObjectCommand({ Bucket: process.env.AWS_S3_BUCKET, Key: key, Body: buffer, ContentType: mimeType }));
     // return `https://${process.env.AWS_S3_BUCKET}.s3.amazonaws.com/${key}`;
-    console.warn('[StorageService] S3 Provider no configurado aún, utilizando almacenamiento local de respaldo.');
-    const fallback = new LocalStorageProvider();
+    console.warn('[StorageService] S3 Provider no configurado aún, utilizando almacenamiento seguro de base de datos.');
+    const fallback = new DatabaseStorageProvider();
     return fallback.saveFile(filename, buffer, mimeType);
   }
 
   async getFile(fileKeyOrUrl: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
-    const fallback = new LocalStorageProvider();
+    const fallback = new DatabaseStorageProvider();
     return fallback.getFile(fileKeyOrUrl);
   }
 }
@@ -92,11 +145,14 @@ export class StorageService {
   private provider: StorageProvider;
 
   constructor() {
-    const providerType = process.env.STORAGE_PROVIDER || 'local';
-    if (providerType.toLowerCase() === 's3') {
+    const providerType = (process.env.STORAGE_PROVIDER || '').toLowerCase();
+    if (providerType === 's3') {
       this.provider = new S3StorageProvider();
-    } else {
+    } else if (providerType === 'local') {
       this.provider = new LocalStorageProvider();
+    } else {
+      // Default to DatabaseStorageProvider for zero-configuration, 100% Vercel Serverless compatibility
+      this.provider = new DatabaseStorageProvider();
     }
   }
 
