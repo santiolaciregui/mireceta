@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import InformationalModal from './InformationalModal';
 import Logo from './Logo';
+import { trackInitiatePrescription } from '../services/metaPixelService';
 
 
 interface LandingPageProps {
@@ -284,7 +285,10 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 {/* Primary CTA */}
                 <div className="pt-2 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                   <button 
-                    onClick={() => onGoToLogin('login')}
+                    onClick={() => {
+                      trackInitiatePrescription('landing_hero_cta');
+                      onGoToLogin('login');
+                    }}
                     className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#295EF3]"
                   >
                     <span>Solicitar Receta</span>
@@ -599,7 +603,10 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <h4 className="font-bold text-base text-white">Solicitud Online</h4>
               <ul className="space-y-2 text-xs text-slate-300 font-medium">
                 <li>
-                  <button onClick={() => onGoToLogin('login')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
+                  <button onClick={() => {
+                    trackInitiatePrescription('landing_footer_link');
+                    onGoToLogin('login');
+                  }} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
                     <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Renovar Medicación Crónica
                   </button>
                 </li>

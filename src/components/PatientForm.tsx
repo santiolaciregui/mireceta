@@ -44,6 +44,7 @@ import {
 import MercadoPagoIcon from './MercadoPagoIcon';
 import OfficialOrderReceipt from './OfficialOrderReceipt';
 import { useFormDraft } from '../hooks/useFormDraft';
+import { trackInitiatePrescription, trackCompletePrescription } from '../services/metaPixelService';
 
 
 interface PatientFormProps {
@@ -107,6 +108,11 @@ export default function PatientForm({
 
     if (payment && orderId) {
       if (payment === 'approved' || payment === 'pending') {
+        trackCompletePrescription({
+          orderId,
+          value: 10000,
+          currency: 'ARS',
+        });
         clearDraft();
         setDraftRestored(false);
         setCreatedOrderId(orderId);
@@ -1155,6 +1161,13 @@ export default function PatientForm({
 
     try {
       const orderId = await onSubmitOrder(fullOrderPayload);
+      trackCompletePrescription({
+        orderId,
+        value: paymentAmount || 10000,
+        currency: 'ARS',
+        obraSocial: selectedObraSocial,
+        deliveryMethod,
+      });
       clearDraft();
       setDraftRestored(false);
       setCreatedOrderId(orderId);
@@ -1584,7 +1597,10 @@ export default function PatientForm({
             <button
               id="btn-confirm-info"
               type="button"
-              onClick={() => setStep('identification')}
+              onClick={() => {
+                trackInitiatePrescription('patient_form_info');
+                setStep('identification');
+              }}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <span>Iniciar Solicitud</span>
