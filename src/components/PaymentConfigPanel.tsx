@@ -73,11 +73,11 @@ export default function PaymentConfigPanel() {
     <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 bg-[#295EF3]/10 border border-[#295EF3]/20 text-[#295EF3] rounded-2xl flex items-center justify-center font-bold">
+          <div className="h-10 w-10 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#1661E1] rounded-2xl flex items-center justify-center font-bold">
             <CreditCard className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-sm text-[#1C2435]">Configuración Pasarela de Pago (Mercado Pago)</h3>
+            <h3 className="font-extrabold text-sm text-[#0141BC]">Configuración Pasarela de Pago (Mercado Pago)</h3>
             <p className="text-xs text-slate-500 font-medium">Credenciales de producción / sandbox para cobro de aranceles</p>
           </div>
         </div>
@@ -86,7 +86,7 @@ export default function PaymentConfigPanel() {
           href="https://www.mercadopago.com.ar/developers/panel/credentials"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-[#295EF3] hover:text-[#1C2435] font-bold flex items-center gap-1 hover:underline"
+          className="text-xs text-[#1661E1] hover:text-[#0141BC] font-bold flex items-center gap-1 hover:underline"
         >
           <span>Obtener Credenciales Oficiales</span>
           <ExternalLink className="h-3.5 w-3.5" />
@@ -95,9 +95,9 @@ export default function PaymentConfigPanel() {
 
       {message && (
         <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
-          message.type === 'success' ? 'bg-[#316F80]/15 text-[#316F80] border border-[#316F80]/30' : 'bg-red-50 text-red-800 border border-red-200'
+          message.type === 'success' ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {message.type === 'success' ? <Check className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+          {message.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-[#14BE99]" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
           <span>{message.text}</span>
         </div>
       )}
@@ -106,7 +106,7 @@ export default function PaymentConfigPanel() {
         {/* Toggle Enable */}
         <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <div>
-            <span className="font-bold text-xs text-[#1C2435] block">Habilitar Cobro Online por Mercado Pago</span>
+            <span className="font-bold text-xs text-[#0141BC] block">Habilitar Cobro Online por Mercado Pago</span>
             <span className="text-[11px] text-slate-500 font-medium">Permitir a los pacientes pagar la tasa de arancel mediante Checkout Pro</span>
           </div>
 
@@ -117,13 +117,13 @@ export default function PaymentConfigPanel() {
               onChange={(e) => setMpEnabled(e.target.checked)}
               className="sr-only peer"
             />
-            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#295EF3]"></div>
+            <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1661E1]"></div>
           </label>
         </div>
 
         {/* Access Token */}
         <div>
-          <label className="block text-xs font-bold text-[#1C2435] uppercase tracking-wider mb-1">
+          <label className="block text-xs font-bold text-[#0141BC] uppercase tracking-wider mb-1">
             Mercado Pago Access Token <span className="text-red-500">*</span>
           </label>
           <div className="relative">
@@ -132,7 +132,7 @@ export default function PaymentConfigPanel() {
               value={mpAccessToken}
               onChange={(e) => setMpAccessToken(e.target.value)}
               placeholder="APP_USR-xxxxxx-xxxxxx-xxxxxx..."
-              className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#1C2435] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#295EF3]"
+              className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
             />
             <button
               type="button"
@@ -149,7 +149,7 @@ export default function PaymentConfigPanel() {
 
         {/* Public Key */}
         <div>
-          <label className="block text-xs font-bold text-[#1C2435] uppercase tracking-wider mb-1">
+          <label className="block text-xs font-bold text-[#0141BC] uppercase tracking-wider mb-1">
             Mercado Pago Public Key (Opcional)
           </label>
           <input
@@ -157,7 +157,7 @@ export default function PaymentConfigPanel() {
             value={mpPublicKey}
             onChange={(e) => setMpPublicKey(e.target.value)}
             placeholder="APP_USR-xxxxxx-xxxxxx..."
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#1C2435] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#295EF3]"
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
           />
           <span className="text-[10px] text-slate-400 font-medium mt-1 block">
             Clave pública util para identificadores de checkout frontal.
@@ -167,7 +167,7 @@ export default function PaymentConfigPanel() {
         <button
           type="submit"
           disabled={isSaving}
-          className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
+          className="bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
           <span>{isSaving ? 'Guardando...' : 'Guardar Credenciales de Mercado Pago'}</span>

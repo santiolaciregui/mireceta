@@ -24,14 +24,14 @@ export default function Navbar({
   onReset,
 }: NavbarProps) {
   return (
-    <header className="glass sticky top-0 z-40 border-b border-[#1C2435]/10 shadow-xs bg-white/90">
+    <header className="glass sticky top-0 z-40 border-b border-[#0141BC]/10 shadow-xs bg-white/90">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16 sm:h-20">
           
           {/* Logo Brand */}
           <div className="flex items-center space-x-3">
             <Logo variant="full" size="md" />
-            <span className="hidden xl:inline-block text-[10px] sm:text-xs px-2.5 py-0.5 bg-[#295EF3]/10 text-[#295EF3] font-extrabold rounded-full border border-[#295EF3]/20">
+            <span className="hidden xl:inline-block text-[10px] sm:text-xs px-2.5 py-0.5 bg-[#1661E1]/10 text-[#1661E1] font-extrabold rounded-full border border-[#1661E1]/20">
               Mi Receta Online
             </span>
           </div>
@@ -47,25 +47,25 @@ export default function Navbar({
                   }
                 }}
                 title="Reiniciar base de datos a valores iniciales"
-                className="p-2 sm:p-2.5 text-slate-450 hover:text-[#295EF3] hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-100"
+                className="p-2 sm:p-2.5 text-slate-400 hover:text-[#1661E1] hover:bg-slate-50 rounded-2xl transition-all cursor-pointer border border-transparent hover:border-slate-100"
               >
                 <RefreshCw className="h-4.5 w-4.5" />
               </button>
 
               {/* User Identity Info */}
               <div className="hidden md:flex flex-col text-right">
-                <span className="text-xs font-extrabold text-[#1C2435] leading-tight">
+                <span className="text-xs font-extrabold text-[#0141BC] leading-tight">
                   {currentUser.name} {currentUser.lastName}
                 </span>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mt-0.5 flex items-center justify-end gap-1">
                   {currentUser.role === 'admin' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#316F80]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0F6C7D]" />
                   ) : currentUser.role === 'medico' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#295EF3]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#1661E1]" />
                   ) : currentUser.role === 'colaborador' ? (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-600" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#14BE99]" />
                   ) : (
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#316F80]" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#0F6C7D]" />
                   )}{' '}
                   {currentUser.role === 'colaborador' ? 'COLABORADOR MÉD.' : currentUser.role.toUpperCase()}
                 </span>
@@ -73,7 +73,7 @@ export default function Navbar({
 
               {/* Role badge for tiny mobile viewports */}
               <div className="md:hidden px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[10px] font-extrabold text-[#1C2435] uppercase tracking-wider block">
+                <span className="text-[10px] font-extrabold text-[#0141BC] uppercase tracking-wider block">
                   {currentUser.name.split(' ')[0]}
                 </span>
                 <span className="text-[8px] font-bold text-slate-500 block uppercase">
@@ -84,7 +84,7 @@ export default function Navbar({
               {/* Secure Logout Button */}
               <button
                 onClick={onLogout}
-                className="py-2 px-3 sm:px-4 bg-[#1C2435] hover:bg-[#295EF3] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
+                className="py-2 px-3 sm:px-4 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-xs cursor-pointer"
                 title="Cerrar Sesión de forma segura"
               >
                 <LogOut className="h-4 w-4 shrink-0" />
@@ -98,15 +98,15 @@ export default function Navbar({
 
       {/* Top Session Breadcrumb Bar */}
       {currentUser && (
-        <div className="bg-[#1C2435]/5 border-t border-b border-[#1C2435]/10 py-1.5 px-4 text-center">
-          <p className="text-[10px] sm:text-xs text-[#1C2435]/80 font-semibold flex items-center justify-center gap-1.5 flex-wrap">
-            <span className="flex h-2 w-2 rounded-full bg-[#295EF3] animate-pulse" />
-            Sesión activa como: <strong className="text-[#1C2435]">{currentUser.name} ({currentUser.role === 'colaborador' ? 'COLABORADOR MÉDICO' : currentUser.role.toUpperCase()})</strong>
+        <div className="bg-[#0141BC]/5 border-t border-b border-[#0141BC]/10 py-1.5 px-4 text-center">
+          <p className="text-[10px] sm:text-xs text-[#0141BC]/80 font-semibold flex items-center justify-center gap-1.5 flex-wrap">
+            <span className="flex h-2 w-2 rounded-full bg-[#1E6EFB] animate-pulse" />
+            Sesión activa como: <strong className="text-[#0141BC]">{currentUser.name} ({currentUser.role === 'colaborador' ? 'COLABORADOR MÉDICO' : currentUser.role.toUpperCase()})</strong>
             {(currentUser.role === 'colaborador') && currentUser.medicoName && (
-              <span> — Médico Asociado: <strong className="text-[#295EF3]">{currentUser.medicoName}</strong></span>
+              <span> — Médico Asociado: <strong className="text-[#1661E1]">{currentUser.medicoName}</strong></span>
             )}
             <span> — Identificador: </span>
-            <span className="font-mono text-[#1C2435] bg-white/80 border border-[#1C2435]/15 px-1.5 py-0.5 rounded-md">{currentUser.identifier}</span>
+            <span className="font-mono text-[#0141BC] bg-white/80 border border-[#0141BC]/15 px-1.5 py-0.5 rounded-md">{currentUser.identifier}</span>
           </p>
         </div>
       )}

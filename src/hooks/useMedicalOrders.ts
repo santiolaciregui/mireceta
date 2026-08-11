@@ -450,25 +450,76 @@ export function useMedicalOrders() {
     }
   };
 
-  const addDependent = (newDep: any) => {
+  const addDependent = async (newDep: any) => {
     if (!currentUser) return;
     const existingDeps = currentUser.dependents || [];
+    const updatedDependents = [...existingDeps, newDep];
     const updatedUser = {
       ...currentUser,
-      dependents: [...existingDeps, newDep],
+      dependents: updatedDependents,
     };
     setCurrentUser(updatedUser);
     localStorage.setItem('mi-receta-user', JSON.stringify(updatedUser));
+
+    if (token && currentUser.id) {
+      try {
+        await fetch(`/api/users/${currentUser.id}`, {
+          method: 'PUT',
+          headers: fetchHeaders(),
+          body: JSON.stringify({ dependents: updatedDependents }),
+        });
+      } catch (err) {
+        console.error('Error syncing added dependent to server:', err);
+      }
+    }
   };
 
-  const removeDependent = (depId: string) => {
+  const updateDependent = async (updatedDep: any) => {
     if (!currentUser || !currentUser.dependents) return;
+    const updatedDependents = currentUser.dependents.map((d: any) =>
+      d.id === updatedDep.id ? updatedDep : d
+    );
     const updatedUser = {
       ...currentUser,
-      dependents: currentUser.dependents.filter((d: any) => d.id !== depId),
+      dependents: updatedDependents,
     };
     setCurrentUser(updatedUser);
     localStorage.setItem('mi-receta-user', JSON.stringify(updatedUser));
+
+    if (token && currentUser.id) {
+      try {
+        await fetch(`/api/users/${currentUser.id}`, {
+          method: 'PUT',
+          headers: fetchHeaders(),
+          body: JSON.stringify({ dependents: updatedDependents }),
+        });
+      } catch (err) {
+        console.error('Error syncing updated dependent to server:', err);
+      }
+    }
+  };
+
+  const removeDependent = async (depId: string) => {
+    if (!currentUser || !currentUser.dependents) return;
+    const updatedDependents = currentUser.dependents.filter((d: any) => d.id !== depId);
+    const updatedUser = {
+      ...currentUser,
+      dependents: updatedDependents,
+    };
+    setCurrentUser(updatedUser);
+    localStorage.setItem('mi-receta-user', JSON.stringify(updatedUser));
+
+    if (token && currentUser.id) {
+      try {
+        await fetch(`/api/users/${currentUser.id}`, {
+          method: 'PUT',
+          headers: fetchHeaders(),
+          body: JSON.stringify({ dependents: updatedDependents }),
+        });
+      } catch (err) {
+        console.error('Error syncing removed dependent to server:', err);
+      }
+    }
   };
 
   return {
@@ -496,6 +547,7 @@ export function useMedicalOrders() {
     clearAllOrders,
     sendChatMessage,
     addDependent,
+    updateDependent,
     removeDependent,
   };
 }

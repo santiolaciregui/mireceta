@@ -308,8 +308,7 @@ export default function NotificationConfigPanel() {
       {/* Header */}
       <div className="p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
         <div>
-
-          <h2 className="text-base font-extrabold text-[#1C2435] mt-1">Gestión de Notificaciones (Email & WhatsApp)</h2>
+          <h2 className="text-base font-extrabold text-[#0141BC] mt-1">Gestión de Notificaciones (Email & WhatsApp)</h2>
           <p className="text-xs text-slate-500 font-medium">
             Configuración de adaptadores, variables dinámicas en base de datos y trazabilidad de envíos.
           </p>
@@ -320,7 +319,7 @@ export default function NotificationConfigPanel() {
           <button
             onClick={() => setActiveTab('channels')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'channels' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'channels' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Settings className="h-3.5 w-3.5" />
@@ -330,7 +329,7 @@ export default function NotificationConfigPanel() {
           <button
             onClick={() => setActiveTab('templates')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'templates' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'templates' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <FileText className="h-3.5 w-3.5" />
@@ -340,7 +339,7 @@ export default function NotificationConfigPanel() {
           <button
             onClick={() => setActiveTab('test')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'test' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'test' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <Send className="h-3.5 w-3.5" />
@@ -350,7 +349,7 @@ export default function NotificationConfigPanel() {
           <button
             onClick={() => setActiveTab('logs')}
             className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'logs' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'logs' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             <History className="h-3.5 w-3.5" />
@@ -362,9 +361,9 @@ export default function NotificationConfigPanel() {
       {/* Global Feedback Banner */}
       {feedback && (
         <div className={`mx-6 mt-4 p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
-          feedback.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+          feedback.type === 'success' ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {feedback.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-emerald-600" /> : <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />}
+          {feedback.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-[#14BE99]" /> : <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />}
           <span>{feedback.message}</span>
         </div>
       )}
@@ -379,11 +378,11 @@ export default function NotificationConfigPanel() {
               <div>
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center font-bold">
+                    <div className="h-8 w-8 bg-[#1661E1]/10 text-[#1661E1] rounded-xl flex items-center justify-center font-bold">
                       <Mail className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-xs text-[#1C2435]">Adaptador Correo (SMTP)</h3>
+                      <h3 className="font-extrabold text-xs text-[#0141BC]">Adaptador Correo (SMTP)</h3>
                       <span className="text-[10px] text-slate-500 font-medium">Servidor de salida Nodemailer</span>
                     </div>
                   </div>
@@ -394,7 +393,7 @@ export default function NotificationConfigPanel() {
                       onChange={(e) => setEmailEnabled(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#295EF3]"></div>
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#1661E1]"></div>
                   </label>
                 </div>
 
@@ -407,7 +406,7 @@ export default function NotificationConfigPanel() {
                         value={smtpHost}
                         onChange={(e) => setSmtpHost(e.target.value)}
                         placeholder="smtp.gmail.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#295EF3]"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
                       />
                     </div>
                     <div>
@@ -417,7 +416,7 @@ export default function NotificationConfigPanel() {
                         value={smtpPort}
                         onChange={(e) => setSmtpPort(e.target.value)}
                         placeholder="587"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#295EF3]"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
                       />
                     </div>
                   </div>
@@ -429,7 +428,7 @@ export default function NotificationConfigPanel() {
                       value={smtpUser}
                       onChange={(e) => setSmtpUser(e.target.value)}
                       placeholder="notificaciones@mireceta.com"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#295EF3]"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
                     />
                   </div>
 
@@ -441,7 +440,7 @@ export default function NotificationConfigPanel() {
                         value={smtpPass}
                         onChange={(e) => setSmtpPass(e.target.value)}
                         placeholder="••••••••••••"
-                        className="w-full pl-3 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#295EF3]"
+                        className="w-full pl-3 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
                       />
                       <button
                         type="button"
@@ -461,7 +460,7 @@ export default function NotificationConfigPanel() {
                         value={smtpFromName}
                         onChange={(e) => setSmtpFromName(e.target.value)}
                         placeholder="Mi Receta Digital"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:ring-2 focus:ring-[#295EF3]"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-medium focus:ring-2 focus:ring-[#1661E1]"
                       />
                     </div>
                     <div>
@@ -471,7 +470,7 @@ export default function NotificationConfigPanel() {
                         value={smtpFromEmail}
                         onChange={(e) => setSmtpFromEmail(e.target.value)}
                         placeholder="no-reply@mireceta.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#295EF3]"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
                       />
                     </div>
                   </div>
@@ -483,7 +482,7 @@ export default function NotificationConfigPanel() {
                   type="submit"
                   form="email-form"
                   disabled={isSaving}
-                  className="flex-1 bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  className="flex-1 bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
                 >
                   <Save className="h-3.5 w-3.5" />
                   <span>Guardar Email</span>
@@ -505,11 +504,11 @@ export default function NotificationConfigPanel() {
               <div>
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center font-bold">
+                    <div className="h-8 w-8 bg-[#14BE99]/10 text-[#14BE99] rounded-xl flex items-center justify-center font-bold">
                       <MessageSquare className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-xs text-[#1C2435]">Adaptador WhatsApp (Meta Cloud API)</h3>
+                      <h3 className="font-extrabold text-xs text-[#0141BC]">Adaptador WhatsApp (Meta Cloud API)</h3>
                       <span className="text-[10px] text-slate-500 font-medium">API Oficial WhatsApp Business</span>
                     </div>
                   </div>
@@ -615,14 +614,14 @@ export default function NotificationConfigPanel() {
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h3 className="font-extrabold text-xs text-[#1C2435]">Plantillas del Sistema</h3>
+                <h3 className="font-extrabold text-xs text-[#0141BC]">Plantillas del Sistema</h3>
                 <p className="text-[11px] text-slate-500">
-                  Variables disponibles para usar en el texto: <code className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded font-mono text-[10px]">{`{{patientName}}`}</code>, <code className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded font-mono text-[10px]">{`{{doctorName}}`}</code>, <code className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded font-mono text-[10px]">{`{{orderId}}`}</code>, <code className="bg-slate-100 text-indigo-700 px-1 py-0.5 rounded font-mono text-[10px]">{`{{recipeUrl}}`}</code>
+                  Variables disponibles para usar en el texto: <code className="bg-slate-100 text-[#0141BC] px-1 py-0.5 rounded font-mono text-[10px]">{`{{patientName}}`}</code>, <code className="bg-slate-100 text-[#0141BC] px-1 py-0.5 rounded font-mono text-[10px]">{`{{doctorName}}`}</code>, <code className="bg-slate-100 text-[#0141BC] px-1 py-0.5 rounded font-mono text-[10px]">{`{{orderId}}`}</code>, <code className="bg-slate-100 text-[#0141BC] px-1 py-0.5 rounded font-mono text-[10px]">{`{{recipeUrl}}`}</code>
                 </p>
               </div>
               <button
                 onClick={() => setEditingTemplate({ code: 'NUEVA_PLANTILLA', name: 'Nueva Plantilla', channel: 'all', body: 'Hola {{patientName}}...', variables: ['patientName'], isActive: true })}
-                className="bg-[#295EF3] text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-[#1C2435] transition-all cursor-pointer"
+                className="bg-[#1661E1] text-white text-xs font-bold px-3 py-1.5 rounded-xl flex items-center gap-1 hover:bg-[#0141BC] transition-all cursor-pointer shadow-xs"
               >
                 <Plus className="h-3.5 w-3.5" />
                 <span>Nueva Plantilla</span>
@@ -631,8 +630,8 @@ export default function NotificationConfigPanel() {
 
             {/* Editing Form Modal / Inline */}
             {editingTemplate && (
-              <form onSubmit={handleSaveTemplate} className="bg-indigo-50/50 border border-indigo-200 p-4 rounded-2xl space-y-3">
-                <h4 className="font-extrabold text-xs text-indigo-900">Editar Plantilla en Base de Datos</h4>
+              <form onSubmit={handleSaveTemplate} className="bg-[#1661E1]/5 border border-[#1661E1]/20 p-4 rounded-2xl space-y-3">
+                <h4 className="font-extrabold text-xs text-[#0141BC]">Editar Plantilla en Base de Datos</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-600 uppercase">Código Único</label>
@@ -700,7 +699,7 @@ export default function NotificationConfigPanel() {
                   </button>
                   <button
                     type="submit"
-                    className="px-3 py-1.5 bg-indigo-600 text-white font-bold rounded-lg text-xs cursor-pointer"
+                    className="px-3 py-1.5 bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold rounded-lg text-xs cursor-pointer"
                   >
                     Guardar Plantilla
                   </button>
@@ -713,7 +712,7 @@ export default function NotificationConfigPanel() {
               {templates.map((tpl) => (
                 <div key={tpl.code} className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="font-extrabold text-xs text-[#1C2435]">{tpl.name}</span>
+                    <span className="font-extrabold text-xs text-[#0141BC]">{tpl.name}</span>
                     <span className="text-[10px] font-mono font-bold bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
                       {tpl.code}
                     </span>
@@ -728,7 +727,7 @@ export default function NotificationConfigPanel() {
                     <span>Canal: <strong className="text-slate-700 uppercase">{tpl.channel}</strong></span>
                     <button
                       onClick={() => setEditingTemplate(tpl)}
-                      className="text-[#295EF3] hover:underline font-bold cursor-pointer"
+                      className="text-[#1661E1] hover:underline font-bold cursor-pointer"
                     >
                       Editar
                     </button>
@@ -742,7 +741,7 @@ export default function NotificationConfigPanel() {
         {/* 3. PRUEBA DE ENVÍO */}
         {activeTab === 'test' && (
           <form onSubmit={handleSendTestNotification} className="max-w-xl mx-auto space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
-            <h3 className="font-extrabold text-xs text-[#1C2435]">Enviar Notificación de Prueba</h3>
+            <h3 className="font-extrabold text-xs text-[#0141BC]">Enviar Notificación de Prueba</h3>
             
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -794,12 +793,12 @@ export default function NotificationConfigPanel() {
             </div>
 
             {/* Test variables preview */}
-            <div className="bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-              <span className="text-[10px] font-bold text-indigo-900 block mb-1 uppercase">Valores de Variables de Prueba</span>
+            <div className="bg-[#1661E1]/5 p-3 rounded-xl border border-[#1661E1]/20">
+              <span className="text-[10px] font-bold text-[#0141BC] block mb-1 uppercase">Valores de Variables de Prueba</span>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(testVariables).map(([k, v]) => (
                   <div key={k} className="flex items-center gap-1 text-[11px]">
-                    <span className="font-mono text-indigo-700">{`{{${k}}}`}:</span>
+                    <span className="font-mono text-[#1661E1]">{`{{${k}}}`}:</span>
                     <input
                       type="text"
                       value={v}
@@ -814,7 +813,7 @@ export default function NotificationConfigPanel() {
             <button
               type="submit"
               disabled={isSaving}
-              className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
+              className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 shadow-sm"
             >
               <Send className="h-4 w-4" />
               <span>Ejecutar Envío de Prueba</span>
@@ -826,10 +825,10 @@ export default function NotificationConfigPanel() {
         {activeTab === 'logs' && (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="font-extrabold text-xs text-[#1C2435]">Historial de Envíos (Audit Logs)</h3>
+              <h3 className="font-extrabold text-xs text-[#0141BC]">Historial de Envíos (Audit Logs)</h3>
               <button
                 onClick={fetchInitialData}
-                className="text-xs text-[#295EF3] font-bold flex items-center gap-1 hover:underline cursor-pointer"
+                className="text-xs text-[#1661E1] font-bold flex items-center gap-1 hover:underline cursor-pointer"
               >
                 <RefreshCw className="h-3.5 w-3.5" />
                 <span>Actualizar Logs</span>

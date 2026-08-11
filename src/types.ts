@@ -94,6 +94,14 @@ export interface MedicalOrder {
   createdByOperatorId?: string;
   createdByOperatorName?: string;
 
+  // Dependent / Familiar a cargo tracking
+  isForDependent?: boolean;
+  dependentRelationship?: string;
+  requestedByTitularName?: string;
+  requestedByTitularDni?: string;
+  requestedByTitularEmail?: string;
+  requestedByTitularPhone?: string;
+
   // Consents accepted
   consentsAccepted?: {
     isOfAge: boolean;

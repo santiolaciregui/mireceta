@@ -10,12 +10,14 @@ export class UserRepository {
     const raw = identifier.trim();
     const clean = cleanDni(raw);
 
-    return User.findOne({
-      $or: [
-        { identifier: { $regex: new RegExp(`^${raw}$`, 'i') } },
-        { identifier: clean }
-      ]
-    });
+    const conditions: Record<string, unknown>[] = [
+      { identifier: { $regex: new RegExp(`^${raw}$`, 'i') } }
+    ];
+    if (clean) {
+      conditions.push({ identifier: clean });
+    }
+
+    return User.findOne({ $or: conditions });
   }
 
   async findByEmail(email: string): Promise<IUser | null> {

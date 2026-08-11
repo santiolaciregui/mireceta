@@ -46,7 +46,21 @@ export class ChatService {
 
     if (isPatient) {
       const patientDniClean = cleanDni(currentUser.identifier);
-      return [await this.getPatientChat(patientDniClean, currentUser)];
+      const dependentDnis = (currentUser.dependents || [])
+        .map((d: any) => cleanDni(d.dni || d.identifier))
+        .filter(Boolean);
+      
+      const allDnis = [patientDniClean, ...dependentDnis].filter(Boolean);
+      const convos = [];
+      for (const d of allDnis) {
+        try {
+          const c = await this.getPatientChat(d, currentUser);
+          if (c) convos.push(c);
+        } catch (e) {
+          // ignore if no conversation yet
+        }
+      }
+      return convos.length > 0 ? convos : [await this.getPatientChat(patientDniClean, currentUser)];
     }
 
     // Staff view: Fetch all orders and patients
@@ -159,7 +173,11 @@ export class ChatService {
 
     if (currentUser?.role === 'paciente') {
       const userDniClean = cleanDni(currentUser.identifier);
-      if (userDniClean !== clean) {
+      const dependentDnis = (currentUser.dependents || [])
+        .map((d: any) => cleanDni(d.dni || d.identifier))
+        .filter(Boolean);
+
+      if (userDniClean !== clean && !dependentDnis.includes(clean)) {
         throw new Error('No tienes autorización para acceder a la conversación de otro paciente.');
       }
     }
@@ -221,7 +239,11 @@ export class ChatService {
 
     if (currentUser.role === 'paciente') {
       const userDniClean = cleanDni(currentUser.identifier);
-      if (userDniClean !== clean) {
+      const dependentDnis = (currentUser.dependents || [])
+        .map((d: any) => cleanDni(d.dni || d.identifier))
+        .filter(Boolean);
+
+      if (userDniClean !== clean && !dependentDnis.includes(clean)) {
         throw new Error('Acceso no autorizado.');
       }
     }

@@ -49,6 +49,7 @@ export default function NewOrderForm({
   const [patientName, setPatientName] = useState('');
   const [patientLastName, setPatientLastName] = useState('');
   const [patientBirthDate, setPatientBirthDate] = useState('');
+  const [patientGender, setPatientGender] = useState<'M' | 'F' | 'X'>('M');
   const [patientEmail, setPatientEmail] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('email');
@@ -92,12 +93,14 @@ export default function NewOrderForm({
       const birthDate = foundOrder?.patientBirthDate || foundUser?.birthDate || '';
       const email = foundOrder?.patientEmail || foundUser?.email || '';
       const phone = foundOrder?.patientPhone || foundUser?.phone || '';
+      const gender = foundOrder?.patientGender || foundUser?.gender || 'M';
       const obraSocial = foundOrder?.obraSocial || foundUser?.obraSocial || '';
       const osNumber = foundOrder?.obraSocialNumber || foundUser?.obraSocialNumber || '';
 
       if (name) setPatientName(name);
       if (lastName) setPatientLastName(lastName);
       if (birthDate) setPatientBirthDate(birthDate);
+      if (gender) setPatientGender(gender);
       if (email) setPatientEmail(email);
       if (phone) setPatientPhone(phone);
       if (obraSocial) setSelectedObraSocial(obraSocial);
@@ -214,6 +217,7 @@ export default function NewOrderForm({
         patientLastName: patientLastName.trim(),
         patientDni: patientDni.trim(),
         patientBirthDate: patientBirthDate || undefined,
+        patientGender,
         patientEmail: patientEmail.trim() || undefined,
         patientPhone: patientPhone.trim() || undefined,
         deliveryMethod,
@@ -267,14 +271,14 @@ export default function NewOrderForm({
               <ArrowLeft className="h-4 w-4" /> Volver a Pedidos
             </button>
 
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#295EF3]/10 border border-[#295EF3]/20 rounded-xl text-[#295EF3] text-xs font-bold">
+            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#1661E1]/10 border border-[#1661E1]/20 rounded-xl text-[#1661E1] text-xs font-bold">
               <ShieldCheck className="h-4 w-4" />
               <span>Operador: {currentUser?.name || 'Personal Autorizado'}</span>
             </div>
           </div>
 
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Nueva Solicitud de Oficio</h1>
+            <h1 className="text-xl font-extrabold text-[#0141BC] tracking-tight">Nueva Solicitud de Oficio</h1>
             <p className="text-xs text-slate-500 font-medium">Estructura administrativa de carga directa para personal médico o colaboradores</p>
           </div>
         </div>
@@ -292,8 +296,8 @@ export default function NewOrderForm({
           {/* SECTION 1: DATOS DEL PACIENTE */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                <div className="h-7 w-7 rounded-lg bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center">
+              <div className="flex items-center gap-2 text-[#0141BC] font-bold text-sm">
+                <div className="h-7 w-7 rounded-lg bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center">
                   <User className="h-4 w-4" />
                 </div>
                 <span>1. Identificación del Paciente</span>
@@ -311,13 +315,13 @@ export default function NewOrderForm({
                     value={patientDni}
                     onChange={e => setPatientDni(e.target.value)}
                     placeholder="Ej: 35123456"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#295EF3] focus:ring-2 focus:ring-[#295EF3]/10"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={handleSearchPatient}
-                  className="px-4 py-2.5 bg-[#295EF3] text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-[#295EF3]/90 transition-all cursor-pointer shadow-xs"
+                  className="px-4 py-2.5 bg-[#1661E1] text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-[#0141BC] transition-all cursor-pointer shadow-xs"
                 >
                   <Search className="h-4 w-4" /> Buscar en Base de Datos
                 </button>
@@ -325,9 +329,9 @@ export default function NewOrderForm({
 
               {searchStatus && (
                 <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                  searchStatus.found ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                  searchStatus.found ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30' : 'bg-slate-100 text-slate-600 border border-slate-200'
                 }`}>
-                  <Sparkles className="h-4 w-4 shrink-0" />
+                  <Sparkles className="h-4 w-4 shrink-0 text-[#14BE99]" />
                   <span>{searchStatus.message}</span>
                 </div>
               )}
@@ -342,7 +346,7 @@ export default function NewOrderForm({
                   value={patientName}
                   onChange={e => setPatientName(e.target.value)}
                   placeholder="Ej: María"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                   required
                 />
               </div>
@@ -353,8 +357,8 @@ export default function NewOrderForm({
                   type="text"
                   value={patientLastName}
                   onChange={e => setPatientLastName(e.target.value)}
-                  placeholder="Ej: González"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  placeholder="Ej: Gómez"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                   required
                 />
               </div>
@@ -365,68 +369,85 @@ export default function NewOrderForm({
                   type="date"
                   value={patientBirthDate}
                   onChange={e => setPatientBirthDate(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Obra Social / Prepaga *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Sexo Biológico</label>
                 <select
-                  value={selectedObraSocial}
-                  onChange={e => setSelectedObraSocial(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
-                  required
+                  value={patientGender}
+                  onChange={e => setPatientGender(e.target.value as any)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                 >
-                  <option value="">-- Seleccionar cobertura --</option>
-                  {OBRA_SOCIAL_OPTIONS.map(opt => (
-                    <option key={opt.id} value={opt.name}>{opt.name}</option>
-                  ))}
+                  <option value="M">Masculino</option>
+                  <option value="F">Femenino</option>
+                  <option value="X">No binario / Otro</option>
                 </select>
               </div>
 
-              {requiresObraSocialNumber && (
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">N° de Afiliado *</label>
-                  <input
-                    type="text"
-                    value={obraSocialNumber}
-                    onChange={e => setObraSocialNumber(e.target.value)}
-                    placeholder="Número de carnet"
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#295EF3]"
-                  />
-                </div>
-              )}
-
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">WhatsApp / Celular de Contacto *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">WhatsApp / Teléfono Móvil *</label>
                 <input
                   type="tel"
                   value={patientPhone}
                   onChange={e => setPatientPhone(e.target.value)}
-                  placeholder="Ej: 2926123456"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#295EF3]"
+                  placeholder="Ej: 2926442385"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Correo Electrónico (Opcional)</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Correo Electrónico *</label>
                 <input
                   type="email"
                   value={patientEmail}
                   onChange={e => setPatientEmail(e.target.value)}
-                  placeholder="paciente@correo.com"
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  placeholder="ejemplo@correo.com"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Canal de Envío de la Receta Emitida</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Obra Social o Prepaga *</label>
+                <select
+                  value={selectedObraSocial}
+                  onChange={e => setSelectedObraSocial(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
+                >
+                  {OBRA_SOCIAL_OPTIONS.map(os => (
+                    <option key={os.name} value={os.name}>
+                      {os.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  N° de Afiliado {requiresObraSocialNumber ? '*' : '(Opcional)'}
+                </label>
+                <input
+                  type="text"
+                  value={obraSocialNumber}
+                  onChange={e => setObraSocialNumber(e.target.value)}
+                  placeholder="Ej: 210-48912345/00"
+                  disabled={!requiresObraSocialNumber}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 disabled:bg-slate-100 disabled:text-slate-400"
+                  required={requiresObraSocialNumber}
+                />
+              </div>
+
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Preferencia de Despacho de la Receta</label>
                 <select
                   value={deliveryMethod}
                   onChange={e => setDeliveryMethod(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                 >
-                  <option value="email">Por Email</option>
+                  <option value="email">Por Correo Electrónico (PDF)</option>
                   <option value="whatsapp">Por WhatsApp</option>
                   <option value="both">Por Ambos Canales</option>
                 </select>
@@ -437,8 +458,8 @@ export default function NewOrderForm({
           {/* SECTION 2: MEDICACIÓN Y DIAGNÓSTICO */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                <div className="h-7 w-7 rounded-lg bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center">
+              <div className="flex items-center gap-2 text-[#0141BC] font-bold text-sm">
+                <div className="h-7 w-7 rounded-lg bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center">
                   <FileText className="h-4 w-4" />
                 </div>
                 <span>2. Medicación Crónica y Diagnóstico</span>
@@ -455,7 +476,7 @@ export default function NewOrderForm({
                     value={curNombreComercial}
                     onChange={e => setCurNombreComercial(e.target.value)}
                     placeholder="Nombre comercial (Ej: Losartán)"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#295EF3]"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                   />
                 </div>
                 <div>
@@ -464,14 +485,14 @@ export default function NewOrderForm({
                     value={curMiligramos}
                     onChange={e => setCurMiligramos(e.target.value)}
                     placeholder="Dosis (Ej: 50mg)"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#295EF3]"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                   />
                 </div>
                 <div>
                   <select
                     value={curPresentacion}
                     onChange={e => setCurPresentacion(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#295EF3]"
+                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                   >
                     <option value="Comprimidos">Comprimidos</option>
                     <option value="Cápsulas">Cápsulas</option>
@@ -489,7 +510,7 @@ export default function NewOrderForm({
                   <select
                     value={curCantidadCajas}
                     onChange={e => setCurCantidadCajas(e.target.value)}
-                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-[#295EF3] cursor-pointer"
+                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-[#1661E1] cursor-pointer"
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
                       <option key={num} value={num}>
@@ -502,7 +523,7 @@ export default function NewOrderForm({
                 <button
                   type="button"
                   onClick={handleAddMedication}
-                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  className="px-4 py-2 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
                 >
                   <Plus className="h-4 w-4" /> Añadir Medicamento
                 </button>
@@ -517,7 +538,7 @@ export default function NewOrderForm({
                   {medicationItems.map((item, idx) => (
                     <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
                       <div>
-                        <p className="text-xs font-bold text-slate-900">{item.nombreComercial} {item.miligramos && `(${item.miligramos})`}</p>
+                        <p className="text-xs font-bold text-[#0141BC]">{item.nombreComercial} {item.miligramos && `(${item.miligramos})`}</p>
                         <p className="text-[11px] text-slate-500">{item.presentacion} • Cantidad: {item.cantidadCajas} caja(s)</p>
                       </div>
                       <button
@@ -542,11 +563,11 @@ export default function NewOrderForm({
                 accept="image/*,application/pdf"
                 multiple
                 onChange={handleFileUpload}
-                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#295EF3]/10 file:text-[#295EF3] hover:file:bg-[#295EF3]/20 cursor-pointer"
+                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1661E1]/10 file:text-[#1661E1] hover:file:bg-[#1661E1]/20 cursor-pointer"
               />
               {medicationPhotos.length > 0 && (
-                <div className="mt-2 text-xs text-emerald-600 font-semibold flex items-center gap-1.5">
-                  <CheckCircle className="h-4 w-4" />
+                <div className="mt-2 text-xs text-[#0F6C7D] font-semibold flex items-center gap-1.5 bg-[#0F6C7D]/5 p-2 rounded-lg border border-[#0F6C7D]/20">
+                  <CheckCircle className="h-4 w-4 text-[#14BE99]" />
                   <span>{medicationPhotos.length} archivo(s) adjuntado(s) correctamente</span>
                 </div>
               )}
@@ -560,7 +581,7 @@ export default function NewOrderForm({
                 value={diagnostic}
                 onChange={e => setDiagnostic(e.target.value)}
                 placeholder="Ej: Hipertensión arterial esencial / Diabetes Tipo 2"
-                className="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                className="w-full p-3 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                 required
               />
             </div>
@@ -573,7 +594,7 @@ export default function NewOrderForm({
                 value={comments}
                 onChange={e => setComments(e.target.value)}
                 placeholder="Aclaraciones para la auditoría o indicaciones de la caja"
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
               />
             </div>
           </div>
@@ -581,8 +602,8 @@ export default function NewOrderForm({
           {/* SECTION 3: REGISTRO ADMINISTRATIVO Y PAGO */}
           <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center gap-2 text-slate-900 font-bold text-sm">
-                <div className="h-7 w-7 rounded-lg bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center">
+              <div className="flex items-center gap-2 text-[#0141BC] font-bold text-sm">
+                <div className="h-7 w-7 rounded-lg bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center">
                   <CreditCard className="h-4 w-4" />
                 </div>
                 <span>3. Registro de Cobro en Mesa de Entrada</span>
@@ -595,7 +616,7 @@ export default function NewOrderForm({
                 <select
                   value={paymentMethod}
                   onChange={e => setPaymentMethod(e.target.value as any)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#295EF3]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                 >
                   <option value="cash_desk">Cobrado en Caja / Mesa de Entrada</option>
                   <option value="bonificado">Exento / Bonificado (PAMI u Orden Municipal)</option>
@@ -610,7 +631,7 @@ export default function NewOrderForm({
                   value={paymentMethod === 'bonificado' ? '0' : paymentAmount}
                   disabled={paymentMethod === 'bonificado'}
                   onChange={e => setPaymentAmount(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:border-[#295EF3]"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
                 />
               </div>
             </div>
@@ -629,7 +650,7 @@ export default function NewOrderForm({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-8 py-3.5 bg-[#295EF3] hover:bg-[#295EF3]/90 text-white rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-md disabled:opacity-50"
+              className="px-8 py-3.5 bg-[#1661E1] hover:bg-[#0141BC] text-white rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer shadow-md disabled:opacity-50"
             >
               {isSubmitting ? (
                 <span>Guardando solicitud...</span>

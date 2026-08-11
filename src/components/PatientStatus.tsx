@@ -179,8 +179,8 @@ export default function PatientStatus({
       
       {/* Toast Notification */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-[#1C2435] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-2.5 animate-slideRight">
-          <Check className="h-4 w-4 text-emerald-400" />
+        <div className="fixed bottom-6 right-6 z-50 bg-[#0141BC] text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-2.5 animate-slideRight">
+          <Check className="h-4 w-4 text-[#14BE99]" />
           <span className="text-xs font-bold">{toast}</span>
         </div>
       )}
@@ -192,7 +192,7 @@ export default function PatientStatus({
           onClick={() => setPreviewPhotoUrl(null)}
         >
           <div 
-            className="relative max-w-2xl w-full bg-[#1C2435] p-3 rounded-3xl border border-white/20 shadow-2xl space-y-3 animate-scaleUp"
+            className="relative max-w-2xl w-full bg-[#0141BC] p-3 rounded-3xl border border-white/20 shadow-2xl space-y-3 animate-scaleUp"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between px-2 pt-1">
@@ -220,7 +220,7 @@ export default function PatientStatus({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="space-y-0.5">
             <h3 className="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-[#295EF3]" />
+              <ShieldCheck className="h-5 w-5 text-[#1661E1]" />
               <span>Solicitudes del Grupo Familiar</span>
             </h3>
             <p className="text-xs text-slate-500 font-medium">
@@ -232,7 +232,7 @@ export default function PatientStatus({
           {onNavigateToNew && (
             <button
               onClick={onNavigateToNew}
-              className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+              className="bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
             >
               <PlusCircle className="h-4 w-4" />
               <span>Nueva Solicitud</span>
@@ -252,7 +252,7 @@ export default function PatientStatus({
             onClick={() => setSelectedPerson('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
               selectedPerson === 'all'
-                ? 'bg-[#1C2435] text-white shadow-xs'
+                ? 'bg-[#0141BC] text-white shadow-xs'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -265,7 +265,7 @@ export default function PatientStatus({
             onClick={() => setSelectedPerson('titular')}
             className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
               selectedPerson === 'titular'
-                ? 'bg-[#295EF3] text-white shadow-xs'
+                ? 'bg-[#1661E1] text-white shadow-xs'
                 : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -285,11 +285,11 @@ export default function PatientStatus({
                 onClick={() => setSelectedPerson(depDniClean)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 flex items-center gap-1.5 ${
                   isSelected
-                    ? 'bg-[#316F80] text-white shadow-xs'
+                    ? 'bg-[#0F6C7D] text-white shadow-xs'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
                 }`}
               >
-                <Users className="h-3.5 w-3.5 text-teal-500" />
+                <Users className="h-3.5 w-3.5 text-[#0F6C7D]" />
                 <span>{dep.name} {dep.lastName} ({dep.relationship || 'A cargo'})</span>
                 <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-full font-mono font-bold">
                   {depOrdersCount}
@@ -309,7 +309,7 @@ export default function PatientStatus({
             onClick={() => setStatusFilter('all')}
             className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs ${
               statusFilter === 'all'
-                ? 'bg-[#1C2435] text-white shadow-xs font-extrabold'
+                ? 'bg-[#0141BC] text-white shadow-xs font-extrabold'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
@@ -334,8 +334,8 @@ export default function PatientStatus({
             onClick={() => setStatusFilter('ready')}
             className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer text-xs flex items-center gap-1.5 ${
               statusFilter === 'ready'
-                ? 'bg-emerald-600 text-white shadow-xs font-extrabold'
-                : 'bg-white text-slate-600 hover:bg-emerald-50 border border-slate-200'
+                ? 'bg-[#14BE99] text-white shadow-xs font-extrabold'
+                : 'bg-white text-slate-600 hover:bg-[#14BE99]/10 border border-slate-200'
             }`}
           >
             <CheckCircle2 className="h-3 w-3" />
@@ -368,7 +368,7 @@ export default function PatientStatus({
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 placeholder="Buscar medicamento o código..."
-                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#295EF3] w-48 sm:w-56"
+                className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-[#1661E1] w-48 sm:w-56"
               />
             </div>
           )}
@@ -390,7 +390,7 @@ export default function PatientStatus({
       {/* Orders List */}
       {filteredOrders.length === 0 ? (
         <div className="bg-white rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-sm border border-slate-200/90">
-          <div className="mx-auto w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center shadow-inner">
+          <div className="mx-auto w-14 h-14 bg-[#1661E1]/10 text-[#1661E1] rounded-2xl flex items-center justify-center shadow-inner">
             <FileText className="h-7 w-7" />
           </div>
           <div className="max-w-md mx-auto space-y-1">
@@ -406,7 +406,7 @@ export default function PatientStatus({
               <button
                 type="button"
                 onClick={onNavigateToNew}
-                className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md transition-all cursor-pointer"
+                className="bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold px-5 py-2.5 rounded-xl text-xs shadow-md transition-all cursor-pointer"
               >
                 Solicitar Receta Ahora
               </button>
@@ -423,8 +423,9 @@ export default function PatientStatus({
             const isRejected = order.status === 'Rechazada';
 
             // Check if this order is for titular or a dependent
-            const isDependent = (order.patientDni || '').trim().replace(/\s/g, '').toLowerCase() !== titularDni;
+            const isDependent = Boolean(order.isForDependent) || (order.patientDni || '').trim().replace(/\s/g, '').toLowerCase() !== titularDni;
             const matchingDependent = dependents.find(d => (d.dni || d.identifier || '').trim().replace(/\s/g, '').toLowerCase() === (order.patientDni || '').trim().replace(/\s/g, '').toLowerCase());
+            const relationshipLabel = order.dependentRelationship || matchingDependent?.relationship;
 
             // Medication pill list
             const medicationList = (order.medicationItems && order.medicationItems.length > 0)
@@ -436,7 +437,7 @@ export default function PatientStatus({
                 key={order.id}
                 className={`bg-white rounded-2xl border transition-all duration-200 overflow-hidden ${
                   isExpanded 
-                    ? 'border-[#295EF3]/50 shadow-md ring-1 ring-[#295EF3]/20' 
+                    ? 'border-[#1661E1]/50 shadow-md ring-1 ring-[#1E6EFB]/20' 
                     : 'border-slate-200/90 hover:border-slate-300 hover:shadow-xs'
                 }`}
               >
@@ -449,11 +450,11 @@ export default function PatientStatus({
                     {/* Status Icon Pillar */}
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${
                       isEmitida
-                        ? 'bg-emerald-50 text-emerald-600 border-emerald-200'
+                        ? 'bg-[#14BE99]/10 text-[#14BE99] border-[#14BE99]/30'
                         : isRejected
                         ? 'bg-rose-50 text-rose-600 border-rose-200'
                         : isInReview
-                        ? 'bg-blue-50 text-[#295EF3] border-blue-200'
+                        ? 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/20'
                         : 'bg-amber-50 text-amber-600 border-amber-200'
                     }`}>
                       {isEmitida ? <CheckCircle2 className="h-5 w-5" /> : isRejected ? <AlertTriangle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
@@ -476,24 +477,24 @@ export default function PatientStatus({
                         {/* Person Badge */}
                         <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${
                           isDependent
-                            ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                            ? 'bg-purple-100 text-purple-900 border border-purple-200'
+                            : 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20'
                         }`}>
                           <User className="h-2.5 w-2.5" />
                           <span>{order.patientName} {order.patientLastName}</span>
-                          {isDependent && matchingDependent?.relationship && (
-                            <span className="text-[9px] opacity-75 font-normal">({matchingDependent.relationship})</span>
+                          {isDependent && (
+                            <span className="text-[9px] font-bold text-purple-700">({relationshipLabel || 'Familiar a cargo'})</span>
                           )}
                         </span>
 
                         {/* Status Pill */}
                         <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                           isEmitida
-                            ? 'bg-emerald-500 text-white'
+                            ? 'bg-[#14BE99] text-white'
                             : isRejected
                             ? 'bg-rose-600 text-white'
                             : isInReview
-                            ? 'bg-[#295EF3] text-white'
+                            ? 'bg-[#1661E1] text-white'
                             : 'bg-amber-500 text-white'
                         }`}>
                           {order.status}
@@ -534,7 +535,7 @@ export default function PatientStatus({
                         href={order.recipePdfUrl}
                         download={order.recipePdfName || `receta-${order.id}.pdf`}
                         onClick={(e) => e.stopPropagation()}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                        className="bg-[#14BE99] hover:bg-[#0fa685] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
                         title="Descargar receta firmada en PDF"
                       >
                         <Download className="h-3.5 w-3.5" />
@@ -543,7 +544,7 @@ export default function PatientStatus({
                     )}
 
                     <div className={`p-1.5 rounded-xl text-slate-400 bg-slate-50 border border-slate-200 transition-transform duration-200 ${
-                      isExpanded ? 'rotate-180 text-blue-600 bg-blue-50 border-blue-200' : ''
+                      isExpanded ? 'rotate-180 text-[#1661E1] bg-[#1661E1]/10 border-[#1661E1]/20' : ''
                     }`}>
                       <ChevronDown className="h-4 w-4" />
                     </div>
@@ -557,14 +558,14 @@ export default function PatientStatus({
                     {/* Tracking Timeline Stepper */}
                     <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3">
                       <h5 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 text-[#295EF3]" />
+                        <Clock className="h-3.5 w-3.5 text-[#1661E1]" />
                         <span>Estado y Proceso del Trámite</span>
                       </h5>
 
                       <div className="grid grid-cols-3 gap-2 text-center pt-1">
                         {/* Step 1 */}
                         <div className="space-y-1.5">
-                          <div className="mx-auto h-7 w-7 rounded-full bg-emerald-500 text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                          <div className="mx-auto h-7 w-7 rounded-full bg-[#14BE99] text-white flex items-center justify-center text-xs font-bold shadow-xs">
                             <Check className="h-3.5 w-3.5" />
                           </div>
                           <p className="text-[11px] font-bold text-slate-800">1. Ingresada</p>
@@ -575,15 +576,15 @@ export default function PatientStatus({
                         <div className="space-y-1.5">
                           <div className={`mx-auto h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shadow-xs ${
                             isEmitida
-                              ? 'bg-emerald-500 text-white'
+                              ? 'bg-[#14BE99] text-white'
                               : isRejected
                               ? 'bg-rose-600 text-white'
-                              : 'bg-[#295EF3] text-white animate-pulse'
+                              : 'bg-[#1661E1] text-white animate-pulse'
                           }`}>
                             {isEmitida ? <Check className="h-3.5 w-3.5" /> : isRejected ? <X className="h-3.5 w-3.5" /> : '2'}
                           </div>
                           <p className={`text-[11px] font-bold ${
-                            isEmitida ? 'text-slate-800' : isRejected ? 'text-rose-600' : 'text-[#295EF3]'
+                            isEmitida ? 'text-slate-800' : isRejected ? 'text-rose-600' : 'text-[#1661E1]'
                           }`}>
                             2. Auditoría Médica
                           </p>
@@ -596,7 +597,7 @@ export default function PatientStatus({
                         <div className="space-y-1.5">
                           <div className={`mx-auto h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shadow-xs ${
                             isEmitida
-                              ? 'bg-emerald-500 text-white'
+                              ? 'bg-[#14BE99] text-white'
                               : 'bg-slate-100 text-slate-400 border border-slate-200'
                           }`}>
                             {isEmitida ? <Check className="h-3.5 w-3.5" /> : '3'}
@@ -660,6 +661,17 @@ export default function PatientStatus({
                         </h5>
 
                         <div className="space-y-2 text-xs">
+                          {isDependent && (
+                            <div className="p-2.5 bg-purple-50 rounded-xl border border-purple-200">
+                              <span className="text-[10px] uppercase font-bold text-purple-800 block">
+                                Solicitado por el Titular:
+                              </span>
+                              <span className="font-bold text-purple-950 text-xs">
+                                {order.requestedByTitularName || titularName} (Titular de la cuenta)
+                              </span>
+                            </div>
+                          )}
+
                           <div className="flex justify-between items-center p-2 bg-slate-50 rounded-xl">
                             <span className="text-slate-500 font-medium">Cobertura:</span>
                             <span className="font-bold text-blue-700">{order.obraSocial || 'Particular'}</span>
@@ -805,7 +817,7 @@ export default function PatientStatus({
                             onClick={() => onNavigateToChat(order.id)}
                             className="bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
                           >
-                            <MessageSquare className="h-3.5 w-3.5 text-[#295EF3]" />
+                            <MessageSquare className="h-3.5 w-3.5 text-[#1661E1]" />
                             <span>Consultar al Médico</span>
                           </button>
                         )}

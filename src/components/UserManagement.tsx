@@ -186,7 +186,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('all')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'all' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-955'
+                roleFilter === 'all' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               Todos
@@ -194,7 +194,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('paciente')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'paciente' ? 'bg-white text-[#295EF3] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
+                roleFilter === 'paciente' ? 'bg-white text-[#1661E1] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Pacientes
@@ -202,15 +202,23 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('medico')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'medico' ? 'bg-white text-[#316F80] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
+                roleFilter === 'medico' ? 'bg-white text-[#0F6C7D] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Médicos
             </button>
             <button
+              onClick={() => setRoleFilter('colaborador')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                roleFilter === 'colaborador' ? 'bg-white text-[#0F6C7D] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
+              }`}
+            >
+              Colaboradores
+            </button>
+            <button
               onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'admin' ? 'bg-white text-[#1C2435] shadow-xs' : 'text-slate-600 hover:text-[#1C2435]'
+                roleFilter === 'admin' ? 'bg-white text-[#0141BC] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Admin
@@ -219,7 +227,7 @@ export default function UserManagement({
 
           <button
             onClick={openAddModal}
-            className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md active:scale-98 transition-all cursor-pointer ml-auto"
+            className="bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center gap-1.5 shadow-md active:scale-98 transition-all cursor-pointer ml-auto"
           >
             <UserPlus className="h-4 w-4" />
             <span>Nuevo Usuario</span>
@@ -265,17 +273,21 @@ export default function UserManagement({
                   let avatarBg = '';
                   
                   if (user.role === 'medico') {
-                    roleBadgeStyle = 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/30';
+                    roleBadgeStyle = 'bg-[#0F6C7D]/10 text-[#0F6C7D] border-[#0F6C7D]/20';
                     roleLabel = 'Médico';
-                    avatarBg = 'bg-[#316F80]/20 text-[#316F80]';
-                  } else if (user.role === 'admin') {
-                    roleBadgeStyle = 'bg-[#1C2435]/10 text-[#1C2435] border-[#1C2435]/20';
+                    avatarBg = 'bg-[#0F6C7D]/15 text-[#0F6C7D]';
+                  } else if (user.role === 'admin' || user.role === 'superadmin') {
+                    roleBadgeStyle = 'bg-[#0141BC]/10 text-[#0141BC] border-[#0141BC]/20';
                     roleLabel = 'Administrador';
-                    avatarBg = 'bg-[#1C2435]/15 text-[#1C2435]';
+                    avatarBg = 'bg-[#0141BC]/15 text-[#0141BC]';
+                  } else if (user.role === 'colaborador' || user.role === 'operador') {
+                    roleBadgeStyle = 'bg-[#0F6C7D]/15 text-[#0F6C7D] border-[#0F6C7D]/30';
+                    roleLabel = 'Colaborador';
+                    avatarBg = 'bg-[#0F6C7D]/20 text-[#0F6C7D]';
                   } else {
-                    roleBadgeStyle = 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/20';
+                    roleBadgeStyle = 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/20';
                     roleLabel = 'Paciente';
-                    avatarBg = 'bg-[#295EF3]/15 text-[#295EF3]';
+                    avatarBg = 'bg-[#1661E1]/15 text-[#1661E1]';
                   }
 
                   return (
@@ -297,9 +309,16 @@ export default function UserManagement({
 
                       {/* Role Badge */}
                       <td className="py-4 px-6">
-                        <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border ${roleBadgeStyle}`}>
-                          {roleLabel}
-                        </span>
+                        <div className="flex flex-col items-start gap-0.5">
+                          <span className={`inline-flex items-center text-[11px] font-bold px-2 py-0.5 rounded-md border ${roleBadgeStyle}`}>
+                            {roleLabel}
+                          </span>
+                          {user.role === 'colaborador' && user.medicoName && (
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {user.medicoName}
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* DNI or Enrollment */}
@@ -449,7 +468,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition ${
                       role === 'paciente'
-                        ? 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/40 ring-2 ring-[#295EF3]/10'
+                        ? 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/40 ring-2 ring-[#1661E1]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -462,7 +481,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'medico'
-                        ? 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/40 ring-2 ring-[#316F80]/10'
+                        ? 'bg-[#0F6C7D]/15 text-[#0F6C7D] border-[#0F6C7D]/40 ring-2 ring-[#0F6C7D]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -475,7 +494,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'admin'
-                        ? 'bg-[#1C2435]/10 text-[#1C2435] border-[#1C2435]/40 ring-2 ring-[#1C2435]/10'
+                        ? 'bg-[#0141BC]/10 text-[#0141BC] border-[#0141BC]/40 ring-2 ring-[#0141BC]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -489,7 +508,7 @@ export default function UserManagement({
                     }}
                     className={`py-2 px-1 text-[11px] font-bold rounded-lg border text-center cursor-pointer transition-all ${
                       role === 'colaborador'
-                        ? 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/40 ring-2 ring-[#316F80]/10'
+                        ? 'bg-[#0F6C7D]/15 text-[#0F6C7D] border-[#0F6C7D]/40 ring-2 ring-[#0F6C7D]/10'
                         : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -510,7 +529,7 @@ export default function UserManagement({
                       setMedicoId(e.target.value);
                       setMedicoName(selected ? `Dr. ${selected.lastName}` : '');
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
                     required
                   >
                     <option value="">Seleccione un médico</option>
@@ -535,7 +554,7 @@ export default function UserManagement({
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   placeholder={role === 'paciente' ? 'Número de DNI' : role === 'medico' ? 'Número de matrícula' : 'Nombre de usuario'}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
                   required
                 />
               </div>
@@ -553,7 +572,7 @@ export default function UserManagement({
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={editingUserId ? 'Dejar vacío para conservar' : 'Mínimo 6 caracteres'}
-                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-[#295EF3] focus:outline-none"
+                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
                     required={!editingUserId}
                   />
                   <button
@@ -580,7 +599,7 @@ export default function UserManagement({
                     onClick={() => setStatus('Activo')}
                     className={`px-3 py-1 text-[10px] font-extrabold rounded-md cursor-pointer transition-all ${
                       status === 'Activo' 
-                        ? 'bg-[#316F80] text-white shadow-xs' 
+                        ? 'bg-[#14BE99] text-white shadow-xs' 
                         : 'bg-slate-50 text-slate-500 border border-slate-200'
                     }`}
                   >
@@ -611,7 +630,7 @@ export default function UserManagement({
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
+                  className="flex-1 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
                 >
                   <Check className="h-4 w-4" />
                   <span>Guardar</span>

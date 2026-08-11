@@ -429,27 +429,27 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
   const getActionBadgeColor = (action: string) => {
     const act = action.toLowerCase();
     if (act.includes('emitida') || act.includes('aprobada') || act.includes('adjuntada')) {
-      return 'bg-[#316F80]/15 text-[#316F80] border-[#316F80]/30';
+      return 'bg-[#0F6C7D]/15 text-[#0F6C7D] border-[#0F6C7D]/30';
     }
     if (act.includes('pago aprobado') || act.includes('pago confirmado')) {
-      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      return 'bg-[#14BE99]/10 text-[#14BE99] border-[#14BE99]/30';
     }
     if (act.includes('rechazada') || act.includes('inactiva') || act.includes('cancelada')) {
       return 'bg-rose-50 text-rose-700 border-rose-200';
     }
     if (act.includes('revisión') || act.includes('revision') || act.includes('inició')) {
-      return 'bg-[#295EF3]/15 text-[#295EF3] border-[#295EF3]/30';
+      return 'bg-[#1661E1]/15 text-[#1661E1] border-[#1661E1]/30';
     }
     if (act.includes('información') || act.includes('informacion')) {
       return 'bg-amber-50 text-amber-800 border-amber-200';
     }
     if (act.includes('enviada')) {
-      return 'bg-sky-50 text-sky-700 border-sky-200';
+      return 'bg-[#3066C6]/15 text-[#3066C6] border-[#3066C6]/30';
     }
     if (act.includes('devolución') || act.includes('devolucion')) {
       return 'bg-purple-50 text-purple-700 border-purple-200';
     }
-    return 'bg-slate-100 text-[#1C2435] border-slate-200';
+    return 'bg-slate-100 text-[#0141BC] border-slate-200';
   };
 
   // Role icon and styling for user badge
@@ -458,23 +458,23 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
 
     if (nameLower.includes('dr') || nameLower.includes('médico') || nameLower.includes('medico')) {
       return {
-        icon: <Stethoscope className="h-3 w-3 text-[#295EF3] shrink-0" />,
+        icon: <Stethoscope className="h-3 w-3 text-[#1661E1] shrink-0" />,
         label: 'Médico',
-        badgeClass: 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/20',
+        badgeClass: 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/20',
       };
     }
     if (nameLower.includes('colaborador') || nameLower.includes('operador')) {
       return {
-        icon: <UserCheck className="h-3 w-3 text-[#316F80] shrink-0" />,
+        icon: <UserCheck className="h-3 w-3 text-[#0F6C7D] shrink-0" />,
         label: 'Colaborador',
-        badgeClass: 'bg-[#316F80]/10 text-[#316F80] border-[#316F80]/20',
+        badgeClass: 'bg-[#0F6C7D]/10 text-[#0F6C7D] border-[#0F6C7D]/20',
       };
     }
     if (nameLower.includes('admin') || nameLower.includes('administrador')) {
       return {
         icon: <ShieldCheck className="h-3 w-3 text-white shrink-0" />,
         label: 'Admin',
-        badgeClass: 'bg-[#1C2435] text-white border-transparent',
+        badgeClass: 'bg-[#0141BC] text-white border-transparent',
       };
     }
     if (nameLower.includes('sistema') || nameLower.includes('mercado pago')) {
@@ -497,9 +497,9 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
       case 'Emitida':
       case 'Enviada':
       case 'Aprobada':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+        return 'bg-[#14BE99]/10 text-[#0F6C7D] border-[#14BE99]/30';
       case 'En revisión':
-        return 'bg-[#295EF3]/10 text-[#295EF3] border-[#295EF3]/20';
+        return 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/20';
       case 'Solicita más información':
         return 'bg-amber-50 text-amber-800 border-amber-200';
       case 'Rechazada':
@@ -514,42 +514,42 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
       {/* 1. KPI Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-[#295EF3]/10 flex items-center justify-center text-[#295EF3] shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#1661E1]/10 flex items-center justify-center text-[#1661E1] shrink-0">
             <Users className="h-5 w-5" />
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pacientes con Registro</p>
-            <p className="text-xl font-extrabold text-[#1C2435] mt-0.5">{summaryStats.totalPatients}</p>
+            <p className="text-xl font-extrabold text-[#0141BC] mt-0.5">{summaryStats.totalPatients}</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-[#316F80]/10 flex items-center justify-center text-[#316F80] shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#0F6C7D]/10 flex items-center justify-center text-[#0F6C7D] shrink-0">
             <Activity className="h-5 w-5" />
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Eventos de Auditoría</p>
-            <p className="text-xl font-extrabold text-[#1C2435] mt-0.5">{summaryStats.totalLogs}</p>
+            <p className="text-xl font-extrabold text-[#0141BC] mt-0.5">{summaryStats.totalLogs}</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#3066C6]/10 flex items-center justify-center text-[#3066C6] shrink-0">
             <Stethoscope className="h-5 w-5" />
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Acciones Médicas</p>
-            <p className="text-xl font-extrabold text-[#1C2435] mt-0.5">{summaryStats.totalDoctorEvents}</p>
+            <p className="text-xl font-extrabold text-[#0141BC] mt-0.5">{summaryStats.totalDoctorEvents}</p>
           </div>
         </div>
 
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-3.5">
-          <div className="h-11 w-11 rounded-xl bg-slate-100 flex items-center justify-center text-[#1C2435] shrink-0">
+          <div className="h-11 w-11 rounded-xl bg-[#0141BC]/10 flex items-center justify-center text-[#0141BC] shrink-0">
             <ShieldCheck className="h-5 w-5" />
           </div>
           <div>
             <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gestión Operativa</p>
-            <p className="text-xl font-extrabold text-[#1C2435] mt-0.5">
+            <p className="text-xl font-extrabold text-[#0141BC] mt-0.5">
               {summaryStats.totalCollaboratorEvents + summaryStats.totalAdminEvents}
             </p>
           </div>
@@ -567,7 +567,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar por paciente, DNI, médico, acción o ID..."
-              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#1C2435] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#295EF3]"
+              className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#0141BC] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
             />
             {searchTerm && (
               <button
@@ -588,7 +588,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                 onClick={() => setViewMode('by_patient')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'by_patient'
-                    ? 'bg-white text-[#1C2435] shadow-xs'
+                    ? 'bg-white text-[#0141BC] shadow-xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -599,7 +599,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                 onClick={() => setViewMode('flat')}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   viewMode === 'flat'
-                    ? 'bg-white text-[#1C2435] shadow-xs'
+                    ? 'bg-white text-[#0141BC] shadow-xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
               >
@@ -636,7 +636,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               onClick={() => setRoleFilter('all')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
                 roleFilter === 'all'
-                  ? 'bg-[#1C2435] text-white shadow-xs'
+                  ? 'bg-[#0141BC] text-white shadow-xs'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -646,7 +646,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               onClick={() => setRoleFilter('medicos')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
                 roleFilter === 'medicos'
-                  ? 'bg-[#295EF3] text-white shadow-xs'
+                  ? 'bg-[#1661E1] text-white shadow-xs'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -657,7 +657,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               onClick={() => setRoleFilter('colaboradores')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
                 roleFilter === 'colaboradores'
-                  ? 'bg-[#316F80] text-white shadow-xs'
+                  ? 'bg-[#0F6C7D] text-white shadow-xs'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -668,7 +668,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
                 roleFilter === 'admin'
-                  ? 'bg-[#1C2435] text-white shadow-xs'
+                  ? 'bg-[#0141BC] text-white shadow-xs'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -679,7 +679,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               onClick={() => setRoleFilter('paciente')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center gap-1 ${
                 roleFilter === 'paciente'
-                  ? 'bg-slate-700 text-white shadow-xs'
+                  ? 'bg-[#3066C6] text-white shadow-xs'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
@@ -695,7 +695,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-[#1C2435] focus:outline-none focus:ring-2 focus:ring-[#295EF3]"
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-bold text-[#0141BC] focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
               >
                 <option value="recent">Actividad más reciente</option>
                 <option value="name">Nombre de Paciente (A-Z)</option>
@@ -711,7 +711,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
         filteredPatientGroups.length === 0 ? (
           <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
             <ShieldAlert className="h-12 w-12 text-slate-300 mx-auto" />
-            <h3 className="text-base font-extrabold text-[#1C2435]">No se encontraron pacientes con registros</h3>
+            <h3 className="text-base font-extrabold text-[#0141BC]">No se encontraron pacientes con registros</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
               No hay eventos de auditoría que coincidan con los filtros o término de búsqueda aplicados.
             </p>
@@ -752,20 +752,20 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                     {/* Patient identity & meta */}
                     <div className="flex items-start sm:items-center gap-3.5">
                       {/* Avatar with Initials */}
-                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#295EF3] to-[#316F80] text-white font-extrabold text-sm flex items-center justify-center shadow-xs shrink-0">
+                      <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-[#0141BC] to-[#0F6C7D] text-white font-extrabold text-sm flex items-center justify-center shadow-xs shrink-0">
                         {initials}
                       </div>
 
                       <div className="space-y-1">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-sm font-extrabold text-[#1C2435]">
+                          <h2 className="text-sm font-extrabold text-[#0141BC]">
                             {patient.patientFullName}
                           </h2>
                           <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
                             DNI: {patient.patientDni}
                           </span>
                           {patient.obraSocial && (
-                            <span className="text-[10px] font-bold text-[#316F80] bg-[#316F80]/10 px-2 py-0.5 rounded-full border border-[#316F80]/20 flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-[#0F6C7D] bg-[#0F6C7D]/10 px-2 py-0.5 rounded-full border border-[#0F6C7D]/20 flex items-center gap-1">
                               <Building2 className="h-2.5 w-2.5" />
                               {patient.obraSocial} {patient.obraSocialNumber ? `(${patient.obraSocialNumber})` : ''}
                             </span>
@@ -779,8 +779,8 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                           </span>
                           <span>•</span>
                           <span className="flex items-center gap-1 text-slate-500">
-                            <Activity className="h-3 w-3 text-[#295EF3]" />
-                            <strong className="text-[#1C2435]">{patient.filteredLogs.length}</strong> {patient.filteredLogs.length === 1 ? 'evento' : 'eventos'}
+                            <Activity className="h-3 w-3 text-[#1661E1]" />
+                            <strong className="text-[#0141BC]">{patient.filteredLogs.length}</strong> {patient.filteredLogs.length === 1 ? 'evento' : 'eventos'}
                           </span>
                           {patient.latestStatus && (
                             <>
@@ -798,17 +798,17 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                     <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
                       <div className="text-left md:text-right">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última actividad</p>
-                        <p className="text-xs font-bold text-[#1C2435] flex items-center md:justify-end gap-1 mt-0.5">
-                          <Clock className="h-3 w-3 text-[#316F80]" />
+                        <p className="text-xs font-bold text-[#0141BC] flex items-center md:justify-end gap-1 mt-0.5">
+                          <Clock className="h-3 w-3 text-[#0F6C7D]" />
                           <span>{formatRelativeTime(patient.lastActivityTimestamp)}</span>
                         </p>
                       </div>
 
                       <div className="h-8 w-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">
                         {expanded ? (
-                          <ChevronUp className="h-4 w-4 text-[#1C2435]" />
+                          <ChevronUp className="h-4 w-4 text-[#0141BC]" />
                         ) : (
-                          <ChevronDown className="h-4 w-4 text-[#1C2435]" />
+                          <ChevronDown className="h-4 w-4 text-[#0141BC]" />
                         )}
                       </div>
                     </div>
@@ -824,7 +824,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                           return (
                             <div key={idx} className="relative group">
                               {/* Timeline Node Bullet */}
-                              <div className="absolute -left-[19px] sm:-left-[23px] top-1 h-3.5 w-3.5 rounded-full bg-white border-2 border-[#295EF3] ring-4 ring-slate-50 group-hover:scale-110 transition-transform" />
+                              <div className="absolute -left-[19px] sm:-left-[23px] top-1 h-3.5 w-3.5 rounded-full bg-white border-2 border-[#1661E1] ring-4 ring-slate-50 group-hover:scale-110 transition-transform" />
 
                               {/* Event Card */}
                               <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all space-y-2.5">
@@ -832,7 +832,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     {/* Actor User */}
-                                    <span className="font-extrabold text-[#1C2435] flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
+                                    <span className="font-extrabold text-[#0141BC] flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
                                       {userRole.icon}
                                       {log.user}
                                     </span>
@@ -854,14 +854,14 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
 
                                   {/* Timestamp */}
                                   <div className="text-[11px] text-slate-400 font-semibold flex items-center gap-1 shrink-0">
-                                    <Clock className="h-3 w-3 text-[#316F80]" />
+                                    <Clock className="h-3 w-3 text-[#0F6C7D]" />
                                     <span>{formatDate(log.timestamp)}</span>
                                   </div>
                                 </div>
 
                                 {/* Event Notes / Details */}
                                 {log.notes && (
-                                  <div className="bg-slate-50/80 rounded-xl p-3 border-l-2 border-[#295EF3] text-xs text-slate-700">
+                                  <div className="bg-slate-50/80 rounded-xl p-3 border-l-2 border-[#1661E1] text-xs text-slate-700">
                                     <p className="italic font-medium leading-relaxed">
                                       "{log.notes}"
                                     </p>
@@ -900,7 +900,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
         filteredFlatLogs.length === 0 ? (
           <div className="bg-white p-12 rounded-3xl border border-slate-200 text-center space-y-3 shadow-xs">
             <ShieldAlert className="h-12 w-12 text-slate-300 mx-auto" />
-            <h3 className="text-base font-extrabold text-[#1C2435]">No se encontraron eventos de auditoría</h3>
+            <h3 className="text-base font-extrabold text-[#0141BC]">No se encontraron eventos de auditoría</h3>
             <p className="text-xs text-slate-400">Intente modificar los filtros de búsqueda aplicados.</p>
           </div>
         ) : (
@@ -917,7 +917,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         {/* User / Actor */}
-                        <span className="font-extrabold text-[#1C2435] flex items-center gap-1.5">
+                        <span className="font-extrabold text-[#0141BC] flex items-center gap-1.5">
                           {userRole.icon}
                           {log.user}
                         </span>
@@ -932,7 +932,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                         </span>
 
                         {/* Order ID */}
-                        <span className="text-[10px] font-mono text-[#1C2435]/70 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/50">
+                        <span className="text-[10px] font-mono text-[#0141BC]/70 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/50">
                           ID: #{log.orderId}
                         </span>
                       </div>
@@ -940,7 +940,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                       {/* Patient Details */}
                       <p className="text-slate-600 font-medium flex items-center gap-1.5 flex-wrap">
                         <span>Paciente:</span>
-                        <strong className="text-[#1C2435]">{log.patientFullName}</strong>
+                        <strong className="text-[#0141BC]">{log.patientFullName}</strong>
                         <span className="text-slate-400 font-mono text-[11px]">(DNI: {log.patientDni})</span>
                         {log.obraSocial && (
                           <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
@@ -959,7 +959,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
 
                     {/* Timestamp */}
                     <div className="shrink-0 text-left sm:text-right text-[11px] text-slate-400 font-semibold flex items-center gap-1 sm:justify-end">
-                      <Clock className="h-3.5 w-3.5 text-[#316F80]" />
+                      <Clock className="h-3.5 w-3.5 text-[#0F6C7D]" />
                       <span>{formatDate(log.timestamp)}</span>
                     </div>
                   </div>

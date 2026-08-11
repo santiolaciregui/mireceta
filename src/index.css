@@ -4,27 +4,46 @@
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-brand-teal: #316F80;
-  --color-brand-blue: #295EF3;
-  --color-brand-dark: #1C2435;
+  /* Paleta Oficial de 7 Colores */
+  --color-brand-cobalt: #0141BC;
+  --color-brand-royal: #3066C6;
+  --color-brand-sapphire: #1661E1;
+  --color-brand-electric: #1E6EFB;
+  --color-brand-ocean: #0F6C7D;
+  --color-brand-mint: #14BE99;
+
+  /* Aliases Semánticos */
+  --color-brand-blue: #1661E1;
+  --color-brand-teal: #0F6C7D;
+  --color-brand-dark: #0141BC;
   --color-brand-light: #F0F4F8;
+  --color-brand-accent: #1E6EFB;
+  --color-brand-success: #14BE99;
 }
 
 :root {
   --bg: #F8FAFC;
-  --ink: #1C2435;
+  --ink: #0F172A;
   --ink-muted: #64748B;
-  --ink-faint: rgba(28, 36, 53, 0.08);
+  --ink-faint: rgba(1, 65, 188, 0.08);
   
-  --brand-teal: #316F80;
-  --brand-blue: #295EF3;
-  --brand-dark: #1C2435;
+  --brand-cobalt: #0141BC;
+  --brand-royal: #3066C6;
+  --brand-sapphire: #1661E1;
+  --brand-electric: #1E6EFB;
+  --brand-ocean: #0F6C7D;
+  --brand-mint: #14BE99;
 
-  --accent: #295EF3;
-  --medflow-blue: #295EF3;
-  --medflow-blue-dark: #1C2435;
-  --medflow-teal: #316F80;
-  --medflow-dark: #1C2435;
+  --brand-blue: #1661E1;
+  --brand-teal: #0F6C7D;
+  --brand-dark: #0141BC;
+
+  --accent: #1E6EFB;
+  --medflow-blue: #1661E1;
+  --medflow-blue-dark: #0141BC;
+  --medflow-teal: #0F6C7D;
+  --medflow-mint: #14BE99;
+  --medflow-dark: #0141BC;
   --medflow-light-bg: #F0F4F8;
   --white: #FFFFFF;
 }
@@ -54,28 +73,35 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(28, 36, 53, 0.08);
+  border: 1px solid rgba(1, 65, 188, 0.08);
 }
 
 .glass-dark {
-  background: rgba(28, 36, 53, 0.95);
+  background: rgba(1, 65, 188, 0.95);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .glass-blue {
-  background: rgba(41, 94, 243, 0.05);
+  background: rgba(22, 97, 225, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(41, 94, 243, 0.15);
+  border: 1px solid rgba(22, 97, 225, 0.15);
 }
 
 .glass-teal {
-  background: rgba(49, 111, 128, 0.05);
+  background: rgba(15, 108, 125, 0.05);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(49, 111, 128, 0.15);
+  border: 1px solid rgba(15, 108, 125, 0.15);
+}
+
+.glass-mint {
+  background: rgba(20, 190, 153, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(20, 190, 153, 0.15);
 }
 
 /* Animations helper */
@@ -243,7 +269,7 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
     display: flex;
     gap: 1rem;
     align-items: flex-start;
-    background: rgba(49, 111, 128, 0.04);
+    background: rgba(15, 108, 125, 0.05);
 }
 
 /* ==========================================================================

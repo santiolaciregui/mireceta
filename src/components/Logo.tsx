@@ -44,8 +44,8 @@ export default function Logo({
   const renderText = () => (
     <div className="flex flex-col justify-center leading-none select-none">
       <div className={`font-black tracking-tight flex items-baseline ${titleSizeClasses[size]}`}>
-        <span className={isDark ? 'text-white' : 'text-[#1C2435]'}>mireceta</span>
-        <span className="text-[#295EF3]">.online</span>
+        <span className={isDark ? 'text-white' : 'text-[#0141BC]'}>mireceta</span>
+        <span className={isDark ? 'text-[#1E6EFB]' : 'text-[#1661E1]'}>.online</span>
       </div>
       <span
         className={`font-semibold tracking-tight mt-0.5 whitespace-nowrap ${subtitleSizeClasses[size]} ${

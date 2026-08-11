@@ -59,6 +59,7 @@ interface PatientFormProps {
   currentUser?: any;
   isOficio?: boolean;
   onAddDependent?: (dependent: any) => void;
+  onUpdateDependent?: (dependent: any) => void;
   onRemoveDependent?: (dependentId: string) => void;
 }
 
@@ -80,6 +81,7 @@ export default function PatientForm({
   currentUser,
   isOficio = false,
   onAddDependent,
+  onUpdateDependent,
   onRemoveDependent,
 }: PatientFormProps) {
   const isThirdPartyUser = Boolean(isOficio || (currentUser && currentUser.role !== 'paciente'));
@@ -147,16 +149,44 @@ export default function PatientForm({
     }
   }, [clearDraft]);
 
-  // --- Step 1 Fields: Identification ---
-  const [patientDni, setPatientDni] = useState(isThirdPartyUser ? '' : recentDni);
-  const [patientName, setPatientName] = useState(isThirdPartyUser ? '' : initialName);
-  const [patientLastName, setPatientLastName] = useState(isThirdPartyUser ? '' : initialLastName);
-  const [patientBirthDate, setPatientBirthDate] = useState('');
-  const [patientEmail, setPatientEmail] = useState('');
-  const [patientPhone, setPatientPhone] = useState('');
+  // --- Titular (Account Holder) Isolated State ---
+  const [titularData, setTitularData] = useState(() => ({
+    name: currentUser?.name || initialName || '',
+    lastName: currentUser?.lastName || initialLastName || '',
+    dni: currentUser?.identifier || recentDni || '',
+    birthDate: currentUser?.birthDate || '',
+    obraSocial: currentUser?.obraSocial || '',
+    obraSocialNumber: currentUser?.obraSocialNumber || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || '',
+  }));
+
+  // Keep titularData synced if currentUser updates
+  useEffect(() => {
+    if (currentUser) {
+      setTitularData(prev => ({
+        name: currentUser.name || initialName || prev.name,
+        lastName: currentUser.lastName || initialLastName || prev.lastName,
+        dni: currentUser.identifier || recentDni || prev.dni,
+        birthDate: currentUser.birthDate || prev.birthDate,
+        obraSocial: currentUser.obraSocial || prev.obraSocial,
+        obraSocialNumber: currentUser.obraSocialNumber || prev.obraSocialNumber,
+        email: currentUser.email || prev.email,
+        phone: currentUser.phone || prev.phone,
+      }));
+    }
+  }, [currentUser, initialName, initialLastName, recentDni]);
+
+  // --- Step 1 Fields: Active Patient Selected for the Order ---
+  const [patientDni, setPatientDni] = useState(isThirdPartyUser ? '' : (currentUser?.identifier || recentDni));
+  const [patientName, setPatientName] = useState(isThirdPartyUser ? '' : (currentUser?.name || initialName));
+  const [patientLastName, setPatientLastName] = useState(isThirdPartyUser ? '' : (currentUser?.lastName || initialLastName));
+  const [patientBirthDate, setPatientBirthDate] = useState(currentUser?.birthDate || '');
+  const [patientEmail, setPatientEmail] = useState(currentUser?.email || '');
+  const [patientPhone, setPatientPhone] = useState(currentUser?.phone || '');
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('email');
-  const [selectedObraSocial, setSelectedObraSocial] = useState('');
-  const [obraSocialNumber, setObraSocialNumber] = useState('');
+  const [selectedObraSocial, setSelectedObraSocial] = useState(currentUser?.obraSocial || '');
+  const [obraSocialNumber, setObraSocialNumber] = useState(currentUser?.obraSocialNumber || '');
 
   // --- Pacientes a Cargo (Dependents) State & Handlers ---
   const [dependents, setDependents] = useState<DependentPatient[]>(() => {
@@ -190,23 +220,14 @@ export default function PatientForm({
   const handleSelectCard = (cardId: string) => {
     setSelectedCardId(cardId);
     if (cardId === 'titular') {
-      const name = patientName || currentUser?.name || initialName || '';
-      const lastName = patientLastName || currentUser?.lastName || initialLastName || '';
-      const dni = patientDni || currentUser?.identifier || recentDni || '';
-      const birth = patientBirthDate || currentUser?.birthDate || '';
-      const email = patientEmail || currentUser?.email || '';
-      const phone = patientPhone || currentUser?.phone || '';
-      const os = selectedObraSocial || currentUser?.obraSocial || '';
-      const osNum = obraSocialNumber || currentUser?.obraSocialNumber || '';
-
-      setPatientName(name);
-      setPatientLastName(lastName);
-      setPatientDni(dni);
-      setPatientBirthDate(birth);
-      setPatientEmail(email);
-      setPatientPhone(phone);
-      setSelectedObraSocial(os);
-      setObraSocialNumber(osNum);
+      setPatientName(titularData.name);
+      setPatientLastName(titularData.lastName);
+      setPatientDni(titularData.dni);
+      setPatientBirthDate(titularData.birthDate);
+      setSelectedObraSocial(titularData.obraSocial);
+      setObraSocialNumber(titularData.obraSocialNumber);
+      setPatientEmail(titularData.email);
+      setPatientPhone(titularData.phone);
       if (searchStatus) setSearchStatus(null);
     } else {
       const dep = dependents.find((d) => d.id === cardId);
@@ -214,11 +235,11 @@ export default function PatientForm({
         setPatientName(dep.name);
         setPatientLastName(dep.lastName);
         setPatientDni(dep.dni);
-        setPatientBirthDate(dep.birthDate);
+        setPatientBirthDate(dep.birthDate || '');
         setSelectedObraSocial(dep.obraSocial || '');
         setObraSocialNumber(dep.obraSocialNumber || '');
-        setPatientEmail(dep.email || currentUser?.email || '');
-        setPatientPhone(dep.phone || currentUser?.phone || '');
+        setPatientEmail(dep.email || titularData.email || '');
+        setPatientPhone(dep.phone || titularData.phone || '');
         setSearchStatus({
           found: true,
           message: `Cargados datos de paciente a cargo: ${dep.name} ${dep.lastName} (${dep.relationship})`,
@@ -234,15 +255,15 @@ export default function PatientForm({
 
     let osVal = '';
     if (cardId === 'titular') {
-      setDepName(patientName || currentUser?.name || initialName || '');
-      setDepLastName(patientLastName || currentUser?.lastName || initialLastName || '');
-      setDepDni(patientDni || currentUser?.identifier || recentDni || '');
-      setDepBirthDate(patientBirthDate || currentUser?.birthDate || '');
+      setDepName(titularData.name);
+      setDepLastName(titularData.lastName);
+      setDepDni(titularData.dni);
+      setDepBirthDate(titularData.birthDate);
       setDepRelationship('Titular');
-      osVal = selectedObraSocial || currentUser?.obraSocial || '';
-      setDepObraSocialNumber(obraSocialNumber || currentUser?.obraSocialNumber || '');
-      setDepEmail(patientEmail || currentUser?.email || '');
-      setDepPhone(patientPhone || currentUser?.phone || '');
+      osVal = titularData.obraSocial;
+      setDepObraSocialNumber(titularData.obraSocialNumber);
+      setDepEmail(titularData.email);
+      setDepPhone(titularData.phone);
     } else {
       const dep = dependents.find((d) => d.id === cardId);
       if (dep) {
@@ -284,8 +305,8 @@ export default function PatientForm({
     setDepObraSocial('');
     setDepCustomObraSocial('');
     setDepObraSocialNumber('');
-    setDepEmail(currentUser?.email || '');
-    setDepPhone(currentUser?.phone || '');
+    setDepEmail(titularData.email || '');
+    setDepPhone(titularData.phone || '');
     setShowAddDependentModal(true);
   };
 
@@ -306,14 +327,29 @@ export default function PatientForm({
     }
 
     if (editingCardId === 'titular') {
-      setPatientName(depName.trim());
-      setPatientLastName(depLastName.trim());
-      setPatientDni(depDni.trim());
-      setPatientBirthDate(depBirthDate);
-      setSelectedObraSocial(finalObraSocial);
-      setObraSocialNumber(depObraSocialNumber);
-      setPatientEmail(depEmail);
-      setPatientPhone(depPhone);
+      const updatedTitular = {
+        ...titularData,
+        name: depName.trim(),
+        lastName: depLastName.trim(),
+        dni: depDni.trim(),
+        birthDate: depBirthDate,
+        obraSocial: finalObraSocial,
+        obraSocialNumber: depObraSocialNumber,
+        email: depEmail,
+        phone: depPhone,
+      };
+      setTitularData(updatedTitular);
+
+      if (selectedCardId === 'titular') {
+        setPatientName(updatedTitular.name);
+        setPatientLastName(updatedTitular.lastName);
+        setPatientDni(updatedTitular.dni);
+        setPatientBirthDate(updatedTitular.birthDate);
+        setSelectedObraSocial(updatedTitular.obraSocial);
+        setObraSocialNumber(updatedTitular.obraSocialNumber);
+        setPatientEmail(updatedTitular.email);
+        setPatientPhone(updatedTitular.phone);
+      }
 
       setShowAddDependentModal(false);
       setNotificationMsg('¡Datos del Titular actualizados con éxito!');
@@ -323,34 +359,35 @@ export default function PatientForm({
 
     if (editingCardId) {
       // Editing existing dependent
-      const updated = dependents.map((d) => {
-        if (d.id === editingCardId) {
-          return {
-            ...d,
-            name: depName.trim(),
-            lastName: depLastName.trim(),
-            dni: depDni.trim(),
-            birthDate: depBirthDate,
-            relationship: depRelationship,
-            obraSocial: finalObraSocial,
-            obraSocialNumber: depObraSocialNumber,
-            email: depEmail,
-            phone: depPhone,
-          };
-        }
-        return d;
-      });
+      const updatedDep: DependentPatient = {
+        id: editingCardId,
+        name: depName.trim(),
+        lastName: depLastName.trim(),
+        dni: depDni.trim(),
+        birthDate: depBirthDate,
+        relationship: depRelationship,
+        obraSocial: finalObraSocial,
+        obraSocialNumber: depObraSocialNumber,
+        email: depEmail,
+        phone: depPhone,
+      };
+
+      const updated = dependents.map((d) => (d.id === editingCardId ? updatedDep : d));
       setDependents(updated);
 
+      if (onUpdateDependent) {
+        onUpdateDependent(updatedDep);
+      }
+
       if (selectedCardId === editingCardId) {
-        setPatientName(depName.trim());
-        setPatientLastName(depLastName.trim());
-        setPatientDni(depDni.trim());
-        setPatientBirthDate(depBirthDate);
-        setSelectedObraSocial(finalObraSocial);
-        setObraSocialNumber(depObraSocialNumber);
-        setPatientEmail(depEmail);
-        setPatientPhone(depPhone);
+        setPatientName(updatedDep.name);
+        setPatientLastName(updatedDep.lastName);
+        setPatientDni(updatedDep.dni);
+        setPatientBirthDate(updatedDep.birthDate);
+        setSelectedObraSocial(updatedDep.obraSocial || '');
+        setObraSocialNumber(updatedDep.obraSocialNumber || '');
+        setPatientEmail(updatedDep.email || '');
+        setPatientPhone(updatedDep.phone || '');
       }
 
       setShowAddDependentModal(false);
@@ -369,8 +406,8 @@ export default function PatientForm({
       relationship: depRelationship,
       obraSocial: finalObraSocial,
       obraSocialNumber: depObraSocialNumber,
-      email: depEmail || currentUser?.email || '',
-      phone: depPhone || currentUser?.phone || '',
+      email: depEmail || titularData.email || '',
+      phone: depPhone || titularData.phone || '',
     };
 
     const updated = [...dependents, newDep];
@@ -388,8 +425,8 @@ export default function PatientForm({
     setPatientBirthDate(newDep.birthDate);
     setSelectedObraSocial(newDep.obraSocial || '');
     setObraSocialNumber(newDep.obraSocialNumber || '');
-    setPatientEmail(newDep.email || '');
-    setPatientPhone(newDep.phone || '');
+    setPatientEmail(newDep.email || titularData.email || '');
+    setPatientPhone(newDep.phone || titularData.phone || '');
 
     setShowAddDependentModal(false);
     setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
@@ -791,14 +828,14 @@ export default function PatientForm({
     setDraftRestored(false);
     setStep('info');
     if (!isThirdPartyUser) {
-      setPatientDni(currentUser?.identifier || recentDni || '');
-      setPatientName(currentUser?.name || initialName || '');
-      setPatientLastName(currentUser?.lastName || initialLastName || '');
-      setPatientBirthDate(currentUser?.birthDate || '');
-      setPatientEmail(currentUser?.email || '');
-      setPatientPhone(currentUser?.phone || '');
-      setSelectedObraSocial(currentUser?.obraSocial || '');
-      setObraSocialNumber(currentUser?.obraSocialNumber || '');
+      setPatientDni(titularData.dni);
+      setPatientName(titularData.name);
+      setPatientLastName(titularData.lastName);
+      setPatientBirthDate(titularData.birthDate);
+      setPatientEmail(titularData.email);
+      setPatientPhone(titularData.phone);
+      setSelectedObraSocial(titularData.obraSocial);
+      setObraSocialNumber(titularData.obraSocialNumber);
     } else {
       setPatientDni('');
       setPatientName('');
@@ -1000,6 +1037,14 @@ export default function PatientForm({
 
       const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
+      const isForDependent = !isThirdPartyUser && selectedCardId !== 'titular';
+      const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
+      const dependentRelationship = selectedDep?.relationship || (isForDependent ? 'A Cargo' : undefined);
+      const requestedByTitularName = isForDependent ? `${titularData.name} ${titularData.lastName}`.trim() : undefined;
+      const requestedByTitularDni = isForDependent ? titularData.dni : undefined;
+      const requestedByTitularEmail = isForDependent ? titularData.email : undefined;
+      const requestedByTitularPhone = isForDependent ? titularData.phone : undefined;
+
       // 1. Create order in database with pending payment status
       const fullOrderPayload = {
         patientName: patientName.trim(),
@@ -1011,6 +1056,12 @@ export default function PatientForm({
         deliveryMethod,
         obraSocial: selectedObraSocial,
         obraSocialNumber: obraSocialNumber.trim() || undefined,
+        isForDependent,
+        dependentRelationship,
+        requestedByTitularName,
+        requestedByTitularDni,
+        requestedByTitularEmail,
+        requestedByTitularPhone,
         medicationMethod: mappedMedicationMethod,
         medicationText: summaryText,
         medicationItems,
@@ -1109,6 +1160,14 @@ export default function PatientForm({
 
     const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
+    const isForDependent = !isThirdPartyUser && selectedCardId !== 'titular';
+    const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
+    const dependentRelationship = selectedDep?.relationship || (isForDependent ? 'A Cargo' : undefined);
+    const requestedByTitularName = isForDependent ? `${titularData.name} ${titularData.lastName}`.trim() : undefined;
+    const requestedByTitularDni = isForDependent ? titularData.dni : undefined;
+    const requestedByTitularEmail = isForDependent ? titularData.email : undefined;
+    const requestedByTitularPhone = isForDependent ? titularData.phone : undefined;
+
     // Build full order object mapping to backend fields
     const fullOrderPayload = {
       patientName: patientName.trim(),
@@ -1120,6 +1179,12 @@ export default function PatientForm({
       deliveryMethod,
       obraSocial: selectedObraSocial,
       obraSocialNumber: obraSocialNumber.trim() || undefined,
+      isForDependent,
+      dependentRelationship,
+      requestedByTitularName,
+      requestedByTitularDni,
+      requestedByTitularEmail,
+      requestedByTitularPhone,
       medicationMethod: mappedMedicationMethod,
       medicationText: summaryText,
       medicationItems,
@@ -1199,6 +1264,12 @@ export default function PatientForm({
     const displayComments = comments || matchedOrder?.comments || '';
     const displayPaymentAmount = paymentAmount || matchedOrder?.paymentAmount || '';
 
+    const isForDependent = matchedOrder?.isForDependent ?? (!isThirdPartyUser && selectedCardId !== 'titular');
+    const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
+    const dependentRelationship = matchedOrder?.dependentRelationship || selectedDep?.relationship || (isForDependent ? 'A Cargo' : undefined);
+    const requestedByTitularName = matchedOrder?.requestedByTitularName || (isForDependent ? `${titularData.name} ${titularData.lastName}`.trim() : undefined);
+    const requestedByTitularDni = matchedOrder?.requestedByTitularDni || (isForDependent ? titularData.dni : undefined);
+
     const handleCopyOrderId = () => {
       if (createdOrderId) {
         navigator.clipboard.writeText(createdOrderId);
@@ -1237,13 +1308,17 @@ export default function PatientForm({
             paymentId={matchedOrder?.paymentId || (paymentMethod === 'cash_desk' ? 'Cobro en ventanilla' : paymentMethod === 'mp' ? mpTransactionId : 'Transferencia')}
             paymentStatus={matchedOrder?.paymentStatus || 'approved'}
             status={matchedOrder?.status || 'En revisión'}
+            isForDependent={matchedOrder?.isForDependent ?? isForDependent}
+            dependentRelationship={matchedOrder?.dependentRelationship ?? dependentRelationship}
+            requestedByTitularName={matchedOrder?.requestedByTitularName ?? requestedByTitularName}
+            requestedByTitularDni={matchedOrder?.requestedByTitularDni ?? requestedByTitularDni}
           />
         </div>
 
         {/* Interactive Screen View */}
         <div className="no-print screen-only-view max-w-3xl mx-auto bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden animate-scaleUp">
           {/* Formal Header */}
-          <div className="bg-[#1C2435] p-6 sm:p-8 text-white relative overflow-hidden">
+          <div className="bg-[#0141BC] p-6 sm:p-8 text-white relative overflow-hidden">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1.5">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold tracking-wide bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
@@ -1298,12 +1373,12 @@ export default function PatientForm({
                 </div>
 
                 <div className="flex flex-col items-center gap-1.5">
-                  <div className="h-7 w-7 rounded-full bg-[#295EF3] text-white flex items-center justify-center text-xs font-bold shadow-xs ring-4 ring-blue-100 animate-pulse">
+                  <div className="h-7 w-7 rounded-full bg-[#1661E1] text-white flex items-center justify-center text-xs font-bold shadow-xs ring-4 ring-[#1E6EFB]/20 animate-pulse">
                     2
                   </div>
                   <div>
                     <p className="text-xs font-black text-slate-900">2. Auditoría Médica</p>
-                    <p className="text-[10px] text-[#295EF3] font-bold">En evaluación</p>
+                    <p className="text-[10px] text-[#1661E1] font-bold">En evaluación</p>
                   </div>
                 </div>
 
@@ -1323,7 +1398,7 @@ export default function PatientForm({
             <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
               <div className="bg-slate-50/80 px-5 py-3 border-b border-slate-200 flex items-center justify-between">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-[#295EF3]" />
+                  <FileText className="h-4 w-4 text-[#1661E1]" />
                   <span>Resumen del Trámite</span>
                 </h4>
                 <span className="text-[11px] text-slate-500 font-semibold font-mono">
@@ -1337,6 +1412,11 @@ export default function PatientForm({
                     <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Paciente</p>
                     <p className="font-extrabold text-slate-900 text-sm mt-0.5">{displayPatientName} {displayPatientLastName}</p>
                     <p className="text-slate-500 font-mono text-[11px] mt-0.5">DNI: {displayPatientDni || 'S/D'}</p>
+                    {(matchedOrder?.isForDependent ?? isForDependent) && (
+                      <span className="inline-block mt-1 text-[10px] font-bold text-purple-700 bg-purple-100/80 px-1.5 py-0.5 rounded">
+                        Familiar a cargo ({matchedOrder?.dependentRelationship || dependentRelationship || 'A cargo'})
+                      </span>
+                    )}
                   </div>
 
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -1362,7 +1442,7 @@ export default function PatientForm({
                     <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">
                       {paymentAmount ? `$${paymentAmount} ARS` : 'Bonificado'}
                     </p>
-                    <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                    <p className="text-[11px] text-[#14BE99] font-bold mt-0.5 flex items-center gap-1">
                       <Check className="h-3 w-3" /> Pago Confirmado
                     </p>
                   </div>
@@ -1376,7 +1456,7 @@ export default function PatientForm({
                       {displayMedicationItems.map((item, idx) => (
                         <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
-                            <Pill className="h-3.5 w-3.5 text-[#295EF3] shrink-0" />
+                            <Pill className="h-3.5 w-3.5 text-[#1661E1] shrink-0" />
                             <span className="font-bold text-slate-800 text-xs truncate">{item.nombreComercial}</span>
                             {item.droga && <span className="text-[11px] text-slate-500 truncate font-normal">({item.droga})</span>}
                           </div>
@@ -1388,7 +1468,7 @@ export default function PatientForm({
                     </div>
                   ) : (
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
-                      <Camera className="h-4 w-4 text-[#295EF3] shrink-0" />
+                      <Camera className="h-4 w-4 text-[#1661E1] shrink-0" />
                       <span>
                         {displayMedicationPhotos.length > 0
                           ? `Se adjuntaron ${displayMedicationPhotos.length} foto(s) de envase / receta previa para auditoría.`
@@ -1402,7 +1482,7 @@ export default function PatientForm({
 
             {/* Compact Formal Institutional Note */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 flex items-start gap-3 text-xs text-slate-600">
-              <Clock className="h-4 w-4 text-blue-600 shrink-0 mt-0.5" />
+              <Clock className="h-4 w-4 text-[#1661E1] shrink-0 mt-0.5" />
               <p className="leading-relaxed">
                 <strong className="text-slate-800">Plazo de auditoría y emisión:</strong> Las solicitudes se evalúan en un plazo de hasta 24 hs hábiles. Una vez aprobada por el médico matriculado, recibirá la receta digital oficial con firma electrónica y código QR por el medio seleccionado.
               </p>
@@ -1414,7 +1494,7 @@ export default function PatientForm({
                 id="btn-confirm-finish"
                 type="button"
                 onClick={() => onSuccess(createdOrderId || '')}
-                className="w-full bg-[#1C2435] hover:bg-[#295EF3] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm active:scale-[0.99]"
+                className="w-full bg-[#0141BC] hover:bg-[#1661E1] text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm active:scale-[0.99]"
               >
                 <span>Ir a Mis Solicitudes</span>
                 <ArrowRight className="h-4 w-4" />
@@ -1450,15 +1530,15 @@ export default function PatientForm({
   return (
     <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
-      <div className="bg-[#1C2435] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
+      <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="relative">
-          <span className="text-[10px] font-bold uppercase bg-[#295EF3]/30 px-2.5 py-0.5 rounded-full text-white border border-white/20">
+          <span className="text-[10px] font-bold uppercase bg-[#1661E1]/40 px-2.5 py-0.5 rounded-full text-white border border-white/20">
             {isOficio ? 'Carga de Solicitud para Paciente' : 'Formulario '}
           </span>
           <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-1 flex items-center gap-1.5">
             {isOficio ? 'Nueva Solicitud de Renovación' : 'Renovación de Medicación Crónica'}
           </h2>
-          <p className="text-xs text-slate-200 font-medium">
+          <p className="text-xs text-blue-100 font-medium">
             {isOficio ? 'Ingrese los datos del paciente para generar la solicitud' : 'Complete paso a paso su trámite digital'}
           </p>
         </div>
@@ -1470,13 +1550,13 @@ export default function PatientForm({
         <div 
           onClick={() => setStep('info')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'info' ? 'text-[#295EF3]' : 'text-slate-400'
+            step === 'info' ? 'text-[#1661E1]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'info' 
-              ? 'bg-[#295EF3] text-white shadow' 
-              : 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20'
+              ? 'bg-[#1661E1] text-white shadow' 
+              : 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20'
           }`}>1</span>
           <span>Información Previa</span>
         </div>
@@ -1486,13 +1566,13 @@ export default function PatientForm({
             setStep('identification');
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'identification' ? 'text-[#295EF3]' : 'text-slate-400'
+            step === 'identification' ? 'text-[#1661E1]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'identification' 
-              ? 'bg-[#295EF3] text-white shadow' 
-              : step !== 'info' ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20' : 'bg-slate-200 text-slate-400'
+              ? 'bg-[#1661E1] text-white shadow' 
+              : step !== 'info' ? 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20' : 'bg-slate-200 text-slate-400'
           }`}>2</span>
           <span>Identificación</span>
         </div>
@@ -1504,13 +1584,13 @@ export default function PatientForm({
             }
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'medication' ? 'text-[#295EF3]' : 'text-slate-400'
+            step === 'medication' ? 'text-[#1661E1]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'medication' 
-              ? 'bg-[#295EF3] text-white shadow' 
-              : step === 'payment' ? 'bg-[#295EF3]/10 text-[#295EF3] border border-[#295EF3]/20' : 'bg-slate-200 text-slate-400'
+              ? 'bg-[#1661E1] text-white shadow' 
+              : step === 'payment' ? 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20' : 'bg-slate-200 text-slate-400'
           }`}>3</span>
           <span>Medicación</span>
         </div>
@@ -1522,11 +1602,11 @@ export default function PatientForm({
             }
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
-            step === 'payment' ? 'text-[#295EF3]' : 'text-slate-400'
+            step === 'payment' ? 'text-[#1661E1]' : 'text-slate-400'
           }`}
         >
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
-            step === 'payment' ? 'bg-[#295EF3] text-white shadow' : 'bg-slate-200 text-slate-400'
+            step === 'payment' ? 'bg-[#1661E1] text-white shadow' : 'bg-slate-200 text-slate-400'
           }`}>4</span>
           <span>Pagar y Enviar Solicitud</span>
         </div>
@@ -1534,9 +1614,9 @@ export default function PatientForm({
 
       {/* Draft Restored Banner */}
       {draftRestored && (
-        <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-blue-50/90 border border-blue-200/80 text-blue-900 rounded-2xl flex items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
+        <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#0141BC] rounded-2xl flex items-center justify-between gap-3 text-xs shadow-xs animate-fadeIn">
           <div className="flex items-center gap-2">
-            <RotateCcw className="h-4 w-4 text-[#295EF3] shrink-0" />
+            <RotateCcw className="h-4 w-4 text-[#1661E1] shrink-0" />
             <span>
               Restauramos tu solicitud en el <strong>paso en el que habías quedado</strong> con tus datos guardados.
             </span>
@@ -1570,12 +1650,12 @@ export default function PatientForm({
           <div className="space-y-6 animate-fadeIn">
 
             {/* Informative service info block */}
-            <div className="bg-blue-50/50 p-5 rounded-2xl border border-blue-100/80 text-xs text-blue-900 leading-relaxed space-y-3 shadow-xs">
-              <p className="font-extrabold flex items-center gap-1.5 text-sm text-blue-950">
-                <Info className="h-5 w-5 text-blue-650" />
+            <div className="bg-[#0F6C7D]/5 p-5 rounded-2xl border border-[#0F6C7D]/20 text-xs text-[#0141BC] leading-relaxed space-y-3 shadow-xs">
+              <p className="font-extrabold flex items-center gap-1.5 text-sm text-[#0141BC]">
+                <Info className="h-5 w-5 text-[#0F6C7D]" />
                 Información del Servicio de Renovación
               </p>
-              <ul className="list-disc pl-5 space-y-1.5 text-blue-800 font-medium">
+              <ul className="list-disc pl-5 space-y-1.5 text-slate-700 font-medium">
                 <li>El trámite opera como una <strong>consulta médica asincrónica</strong>.</li>
                 <li>Tiempo promedio de auditoría y respuesta: <strong>24 hs hábiles</strong>.</li>
                 <li>La firma y emisión de la receta depende exclusivamente del <strong>criterio clínico médico</strong>.</li>
@@ -1601,7 +1681,7 @@ export default function PatientForm({
                 trackInitiatePrescription('patient_form_info');
                 setStep('identification');
               }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
+              className="w-full bg-[#1661E1] hover:bg-[#1E6EFB] text-white font-bold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-4"
             >
               <span>Iniciar Solicitud</span>
               <ArrowRight className="h-5 w-5" />
@@ -1614,8 +1694,8 @@ export default function PatientForm({
           <div className="space-y-6 animate-fadeIn">
             
             {notificationMsg && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl p-4 text-xs font-bold flex items-center gap-2 shadow-xs animate-fadeIn">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+              <div className="bg-[#14BE99]/10 border border-[#14BE99]/30 text-[#0F6C7D] rounded-2xl p-4 text-xs font-bold flex items-center gap-2 shadow-xs animate-fadeIn">
+                <CheckCircle2 className="h-5 w-5 text-[#14BE99] shrink-0" />
                 <span>{notificationMsg}</span>
               </div>
             )}
@@ -1625,8 +1705,8 @@ export default function PatientForm({
               <div className="bg-slate-50/80 border border-slate-200/80 rounded-3xl p-5 space-y-4 shadow-2xs">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-3.5">
                   <div>
-                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#1C2435] flex items-center gap-1.5">
-                      <Users className="h-4 w-4 text-[#295EF3]" />
+                    <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-[#1661E1]" />
                       ¿Para quién es la receta?
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5 font-medium">
@@ -1636,7 +1716,7 @@ export default function PatientForm({
                   <button
                     type="button"
                     onClick={handleOpenNewDependentModal}
-                    className="px-4 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
+                    className="px-4 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer shrink-0 self-start sm:self-auto"
                   >
                     <Plus className="h-4 w-4" />
                     <span>+ Agregar Paciente a Cargo</span>
@@ -1650,13 +1730,13 @@ export default function PatientForm({
                     onClick={() => handleSelectCard('titular')}
                     className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                       selectedCardId === 'titular'
-                        ? 'bg-white border-[#295EF3] ring-2 ring-[#295EF3]/20 shadow-md'
+                        ? 'bg-white border-[#1661E1] ring-2 ring-[#1E6EFB]/20 shadow-md'
                         : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
                     }`}
                   >
                     <div>
                       <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-blue-100 text-[#295EF3] border border-blue-200">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20">
                           <User className="h-3.5 w-3.5" />
                           Titular (Yo)
                         </span>
@@ -1665,61 +1745,61 @@ export default function PatientForm({
                           <button
                             type="button"
                             onClick={(e) => handleOpenEditModal(e, 'titular')}
-                            className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#295EF3] hover:bg-blue-50 border border-slate-200 hover:border-blue-200 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                            className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#1661E1] hover:bg-[#1661E1]/10 border border-slate-200 hover:border-[#1661E1]/30 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                             title="Editar datos del titular"
                           >
-                            <Edit3 className="h-3.5 w-3.5 text-[#295EF3]" />
+                            <Edit3 className="h-3.5 w-3.5 text-[#1661E1]" />
                             <span>Editar</span>
                           </button>
 
                           {selectedCardId === 'titular' && (
-                            <span className="h-6 w-6 rounded-full bg-[#295EF3] text-white flex items-center justify-center shadow-xs">
+                            <span className="h-6 w-6 rounded-full bg-[#1661E1] text-white flex items-center justify-center shadow-xs">
                               <Check className="h-4 w-4 stroke-[3]" />
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <h5 className="font-black text-[#1C2435] text-base leading-tight">
-                        {patientName || currentUser?.name || initialName || 'Titular'} {patientLastName || currentUser?.lastName || initialLastName || ''}
+                      <h5 className="font-black text-[#0141BC] text-base leading-tight">
+                        {titularData.name || 'Titular'} {titularData.lastName || ''}
                       </h5>
                       
                       <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-400">DNI:</span>
-                          <span className="font-mono font-bold text-[#1C2435]">{patientDni || currentUser?.identifier || recentDni || 'Sin registrar'}</span>
+                          <span className="font-mono font-bold text-[#0141BC]">{titularData.dni || 'Sin registrar'}</span>
                         </div>
 
-                        {(patientBirthDate || currentUser?.birthDate) && (
+                        {titularData.birthDate && (
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-slate-400">F. Nacimiento:</span>
-                            <span className="font-bold text-slate-700">{patientBirthDate || currentUser?.birthDate}</span>
+                            <span className="font-bold text-slate-700">{titularData.birthDate}</span>
                           </div>
                         )}
 
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-400">Obra Social:</span>
-                          <span className="font-bold text-[#316F80] truncate max-w-[130px] text-right">{selectedObraSocial || currentUser?.obraSocial || 'Sin especificar'}</span>
+                          <span className="font-bold text-[#0F6C7D] truncate max-w-[130px] text-right">{titularData.obraSocial || 'Sin especificar'}</span>
                         </div>
 
-                        {(obraSocialNumber || currentUser?.obraSocialNumber) && (
+                        {titularData.obraSocialNumber && (
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-slate-400">Credencial N°:</span>
-                            <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{obraSocialNumber || currentUser?.obraSocialNumber}</span>
+                            <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{titularData.obraSocialNumber}</span>
                           </div>
                         )}
 
-                        {(patientPhone || currentUser?.phone) && (
+                        {titularData.phone && (
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-slate-400">WhatsApp:</span>
-                            <span className="font-bold text-slate-700">{patientPhone || currentUser?.phone}</span>
+                            <span className="font-bold text-slate-700">{titularData.phone}</span>
                           </div>
                         )}
 
-                        {(patientEmail || currentUser?.email) && (
+                        {titularData.email && (
                           <div className="flex items-center justify-between">
                             <span className="font-semibold text-slate-400">Email:</span>
-                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{patientEmail || currentUser?.email}</span>
+                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{titularData.email}</span>
                           </div>
                         )}
                       </div>
@@ -1780,14 +1860,14 @@ export default function PatientForm({
                             </div>
                           </div>
 
-                          <h5 className="font-black text-[#1C2435] text-base leading-tight">
+                          <h5 className="font-black text-[#0141BC] text-base leading-tight">
                             {dep.name} {dep.lastName}
                           </h5>
 
                           <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-slate-400">DNI:</span>
-                              <span className="font-mono font-bold text-[#1C2435]">{dep.dni}</span>
+                              <span className="font-mono font-bold text-[#0141BC]">{dep.dni}</span>
                             </div>
 
                             {dep.birthDate && (
@@ -1799,7 +1879,7 @@ export default function PatientForm({
 
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-slate-400">Obra Social:</span>
-                              <span className="font-bold text-[#316F80] truncate max-w-[130px] text-right">{dep.obraSocial || 'Sin especif.'}</span>
+                              <span className="font-bold text-[#0F6C7D] truncate max-w-[130px] text-right">{dep.obraSocial || 'Sin especif.'}</span>
                             </div>
 
                             {dep.obraSocialNumber && (
@@ -1832,23 +1912,23 @@ export default function PatientForm({
                   <button
                     type="button"
                     onClick={handleOpenNewDependentModal}
-                    className="rounded-2xl p-5 border-2 border-dashed border-slate-300 hover:border-[#295EF3] hover:bg-blue-50/50 text-slate-500 hover:text-[#295EF3] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer min-h-[160px] group shadow-2xs"
+                    className="rounded-2xl p-5 border-2 border-dashed border-slate-300 hover:border-[#1661E1] hover:bg-[#1661E1]/5 text-slate-500 hover:text-[#1661E1] transition-all flex flex-col items-center justify-center gap-2 cursor-pointer min-h-[160px] group shadow-2xs"
                   >
-                    <div className="h-10 w-10 rounded-full bg-blue-100/80 text-[#295EF3] group-hover:bg-[#295EF3] group-hover:text-white flex items-center justify-center transition-all shadow-xs">
+                    <div className="h-10 w-10 rounded-full bg-[#1661E1]/10 text-[#1661E1] group-hover:bg-[#1661E1] group-hover:text-white flex items-center justify-center transition-all shadow-xs">
                       <Plus className="h-5 w-5 stroke-[2.5]" />
                     </div>
-                    <span className="text-xs font-black text-slate-700 group-hover:text-[#295EF3]">+ Nuevo Paciente a Cargo</span>
+                    <span className="text-xs font-black text-slate-700 group-hover:text-[#1661E1]">+ Nuevo Paciente a Cargo</span>
                   </button>
                 </div>
               </div>
             )}
 
             {isThirdPartyUser && (
-              <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-4 text-xs text-blue-900 flex items-start gap-3 shadow-xs">
-                <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <div className="bg-[#0F6C7D]/5 border border-[#0F6C7D]/20 rounded-2xl p-4 text-xs text-[#0141BC] flex items-start gap-3 shadow-xs">
+                <Info className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
                 <div className="space-y-1">
-                  <p className="font-extrabold text-blue-950">Solicitud para Paciente Tercero</p>
-                  <p className="text-blue-800 leading-relaxed font-medium">
+                  <p className="font-extrabold text-[#0141BC]">Solicitud para Paciente Tercero</p>
+                  <p className="text-slate-600 leading-relaxed font-medium">
                     Ingresá los datos completos del paciente en la tarjeta antes de continuar con la solicitud.
                   </p>
                 </div>
@@ -1857,14 +1937,14 @@ export default function PatientForm({
 
             {/* PREFERENCIA DE ENTREGA */}
             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2">
-              <label htmlFor="delivery-method" className="block text-xs font-bold text-[#1C2435] uppercase">
+              <label htmlFor="delivery-method" className="block text-xs font-bold text-[#0141BC] uppercase">
                 Medio Preferido de Envío de la Receta <span className="text-red-500">*</span>
               </label>
               <select
                 id="delivery-method"
                 value={deliveryMethod}
                 onChange={(e) => setDeliveryMethod(e.target.value as any)}
-                className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-[#1C2435] focus:ring-2 focus:ring-[#295EF3] focus:outline-none cursor-pointer text-xs"
+                className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:outline-none cursor-pointer text-xs"
               >
                 <option value="email">Únicamente por Correo Electrónico (PDF)</option>
                 <option value="whatsapp">Únicamente por WhatsApp (PDF)</option>
@@ -1887,7 +1967,7 @@ export default function PatientForm({
                 id="btn-next-step-medication"
                 type="button"
                 onClick={goToMedication}
-                className="w-2/3 bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
+                className="w-2/3 bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold py-4 px-6 rounded-2xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer text-sm"
               >
                 <span>Siguiente Paso</span>
                 <ArrowRight className="h-5 w-5" />
@@ -1942,11 +2022,11 @@ export default function PatientForm({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[9px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          <span className="text-[9px] font-black text-[#1661E1] bg-[#1661E1]/10 border border-[#1661E1]/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
                             Medicamento #{index + 1}
                           </span>
-                          <h6 className="font-extrabold text-[#1C2435] text-sm mt-1">
-                            {item.nombreComercial} {item.miligramos && <span className="text-blue-600 font-black">({item.miligramos})</span>}
+                          <h6 className="font-extrabold text-[#0141BC] text-sm mt-1">
+                            {item.nombreComercial} {item.miligramos && <span className="text-[#1661E1] font-black">({item.miligramos})</span>}
                           </h6>
                         </div>
                         <button
@@ -2012,10 +2092,10 @@ export default function PatientForm({
                             )}
                           </div>
                           <div>
-                            <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                            <span className="text-[9px] font-black text-[#14BE99] bg-[#14BE99]/10 border border-[#14BE99]/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
                               Adjunto #{index + 1}
                             </span>
-                            <h6 className="font-extrabold text-[#1C2435] text-xs mt-1 truncate max-w-[170px] sm:max-w-[240px]">
+                            <h6 className="font-extrabold text-[#0141BC] text-xs mt-1 truncate max-w-[170px] sm:max-w-[240px]">
                               {photo.name}
                             </h6>
                           </div>
@@ -2766,7 +2846,7 @@ export default function PatientForm({
       {/* MODAL AGREGAR / EDITAR PACIENTE */}
       {showAddDependentModal && (
         <div 
-          className="fixed inset-0 z-50 bg-[#1C2435]/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => setShowAddDependentModal(false)}
         >
           <div 
@@ -2774,9 +2854,9 @@ export default function PatientForm({
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-[#1C2435] text-white p-5 px-6 flex items-center justify-between border-b border-white/10">
+            <div className="bg-[#0141BC] text-white p-5 px-6 flex items-center justify-between border-b border-white/10">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-[#295EF3]/20 border border-[#295EF3]/40 text-[#295EF3] flex items-center justify-center shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-white/15 border border-white/20 text-white flex items-center justify-center shrink-0">
                   {editingCardId ? <Edit3 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
                 </div>
                 <div>
@@ -2787,7 +2867,7 @@ export default function PatientForm({
                       ? 'Editar Paciente a Cargo' 
                       : 'Agregar Nuevo Paciente a Cargo'}
                   </h3>
-                  <p className="text-xs text-[#316F80] font-semibold">
+                  <p className="text-xs text-blue-100 font-semibold">
                     {editingCardId ? 'Modifique los datos necesarios' : 'Complete la información requerida del familiar'}
                   </p>
                 </div>
@@ -2796,7 +2876,7 @@ export default function PatientForm({
               <button 
                 type="button"
                 onClick={() => setShowAddDependentModal(false)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
+                className="text-slate-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
               >
                 ✕
               </button>
@@ -2813,8 +2893,8 @@ export default function PatientForm({
 
               {/* Section 1: Identification & Contact */}
               <div className="space-y-3">
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
-                  <User className="h-4 w-4 text-[#295EF3]" />
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                  <User className="h-4 w-4 text-[#1661E1]" />
                   1. Datos del Paciente y Contacto
                 </h4>
 
@@ -2828,7 +2908,7 @@ export default function PatientForm({
                       value={depName}
                       onChange={(e) => setDepName(e.target.value)}
                       placeholder="Ej. Lucas"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                       required
                     />
                   </div>
@@ -2841,7 +2921,7 @@ export default function PatientForm({
                       value={depLastName}
                       onChange={(e) => setDepLastName(e.target.value)}
                       placeholder="Ej. Olaciregui"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                       required
                     />
                   </div>
@@ -2857,7 +2937,7 @@ export default function PatientForm({
                       value={depDni}
                       onChange={(e) => setDepDni(e.target.value.replace(/\D/g, ''))}
                       placeholder="Ej. 48912345"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                       required
                     />
                   </div>
@@ -2869,7 +2949,7 @@ export default function PatientForm({
                       type="date"
                       value={depBirthDate}
                       onChange={(e) => setDepBirthDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all cursor-pointer"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all cursor-pointer"
                       required
                     />
                   </div>
@@ -2883,7 +2963,7 @@ export default function PatientForm({
                     <select
                       value={depRelationship}
                       onChange={(e) => setDepRelationship(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none cursor-pointer"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none cursor-pointer"
                     >
                       <option value="Hijo/a">Hijo/a</option>
                       <option value="Padre/Madre">Padre/Madre mayor</option>
@@ -2905,7 +2985,7 @@ export default function PatientForm({
                       value={depPhone}
                       onChange={(e) => setDepPhone(e.target.value)}
                       placeholder="Ej. 2926442385"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                     />
                   </div>
                   <div>
@@ -2917,7 +2997,7 @@ export default function PatientForm({
                       value={depEmail}
                       onChange={(e) => setDepEmail(e.target.value)}
                       placeholder="ejemplo@gmail.com"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -2925,8 +3005,8 @@ export default function PatientForm({
 
               {/* Section 2: Coverage */}
               <div className="space-y-3 pt-2">
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#316F80] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-[#295EF3]" />
+                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
+                  <ShieldCheck className="h-4 w-4 text-[#1661E1]" />
                   2. Cobertura Médica
                 </h4>
 
@@ -2938,7 +3018,7 @@ export default function PatientForm({
                     <select
                       value={depObraSocial}
                       onChange={(e) => setDepObraSocial(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none cursor-pointer"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none cursor-pointer"
                     >
                       <option value="">Seleccionar Obra Social</option>
                       {OBRA_SOCIAL_OPTIONS.map((os) => (
@@ -2955,7 +3035,7 @@ export default function PatientForm({
                       value={depObraSocialNumber}
                       onChange={(e) => setDepObraSocialNumber(e.target.value)}
                       placeholder="Ej. 210-48912345"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                     />
                   </div>
                 </div>
@@ -2970,7 +3050,7 @@ export default function PatientForm({
                       value={depCustomObraSocial}
                       onChange={(e) => setDepCustomObraSocial(e.target.value)}
                       placeholder="Escriba el nombre de la obra social o prepaga..."
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#1C2435] text-xs focus:ring-2 focus:ring-[#295EF3] focus:bg-white focus:outline-none transition-all"
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
                       required
                     />
                   </div>
@@ -2988,7 +3068,7 @@ export default function PatientForm({
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 bg-[#295EF3] hover:bg-[#1C2435] text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer"
+                  className="px-6 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer"
                 >
                   <Check className="h-4 w-4" />
                   <span>{editingCardId ? 'Guardar Cambios' : 'Guardar Paciente a Cargo'}</span>

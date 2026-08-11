@@ -43,7 +43,8 @@ import {
   Share2,
   Loader2,
   Copy,
-  CheckCheck
+  CheckCheck,
+  Users
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -626,6 +627,13 @@ export default function DoctorDashboard({
                         <p className="order-name">
                           {order.patientLastName}, {order.patientName}
                         </p>
+                        {order.isForDependent && (
+                          <div className="mt-0.5">
+                            <span className="text-[9px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded inline-flex items-center gap-1">
+                              <Users className="h-2.5 w-2.5" /> Familiar ({order.dependentRelationship || 'A cargo'})
+                            </span>
+                          </div>
+                        )}
                         <div className="flex items-center justify-between gap-2 mt-0.5">
                           <p className="order-sub truncate">
                             {order.obraSocial} • DNI: {order.patientDni}
@@ -633,9 +641,9 @@ export default function DoctorDashboard({
                           {(() => {
                             const pStatus = order.paymentStatus;
                             const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
-                            if (pStatus === 'approved') return <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">Pagado</span>;
+                            if (pStatus === 'approved') return <span className="text-[9px] font-extrabold text-[#14BE99] bg-[#14BE99]/10 px-1.5 py-0.5 rounded border border-[#14BE99]/30 shrink-0">Pagado</span>;
                             if (pStatus === 'refunded') return <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">En dev.</span>;
-                            if (isExempt) return <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200 shrink-0">Exento</span>;
+                            if (isExempt) return <span className="text-[9px] font-extrabold text-[#3066C6] bg-[#3066C6]/10 px-1.5 py-0.5 rounded border border-[#3066C6]/30 shrink-0">Exento</span>;
                             if (pStatus === 'rejected') return <span className="text-[9px] font-extrabold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 shrink-0">Rechazado</span>;
                             return <span className="text-[9px] font-extrabold text-yellow-700 bg-yellow-50 px-1.5 py-0.5 rounded border border-yellow-200 shrink-0">Pendiente</span>;
                           })()}
@@ -644,10 +652,10 @@ export default function DoctorDashboard({
                         {hasMessages && (
                           <div className={`mt-2 flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md ${
                             isFromPatient 
-                              ? 'bg-emerald-100 text-[#075E54] border border-emerald-300 animate-pulse' 
+                              ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30 animate-pulse' 
                               : 'bg-slate-100 text-slate-700 border border-slate-200'
                           }`}>
-                            <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                            <MessageSquare className="h-3.5 w-3.5 shrink-0 text-[#14BE99]" />
                             <span className="truncate">
                               {order.messages.length} msg{order.messages.length > 1 ? 's' : ''} {isFromPatient ? '• Paciente escribió' : ''}
                             </span>
@@ -655,7 +663,7 @@ export default function DoctorDashboard({
                         )}
 
                         {order.status === 'Pendiente' && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-amber-500" />}
-                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-[#295EF3]" />}
+                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-[#1E6EFB]" />}
                       </button>
                     );
                   })
@@ -684,8 +692,8 @@ export default function DoctorDashboard({
                           const isExempt = pStatus === 'exempt' || selectedOrder.obraSocial === 'PAMI (Inssjp)' || String(selectedOrder.paymentAmount) === '0';
                           if (pStatus === 'approved') {
                             return (
-                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 leading-none">
-                                <Check className="h-3.5 w-3.5" /> Pagado (${selectedOrder.paymentAmount || '10000'})
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30 leading-none">
+                                <Check className="h-3.5 w-3.5 text-[#14BE99]" /> Pagado (${selectedOrder.paymentAmount || '10000'})
                               </span>
                             );
                           }
@@ -698,7 +706,7 @@ export default function DoctorDashboard({
                           }
                           if (isExempt) {
                             return (
-                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-blue-100 text-blue-800 border border-blue-300 leading-none">
+                              <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-[#3066C6]/10 text-[#3066C6] border border-[#3066C6]/30 leading-none">
                                 Exento / Bonificado
                               </span>
                             );
@@ -759,6 +767,23 @@ export default function DoctorDashboard({
                         )}
                       </div>
                     </div>
+
+                    {selectedOrder.isForDependent && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-purple-950">
+                        <Users className="h-5 w-5 text-purple-700 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="font-extrabold text-purple-900 text-sm">
+                            Solicitud para Paciente a Cargo ({selectedOrder.dependentRelationship || 'Familiar'})
+                          </p>
+                          <p className="text-purple-800">
+                            Esta receta fue tramitada por el titular de la cuenta: <strong className="font-extrabold">{selectedOrder.requestedByTitularName || 'Titular de la cuenta'}</strong>
+                            {selectedOrder.requestedByTitularDni && <> • DNI Titular: <span className="font-mono font-bold">{selectedOrder.requestedByTitularDni}</span></>}
+                            {selectedOrder.requestedByTitularPhone && <> • Tel Titular: <span className="font-mono">{selectedOrder.requestedByTitularPhone}</span></>}
+                            {selectedOrder.requestedByTitularEmail && <> • Email: {selectedOrder.requestedByTitularEmail}</>}
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Medication Section */}
@@ -843,18 +868,18 @@ export default function DoctorDashboard({
 
                     {/* AI Analysis feedback */}
                     {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                      <div className="mt-3 bg-teal-50/50 border border-dashed border-teal-300 rounded-2xl p-4 flex gap-3 items-start text-xs text-teal-900">
-                        <Sparkles className="h-5 w-5 text-teal-600 shrink-0 mt-0.5" />
+                      <div className="mt-3 bg-[#0F6C7D]/5 border border-dashed border-[#0F6C7D]/30 rounded-2xl p-4 flex gap-3 items-start text-xs text-[#0F6C7D]">
+                        <Sparkles className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
                         <div className="flex-1">
-                          <strong className="block text-teal-800 font-bold mb-1">Análisis Automático de Envase (IA):</strong>
+                          <strong className="block text-[#0141BC] font-bold mb-1">Análisis Automático de Envase (IA):</strong>
                           {isExtractingCache[selectedOrder.id] ? (
-                            <span className="text-teal-600 italic">Analizando imagen de envase...</span>
+                            <span className="text-[#0F6C7D] italic">Analizando imagen de envase...</span>
                           ) : extractedTextCache[selectedOrder.id] ? (
-                            <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/80 p-2.5 rounded-xl border border-teal-200/60 mt-1">
+                            <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/90 p-2.5 rounded-xl border border-[#0F6C7D]/20 mt-1 text-[#0141BC]">
                               {extractedTextCache[selectedOrder.id]}
                             </div>
                           ) : (
-                            <span className="text-teal-600">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
+                            <span className="text-[#0F6C7D]">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
                           )}
                         </div>
                       </div>
@@ -878,7 +903,7 @@ export default function DoctorDashboard({
                             <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
                               <button
                                 onClick={() => handleMarkInProcess(selectedOrder.id)}
-                                className="flex-1 sm:flex-initial bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white px-6 py-3 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md"
+                                className="flex-1 sm:flex-initial bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white px-6 py-3 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md"
                               >
                                 EMPEZAR REVISIÓN CLÍNICA
                               </button>
@@ -908,7 +933,7 @@ export default function DoctorDashboard({
                                 Notas Clínicas / Indicaciones al Paciente
                               </label>
                               <textarea
-                                className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 transition-all"
+                                className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1E6EFB]/15 transition-all"
                                 rows={3}
                                 placeholder="Indicaciones para el paciente, posología especial o motivo en caso de rechazo..."
                                 value={doctorNotes}
@@ -923,15 +948,15 @@ export default function DoctorDashboard({
                               </label>
 
                               {uploadedRecipe ? (
-                                <div className="bg-white border-2 border-emerald-400 rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                                <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
                                   <div className="flex items-center gap-3 min-w-0">
-                                    <div className="h-10 w-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 border border-emerald-200">
+                                    <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
                                       <FileText className="h-5 w-5" />
                                     </div>
                                     <div className="min-w-0">
                                       <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
                                       <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                        <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
                                           <Check className="h-3 w-3" /> PDF Listo para emisión oficial
                                         </span>
                                         {uploadedRecipe.size && (
@@ -947,7 +972,7 @@ export default function DoctorDashboard({
                                     <button
                                       type="button"
                                       onClick={() => pdfInputRef.current?.click()}
-                                      className="text-xs font-bold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors cursor-pointer"
+                                      className="text-xs font-bold text-[#1661E1] hover:text-[#1E6EFB] bg-[#1661E1]/10 hover:bg-[#1661E1]/20 px-3 py-1.5 rounded-lg border border-[#1661E1]/20 transition-colors cursor-pointer"
                                     >
                                       Cambiar
                                     </button>
@@ -972,11 +997,11 @@ export default function DoctorDashboard({
                                   onClick={() => pdfInputRef.current?.click()}
                                   className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
                                     isDraggingPdf
-                                      ? 'border-blue-500 bg-blue-50 scale-[1.01] ring-4 ring-blue-100'
-                                      : 'border-slate-300 hover:border-blue-400 bg-white hover:bg-slate-50/50'
+                                      ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
+                                      : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
                                   }`}
                                 >
-                                  <div className="h-10 w-10 mx-auto rounded-full bg-blue-50 text-blue-600 flex items-center justify-center mb-2">
+                                  <div className="h-10 w-10 mx-auto rounded-full bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center mb-2">
                                     <FileUp className="h-5 w-5" />
                                   </div>
                                   <p className="text-xs font-bold text-slate-800">
@@ -1011,7 +1036,7 @@ export default function DoctorDashboard({
                                   onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
                                   showToast('Receta emitida y enviada con éxito.');
                                 }}
-                                className="flex-1 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                                className="flex-1 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                               >
                                 <CheckCircle className="h-4 w-4" />
                                 <span>EMITIR RECETA FINAL</span>
@@ -1030,16 +1055,16 @@ export default function DoctorDashboard({
                         )}
 
                         {selectedOrder.status === 'Emitida' && (
-                          <div className="bg-emerald-50 border border-emerald-200 p-6 rounded-2xl text-center">
-                            <CheckCircle className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                            <h4 className="font-bold text-emerald-900 text-base">Receta Digital Emitida</h4>
-                            <p className="text-xs text-emerald-700 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
+                          <div className="bg-[#14BE99]/10 border border-[#14BE99]/30 p-6 rounded-2xl text-center">
+                            <CheckCircle className="h-8 w-8 text-[#14BE99] mx-auto mb-2" />
+                            <h4 className="font-bold text-[#0F6C7D] text-base">Receta Digital Emitida</h4>
+                            <p className="text-xs text-[#0F6C7D]/80 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
                             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                               {selectedOrder.recipePdfUrl && (
                                 <a
                                   href={selectedOrder.recipePdfUrl}
                                   download={selectedOrder.recipePdfName || 'receta.pdf'}
-                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
                                 >
                                   <Download className="h-4 w-4" />
                                   <span>Descargar Receta PDF</span>
@@ -1060,7 +1085,7 @@ export default function DoctorDashboard({
                                   setSendLinkFeedback(null);
                                   setIsSendLinkModalOpen(true);
                                 }}
-                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm hover:shadow"
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm hover:shadow"
                               >
                                 <Send className="h-4 w-4" />
                                 <span>Enviar link de receta</span>
@@ -1108,7 +1133,7 @@ export default function DoctorDashboard({
                 </div>
               ) : (
                 <div className="m-auto text-center max-w-sm p-8 space-y-3">
-                  <div className="h-16 w-16 bg-blue-50 text-[#295EF3] rounded-2xl flex items-center justify-center mx-auto shadow-xs border border-blue-100/80">
+                  <div className="h-16 w-16 bg-[#1661E1]/10 text-[#1661E1] rounded-2xl flex items-center justify-center mx-auto shadow-xs border border-[#1661E1]/20">
                     <FileText className="h-8 w-8 stroke-[1.75]" />
                   </div>
                   <h3 className="text-base font-extrabold text-slate-800">
@@ -1121,7 +1146,7 @@ export default function DoctorDashboard({
                   </p>
                   {filteredOrders.length > 0 && (
                     <div className="pt-2">
-                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#1661E1] bg-[#1661E1]/10 px-3 py-1 rounded-full border border-[#1661E1]/20">
                         👈 {filteredOrders.length} {filteredOrders.length === 1 ? 'solicitud disponible' : 'solicitudes disponibles'}
                       </span>
                     </div>
@@ -1197,10 +1222,10 @@ export default function DoctorDashboard({
 
       {/* Modal: Enviar link de receta (WhatsApp / Correo / Ambos) */}
       {isSendLinkModalOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+        <div className="fixed inset-0 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
           <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-scaleUp">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex items-center justify-between">
+            <div className="bg-gradient-to-r from-[#0141BC] to-[#1661E1] p-6 text-white flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xs">
                   <Send className="h-5 w-5 text-white" />
@@ -1232,17 +1257,17 @@ export default function DoctorDashboard({
                   <span className="font-bold text-slate-800 text-sm">
                     {selectedOrder.patientName} {selectedOrder.patientLastName}
                   </span>
-                  <span className="bg-blue-100 text-[#295EF3] font-bold px-2 py-0.5 rounded-md text-[10px]">
+                  <span className="bg-[#1661E1]/10 text-[#1661E1] font-bold px-2 py-0.5 rounded-md text-[10px]">
                     Orden #{selectedOrder.id}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60 text-slate-600">
                   <div className="flex items-center gap-1.5 truncate">
-                    <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                    <Phone className="h-3.5 w-3.5 text-[#14BE99] shrink-0" />
                     <span className="truncate">{selectedOrder.patientPhone || 'Sin teléfono registrado'}</span>
                   </div>
                   <div className="flex items-center gap-1.5 truncate">
-                    <Mail className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                    <Mail className="h-3.5 w-3.5 text-[#1661E1] shrink-0" />
                     <span className="truncate">{selectedOrder.patientEmail || 'Sin email registrado'}</span>
                   </div>
                 </div>
@@ -1259,7 +1284,7 @@ export default function DoctorDashboard({
                     onClick={() => setSendChannel('whatsapp')}
                     className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'whatsapp'
-                        ? 'border-emerald-500 bg-emerald-50/50 shadow-xs'
+                        ? 'border-[#14BE99] bg-[#14BE99]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
@@ -1269,14 +1294,14 @@ export default function DoctorDashboard({
                       value="whatsapp"
                       checked={sendChannel === 'whatsapp'}
                       onChange={() => setSendChannel('whatsapp')}
-                      className="mt-1 text-emerald-600 focus:ring-emerald-500"
+                      className="mt-1 text-[#14BE99] focus:ring-[#14BE99]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-emerald-600" />
+                        <MessageSquare className="h-4 w-4 text-[#14BE99]" />
                         <span className="font-bold text-slate-900 text-xs">WhatsApp</span>
                         {selectedOrder.patientPhone ? (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-mono font-medium">
+                          <span className="text-[10px] bg-[#14BE99]/15 text-[#0F6C7D] px-1.5 py-0.5 rounded font-mono font-bold">
                             {selectedOrder.patientPhone}
                           </span>
                         ) : (
@@ -1296,7 +1321,7 @@ export default function DoctorDashboard({
                     onClick={() => setSendChannel('email')}
                     className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'email'
-                        ? 'border-blue-500 bg-blue-50/50 shadow-xs'
+                        ? 'border-[#1661E1] bg-[#1661E1]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
@@ -1306,14 +1331,14 @@ export default function DoctorDashboard({
                       value="email"
                       checked={sendChannel === 'email'}
                       onChange={() => setSendChannel('email')}
-                      className="mt-1 text-blue-600 focus:ring-blue-500"
+                      className="mt-1 text-[#1661E1] focus:ring-[#1661E1]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-blue-600" />
+                        <Mail className="h-4 w-4 text-[#1661E1]" />
                         <span className="font-bold text-slate-900 text-xs">Correo Electrónico</span>
                         {selectedOrder.patientEmail ? (
-                          <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono font-medium">
+                          <span className="text-[10px] bg-[#1661E1]/15 text-[#1661E1] px-1.5 py-0.5 rounded font-mono font-bold">
                             {selectedOrder.patientEmail}
                           </span>
                         ) : (
@@ -1333,7 +1358,7 @@ export default function DoctorDashboard({
                     onClick={() => setSendChannel('both')}
                     className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'both'
-                        ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
+                        ? 'border-[#0F6C7D] bg-[#0F6C7D]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
                     }`}
                   >
@@ -1343,13 +1368,13 @@ export default function DoctorDashboard({
                       value="both"
                       checked={sendChannel === 'both'}
                       onChange={() => setSendChannel('both')}
-                      className="mt-1 text-indigo-600 focus:ring-indigo-500"
+                      className="mt-1 text-[#0F6C7D] focus:ring-[#0F6C7D]"
                     />
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <Share2 className="h-4 w-4 text-indigo-600" />
+                        <Share2 className="h-4 w-4 text-[#0F6C7D]" />
                         <span className="font-bold text-slate-900 text-xs">Ambos (WhatsApp y Correo)</span>
-                        <span className="text-[10px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded font-semibold">
+                        <span className="text-[10px] bg-[#0F6C7D]/15 text-[#0F6C7D] px-1.5 py-0.5 rounded font-bold">
                           Recomendado
                         </span>
                       </div>
@@ -1373,12 +1398,12 @@ export default function DoctorDashboard({
                       setCopiedLink(true);
                       setTimeout(() => setCopiedLink(false), 2000);
                     }}
-                    className="text-[#295EF3] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-[#1661E1] hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     {copiedLink ? (
                       <>
-                        <CheckCheck className="h-3 w-3 text-emerald-600" />
-                        <span className="text-emerald-600">Copiado</span>
+                        <CheckCheck className="h-3 w-3 text-[#14BE99]" />
+                        <span className="text-[#14BE99]">Copiado</span>
                       </>
                     ) : (
                       <>
@@ -1403,7 +1428,7 @@ export default function DoctorDashboard({
                   }`}
                 >
                   {sendLinkFeedback.success ? (
-                    <CheckCircle className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle className="h-4 w-4 text-[#14BE99] shrink-0 mt-0.5" />
                   ) : (
                     <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
                   )}
@@ -1429,7 +1454,7 @@ export default function DoctorDashboard({
                 type="button"
                 disabled={isSendingLink}
                 onClick={handleSendLinkSubmit}
-                className="px-5 py-2.5 bg-[#295EF3] hover:bg-blue-600 active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+                className="px-5 py-2.5 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
               >
                 {isSendingLink ? (
                   <>

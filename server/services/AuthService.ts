@@ -52,6 +52,7 @@ export class AuthService {
       obraSocialNumber: user.obraSocialNumber,
       tenantId: user.tenantId,
       requirePasswordChange: user.requirePasswordChange,
+      dependents: user.dependents || [],
     };
 
     if (user.role === 'colaborador') {
@@ -135,6 +136,7 @@ export class AuthService {
       obraSocial: newUser.obraSocial,
       obraSocialNumber: newUser.obraSocialNumber,
       tenantId: newUser.tenantId,
+      dependents: newUser.dependents || [],
     };
 
     const token = jwt.sign(tokenPayload, config.JWT_SECRET, { expiresIn: '12h' });

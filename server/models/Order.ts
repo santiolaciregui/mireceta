@@ -73,6 +73,13 @@ export interface IMedicalOrder extends Document {
   createdByOperatorId?: string;
   createdByOperatorName?: string;
 
+  isForDependent?: boolean;
+  dependentRelationship?: string;
+  requestedByTitularName?: string;
+  requestedByTitularDni?: string;
+  requestedByTitularEmail?: string;
+  requestedByTitularPhone?: string;
+
   consentsAccepted?: {
     isOfAge: boolean;
     termsAccepted: boolean;
@@ -190,6 +197,13 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   createdByOperatorId: { type: String },
   createdByOperatorName: { type: String },
   
+  isForDependent: { type: Boolean, default: false },
+  dependentRelationship: { type: String },
+  requestedByTitularName: { type: String },
+  requestedByTitularDni: { type: String, index: true },
+  requestedByTitularEmail: { type: String },
+  requestedByTitularPhone: { type: String },
+
   consentsAccepted: {
     isOfAge: { type: Boolean },
     termsAccepted: { type: Boolean },

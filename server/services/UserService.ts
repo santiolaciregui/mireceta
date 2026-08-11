@@ -32,6 +32,7 @@ export class UserService {
       obraSocial: user.obraSocial,
       obraSocialNumber: user.obraSocialNumber,
       requirePasswordChange: user.requirePasswordChange,
+      dependents: user.dependents || [],
     };
 
     if (user.role === 'colaborador') {
@@ -75,9 +76,11 @@ export class UserService {
       throw new Error('No autorizado para crear usuarios');
     }
 
-    const cleanIdentifier = cleanDni(userData.identifier) || userData.identifier;
+    const cleanIdentifier = userData.role === 'paciente'
+      ? (cleanDni(userData.identifier) || userData.identifier.trim())
+      : userData.identifier.trim();
     const exists = await this.userRepo.findByIdentifier(cleanIdentifier);
-    if (exists) throw new Error('El usuario con este identificador (DNI) ya existe.');
+    if (exists) throw new Error('El usuario con este identificador ya existe.');
 
     const count = await this.userRepo.count();
     const newId = generateUserId(count);
@@ -125,15 +128,28 @@ export class UserService {
   }
 
   async updateUser(id: string, updateData: any, currentUser: any) {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin') {
+    const isSelf = currentUser.id === id;
+    const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
+
+    if (!isAdmin && !isSelf) {
       throw new Error('No autorizado');
     }
 
-    if (updateData.password) {
-      updateData.password = await bcrypt.hash(updateData.password, 10);
+    const safeUpdateData = { ...updateData };
+    if (!isAdmin && isSelf) {
+      // Prevent non-admin users from escalating permissions or altering system fields
+      delete safeUpdateData.role;
+      delete safeUpdateData.tenantId;
+      delete safeUpdateData.status;
+      delete safeUpdateData.id;
+      delete safeUpdateData.identifier;
     }
 
-    const updatedUser = await this.userRepo.update(id, updateData);
+    if (safeUpdateData.password) {
+      safeUpdateData.password = await bcrypt.hash(safeUpdateData.password, 10);
+    }
+
+    const updatedUser = await this.userRepo.update(id, safeUpdateData);
 
     if (updatedUser && updatedUser.role === 'paciente') {
       await this.patientService.createOrUpdatePatient({

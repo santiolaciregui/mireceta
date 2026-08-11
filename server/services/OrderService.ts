@@ -29,7 +29,12 @@ export class OrderService {
 
       return allOrders.filter((o: any) => {
         const orderDniClean = cleanDni(o.patientDni);
-        return orderDniClean === patientDniClean || dependentDnis.includes(orderDniClean);
+        const titularDniClean = cleanDni(o.requestedByTitularDni);
+        return (
+          orderDniClean === patientDniClean ||
+          dependentDnis.includes(orderDniClean) ||
+          titularDniClean === patientDniClean
+        );
       });
     }
 
@@ -51,6 +56,13 @@ export class OrderService {
 
     const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
 
+    const isForDependent = Boolean(orderData.isForDependent);
+    const dependentRelationship = orderData.dependentRelationship;
+    const requestedByTitularName = orderData.requestedByTitularName || (isForDependent && currentUser?.role === 'paciente' ? `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim() : undefined);
+    const requestedByTitularDni = orderData.requestedByTitularDni || (isForDependent && currentUser?.role === 'paciente' ? currentUser.identifier : undefined);
+    const requestedByTitularEmail = orderData.requestedByTitularEmail || (isForDependent && currentUser?.role === 'paciente' ? currentUser.email : undefined);
+    const requestedByTitularPhone = orderData.requestedByTitularPhone || (isForDependent && currentUser?.role === 'paciente' ? currentUser.phone : undefined);
+
     const newOrder: any = {
       ...orderData,
       id: newId,
@@ -59,6 +71,12 @@ export class OrderService {
       patientDni: orderData.patientDni || currentUser?.identifier || '',
       patientEmail: orderData.patientEmail || currentUser?.email || '',
       tenantId: currentUser?.tenantId || orderData.tenantId || 'TEN-0001',
+      isForDependent,
+      dependentRelationship,
+      requestedByTitularName,
+      requestedByTitularDni,
+      requestedByTitularEmail,
+      requestedByTitularPhone,
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
       paymentAmount: isExempt ? '0' : (orderData.paymentAmount || '10000'),
@@ -70,7 +88,12 @@ export class OrderService {
     };
 
     let creatorName = 'Paciente (Autogestión)';
-    if (currentUser?.role === 'colaborador') {
+    let auditLogCreationDetails = `Solicitud de renovación ingresada para paciente ${newOrder.patientName} ${newOrder.patientLastName}`;
+
+    if (newOrder.isForDependent) {
+      creatorName = `Titular ${newOrder.requestedByTitularName || currentUser?.name || 'Titular'} (${newOrder.dependentRelationship || 'A cargo'})`;
+      auditLogCreationDetails = `Solicitud ingresada por el titular ${newOrder.requestedByTitularName || ''} para su familiar a cargo: ${newOrder.patientName} ${newOrder.patientLastName} (${newOrder.dependentRelationship || 'A cargo'})`;
+    } else if (currentUser?.role === 'colaborador') {
       newOrder.createdByOperatorId = currentUser.id;
       newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
       creatorName = `Colaborador ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
@@ -84,7 +107,7 @@ export class OrderService {
       newOrder,
       'Creada',
       creatorName,
-      `Solicitud de renovación ingresada para paciente ${newOrder.patientName} ${newOrder.patientLastName}`
+      auditLogCreationDetails
     );
 
     if (newOrder.paymentStatus === 'approved') {
@@ -392,8 +415,13 @@ export class OrderService {
         .map((d: any) => cleanDni(d.dni || d.identifier))
         .filter(Boolean);
       const orderDniClean = cleanDni(order.patientDni);
+      const titularDniClean = cleanDni(order.requestedByTitularDni);
 
-      const isOwner = orderDniClean === patientDniClean || dependentDnis.includes(orderDniClean) || (order.patientEmail && order.patientEmail === currentUser.email);
+      const isOwner = 
+        orderDniClean === patientDniClean || 
+        dependentDnis.includes(orderDniClean) || 
+        titularDniClean === patientDniClean ||
+        (order.patientEmail && order.patientEmail === currentUser.email);
       if (!isOwner) {
         throw new Error('No tiene permiso para eliminar esta solicitud.');
       }

@@ -125,7 +125,13 @@ export default function PatientDoctorChat({
 
     // 2. Merge candidate orders based on role
     const sourceOrders = isPatient 
-      ? orders.filter(o => cleanDni(o.patientDni) === cleanDni(currentUser.identifier))
+      ? orders.filter(o => {
+          const ordDni = cleanDni(o.patientDni);
+          const titularDni = cleanDni(currentUser.identifier);
+          const depDnis = (currentUser.dependents || []).map((d: any) => cleanDni(d.dni || d.identifier)).filter(Boolean);
+          const requestedBy = cleanDni(o.requestedByTitularDni);
+          return ordDni === titularDni || depDnis.includes(ordDni) || requestedBy === titularDni;
+        })
       : orders;
 
     for (const ord of sourceOrders) {

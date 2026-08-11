@@ -56,6 +56,7 @@ export default function App() {
     resetToBaseline,
     sendChatMessage,
     addDependent,
+    updateDependent,
     removeDependent,
   } = useMedicalOrders();
 
@@ -139,10 +140,10 @@ export default function App() {
     return (
       <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
         <div className="relative">
-          <div className="h-14 w-14 border-4 border-[#295EF3]/20 border-t-[#295EF3] rounded-full animate-spin" />
-          <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#295EF3] animate-pulse" />
+          <div className="h-14 w-14 border-4 border-[#1661E1]/20 border-t-[#1661E1] rounded-full animate-spin" />
+          <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#1661E1] animate-pulse" />
         </div>
-        <p className="mt-4 text-xs font-bold text-[#1C2435]">Cargando plataforma...</p>
+        <p className="mt-4 text-xs font-bold text-[#0141BC]">Cargando plataforma...</p>
       </div>
     );
   }
@@ -153,11 +154,11 @@ export default function App() {
       <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
         <div className="flex flex-col items-center gap-4 text-center">
           <div className="relative">
-            <div className="h-14 w-14 border-4 border-[#295EF3]/20 border-t-[#295EF3] rounded-full animate-spin" />
-            <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#295EF3] animate-pulse" />
+            <div className="h-14 w-14 border-4 border-[#1661E1]/20 border-t-[#1661E1] rounded-full animate-spin" />
+            <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#1661E1] animate-pulse" />
           </div>
           <div>
-            <p className="text-xs sm:text-sm font-bold text-[#1C2435]">Conectando con base de datos...</p>
+            <p className="text-xs sm:text-sm font-bold text-[#0141BC]">Conectando con base de datos...</p>
             <p className="text-[10px] text-slate-400 mt-1">Verificando firma de credenciales electrónicas</p>
           </div>
         </div>
@@ -241,12 +242,12 @@ export default function App() {
                     <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
                       {/* Notification alert of successful submission */}
                       {successSubmissionId && (
-                        <div className="max-w-6xl mx-auto bg-emerald-600/90 text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
+                        <div className="max-w-6xl mx-auto bg-[#14BE99] text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
                           <div className="flex items-center gap-2">
-                            <ShieldCheck className="h-5.5 w-5.5 text-emerald-250 shrink-0" />
+                            <ShieldCheck className="h-5.5 w-5.5 text-white shrink-0" />
                             <h4 className="font-bold text-sm">¡Pedido cargado correctamente!</h4>
                           </div>
-                          <p className="text-xs text-emerald-50 leading-relaxed font-medium">
+                          <p className="text-xs text-white/90 leading-relaxed font-medium">
                             Tu solicitud ha sido guardada. Podés verificar el estado en tiempo real en la categoría <strong>"Mis Solicitudes"</strong>. El personal de salud lo auditará a la brevedad.
                           </p>
                         </div>
@@ -262,6 +263,7 @@ export default function App() {
                         orders={orders}
                         currentUser={currentUser}
                         onAddDependent={addDependent}
+                        onUpdateDependent={updateDependent}
                         onRemoveDependent={removeDependent}
                       />
                     </div>
@@ -350,7 +352,7 @@ export default function App() {
                         </div>
 
                         <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
-                          <MapPin className="h-5 w-5 text-[#295EF3] shrink-0 mt-0.5" />
+                          <MapPin className="h-5 w-5 text-[#1661E1] shrink-0 mt-0.5" />
                           <div className="text-xs">
                             <p className="font-black text-slate-850">Hospital Municipal de Coronel Suárez</p>
                             <p className="text-slate-500 font-medium mt-1">Atención presencial administrativa: Av. Casey 802 | Teléfono: (02926) 43-2000</p>

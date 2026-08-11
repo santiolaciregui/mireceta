@@ -130,33 +130,33 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   ];
 
   return (
-    <div className="min-h-screen bg-white font-sans text-[#1C2435] selection:bg-[#295EF3] selection:text-white relative">
+    <div className="min-h-screen bg-white font-sans text-[#0141BC] selection:bg-[#1661E1] selection:text-white relative">
       
       {/* Header / Navbar */}
-      <header className="bg-white/95 backdrop-blur-md border-b border-[#1C2435]/10 sticky top-0 z-50 shadow-xs">
+      <header className="bg-[#0141BC]/95 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             
             {/* Brand Logo */}
             <div className="flex items-center cursor-pointer" onClick={scrollToTop}>
-              <Logo variant="full" size="md" />
+              <Logo variant="full" size="md" theme="dark" />
             </div>
 
             {/* Navigation links (Desktop) */}
-            <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-[#1C2435]/80">
-              <button onClick={scrollToTop} className="hover:text-[#295EF3] transition-colors border-b-2 border-[#295EF3] pb-1 text-[#295EF3] font-bold cursor-pointer">
+            <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-white/85">
+              <button onClick={scrollToTop} className="hover:text-white transition-colors border-b-2 border-[#1E6EFB] pb-1 text-white font-bold cursor-pointer">
                 Inicio
               </button>
-              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-white transition-colors cursor-pointer">
                 Cómo funciona
               </button>
-              <button onClick={handleNavCuantoCuesta} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+              <button onClick={handleNavCuantoCuesta} className="hover:text-white transition-colors cursor-pointer">
                 Cuánto cuesta
               </button>
-              <button onClick={() => scrollToSection('faq')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+              <button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors cursor-pointer">
                 Preguntas frecuentes
               </button>
-              <button onClick={() => scrollToSection('contacto')} className="hover:text-[#295EF3] transition-colors cursor-pointer">
+              <button onClick={() => scrollToSection('contacto')} className="hover:text-white transition-colors cursor-pointer">
                 Contacto
               </button>
             </nav>
@@ -165,7 +165,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => onGoToLogin('login')}
-                className="bg-[#295EF3] hover:bg-[#1C2435] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
+                className="bg-[#1661E1] hover:bg-[#1E6EFB] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-white/15"
               >
                 <User className="h-4.5 w-4.5" />
                 <span>Ingresar</span>
@@ -173,7 +173,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
               <button 
                 onClick={() => onGoToLogin('register')}
-                className="text-sm font-bold text-[#1C2435] hover:text-[#295EF3] px-3.5 sm:px-4 py-2.5 rounded-xl border border-[#1C2435]/15 hover:border-[#295EF3] transition-all bg-slate-50 cursor-pointer hidden sm:inline-flex"
+                className="text-sm font-bold text-white hover:text-white px-3.5 sm:px-4 py-2.5 rounded-xl border border-white/30 hover:border-white hover:bg-white/15 transition-all bg-white/10 cursor-pointer hidden sm:inline-flex"
               >
                 Registrarse
               </button>
@@ -181,7 +181,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               {/* Mobile hamburger button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-xl text-[#1C2435] hover:bg-slate-100 transition-colors focus:outline-hidden"
+                className="md:hidden p-2 rounded-xl text-white hover:bg-white/10 transition-colors focus:outline-hidden"
                 aria-label="Abrir menú"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -193,51 +193,51 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-b border-[#1C2435]/10 px-4 pt-2 pb-6 space-y-3 shadow-lg animate-in slide-in-from-top-2 duration-200">
-            <nav className="flex flex-col space-y-2 text-base font-semibold text-[#1C2435]">
+          <div className="md:hidden bg-[#0141BC] border-b border-white/10 px-4 pt-2 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col space-y-2 text-base font-semibold text-white">
               <button 
                 onClick={scrollToTop} 
-                className="text-left px-3 py-2 rounded-lg text-[#295EF3] bg-[#295EF3]/10 font-bold"
+                className="text-left px-3 py-2 rounded-lg text-white bg-white/15 font-bold border-l-4 border-[#1E6EFB]"
               >
                 Inicio
               </button>
               <button 
                 onClick={() => scrollToSection('como-funciona')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
               >
                 Cómo funciona
               </button>
               <button 
                 onClick={handleNavCuantoCuesta} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
               >
                 Cuánto cuesta
               </button>
               <button 
                 onClick={() => scrollToSection('faq')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
               >
                 Preguntas frecuentes
               </button>
               <button 
                 onClick={() => scrollToSection('contacto')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-slate-100 hover:text-[#295EF3] transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
               >
                 Contacto
               </button>
             </nav>
 
-            <div className="pt-2 flex flex-col gap-2 border-t border-slate-100">
+            <div className="pt-2 flex flex-col gap-2 border-t border-white/15">
               <button 
                 onClick={() => { setMobileMenuOpen(false); onGoToLogin('login'); }}
-                className="w-full bg-[#295EF3] hover:bg-[#1C2435] text-white text-base font-extrabold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full bg-[#1661E1] hover:bg-[#1E6EFB] text-white text-base font-extrabold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-white/20"
               >
                 <User className="h-5 w-5" />
                 <span>Ingresar</span>
               </button>
               <button 
                 onClick={() => { setMobileMenuOpen(false); onGoToLogin('register'); }}
-                className="w-full text-center text-sm font-bold text-[#1C2435] py-2.5 rounded-xl border border-[#1C2435]/15 bg-slate-50"
+                className="w-full text-center text-sm font-bold text-white py-2.5 rounded-xl border border-white/30 bg-white/10 hover:bg-white/20"
               >
                 Registrarse
               </button>
@@ -250,7 +250,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
       <main>
         
         {/* HERO SECTION */}
-        <section className="relative bg-[#1C2435] text-white py-16 lg:py-24 overflow-hidden">
+        <section className="relative bg-[#0141BC] text-white py-16 lg:py-24 overflow-hidden">
           {/* Background image overlay */}
           <div 
             className="absolute inset-0 bg-cover bg-center opacity-25 mix-blend-luminosity scale-105"
@@ -258,7 +258,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               backgroundImage: `url('https://images.unsplash.com/photo-1622253692010-333f2da6031d?q=80&w=1920&auto=format&fit=crop')`
             }}
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#1C2435] via-[#1C2435]/95 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#0141BC] via-[#0141BC]/95 to-transparent" />
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -266,17 +266,17 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               {/* Left Column: Text & CTAs */}
               <div className="lg:col-span-7 space-y-8 text-center lg:text-left">
                 
-                <div className="inline-flex items-center gap-2 bg-[#316F80] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md border border-white/10">
+                <div className="inline-flex items-center gap-2 bg-[#0F6C7D] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md border border-white/10">
                   <Pill className="h-4 w-4" />
                   Tu portal de recetas médicas electrónicas
                 </div>
 
                 <div className="space-y-4">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
-                    Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#295EF3]">en 24 hs.</span>
+                    Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#1E6EFB]">en 24 hs.</span>
                   </h1>
                   
-                  <p className="text-base sm:text-lg text-slate-300 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                  <p className="text-base sm:text-lg text-slate-200 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
                     Un médico matriculado evaluará tu pedido y renovará tu receta para que la entregues en la farmacia, con un mínimo costo.
                   </p>
                 </div>
@@ -289,7 +289,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       trackInitiatePrescription('landing_hero_cta');
                       onGoToLogin('login');
                     }}
-                    className="bg-[#295EF3] hover:bg-[#1C2435] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#295EF3]"
+                    className="bg-[#1661E1] hover:bg-[#1E6EFB] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#1E6EFB]"
                   >
                     <span>Solicitar Receta</span>
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -300,18 +300,18 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
               {/* Right Column: Hero Visual Graphic / Card with Vertical Steps */}
               <div className="lg:col-span-5 flex justify-center">
-                <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 text-[#1C2435] shadow-2xl border border-white/20 relative">
+                <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-7 text-[#0F172A] shadow-2xl border border-white/20 relative">
                   
                   {/* Floating badge */}
-                  <div className="absolute -top-3 -right-3 bg-[#316F80] text-white text-[11px] font-extrabold uppercase px-3.5 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-1.5">
+                  <div className="absolute -top-3 -right-3 bg-[#0F6C7D] text-white text-[11px] font-extrabold uppercase px-3.5 py-1.5 rounded-full shadow-lg border border-white/20 flex items-center gap-1.5">
                     <Sparkles className="h-3.5 w-3.5" />
                     Fácil y Rápido
                   </div>
 
                   {/* Header */}
                   <div className="mb-4">
-                    <h3 className="text-xl font-black text-[#1C2435] flex items-center gap-2">
-                      <Sparkles className="h-5 w-5 text-[#295EF3]" />
+                    <h3 className="text-xl font-black text-[#0141BC] flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-[#1661E1]" />
                       ¿Cómo funciona?
                     </h3>
                     <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -323,14 +323,14 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   <div className="space-y-3">
                     
                     {/* Step 1 */}
-                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#295EF3]/40 transition-colors">
-                      <div className="w-9 h-9 rounded-xl bg-[#295EF3]/10 text-[#295EF3] flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#1661E1]/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center shrink-0 mt-0.5">
                         <Pill className="h-4.5 w-4.5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h4 className="text-sm font-bold text-[#1C2435]">1. Completás el formulario</h4>
-                          <span className="text-[10px] font-extrabold text-[#295EF3] bg-[#295EF3]/10 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
+                          <h4 className="text-sm font-bold text-[#0141BC]">1. Completás el formulario</h4>
+                          <span className="text-[10px] font-extrabold text-[#1661E1] bg-[#1661E1]/10 px-2 py-0.5 rounded-md shrink-0">Paso 1</span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
                           Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
@@ -339,30 +339,30 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     </div>
 
                     {/* Step 2 */}
-                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#316F80]/40 transition-colors">
-                      <div className="w-9 h-9 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#0F6C7D]/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-[#0F6C7D]/10 text-[#0F6C7D] flex items-center justify-center shrink-0 mt-0.5">
                         <UserCheck className="h-4.5 w-4.5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h4 className="text-sm font-bold text-[#1C2435]">2. Validación Médica</h4>
-                          <span className="text-[10px] font-extrabold text-[#316F80] bg-[#316F80]/10 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
+                          <h4 className="text-sm font-bold text-[#0141BC]">2. Validación Médica</h4>
+                          <span className="text-[10px] font-extrabold text-[#0F6C7D] bg-[#0F6C7D]/10 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                          Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                         </p>
                       </div>
                     </div>
 
                     {/* Step 3 */}
-                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-emerald-500/40 transition-colors">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 border border-emerald-100">
+                    <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-100 flex items-start gap-3 hover:border-[#14BE99]/40 transition-colors">
+                      <div className="w-9 h-9 rounded-xl bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 mt-0.5 border border-[#14BE99]/20">
                         <FileCheck2 className="h-4.5 w-4.5" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2 mb-0.5">
-                          <h4 className="text-sm font-bold text-[#1C2435]">3. Recibís tu receta</h4>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
+                          <h4 className="text-sm font-bold text-[#0141BC]">3. Recibís tu receta</h4>
+                          <span className="text-[10px] font-extrabold text-white bg-[#14BE99] px-2 py-0.5 rounded-md shrink-0">Paso 3</span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
                           Recibís por mail o whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
@@ -384,11 +384,11 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
+              <h2 className="text-3xl sm:text-4xl font-black text-[#0141BC] tracking-tight">
                 ¿Cómo funciona?
               </h2>
               <p className="text-slate-600 text-base sm:text-lg font-medium">
-                <span className="font-bold text-[#1C2435]">Tres simples pasos</span> para obtener tu receta electrónica.
+                <span className="font-bold text-[#0141BC]">Tres simples pasos</span> para obtener tu receta electrónica.
               </p>
             </div>
 
@@ -396,15 +396,15 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             <div className="grid md:grid-cols-3 gap-8">
               
               {/* Step Card 1 */}
-              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#295EF3] transition-all relative flex flex-col justify-between group">
+              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#1661E1] transition-all relative flex flex-col justify-between group">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-12 h-12 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center font-bold text-lg group-hover:bg-[#295EF3] group-hover:text-white transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-[#0F6C7D]/10 text-[#0F6C7D] flex items-center justify-center font-bold text-lg group-hover:bg-[#1661E1] group-hover:text-white transition-colors">
                       <Pill className="h-6 w-6" />
                     </div>
-                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#295EF3] transition-colors">01</span>
+                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#1661E1] transition-colors">01</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1C2435]">Completás el formulario</h3>
+                  <h3 className="text-xl font-bold text-[#0141BC]">Completás el formulario</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
                     Ingresás tus datos y detallás o sacas una foto del medicamento que necesitás renovar de forma rápida y sencilla.
                   </p>
@@ -412,31 +412,31 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               </div>
 
               {/* Step Card 2 */}
-              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#295EF3] transition-all relative flex flex-col justify-between group">
+              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#1661E1] transition-all relative flex flex-col justify-between group">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-12 h-12 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center font-bold text-lg group-hover:bg-[#295EF3] group-hover:text-white transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-[#0F6C7D]/10 text-[#0F6C7D] flex items-center justify-center font-bold text-lg group-hover:bg-[#1661E1] group-hover:text-white transition-colors">
                       <UserCheck className="h-6 w-6" />
                     </div>
-                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#295EF3] transition-colors">02</span>
+                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#1661E1] transition-colors">02</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1C2435]">Validación Médica</h3>
+                  <h3 className="text-xl font-bold text-[#0141BC]">Validación Médica</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Un médico especialista  matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                    Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
                   </p>
                 </div>
               </div>
 
               {/* Step Card 3 */}
-              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#295EF3] transition-all relative flex flex-col justify-between group">
+              <div className="bg-white rounded-2xl p-8 shadow-xs border border-slate-200 hover:border-[#1661E1] transition-all relative flex flex-col justify-between group">
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
-                    <div className="w-12 h-12 rounded-xl bg-[#316F80]/10 text-[#316F80] flex items-center justify-center font-bold text-lg group-hover:bg-[#295EF3] group-hover:text-white transition-colors">
+                    <div className="w-12 h-12 rounded-xl bg-[#0F6C7D]/10 text-[#0F6C7D] flex items-center justify-center font-bold text-lg group-hover:bg-[#1661E1] group-hover:text-white transition-colors">
                       <FileCheck2 className="h-6 w-6" />
                     </div>
-                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#295EF3] transition-colors">03</span>
+                    <span className="text-4xl font-black text-slate-300 group-hover:text-[#1661E1] transition-colors">03</span>
                   </div>
-                  <h3 className="text-xl font-bold text-[#1C2435]">Recibís tu receta</h3>
+                  <h3 className="text-xl font-bold text-[#0141BC]">Recibís tu receta</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
                     Recibís por mail o whatsapp la receta médica electrónica valida y lista para presentar directamente en la farmacia.
                   </p>
@@ -452,7 +452,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-16">
             
             <div className="text-center max-w-3xl mx-auto space-y-3">
-              <h2 className="text-3xl sm:text-4xl font-black text-[#1C2435] tracking-tight">
+              <h2 className="text-3xl sm:text-4xl font-black text-[#0141BC] tracking-tight">
                 ¿Por qué Mi Receta Online?
               </h2>
             </div>
@@ -461,30 +461,30 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             <div className="grid md:grid-cols-3 gap-8">
               
               <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
-                <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-[#0F6C7D]/10 text-[#0F6C7D] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Clock className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-bold text-[#1C2435]">Ahorrá tiempo</h3>
+                <h3 className="text-xl font-bold text-[#0141BC]">Ahorrá tiempo</h3>
                 <p className="text-slate-600 text-sm leading-relaxed font-medium">
                   Olvidate de pedir turnos con semanas de anticipación para un simple trámite de receta.
                 </p>
               </div>
 
               <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
-                <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-[#0F6C7D]/10 text-[#0F6C7D] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <Scale className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-bold text-[#1C2435]">100% Legal</h3>
+                <h3 className="text-xl font-bold text-[#0141BC]">100% Legal</h3>
                 <p className="text-slate-600 text-sm leading-relaxed font-medium">
                   Recetas firmadas digitalmente por profesionales con matrícula vigente, aptas para farmacias y obras sociales.
                 </p>
               </div>
 
               <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:shadow-md transition-all space-y-4 text-center">
-                <div className="w-16 h-16 bg-[#316F80]/10 text-[#316F80] rounded-2xl flex items-center justify-center mx-auto mb-6">
+                <div className="w-16 h-16 bg-[#0F6C7D]/10 text-[#0F6C7D] rounded-2xl flex items-center justify-center mx-auto mb-6">
                   <ShieldCheck className="h-8 w-8" />
                 </div>
-                <h3 className="text-xl font-bold text-[#1C2435]">Privacidad Garantizada</h3>
+                <h3 className="text-xl font-bold text-[#0141BC]">Privacidad Garantizada</h3>
                 <p className="text-slate-600 text-sm leading-relaxed font-medium">
                   Tus datos de salud están encriptados y protegidos bajo normas de secreto médico.
                 </p>
@@ -496,7 +496,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         </section>
 
         {/* BANNER: Supervisión médica rigurosa */}
-        <section className="bg-[#316F80] text-white py-14 px-4">
+        <section className="bg-[#0F6C7D] text-white py-14 px-4">
           <div className="max-w-4xl mx-auto text-center space-y-3">
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
               Supervisión médica rigurosa
@@ -508,7 +508,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         </section>
 
         {/* SECTION: Preguntas Frecuentes */}
-        <section id="faq" className="bg-[#1C2435] text-white py-20 px-4">
+        <section id="faq" className="bg-[#0141BC] text-white py-20 px-4">
           <div className="max-w-6xl mx-auto space-y-12">
             
             <h2 className="text-3xl sm:text-4xl font-black text-center tracking-tight">
@@ -524,14 +524,14 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/10"
+                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/15"
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
                         className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-2.5">
-                          <span className="text-lg font-black text-[#295EF3]">
+                          <span className="text-lg font-black text-[#1E6EFB]">
                             {isOpen ? '−' : '+'}
                           </span>
                           {faq.q}
@@ -539,7 +539,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       </button>
 
                       {isOpen && (
-                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-200 font-medium leading-relaxed border-t border-white/10 bg-[#1C2435]">
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-100 font-medium leading-relaxed border-t border-white/10 bg-[#081B4B]">
                           {faq.a}
                         </div>
                       )}
@@ -556,14 +556,14 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/10"
+                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/15"
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
                         className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-2.5">
-                          <span className="text-lg font-black text-[#295EF3]">
+                          <span className="text-lg font-black text-[#1E6EFB]">
                             {isOpen ? '−' : '+'}
                           </span>
                           {faq.q}
@@ -571,7 +571,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       </button>
 
                       {isOpen && (
-                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-200 font-medium leading-relaxed border-t border-white/10 bg-[#1C2435]">
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-100 font-medium leading-relaxed border-t border-white/10 bg-[#081B4B]">
                           {faq.a}
                         </div>
                       )}
@@ -587,7 +587,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
       </main>
 
       {/* FOOTER */}
-      <footer id="contacto" className="bg-[#1C2435] border-t border-white/10 text-white pt-16 pb-0">
+      <footer id="contacto" className="bg-[#081B4B] border-t border-white/10 text-white pt-16 pb-0">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
           <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-10 text-sm">
             
@@ -606,19 +606,19 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   <button onClick={() => {
                     trackInitiatePrescription('landing_footer_link');
                     onGoToLogin('login');
-                  }} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Renovar Medicación Crónica
+                  }} className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors cursor-pointer">
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Renovar Medicación Crónica
                   </button>
                 </li>
 
                 <li>
-                  <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Cómo Funciona
+                  <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors cursor-pointer">
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Cómo Funciona
                   </button>
                 </li>
                 <li>
-                  <button onClick={handleNavCuantoCuesta} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Cuánto Cuesta
+                  <button onClick={handleNavCuantoCuesta} className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors cursor-pointer">
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Cuánto Cuesta
                   </button>
                 </li>
               </ul>
@@ -629,32 +629,32 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <h4 className="font-bold text-base text-white">Información</h4>
               <ul className="space-y-2 text-xs text-slate-300 font-medium">
                 <li>
-                  <button onClick={() => scrollToSection('faq')} className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors cursor-pointer">
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Preguntas Frecuentes
+                  <button onClick={() => scrollToSection('faq')} className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors cursor-pointer">
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Preguntas Frecuentes
                   </button>
                 </li>
                 <li>
                   <button 
                     onClick={() => openInfoModal('privacidad', 'Política de Privacidad')} 
-                    className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
+                    className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
                   >
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Política de Privacidad
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Política de Privacidad
                   </button>
                 </li>
                 <li>
                   <button 
                     onClick={() => openInfoModal('terminos', 'Términos y Condiciones')} 
-                    className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
+                    className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
                   >
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Términos y Condiciones
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Términos y Condiciones
                   </button>
                 </li>
                 <li>
                   <button 
                     onClick={() => openInfoModal('arrepentimiento', 'Arrepentimiento de compra')} 
-                    className="hover:text-[#295EF3] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
+                    className="hover:text-[#1E6EFB] flex items-center gap-1.5 transition-colors text-left cursor-pointer"
                   >
-                    <ChevronRight className="h-3 w-3 text-[#295EF3]" /> Arrepentimiento de compra
+                    <ChevronRight className="h-3 w-3 text-[#1E6EFB]" /> Arrepentimiento de compra
                   </button>
                 </li>
               </ul>
@@ -668,7 +668,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               </p>
               <div className="text-xs text-slate-300 space-y-1 font-medium">
                 <p>
-                  <a href="mailto:mireceta.online.arg@gmail.com" className="hover:text-[#295EF3] transition-colors">
+                  <a href="mailto:mireceta.online.arg@gmail.com" className="hover:text-[#1E6EFB] transition-colors">
                     mireceta.online.arg@gmail.com
                   </a>
                 </p>
@@ -681,14 +681,14 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <h4 className="font-bold text-base text-white">SEGUINOS</h4>
               <div className="space-y-2">
                 <div className="flex gap-3">
-                  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors" title="Facebook">
+                  <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#1661E1] hover:text-white transition-colors" title="Facebook">
                     <Facebook className="h-4 w-4" />
                   </a>
-                  <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#295EF3] hover:text-white transition-colors" title="@mireceta_online">
+                  <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-slate-300 hover:bg-[#1661E1] hover:text-white transition-colors" title="@mireceta_online">
                     <Instagram className="h-4 w-4" />
                   </a>
                 </div>
-                <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-[#295EF3] transition-colors font-medium">
+                <a href="https://instagram.com/mireceta_online" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-slate-300 hover:text-[#1E6EFB] transition-colors font-medium">
                   <Instagram className="h-3.5 w-3.5 text-pink-400" />
                   <span>@mireceta_online</span>
                 </a>
@@ -716,7 +716,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         <button
           onClick={scrollToTop}
           title="Volver arriba"
-          className="w-10 h-10 bg-[#1C2435] hover:bg-[#295EF3] text-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all cursor-pointer"
+          className="w-10 h-10 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all cursor-pointer"
         >
           <ArrowUp className="h-5 w-5" />
         </button>
@@ -726,7 +726,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           target="_blank"
           rel="noopener noreferrer"
           title="Contacto vía WhatsApp"
-          className="w-14 h-14 bg-[#25D366] hover:bg-[#20ba5a] text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-105"
+          className="w-14 h-14 bg-[#14BE99] hover:bg-[#0ea885] text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-105"
         >
           <MessageCircle className="h-8 w-8 fill-current" />
         </a>

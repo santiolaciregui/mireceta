@@ -29,6 +29,10 @@ export interface OfficialOrderReceiptProps {
   paymentId?: string;
   paymentStatus?: string;
   status?: string;
+  isForDependent?: boolean;
+  dependentRelationship?: string;
+  requestedByTitularName?: string;
+  requestedByTitularDni?: string;
 }
 
 export default function OfficialOrderReceipt({
@@ -52,7 +56,11 @@ export default function OfficialOrderReceipt({
   paymentMethod,
   paymentId,
   paymentStatus = 'approved',
-  status = 'En revisión'
+  status = 'En revisión',
+  isForDependent,
+  dependentRelationship,
+  requestedByTitularName,
+  requestedByTitularDni
 }: OfficialOrderReceiptProps) {
   const formattedDate = createdAt 
     ? new Date(createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -82,14 +90,14 @@ export default function OfficialOrderReceipt({
   return (
     <div className="receipt-document bg-white text-slate-900 font-sans p-8 sm:p-10 max-w-[820px] mx-auto border border-slate-300 shadow-sm print:shadow-none print:border-0 print:p-0 print:max-w-none">
       {/* Header Institucional */}
-      <div className="border-b-2 border-slate-800 pb-5 mb-6">
+      <div className="border-b-2 border-[#0141BC] pb-5 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-lg bg-[#1C2435] text-white flex items-center justify-center font-black text-sm">
+              <div className="h-8 w-8 rounded-lg bg-[#0141BC] text-white flex items-center justify-center font-black text-sm">
                 MR
               </div>
-              <span className="text-xl font-black tracking-tight text-[#1C2435]">MiReceta</span>
+              <span className="text-xl font-black tracking-tight text-[#0141BC]">MiReceta</span>
             </div>
             <p className="text-[11px] text-slate-500 font-semibold uppercase tracking-wider mt-1">
               Sistema de Gestión y Prescripción Médica Digital
@@ -100,7 +108,7 @@ export default function OfficialOrderReceipt({
             <span className="inline-block bg-slate-100 text-slate-800 text-[10px] font-mono font-extrabold uppercase px-2.5 py-1 rounded border border-slate-300">
               Documento Oficial de Trámite
             </span>
-            <p className="text-sm font-black font-mono text-slate-900 mt-1.5">
+            <p className="text-sm font-black font-mono text-[#0141BC] mt-1.5">
               N° DE GESTIÓN: {orderId || 'ORD-S/N'}
             </p>
             <p className="text-[11px] text-slate-500 font-medium">
@@ -113,7 +121,7 @@ export default function OfficialOrderReceipt({
           <h1 className="text-base font-extrabold uppercase tracking-wide text-slate-800">
             Constancia de Solicitud de Receta Médica
           </h1>
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300">
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30">
             Estado: {status || 'En Auditoría Médica'}
           </span>
         </div>
@@ -121,17 +129,24 @@ export default function OfficialOrderReceipt({
 
       {/* 1. Datos del Paciente */}
       <div className="mb-6">
-        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#295EF3] mb-3">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#1661E1] mb-3">
           1. Datos del Paciente / Solicitante
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-xs">
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Nombre Completo</span>
-            <span className="font-extrabold text-slate-800 text-sm">{patientName} {patientLastName}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">Paciente (Receptor de la Receta)</span>
+            <span className="font-extrabold text-[#0141BC] text-sm">
+              {patientName} {patientLastName}
+              {isForDependent && (
+                <span className="block text-[11px] font-bold text-purple-700">
+                  Familiar a Cargo ({dependentRelationship || 'A cargo'})
+                </span>
+              )}
+            </span>
           </div>
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Documento (DNI / CI)</span>
-            <span className="font-mono font-extrabold text-slate-800 text-sm">{patientDni || 'No especificado'}</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 block">DNI Paciente</span>
+            <span className="font-mono font-extrabold text-[#0141BC] text-sm">{patientDni || 'No especificado'}</span>
           </div>
           {patientBirthDate && (
             <div>
@@ -139,9 +154,21 @@ export default function OfficialOrderReceipt({
               <span className="font-medium text-slate-800">{patientBirthDate}</span>
             </div>
           )}
+
+          {isForDependent && (
+            <div className="col-span-2 sm:col-span-3 bg-purple-50 border border-purple-200 rounded-lg p-2.5">
+              <span className="text-[10px] uppercase font-bold text-purple-900 block">
+                Solicitado por el Titular de la Cuenta:
+              </span>
+              <span className="font-bold text-purple-950 text-xs">
+                {requestedByTitularName || 'Titular de la cuenta'} {requestedByTitularDni ? `(DNI: ${requestedByTitularDni})` : ''}
+              </span>
+            </div>
+          )}
+
           <div>
             <span className="text-[10px] uppercase font-bold text-slate-400 block">Cobertura Médica</span>
-            <span className="font-bold text-slate-800">{obraSocial || 'Particular'}</span>
+            <span className="font-bold text-[#0F6C7D]">{obraSocial || 'Particular'}</span>
           </div>
           {obraSocialNumber && (
             <div>
@@ -162,7 +189,7 @@ export default function OfficialOrderReceipt({
 
       {/* 2. Medicación Solicitada */}
       <div className="mb-6">
-        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#295EF3] mb-3">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#1661E1] mb-3">
           2. Detalle de la Medicación Solicitada
         </h2>
 
@@ -179,7 +206,7 @@ export default function OfficialOrderReceipt({
             <tbody>
               {medicationItems.map((item, idx) => (
                 <tr key={idx} className="border-b border-slate-200">
-                  <td className="p-2 border-r border-slate-200 font-bold text-slate-900">
+                  <td className="p-2 border-r border-slate-200 font-bold text-[#0141BC]">
                     {item.nombreComercial}
                     {item.droga && <span className="block text-[11px] text-slate-500 font-normal">Principio activo: {item.droga}</span>}
                   </td>
@@ -219,7 +246,7 @@ export default function OfficialOrderReceipt({
 
       {/* 3. Datos Administrativos y Pago */}
       <div className="mb-6">
-        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#295EF3] mb-3">
+        <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-600 bg-slate-100 px-3 py-1.5 rounded border-l-4 border-[#1661E1] mb-3">
           3. Datos Administrativos y Comprobante de Pago
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs bg-slate-50 p-3 rounded border border-slate-200">
