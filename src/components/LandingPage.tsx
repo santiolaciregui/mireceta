@@ -133,7 +133,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
     <div className="min-h-screen bg-white font-sans text-[#0141BC] selection:bg-[#1661E1] selection:text-white relative">
       
       {/* Header / Navbar */}
-      <header className="bg-[#0141BC]/95 backdrop-blur-md border-b border-white/10 sticky top-0 z-50 shadow-md">
+      <header className="bg-[#0F172A] border-b border-slate-800 sticky top-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-20">
             
@@ -143,8 +143,8 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             </div>
 
             {/* Navigation links (Desktop) */}
-            <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-white/85">
-              <button onClick={scrollToTop} className="hover:text-white transition-colors border-b-2 border-[#1E6EFB] pb-1 text-white font-bold cursor-pointer">
+            <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-300">
+              <button onClick={scrollToTop} className="text-white border-b-2 border-[#1661E1] pb-1 font-bold cursor-pointer transition-colors">
                 Inicio
               </button>
               <button onClick={() => scrollToSection('como-funciona')} className="hover:text-white transition-colors cursor-pointer">
@@ -165,7 +165,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => onGoToLogin('login')}
-                className="bg-[#1661E1] hover:bg-[#1E6EFB] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer border border-white/15"
+                className="bg-[#1661E1] hover:bg-[#0141BC] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
               >
                 <User className="h-4.5 w-4.5" />
                 <span>Ingresar</span>
@@ -173,7 +173,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
               <button 
                 onClick={() => onGoToLogin('register')}
-                className="text-sm font-bold text-white hover:text-white px-3.5 sm:px-4 py-2.5 rounded-xl border border-white/30 hover:border-white hover:bg-white/15 transition-all bg-white/10 cursor-pointer hidden sm:inline-flex"
+                className="text-sm font-bold text-slate-200 hover:text-white px-3.5 sm:px-4 py-2.5 rounded-xl border border-slate-700 hover:border-slate-500 transition-all bg-slate-800/80 cursor-pointer hidden sm:inline-flex"
               >
                 Registrarse
               </button>
@@ -181,7 +181,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               {/* Mobile hamburger button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-xl text-white hover:bg-white/10 transition-colors focus:outline-hidden"
+                className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-hidden"
                 aria-label="Abrir menú"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -193,51 +193,51 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#0141BC] border-b border-white/10 px-4 pt-2 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
-            <nav className="flex flex-col space-y-2 text-base font-semibold text-white">
+          <div className="md:hidden bg-[#0F172A] border-b border-slate-800 px-4 pt-2 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col space-y-2 text-base font-semibold text-slate-300">
               <button 
                 onClick={scrollToTop} 
-                className="text-left px-3 py-2 rounded-lg text-white bg-white/15 font-bold border-l-4 border-[#1E6EFB]"
+                className="text-left px-3 py-2 rounded-lg text-white bg-slate-800 font-bold border-l-4 border-[#1661E1]"
               >
                 Inicio
               </button>
               <button 
                 onClick={() => scrollToSection('como-funciona')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Cómo funciona
               </button>
               <button 
                 onClick={handleNavCuantoCuesta} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Cuánto cuesta
               </button>
               <button 
                 onClick={() => scrollToSection('faq')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Preguntas frecuentes
               </button>
               <button 
                 onClick={() => scrollToSection('contacto')} 
-                className="text-left px-3 py-2 rounded-lg hover:bg-white/10 text-white/90 hover:text-white transition-colors"
+                className="text-left px-3 py-2 rounded-lg hover:bg-slate-800 hover:text-white transition-colors"
               >
                 Contacto
               </button>
             </nav>
 
-            <div className="pt-2 flex flex-col gap-2 border-t border-white/15">
+            <div className="pt-2 flex flex-col gap-2 border-t border-slate-800">
               <button 
                 onClick={() => { setMobileMenuOpen(false); onGoToLogin('login'); }}
-                className="w-full bg-[#1661E1] hover:bg-[#1E6EFB] text-white text-base font-extrabold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer border border-white/20"
+                className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white text-base font-extrabold py-3 px-4 rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
               >
                 <User className="h-5 w-5" />
                 <span>Ingresar</span>
               </button>
               <button 
                 onClick={() => { setMobileMenuOpen(false); onGoToLogin('register'); }}
-                className="w-full text-center text-sm font-bold text-white py-2.5 rounded-xl border border-white/30 bg-white/10 hover:bg-white/20"
+                className="w-full text-center text-sm font-bold text-slate-200 py-2.5 rounded-xl border border-slate-700 bg-slate-800/80"
               >
                 Registrarse
               </button>
