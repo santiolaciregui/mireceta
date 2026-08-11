@@ -273,7 +273,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
                 <div className="space-y-4">
                   <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
-                    Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#0F6C7D]">en 24 hs.</span>
+                    Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#14BE99]">en 24 hs.</span>
                   </h1>
                   
                   <p className="text-base sm:text-lg text-slate-200 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
