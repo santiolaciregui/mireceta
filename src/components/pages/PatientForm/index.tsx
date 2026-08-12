@@ -1840,7 +1840,7 @@ export default function PatientForm({
                     onClick={() => handleSelectCard('titular')}
                     className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                       selectedCardId === 'titular'
-                        ? 'bg-white border-[#1661E1] ring-2 ring-[#1E6EFB]/20 shadow-md'
+                        ? 'bg-blue-50/80 border-[#1661E1] ring-2 ring-[#1E6EFB]/30 shadow-md'
                         : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
                     }`}
                   >
@@ -1925,7 +1925,7 @@ export default function PatientForm({
                         onClick={() => handleSelectCard(dep.id)}
                         className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-white border-[#1661E1] ring-2 ring-[#1E6EFB]/20 shadow-md'
+                            ? 'bg-blue-50/80 border-[#1661E1] ring-2 ring-[#1E6EFB]/30 shadow-md'
                             : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
                         }`}
                       >
