@@ -572,6 +572,7 @@ export default function PatientForm({
   const [curDroga, setCurDroga] = useState('');
   const [curMiligramos, setCurMiligramos] = useState('');
   const [curPresentacion, setCurPresentacion] = useState('Comprimidos');
+  const [curPresentacionOtra, setCurPresentacionOtra] = useState('');
   const [curUnidadesPorCaja, setCurUnidadesPorCaja] = useState('30');
   const [curCantidadCajas, setCurCantidadCajas] = useState('1');
   const [curDiagnostic, setCurDiagnostic] = useState('');
@@ -1023,12 +1024,12 @@ export default function PatientForm({
 
     const count = parseInt(curCantidadCajas);
     if (!curCantidadCajas || isNaN(count) || count <= 0) {
-      errors.curCantidadCajas = 'Seleccione una cantidad de cajas válida (mayor a 0).';
+      errors.curCantidadCajas = 'Seleccione una cantidad de cajas o envases válida (mayor a 0).';
     }
 
     if (Object.keys(errors).length > 0) {
       setFieldErrors(prev => ({ ...prev, ...errors }));
-      setError('Por favor complete el nombre comercial y la cantidad de cajas de la medicación.');
+      setError('Por favor complete el nombre comercial y la cantidad de cajas o envases de la medicación.');
       return;
     }
 
@@ -1039,10 +1040,14 @@ export default function PatientForm({
       medicationList: undefined
     }));
 
+    const finalPresentacion = curPresentacion === 'Otra' 
+      ? (curPresentacionOtra.trim() || 'Otra') 
+      : curPresentacion;
+
     const newItem: MedicationItem = {
       nombreComercial: curNombreComercial.trim(),
       miligramos: curMiligramos.trim(),
-      presentacion: curPresentacion,
+      presentacion: finalPresentacion,
       unidadesPorCaja: curUnidadesPorCaja ? parseInt(curUnidadesPorCaja) : undefined,
       cantidadCajas: parseInt(curCantidadCajas) || 1,
       diagnostic: curDiagnostic.trim(),
@@ -1055,6 +1060,7 @@ export default function PatientForm({
     setCurNombreComercial('');
     setCurMiligramos('');
     setCurPresentacion('Comprimidos');
+    setCurPresentacionOtra('');
     setCurUnidadesPorCaja('30');
     setCurCantidadCajas('1');
     setCurDiagnostic('');
@@ -1132,7 +1138,7 @@ export default function PatientForm({
       let summaryText = '';
       if (medicationItems.length > 0) {
         summaryText = medicationItems.map(item => 
-          `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
+          `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}${item.unidadesPorCaja ? `, ${item.unidadesPorCaja} u/caja` : ''} x ${item.cantidadCajas} cajas`
         ).join('\n');
         if (medicationPhotos.length > 0) {
           summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
@@ -2166,7 +2172,7 @@ export default function PatientForm({
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-400">Cantidad:</span>
                           <span className="font-bold text-slate-800">
-                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.unidadesPorCaja ? `(${item.unidadesPorCaja} comp. / envase)` : ''}
+                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.presentacion ? `(${item.presentacion})` : ''}
                           </span>
                         </div>
 
@@ -2346,23 +2352,38 @@ export default function PatientForm({
                       </div>
 
                       <div>
-                        <label htmlFor="cur-unidades" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Cant. de Comprimidos
+                        <label htmlFor="cur-presentacion" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                          Presentación
                         </label>
-                        <input
-                          id="cur-unidades"
-                          type="number"
-                          min="1"
-                          value={curUnidadesPorCaja}
-                          onChange={(e) => setCurUnidadesPorCaja(e.target.value)}
-                          placeholder="Ej. 30, 60"
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <select
+                          id="cur-presentacion"
+                          value={curPresentacion}
+                          onChange={(e) => setCurPresentacion(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                        >
+                          <option value="Comprimidos">Comprimidos</option>
+                          <option value="Gotas">Gotas</option>
+                          <option value="Crema">Crema</option>
+                          <option value="Gel">Gel</option>
+                          <option value="Sobres">Sobres</option>
+                          <option value="Polvo">Polvo</option>
+                          <option value="Solución">Solución</option>
+                          <option value="Otra">Otra</option>
+                        </select>
+                        {curPresentacion === 'Otra' && (
+                          <input
+                            type="text"
+                            value={curPresentacionOtra}
+                            onChange={(e) => setCurPresentacionOtra(e.target.value)}
+                            placeholder="Especificar presentación..."
+                            className="w-full mt-2 px-3.5 py-2 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        )}
                       </div>
 
                       <div>
                         <label htmlFor="cur-cajas" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Cantidad de Cajas <span className="text-red-500">*</span>
+                          Cantidad de cajas o envases <span className="text-red-500">*</span>
                         </label>
                         <select
                           id="cur-cajas"

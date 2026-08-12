@@ -143,7 +143,7 @@ export default function NewOrderForm({
     }
     const count = parseInt(curCantidadCajas) || 1;
     if (count <= 0) {
-      errors.curCantidadCajas = 'La cantidad de cajas debe ser mayor a 0.';
+      errors.curCantidadCajas = 'La cantidad de cajas o envases debe ser mayor a 0.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -691,7 +691,7 @@ export default function NewOrderForm({
 
               <div className="flex justify-between items-center pt-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 font-medium">Cantidad de cajas:</span>
+                  <span className="text-xs text-slate-600 font-medium">Cantidad de cajas o envases :</span>
                   <select
                     value={curCantidadCajas}
                     onChange={e => {
