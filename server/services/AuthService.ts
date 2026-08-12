@@ -17,8 +17,8 @@ export class AuthService {
   }
 
   async login(identifier: string, password: string) {
-    const cleanIdentifier = cleanDni(identifier) || identifier;
-    const user = await this.userRepo.findByIdentifier(cleanIdentifier);
+    const rawIdentifier = (identifier || '').trim();
+    const user = await this.userRepo.findByIdentifier(rawIdentifier);
     if (!user) throw new Error('Usuario no registrado en el sistema médico.');
     if (user.status === 'Inactivo') throw new Error('La cuenta de este usuario está suspendida o inactiva.');
 
@@ -145,8 +145,8 @@ export class AuthService {
 
   async forgotPassword(identifier: string, email: string) {
     let user;
-    if (identifier) user = await this.userRepo.findByIdentifier(cleanDni(identifier) || identifier);
-    else if (email) user = await this.userRepo.findByEmail(email);
+    if (identifier) user = await this.userRepo.findByIdentifier(identifier.trim());
+    else if (email) user = await this.userRepo.findByEmail(email.trim());
 
     if (!user) {
       throw new Error('No se encontró ningún usuario con los datos ingresados.');

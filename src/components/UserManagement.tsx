@@ -59,8 +59,9 @@ export default function UserManagement({
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Error state
+  // Error state and loading state
   const [errorMess, setErrorMess] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
     setEditingUserId(null);
@@ -94,7 +95,7 @@ export default function UserManagement({
     setShowModal(true);
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMess('');
 
@@ -121,7 +122,7 @@ export default function UserManagement({
     const userData: any = {
       name: firstName.trim(),
       lastName: lastName.trim(),
-      email: email.trim() || 'sin-correo@suarez.gob.ar',
+      email: email.trim(),
       role,
       identifier: identifier.trim(),
       status,
@@ -131,13 +132,19 @@ export default function UserManagement({
             : {} )
     };
 
-    if (editingUserId) {
-      onUpdateUser(editingUserId, userData);
-    } else {
-      onAddUser(userData);
+    setIsSaving(true);
+    try {
+      if (editingUserId) {
+        await onUpdateUser(editingUserId, userData);
+      } else {
+        await onAddUser(userData);
+      }
+      setShowModal(false);
+    } catch (err: any) {
+      setErrorMess(err.message || 'Error al guardar el usuario en el servidor.');
+    } finally {
+      setIsSaving(false);
     }
-
-    setShowModal(false);
   };
 
   const handleToggleStatus = (user: SystemUser) => {
@@ -624,16 +631,24 @@ export default function UserManagement({
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl transition-all cursor-pointer"
+                  disabled={isSaving}
+                  className="flex-1 py-2.5 border border-slate-200 hover:bg-slate-50 text-xs font-bold text-slate-650 rounded-xl transition-all cursor-pointer disabled:opacity-50"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer"
+                  disabled={isSaving}
+                  className="flex-1 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-md hover:shadow-lg cursor-pointer disabled:opacity-50"
                 >
-                  <Check className="h-4 w-4" />
-                  <span>Guardar</span>
+                  {isSaving ? (
+                    <span>Guardando...</span>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Guardar</span>
+                    </>
+                  )}
                 </button>
               </div>
 

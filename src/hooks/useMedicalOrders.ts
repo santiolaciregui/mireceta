@@ -320,52 +320,44 @@ export function useMedicalOrders() {
 
   // Create user (Admin)
   const createUser = async (userData: Omit<SystemUser, 'id'>): Promise<string> => {
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: fetchHeaders(),
-        body: JSON.stringify(userData),
-      });
-      if (!res.ok) throw new Error('Error al registrar usuario');
-      const newUser = await res.json();
-      setUsers((prev) => [...prev, newUser]);
-      return newUser.id;
-    } catch (err) {
-      console.error(err);
-      return `USR-${Math.floor(10 + Math.random() * 90)}`;
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: fetchHeaders(),
+      body: JSON.stringify(userData),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Error al registrar usuario');
     }
+    setUsers((prev) => [...prev, data]);
+    return data.id;
   };
 
   // Update user (Admin)
   const updateUser = async (userId: string, updates: Partial<SystemUser>) => {
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: fetchHeaders(),
-        body: JSON.stringify(updates),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setUsers((prev) => prev.map((u) => (u.id === userId ? updated : u)));
-      }
-    } catch (err) {
-      console.error(err);
+    const res = await fetch(`/api/users/${userId}`, {
+      method: 'PUT',
+      headers: fetchHeaders(),
+      body: JSON.stringify(updates),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Error al actualizar usuario');
     }
+    setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
   };
 
   // Delete user (Admin)
   const deleteUser = async (userId: string) => {
-    try {
-      const res = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: fetchHeaders(),
-      });
-      if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-      }
-    } catch (err) {
-      console.error(err);
+    const res = await fetch(`/api/users/${userId}`, {
+      method: 'DELETE',
+      headers: fetchHeaders(),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Error al eliminar usuario');
     }
+    setUsers((prev) => prev.filter((u) => u.id !== userId));
   };
 
   // Reset demo databases

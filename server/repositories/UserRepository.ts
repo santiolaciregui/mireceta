@@ -6,14 +6,19 @@ export class UserRepository {
     return User.findOne({ id });
   }
 
-  async findByIdentifier(identifier: string): Promise<IUser | null> {
-    const raw = identifier.trim();
-    const clean = cleanDni(raw);
+  async findByIdentifier(identifierOrEmail: string): Promise<IUser | null> {
+    if (!identifierOrEmail) return null;
+    const raw = identifierOrEmail.trim();
+    const escaped = raw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
     const conditions: Record<string, unknown>[] = [
-      { identifier: { $regex: new RegExp(`^${raw}$`, 'i') } }
+      { identifier: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+      { email: { $regex: new RegExp(`^${escaped}$`, 'i') } }
     ];
-    if (clean) {
+
+    const clean = cleanDni(raw);
+    // Only search cleaned digits if raw input looks like a formatted number/DNI (e.g. 34.555.888)
+    if (clean && /^[\d\.\s\-]+$/.test(raw) && clean !== raw) {
       conditions.push({ identifier: clean });
     }
 
