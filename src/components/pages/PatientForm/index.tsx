@@ -1260,7 +1260,7 @@ export default function PatientForm({
     let summaryText = '';
     if (medicationItems.length > 0) {
       summaryText = medicationItems.map(item => 
-        `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}, ${item.unidadesPorCaja} u/caja x ${item.cantidadCajas} cajas`
+        `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}${item.unidadesPorCaja ? `, ${item.unidadesPorCaja} u/caja` : ''} x ${item.cantidadCajas} cajas`
       ).join('\n');
       if (medicationPhotos.length > 0) {
         summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
@@ -2052,12 +2052,10 @@ export default function PatientForm({
               </label>
               <select
                 id="delivery-method"
-                value={deliveryMethod}
-                onChange={(e) => setDeliveryMethod(e.target.value as any)}
-                className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:outline-none cursor-pointer text-xs"
+                value="both"
+                disabled
+                className="w-full px-4 py-3 bg-slate-100 border border-slate-250 rounded-xl font-semibold text-[#0F172A] opacity-90 cursor-not-allowed text-xs"
               >
-                <option value="email">Únicamente por Correo Electrónico (PDF)</option>
-                <option value="whatsapp">Únicamente por WhatsApp (PDF)</option>
                 <option value="both">Enviar por Ambos Medios (Email y WhatsApp)</option>
               </select>
             </div>

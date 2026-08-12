@@ -67,7 +67,7 @@ export default function NewOrderForm({
   const [patientGender, setPatientGender] = useState<'M' | 'F' | 'X'>('M');
   const [patientEmail, setPatientEmail] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
-  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('email');
+  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('both');
   const [selectedObraSocial, setSelectedObraSocial] = useState('');
   const [obraSocialNumber, setObraSocialNumber] = useState('');
 
