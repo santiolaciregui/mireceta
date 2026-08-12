@@ -145,17 +145,26 @@ export class AuthService {
 
   async forgotPassword(identifier: string, email: string) {
     let user;
-    if (identifier) user = await this.userRepo.findByIdentifier(identifier.trim());
-    else if (email) user = await this.userRepo.findByEmail(email.trim());
+    const rawIdentifier = (identifier || '').trim();
+    const cleanInput = rawIdentifier ? (cleanDni(rawIdentifier) || rawIdentifier) : '';
+
+    if (rawIdentifier) {
+      user = await this.userRepo.findByIdentifier(rawIdentifier);
+      if (!user && cleanInput) {
+        user = await this.userRepo.findByIdentifier(cleanInput);
+      }
+    } else if (email) {
+      user = await this.userRepo.findByEmail(email.trim());
+    }
 
     if (!user) {
-      throw new Error('No se encontró ningún usuario con los datos ingresados.');
+      throw new Error('No existe ningún usuario registrado con el DNI o correo electrónico ingresado.');
     }
 
     return {
       success: true,
       email: user.email,
-      message: `Enlace de restablecimiento enviado con éxito a su casilla registrada: ${user.email}`,
+      message: `Hemos enviado las instrucciones para restablecer tu contraseña al correo electrónico: ${user.email || 'registrado en tu cuenta'}.`,
     };
   }
 }

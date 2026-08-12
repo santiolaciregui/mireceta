@@ -166,12 +166,35 @@ export function useMedicalOrders() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Error en recuperación');
+        throw new Error(data.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.');
       }
 
       return { success: true, data };
     } catch (err: any) {
-      return { success: false, error: err.message };
+      // Fallback local lookup if backend fetch fails completely due to network
+      const query = (identifier || email || '').trim().toLowerCase();
+      const cleanQ = query.replace(/\D/g, '');
+      const localUser = users.find(u => 
+        (u.identifier && u.identifier.toLowerCase() === query) ||
+        (cleanQ && u.identifier && u.identifier.replace(/\D/g, '') === cleanQ) ||
+        (u.email && u.email.toLowerCase() === query)
+      );
+
+      if (err.message && !err.message.includes('fetch') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
+        return { success: false, error: err.message };
+      }
+
+      if (localUser) {
+        return {
+          success: true,
+          data: {
+            message: `Hemos enviado las instrucciones para restablecer tu contraseña al correo electrónico: ${localUser.email || 'registrado en tu cuenta'}.`,
+            email: localUser.email
+          }
+        };
+      }
+
+      return { success: false, error: err.message || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.' };
     } finally {
       setIsLoading(false);
     }

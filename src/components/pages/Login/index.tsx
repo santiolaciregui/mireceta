@@ -57,6 +57,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const [regBirthDate, setRegBirthDate] = useState('');
   const [regPhone, setRegPhone] = useState('');
   const [regObraSocial, setRegObraSocial] = useState('');
+  const [regCustomObraSocial, setRegCustomObraSocial] = useState('');
   const [regObraSocialNumber, setRegObraSocialNumber] = useState('');
   const [regStep, setRegStep] = useState<1 | 2>(1); // 1: Datos, 2: T&C + DDJJ
 
@@ -79,6 +80,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     birthDate?: string;
     phone?: string;
     obraSocial?: string;
+    customObraSocial?: string;
     obraSocialNumber?: string;
     email?: string;
     password?: string;
@@ -183,6 +185,10 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
 
     if (!regObraSocial) {
       errors.obraSocial = 'Debe seleccionar su cobertura médica u obra social.';
+    } else if (regObraSocial === 'Otra Obra Social / Prepaga') {
+      if (!regCustomObraSocial.trim()) {
+        errors.customObraSocial = 'Por favor escriba el nombre de su Obra Social o Prepaga.';
+      }
     } else {
       const selectedOs = OBRA_SOCIAL_OPTIONS.find(o => o.name === regObraSocial);
       if (selectedOs?.requiresNumber && !regObraSocialNumber.trim()) {
@@ -226,6 +232,8 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     setRegErrors({});
 
     if (onRegister) {
+      const finalObraSocial = regObraSocial === 'Otra Obra Social / Prepaga' ? regCustomObraSocial.trim() : regObraSocial;
+
       const res = await onRegister({
         identifier: regIdentifier.trim(),
         password: regPassword.trim(),
@@ -234,7 +242,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
         email: regEmail.trim(),
         phone: regPhone.trim(),
         birthDate: regBirthDate,
-        obraSocial: regObraSocial,
+        obraSocial: finalObraSocial,
         obraSocialNumber: regObraSocialNumber.trim(),
         consentsAccepted: {
           isOfAge: consentAge,
@@ -262,8 +270,9 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
 
     const cleanInput = forgotInput.trim();
     if (!cleanInput) {
-      setForgotErrors({ forgotInput: 'Por favor ingrese su DNI o correo electrónico registrado.' });
-      setErrorMsg('Por favor ingrese su número de DNI o email registrado.');
+      const errMsg = 'Por favor ingrese su DNI o correo electrónico registrado.';
+      setForgotErrors({ forgotInput: errMsg });
+      setErrorMsg(errMsg);
       return;
     }
 
@@ -273,7 +282,9 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       if (res.success) {
         setForgotSuccessMsg(res.data?.message || 'Instrucciones de recuperación enviadas con éxito a su casilla de correo electrónico.');
       } else {
-        setErrorMsg(res.error || 'No se encontró ningún usuario registrado con esos datos.');
+        const errMsg = res.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.';
+        setErrorMsg(errMsg);
+        setForgotErrors({ forgotInput: errMsg });
       }
     } else {
       setForgotSuccessMsg('Se ha enviado un correo electrónico para reestablecer la contraseña.');
@@ -704,6 +715,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                           onChange={(e) => {
                             setRegObraSocial(e.target.value);
                             if (regErrors.obraSocial) setRegErrors(prev => ({ ...prev, obraSocial: undefined }));
+                            if (regErrors.customObraSocial) setRegErrors(prev => ({ ...prev, customObraSocial: undefined }));
                           }}
                           className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium transition-all outline-hidden cursor-pointer ${
                             regErrors.obraSocial
@@ -753,6 +765,34 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       </div>
                     )}
                   </div>
+
+                  {regObraSocial === 'Otra Obra Social / Prepaga' && (
+                    <div className="space-y-1.5 animate-fadeIn mt-3">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        Nombre de la Obra Social / Prepaga <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={regCustomObraSocial}
+                        onChange={(e) => {
+                          setRegCustomObraSocial(e.target.value);
+                          if (regErrors.customObraSocial) setRegErrors(prev => ({ ...prev, customObraSocial: undefined }));
+                        }}
+                        placeholder="Escriba el nombre de su Obra Social o Prepaga..."
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.customObraSocial
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
+                      />
+                      {regErrors.customObraSocial && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.customObraSocial}</span>
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {/* Field: Email */}
                   <div className="space-y-1.5">
@@ -885,24 +925,28 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                     </label>
 
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentTerms
+                      consentSworn
                         ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
-                        : regErrors.consents && !consentTerms
+                        : regErrors.consents && !consentSworn
                           ? 'bg-rose-50/50 border-rose-300'
                           : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
-                        checked={consentTerms} 
+                        checked={consentSworn} 
                         onChange={(e) => {
-                          setConsentTerms(e.target.checked);
+                          setConsentSworn(e.target.checked);
                           if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
                         }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Acepto los Términos y Condiciones <span className="text-red-500">*</span></span>
-                        <span className="text-[11px] text-slate-500 font-medium">Acepto las condiciones generales del servicio de telemedicina.</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">
+                          Declaración jurada <span className="text-[#0F6C7D] font-normal text-[11px] ml-1">(Obligatorio)</span> <span className="text-red-500">*</span>
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium leading-relaxed block mt-0.5">
+                          Declaro que la información brindada es verdadera y completa. Comprendo que proporcionar información falsa puede constituir un delito según la legislación vigente.
+                        </span>
                       </div>
                     </label>
 
@@ -923,30 +967,38 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Consentimiento Informado <span className="text-red-500">*</span></span>
-                        <span className="text-[11px] text-slate-500 font-medium">Entiendo que la emisión queda sujeta al criterio médico profesional.</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">
+                          Consentimiento del servicio <span className="text-[#0F6C7D] font-normal text-[11px] ml-1">(Obligatorio)</span> <span className="text-red-500">*</span>
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium leading-relaxed block mt-0.5">
+                          Entiendo que este es un servicio de renovación de tratamientos crónicos ya indicados por un médico. Este servicio NO reemplaza la consulta médica periódica. El profesional puede rechazar mi solicitud si considera que requiero evaluación presencial.
+                        </span>
                       </div>
                     </label>
 
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentSworn
+                      consentTerms
                         ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
-                        : regErrors.consents && !consentSworn
+                        : regErrors.consents && !consentTerms
                           ? 'bg-rose-50/50 border-rose-300'
                           : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
-                        checked={consentSworn} 
+                        checked={consentTerms} 
                         onChange={(e) => {
-                          setConsentSworn(e.target.checked);
+                          setConsentTerms(e.target.checked);
                           if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
                         }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Declaración Jurada (DDJJ) <span className="text-red-500">*</span></span>
-                        <span className="text-[11px] text-slate-500 font-medium">Declaro bajo juramento que los datos suministrados son reales.</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">
+                          Política de privacidad <span className="text-[#0F6C7D] font-normal text-[11px] ml-1">(Obligatorio)</span> <span className="text-red-500">*</span>
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium leading-relaxed block mt-0.5">
+                          Acepto los Términos y Condiciones y la Política de Privacidad. Autorizo el tratamiento de mis datos de salud según la Ley 25.326 de Protección de Datos Personales.
+                        </span>
                       </div>
                     </label>
 
@@ -1042,22 +1094,27 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
 
                 </form>
               ) : (
-                <div className="space-y-4 text-center py-4">
-                  <div className="w-14 h-14 bg-[#14BE99]/20 text-[#14BE99] rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="h-8 w-8" />
+                <div className="space-y-4 text-center py-2 animate-fadeIn">
+                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
+                    <CheckCircle2 className="h-9 w-9 text-[#14BE99]" />
                   </div>
-                  <h3 className="text-base font-bold text-[#0141BC]">Solicitud Enviada</h3>
-                  <p className="text-xs text-slate-600 font-medium max-w-sm mx-auto">
-                    Si los datos coinciden con un usuario registrado, recibirás un correo con el enlace de recuperación.
-                  </p>
+                  <h3 className="text-base font-black text-[#0141BC]">¡Solicitud Enviada con Éxito!</h3>
+                  <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed font-medium max-w-sm mx-auto text-left shadow-xs space-y-2.5">
+                    <p className="font-semibold">{forgotSuccessMsg}</p>
+                    <p className="text-[11px] text-emerald-800/90 pt-2 border-t border-emerald-200/80">
+                      💡 <strong>Recuerde:</strong> Si no encuentra el correo en su bandeja principal dentro de los próximos minutos, por favor revise su carpeta de <strong>Correo no deseado (SPAM)</strong> o Promociones.
+                    </p>
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       setActiveMode('login');
                       setForgotSuccessMsg(null);
                       setErrorMsg(null);
+                      setForgotInput('');
+                      setForgotErrors({});
                     }}
-                    className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md cursor-pointer text-xs"
+                    className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer text-xs uppercase tracking-wider"
                   >
                     Volver a Iniciar Sesión
                   </button>

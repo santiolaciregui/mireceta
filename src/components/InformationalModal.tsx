@@ -79,28 +79,27 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
               <div className="bg-[#0F6C7D]/5 border border-[#0F6C7D]/20 rounded-xl p-4 text-[#0141BC] flex items-start gap-3">
                 <FileText className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
                 <p className="text-xs">
-                  Al solicitar una receta o consulta digital en nuestra plataforma, aceptás los presentes Términos y Condiciones del Servicio de Telemedicina Asincrónica.
+                  Al solicitar un servicio en nuestra plataforma, aceptás los presentes Términos y Condiciones oficiales de Mireceta.online.
                 </p>
               </div>
 
               <section className="space-y-2">
-                <h4 className="font-bold text-base text-[#0141BC]">1. Alcance de la Plataforma</h4>
+                <h4 className="font-bold text-base text-[#0141BC]">1. Naturaleza de la Plataforma y Aceptación</h4>
                 <p>
-                  Mi Receta Online es un conector tecnológico entre pacientes y médicos matriculados. La emisión de recetas u órdenes de estudio es un acto exclusivo del médico actuante bajo su criterio profesional.
+                  Mireceta.online (en adelante, la «Plataforma») es una plataforma tecnológica de intermediación cuyo objeto exclusivo es facilitar el contacto entre pacientes (en adelante, el «Usuario») y profesionales de la salud independientes debidamente matriculados. Mireceta.online no es un prestador de servicios de salud: no ejerce la medicina, no emite recetas, no realiza diagnósticos ni brinda tratamientos de ninguna índole.
+                </p>
+                <p>
+                  El servicio de Mireceta.online se limita exclusivamente a conectar al Usuario con profesionales de la salud matriculados, quienes actúan de forma autónoma e independiente en el marco de la relación médico-paciente.
+                </p>
+                <p>
+                  El acceso y uso de la Plataforma implican la aceptación plena e incondicional de estos Términos y Condiciones, incluyendo el Consentimiento Informado contenido en la Sección 6. El Usuario declara ser mayor de 18 años o, en caso de ser menor, que accede a la Plataforma a través de su representante legal. Toda la información brindada por el Usuario posee carácter de Declaración Jurada.
                 </p>
               </section>
 
               <section className="space-y-2">
-                <h4 className="font-bold text-base text-[#0141BC]">2. Emergencias y Urgencias</h4>
+                <h4 className="font-bold text-base text-[#0141BC]">2. Marco Normativo</h4>
                 <p>
-                  <strong>NO ATENDEMOS URGENCIAS NI EMERGENCIAS MÉDICAS.</strong> Ante cualquier síntoma agudo o de gravedad, el usuario debe comunicarse inmediatamente al 107 (SAME) o dirigirse a la guardia médica más cercana.
-                </p>
-              </section>
-
-              <section className="space-y-2">
-                <h4 className="font-bold text-base text-[#0141BC]">3. Prescripción y Firma Digital</h4>
-                <p>
-                  Todas las recetas emitidas cuentan con Firma Digital legalmente respaldada y código QR para su directa presentación en farmacias de la República Argentina.
+                  El servicio opera conforme a las normativas de Telemedicina, Firma Digital (Ley 25.506) y Protección de Datos Personales (Ley 25.326) aplicables en la República Argentina.
                 </p>
               </section>
             </>
