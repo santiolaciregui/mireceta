@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMedicalOrders } from './hooks/useMedicalOrders';
 import Navbar from './components/Navbar';
 import PatientForm from './components/PatientForm';
@@ -63,6 +63,21 @@ export default function App() {
   // Sidebar Layout Navigation state
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [activeSubcategory, setActiveSubcategory] = useState<string>('');
+
+  // Footer scroll-reveal: show footer only after user has scrolled down in any scrollable container
+  const [hasScrolled, setHasScrolled] = useState(false);
+  useEffect(() => {
+    const handleScroll = (e: Event) => {
+      const target = e.target as Element;
+      if (target && target.scrollTop > 40) {
+        setHasScrolled(true);
+      } else if (target && target.scrollTop === 0) {
+        setHasScrolled(false);
+      }
+    };
+    document.addEventListener('scroll', handleScroll, { passive: true, capture: true });
+    return () => document.removeEventListener('scroll', handleScroll, { capture: true });
+  }, []);
   const [chatSelectedOrderId, setChatSelectedOrderId] = useState<string | null>(null);
 
   // Sub-tabs for Patient interface (Legacy compatibility)
@@ -234,7 +249,7 @@ export default function App() {
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Mi Receta Online</h1>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Solicitar Receta</h1>
                         <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Solicita tu medicación de forma ágil y segura.</p>
                       </div>
                     </header>
@@ -488,9 +503,16 @@ export default function App() {
 
         </main>
 
-        {/* Minimalist layout footer - only shown when not in full-screen chat view */}
+        {/* Minimalist layout footer - only shown when not in full-screen chat view, and only after user scrolls */}
         {activeSubcategory !== 'chat' && (
-          <footer className="border-t border-slate-200/60 py-3 sm:py-6 text-slate-400 text-center text-[10px] sm:text-[11px] font-semibold shrink-0 bg-white">
+          <footer
+            className="border-t border-slate-200/60 py-3 sm:py-6 text-slate-400 text-center text-[10px] sm:text-[11px] font-semibold shrink-0 bg-white transition-all duration-300"
+            style={{
+              opacity: hasScrolled ? 1 : 0,
+              transform: hasScrolled ? 'translateY(0)' : 'translateY(100%)',
+              pointerEvents: hasScrolled ? 'auto' : 'none',
+            }}
+          >
             <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2">
               <span>Mi Receta Online © 2026</span>
               <span className="text-[9px] sm:text-[10px] text-slate-400/80">

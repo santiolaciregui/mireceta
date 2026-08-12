@@ -366,11 +366,11 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
   };
 
   const isPatientExpanded = (patientKey: string) => {
-    // By default, if search is active or first few, we expand; otherwise default to expanded
+    // By default all groups start collapsed; user can expand individually or use "Expand All"
     if (expandedPatients[patientKey] !== undefined) {
       return expandedPatients[patientKey];
     }
-    return true; // default expanded for clear visual inspection
+    return false; // default collapsed on first load
   };
 
   const expandAll = () => {

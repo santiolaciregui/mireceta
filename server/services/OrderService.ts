@@ -49,8 +49,7 @@ export class OrderService {
     const newId = generateOrderId();
     const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
-    const isExempt = orderData.obraSocial === 'PAMI (Inssjp)' || 
-      orderData.paymentMethod === 'bonificado' || 
+    const isExempt = orderData.paymentMethod === 'bonificado' || 
       String(orderData.paymentAmount) === '0' ||
       orderData.paymentStatus === 'exempt';
 
@@ -121,7 +120,7 @@ export class OrderService {
       addAuditLogEntry(
         newOrder,
         'Arancel exento',
-        'Sistema (Convenio / PAMI)',
+        'Sistema (Convenio / Bonificado)',
         `Solicitud registrada como exenta / bonificada (arancel $0).`
       );
     }

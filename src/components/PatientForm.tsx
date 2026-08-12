@@ -210,7 +210,7 @@ export default function PatientForm({
   const [patientBirthDate, setPatientBirthDate] = useState(currentUser?.birthDate || '');
   const [patientEmail, setPatientEmail] = useState(currentUser?.email || '');
   const [patientPhone, setPatientPhone] = useState(currentUser?.phone || '');
-  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('email');
+  const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('both');
   const [selectedObraSocial, setSelectedObraSocial] = useState(currentUser?.obraSocial || '');
   const [obraSocialNumber, setObraSocialNumber] = useState(currentUser?.obraSocialNumber || '');
 
@@ -537,7 +537,7 @@ export default function PatientForm({
       const phone = foundOrder?.patientPhone || foundUser?.phone || '';
       const obraSocial = foundOrder?.obraSocial || foundUser?.obraSocial || '';
       const osNumber = foundOrder?.obraSocialNumber || foundUser?.obraSocialNumber || '';
-      const dMethod = foundOrder?.deliveryMethod || 'email';
+      const dMethod = foundOrder?.deliveryMethod || 'both';
 
       if (name) setPatientName(name);
       if (lastName) setPatientLastName(lastName);
@@ -679,7 +679,7 @@ export default function PatientForm({
       if (!patientPhone && lastOrder.patientPhone) {
         setPatientPhone(lastOrder.patientPhone);
       }
-      if (!deliveryMethod && lastOrder.deliveryMethod) {
+      if (lastOrder.deliveryMethod) {
         setDeliveryMethod(lastOrder.deliveryMethod);
       }
       if (!selectedObraSocial && lastOrder.obraSocial) {
@@ -746,18 +746,14 @@ export default function PatientForm({
     }, 6000);
   };
 
-  // Calculate costs based on medications count and PAMI exemption
+  // Calculate costs based on medications count
   useEffect(() => {
-    if (selectedObraSocial === 'PAMI (Inssjp)') {
-      setPaymentAmount('0');
-    } else {
-      const itemsCount = medicationItems.length;
-      const photosCount = medicationPhotos.length;
-      const count = (itemsCount + photosCount) > 0 ? (itemsCount + photosCount) : 1;
-      
-      const calculated = Math.max(1, Math.ceil(count / 2)) * 10000;
-      setPaymentAmount(calculated.toString());
-    }
+    const itemsCount = medicationItems.length;
+    const photosCount = medicationPhotos.length;
+    const count = (itemsCount + photosCount) > 0 ? (itemsCount + photosCount) : 1;
+
+    const calculated = Math.max(1, Math.ceil(count / 2)) * 10000;
+    setPaymentAmount(calculated.toString());
   }, [selectedObraSocial, medicationItems.length, medicationPhotos.length]);
 
   // --- Age calculation helper ---
@@ -1126,13 +1122,6 @@ export default function PatientForm({
 
   const processMercadoPagoPayment = async () => {
     setError(null);
-    
-    // If PAMI, no payment is required!
-    if (selectedObraSocial === 'PAMI (Inssjp)') {
-      setMpPaymentApproved(true);
-      setMpTransactionId('MP-PAMI-BONIFICADO');
-      return;
-    }
 
     setMpProcessing(true);
 
@@ -1241,7 +1230,7 @@ export default function PatientForm({
     setError(null);
 
     // Final payment checks
-    if (selectedObraSocial !== 'PAMI (Inssjp)' && paymentMethod !== 'cash_desk') {
+    if (paymentMethod !== 'cash_desk') {
       if (paymentMethod === 'mp' && !mpPaymentApproved) {
         // Direct execution of Mercado Pago payment redirect
         processMercadoPagoPayment();
@@ -1323,7 +1312,7 @@ export default function PatientForm({
       paymentId: paymentMethod === 'cash_desk'
         ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
         : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`),
-      paymentStatus: (selectedObraSocial === 'PAMI (Inssjp)' || paymentAmount === '0') ? 'exempt' : 'approved',
+      paymentStatus: paymentAmount === '0' ? 'exempt' : 'approved',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
@@ -1369,7 +1358,7 @@ export default function PatientForm({
     const displayPatientDni = patientDni || matchedOrder?.patientDni || currentUser?.identifier || '';
     const displayObraSocial = selectedObraSocial || matchedOrder?.obraSocial || currentUser?.obraSocial || 'Particular';
     const displayObraSocialNumber = obraSocialNumber || matchedOrder?.obraSocialNumber || currentUser?.obraSocialNumber || '';
-    const displayDeliveryMethod = deliveryMethod || matchedOrder?.deliveryMethod || 'email';
+    const displayDeliveryMethod = deliveryMethod || matchedOrder?.deliveryMethod || 'both';
     const displayMedicationItems = (medicationItems && medicationItems.length > 0)
       ? medicationItems
       : (matchedOrder?.medicationItems || []);
@@ -2694,53 +2683,24 @@ export default function PatientForm({
                 </div>
 
                 <div className="text-right">
-                  {selectedObraSocial === 'PAMI (Inssjp)' ? (
-                    <div>
-                      <span className="text-lg font-black text-emerald-400">GRATIS</span>
-                      <p className="text-[9px] text-emerald-350 font-extrabold uppercase">Bonificado PAMI</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <span className="text-2xl font-black text-blue-400">${paymentAmount}</span>
-                      <span className="text-xs text-slate-400 font-bold"> ARS</span>
-                    </div>
-                  )}
+                  <div>
+                    <span className="text-2xl font-black text-blue-400">${paymentAmount}</span>
+                    <span className="text-xs text-slate-400 font-bold"> ARS</span>
+                  </div>
                 </div>
               </div>
 
               {/* Cost rules explained */}
               <div className="text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-3 space-y-1">
-                {selectedObraSocial === 'PAMI (Inssjp)' ? (
-                  <p className="text-emerald-300 font-bold flex items-center gap-1">
-                    <Sparkles className="h-4 w-4 text-emerald-400" />
-                    ¡Su trámite está 100% bonificado! Al tener credencial activa de PAMI, la plataforma gestiona su firma digital sin costo de arancel.
-                  </p>
-                ) : (
-                  <>
-                    <p className="font-semibold text-slate-200">¿Cómo se calcula el costo de arancel?</p>
-                    <p className="text-slate-400 text-[11px]">
-                      La tasa de auditoría y renovación es de <strong>$10.000 ARS por cada dos (2) medicamentos</strong>. Se han cargado {medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length} medicamentos en su solicitud.
-                    </p>
-                  </>
-                )}
+                <p className="font-semibold text-slate-200">¿Cómo se calcula el costo de arancel?</p>
+                <p className="text-slate-400 text-[11px]">
+                  La tasa de auditoría y renovación es de <strong>$10.000 ARS por cada dos (2) medicamentos</strong>. Se han cargado {medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length} medicamentos en su solicitud.
+                </p>
               </div>
             </div>
 
-            {/* PAMI bypass checkout form */}
-            {selectedObraSocial === 'PAMI (Inssjp)' ? (
-              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 text-center space-y-3 animate-fadeIn">
-                <div className="h-10 w-10 bg-emerald-150 rounded-full flex items-center justify-center text-emerald-700 mx-auto">
-                  <Check className="h-5.5 w-5.5 stroke-[3]" />
-                </div>
-                <div>
-                  <h4 className="font-extrabold text-sm text-emerald-950">No se requiere transferencia ni pago online</h4>
-                  <p className="text-xs text-emerald-800 leading-relaxed mt-1">
-                    Su credencial de afiliado de PAMI fue cargada de forma segura en el Paso 1. Puede proceder de forma directa a enviar la solicitud de receta haciendo click en "Enviar Solicitud".
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
+            {/* Checkout form */}
+            <div className="space-y-4">
                 
                 {/* Payment method selector */}
                 <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
@@ -2935,7 +2895,7 @@ export default function PatientForm({
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
             {/* Step 4 Inline Warning/Error Banner */}
             {error && (
@@ -2967,7 +2927,7 @@ export default function PatientForm({
                 type="submit"
                 disabled={submitting || mpProcessing}
                 className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
-                  paymentMethod === 'mp' && !mpPaymentApproved && selectedObraSocial !== 'PAMI (Inssjp)'
+                  paymentMethod === 'mp' && !mpPaymentApproved
                     ? 'bg-[#009EE3] hover:bg-[#0081b8]'
                     : 'bg-blue-600 hover:bg-blue-700'
                 } disabled:opacity-50`}
@@ -2982,7 +2942,7 @@ export default function PatientForm({
                   </>
                 ) : (
                   <>
-                    {paymentMethod === 'mp' && !mpPaymentApproved && selectedObraSocial !== 'PAMI (Inssjp)' ? (
+                    {paymentMethod === 'mp' && !mpPaymentApproved ? (
                       <>
                         <MercadoPagoIcon className="h-5 w-5" />
                         <span>Pagar con Mercado Pago y Enviar</span>
@@ -3000,7 +2960,7 @@ export default function PatientForm({
                     ) : (
                       <>
                         <Check className="h-5 w-5" />
-                        <span>{selectedObraSocial === 'PAMI (Inssjp)' ? 'Enviar Solicitud Bonificada' : 'Enviar Solicitud'}</span>
+                        <span>Enviar Solicitud</span>
                       </>
                     )}
                   </>
