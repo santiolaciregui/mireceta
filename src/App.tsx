@@ -13,6 +13,7 @@ import UserManagement from './components/pages/UserManagement';
 import LandingPage from './components/pages/LandingPage';
 import Login from './components/pages/Login';
 import Sidebar from './components/Sidebar';
+import Logo from './components/Logo';
 import PatientDoctorChat from './components/pages/PatientDoctorChat';
 import ForcePasswordChange from './components/pages/ForcePasswordChange';
 import SuperadminDashboard from './components/pages/SuperadminDashboard';
