@@ -169,8 +169,25 @@ export default function DoctorDashboard({
 
   const handleSendLinkSubmit = async () => {
     if (!selectedOrder) return;
-    setIsSendingLink(true);
     setSendLinkFeedback(null);
+
+    // Validate recipient channels
+    if (sendChannel === 'whatsapp' && !selectedOrder.patientPhone) {
+      setSendLinkFeedback({ success: false, message: 'El paciente no posee un número de WhatsApp/Teléfono registrado en la solicitud.' });
+      return;
+    }
+
+    if (sendChannel === 'email' && !selectedOrder.patientEmail) {
+      setSendLinkFeedback({ success: false, message: 'El paciente no posee un correo electrónico registrado en la solicitud.' });
+      return;
+    }
+
+    if (sendChannel === 'both' && !selectedOrder.patientPhone && !selectedOrder.patientEmail) {
+      setSendLinkFeedback({ success: false, message: 'El paciente no posee ni teléfono ni correo electrónico registrado.' });
+      return;
+    }
+
+    setIsSendingLink(true);
 
     try {
       let result;
@@ -676,12 +693,13 @@ export default function DoctorDashboard({
               {selectedOrder ? (
                 <div className="animate-fadeIn space-y-6 pb-12 w-full max-w-5xl mx-auto">
                   {/* Detail Header */}
-                  <div className="border-b border-slate-200/80 pb-6">
+                  <div className="border-b border-slate-200/80 pb-4 sm:pb-6">
                     <button
                       onClick={() => setSelectedOrderId(null)}
-                      className="lg:hidden flex items-center gap-1.5 text-slate-500 hover:text-slate-900 text-xs font-semibold mb-4 cursor-pointer"
+                      className="lg:hidden inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold mb-3.5 border border-slate-200/80 cursor-pointer transition-colors shadow-2xs"
                     >
-                      &larr; Volver al listado
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      <span>Volver al listado</span>
                     </button>
                     
                     <div className="flex flex-wrap items-center justify-between gap-4 mb-3">
@@ -996,16 +1014,20 @@ export default function DoctorDashboard({
                                   onDrop={handlePdfDrop}
                                   onClick={() => pdfInputRef.current?.click()}
                                   className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
-                                    isDraggingPdf
+                                    pdfUploadError
+                                      ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
+                                      : isDraggingPdf
                                       ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
                                       : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
                                   }`}
                                 >
-                                  <div className="h-10 w-10 mx-auto rounded-full bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center mb-2">
+                                  <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
+                                    pdfUploadError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
+                                  }`}>
                                     <FileUp className="h-5 w-5" />
                                   </div>
-                                  <p className="text-xs font-bold text-slate-800">
-                                    {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí'}
+                                  <p className={`text-xs font-bold ${pdfUploadError ? 'text-rose-900' : 'text-slate-800'}`}>
+                                    {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí *'}
                                   </p>
                                   <p className="text-[11px] text-slate-500 mt-0.5">
                                     o haga clic para seleccionar desde su equipo (únicamente archivos .pdf)
@@ -1022,7 +1044,7 @@ export default function DoctorDashboard({
                               />
 
                               {pdfUploadError && (
-                                <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1">
+                                <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1 animate-fadeIn">
                                   <AlertCircle className="h-3.5 w-3.5 shrink-0" />
                                   <span>{pdfUploadError}</span>
                                 </p>
@@ -1033,6 +1055,11 @@ export default function DoctorDashboard({
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <button
                                 onClick={() => {
+                                  if (!uploadedRecipe) {
+                                    setPdfUploadError('Debe adjuntar el archivo PDF de la receta oficial firmada antes de emitir.');
+                                    showToast('Error: Debe adjuntar el PDF de la receta oficial.');
+                                    return;
+                                  }
                                   onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
                                   showToast('Receta emitida y enviada con éxito.');
                                 }}

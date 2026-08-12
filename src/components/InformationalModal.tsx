@@ -14,32 +14,33 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 animate-fadeIn">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         
         {/* Header */}
-        <div className="bg-[#0141BC] text-white p-6 flex justify-between items-center border-b border-white/10">
+        <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex justify-between items-center border-b border-white/10 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="bg-white/15 text-white p-2.5 rounded-xl shadow-sm border border-white/20">
-              {type === 'privacidad' && <Lock className="h-5 w-5" />}
-              {type === 'terminos' && <FileText className="h-5 w-5" />}
-              {type === 'arrepentimiento' && <ShieldCheck className="h-5 w-5" />}
+            <div className="bg-white/15 text-white p-2 sm:p-2.5 rounded-xl shadow-sm border border-white/20">
+              {type === 'privacidad' && <Lock className="h-4 w-4 sm:h-5 sm:w-5" />}
+              {type === 'terminos' && <FileText className="h-4 w-4 sm:h-5 sm:w-5" />}
+              {type === 'arrepentimiento' && <ShieldCheck className="h-4 w-4 sm:h-5 sm:w-5" />}
             </div>
             <div>
-              <h3 className="text-xl font-bold tracking-tight">{title}</h3>
-              <p className="text-xs text-blue-100 font-medium">Mi Receta Online — Documento Oficial</p>
+              <h3 className="text-base sm:text-xl font-bold tracking-tight">{title}</h3>
+              <p className="text-[11px] sm:text-xs text-blue-100 font-medium">Mi Receta Online — Documento Oficial</p>
             </div>
           </div>
           <button 
             onClick={onClose}
             className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-white/10 transition-colors font-bold text-lg cursor-pointer"
+            aria-label="Cerrar"
           >
             ✕
           </button>
         </div>
 
         {/* Content Area */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6 text-sm text-[#0F172A] leading-relaxed font-medium">
+        <div className="p-4 sm:p-8 overflow-y-auto space-y-4 sm:space-y-6 text-xs sm:text-sm text-[#0F172A] leading-relaxed font-medium">
           
           {type === 'privacidad' && (
             <>

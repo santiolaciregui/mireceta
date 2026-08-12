@@ -90,6 +90,7 @@ export default function NotificationConfigPanel() {
   const [isSaving, setIsSaving] = useState(false);
   const [testingStatus, setTestingStatus] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const getAuthHeader = () => ({
     'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
@@ -150,8 +151,28 @@ export default function NotificationConfigPanel() {
 
   const handleSaveEmailConfig = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
     setFeedback(null);
+    const errors: Record<string, string> = {};
+
+    if (emailEnabled) {
+      if (!smtpHost.trim()) errors.smtpHost = 'El host SMTP es obligatorio cuando el correo está habilitado.';
+      if (!smtpPort.trim() || isNaN(Number(smtpPort)) || Number(smtpPort) <= 0) errors.smtpPort = 'Puerto inválido.';
+      if (!smtpUser.trim()) errors.smtpUser = 'El usuario SMTP es obligatorio.';
+      if (!smtpPass.trim()) errors.smtpPass = 'La contraseña SMTP es obligatoria.';
+      if (smtpFromEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(smtpFromEmail.trim())) {
+        errors.smtpFromEmail = 'Formato de correo remitente inválido.';
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFeedback({ type: 'error', message: 'Por favor complete todos los campos obligatorios del servidor SMTP marcados en rojo.' });
+      return;
+    }
+
+    setFieldErrors({});
+    setIsSaving(true);
+
     try {
       const res = await fetch('/api/notifications/configs/email', {
         method: 'PUT',
@@ -180,8 +201,23 @@ export default function NotificationConfigPanel() {
 
   const handleSaveWaConfig = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
     setFeedback(null);
+    const errors: Record<string, string> = {};
+
+    if (waEnabled) {
+      if (!waPhoneNumberId.trim()) errors.waPhoneNumberId = 'El Phone Number ID de Meta es obligatorio cuando WhatsApp está habilitado.';
+      if (!waAccessToken.trim()) errors.waAccessToken = 'El Access Token permanente es obligatorio.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFeedback({ type: 'error', message: 'Por favor complete los campos obligatorios de la API de WhatsApp.' });
+      return;
+    }
+
+    setFieldErrors({});
+    setIsSaving(true);
+
     try {
       const res = await fetch('/api/notifications/configs/whatsapp', {
         method: 'PUT',
@@ -235,10 +271,22 @@ export default function NotificationConfigPanel() {
 
   const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingTemplate || !editingTemplate.code || !editingTemplate.body) return;
-
-    setIsSaving(true);
     setFeedback(null);
+    const errors: Record<string, string> = {};
+
+    if (!editingTemplate?.code?.trim()) errors.tplCode = 'El código de plantilla es obligatorio.';
+    if (!editingTemplate?.name?.trim()) errors.tplName = 'El nombre descriptivo es obligatorio.';
+    if (!editingTemplate?.body?.trim()) errors.tplBody = 'El cuerpo del mensaje es obligatorio.';
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFeedback({ type: 'error', message: 'Por favor complete todos los campos de la plantilla.' });
+      return;
+    }
+
+    setFieldErrors({});
+    setIsSaving(true);
+
     try {
       const res = await fetch('/api/notifications/templates', {
         method: 'POST',
@@ -260,20 +308,35 @@ export default function NotificationConfigPanel() {
 
   const handleSendTestNotification = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!testRecipient) {
-      setFeedback({ type: 'error', message: 'Por favor ingresa un destinatario (email o teléfono).' });
+    setFeedback(null);
+    const errors: Record<string, string> = {};
+
+    if (!testRecipient.trim()) {
+      errors.testRecipient = 'El destinatario es obligatorio.';
+    } else if (testChannel === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testRecipient.trim())) {
+      errors.testRecipient = 'Ingrese un formato de correo electrónico válido.';
+    }
+
+    if (!testBody.trim()) {
+      errors.testBody = 'El cuerpo del mensaje de prueba no puede estar vacío.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFeedback({ type: 'error', message: 'Por favor corrija los campos requeridos para la prueba.' });
       return;
     }
 
+    setFieldErrors({});
     setIsSaving(true);
-    setFeedback(null);
+
     try {
       const res = await fetch('/api/notifications/send', {
         method: 'POST',
         headers: getAuthHeader(),
         body: JSON.stringify({
           channel: testChannel,
-          to: testRecipient,
+          to: testRecipient.trim(),
           subject: testChannel === 'email' ? testSubject : undefined,
           body: testBody,
           templateCode: testTemplateCode || undefined,
@@ -304,21 +367,21 @@ export default function NotificationConfigPanel() {
   }
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4 bg-slate-50/50">
+      <div className="p-4 sm:p-6 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3 sm:gap-4 bg-slate-50/50">
         <div>
-          <h2 className="text-base font-extrabold text-[#0141BC] mt-1">Gestión de Notificaciones (Email & WhatsApp)</h2>
+          <h2 className="text-sm sm:text-base font-extrabold text-[#0141BC] mt-1">Gestión de Notificaciones (Email & WhatsApp)</h2>
           <p className="text-xs text-slate-500 font-medium">
             Configuración de adaptadores, variables dinámicas en base de datos y trazabilidad de envíos.
           </p>
         </div>
 
         {/* Tab Selection Navigation */}
-        <div className="flex bg-slate-200/60 p-1 rounded-2xl gap-1">
+        <div className="flex bg-slate-200/60 p-1 rounded-2xl gap-1 overflow-x-auto max-w-full">
           <button
             onClick={() => setActiveTab('channels')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'channels' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -328,7 +391,7 @@ export default function NotificationConfigPanel() {
 
           <button
             onClick={() => setActiveTab('templates')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'templates' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -338,7 +401,7 @@ export default function NotificationConfigPanel() {
 
           <button
             onClick={() => setActiveTab('test')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'test' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -348,7 +411,7 @@ export default function NotificationConfigPanel() {
 
           <button
             onClick={() => setActiveTab('logs')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 sm:px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shrink-0 ${
               activeTab === 'logs' ? 'bg-[#0141BC] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -397,59 +460,119 @@ export default function NotificationConfigPanel() {
                   </label>
                 </div>
 
-                <form id="email-form" onSubmit={handleSaveEmailConfig} className="space-y-3 mt-3">
+                <form id="email-form" onSubmit={handleSaveEmailConfig} className="space-y-3 mt-3" noValidate>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="col-span-2">
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Host SMTP</label>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Host SMTP {emailEnabled ? <span className="text-red-500">*</span> : ''}
+                      </label>
                       <input
                         type="text"
                         value={smtpHost}
-                        onChange={(e) => setSmtpHost(e.target.value)}
+                        onChange={(e) => {
+                          setSmtpHost(e.target.value);
+                          if (fieldErrors.smtpHost) setFieldErrors(prev => ({ ...prev, smtpHost: '' }));
+                        }}
                         placeholder="smtp.gmail.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
+                        className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.smtpHost
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-[#1661E1]'
+                        }`}
                       />
+                      {fieldErrors.smtpHost && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>{fieldErrors.smtpHost}</span>
+                        </p>
+                      )}
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Puerto</label>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Puerto {emailEnabled ? <span className="text-red-500">*</span> : ''}
+                      </label>
                       <input
                         type="text"
                         value={smtpPort}
-                        onChange={(e) => setSmtpPort(e.target.value)}
+                        onChange={(e) => {
+                          setSmtpPort(e.target.value);
+                          if (fieldErrors.smtpPort) setFieldErrors(prev => ({ ...prev, smtpPort: '' }));
+                        }}
                         placeholder="587"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
+                        className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.smtpPort
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-[#1661E1]'
+                        }`}
                       />
+                      {fieldErrors.smtpPort && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>{fieldErrors.smtpPort}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Usuario SMTP / Email</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Usuario SMTP / Email {emailEnabled ? <span className="text-red-500">*</span> : ''}
+                    </label>
                     <input
                       type="text"
                       value={smtpUser}
-                      onChange={(e) => setSmtpUser(e.target.value)}
+                      onChange={(e) => {
+                        setSmtpUser(e.target.value);
+                        if (fieldErrors.smtpUser) setFieldErrors(prev => ({ ...prev, smtpUser: '' }));
+                      }}
                       placeholder="notificaciones@mireceta.com"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
+                      className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                        fieldErrors.smtpUser
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-white border border-slate-200 focus:ring-2 focus:ring-[#1661E1]'
+                      }`}
                     />
+                    {fieldErrors.smtpUser && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.smtpUser}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Contraseña SMTP</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Contraseña SMTP {emailEnabled ? <span className="text-red-500">*</span> : ''}
+                    </label>
                     <div className="relative">
                       <input
                         type={showSmtpPass ? 'text' : 'password'}
                         value={smtpPass}
-                        onChange={(e) => setSmtpPass(e.target.value)}
+                        onChange={(e) => {
+                          setSmtpPass(e.target.value);
+                          if (fieldErrors.smtpPass) setFieldErrors(prev => ({ ...prev, smtpPass: '' }));
+                        }}
                         placeholder="••••••••••••"
-                        className="w-full pl-3 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
+                        className={`w-full pl-3 pr-9 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.smtpPass
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-[#1661E1]'
+                        }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowSmtpPass(!showSmtpPass)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
                         {showSmtpPass ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
+                    {fieldErrors.smtpPass && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.smtpPass}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
@@ -468,10 +591,23 @@ export default function NotificationConfigPanel() {
                       <input
                         type="text"
                         value={smtpFromEmail}
-                        onChange={(e) => setSmtpFromEmail(e.target.value)}
+                        onChange={(e) => {
+                          setSmtpFromEmail(e.target.value);
+                          if (fieldErrors.smtpFromEmail) setFieldErrors(prev => ({ ...prev, smtpFromEmail: '' }));
+                        }}
                         placeholder="no-reply@mireceta.com"
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-[#1661E1]"
+                        className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.smtpFromEmail
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-[#1661E1]'
+                        }`}
                       />
+                      {fieldErrors.smtpFromEmail && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>{fieldErrors.smtpFromEmail}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
                 </form>
@@ -516,43 +652,78 @@ export default function NotificationConfigPanel() {
                     <input
                       type="checkbox"
                       checked={waEnabled}
-                      onChange={(e) => setWaEnabled(e.target.checked)}
+                      onChange={(e) => {
+                        setWaEnabled(e.target.checked);
+                        if (fieldErrors.waPhoneNumberId || fieldErrors.waAccessToken) {
+                          setFieldErrors(prev => ({ ...prev, waPhoneNumberId: '', waAccessToken: '' }));
+                        }
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-600"></div>
                   </label>
                 </div>
 
-                <form id="wa-form" onSubmit={handleSaveWaConfig} className="space-y-3 mt-3">
+                <form id="wa-form" onSubmit={handleSaveWaConfig} className="space-y-3 mt-3" noValidate>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Phone Number ID (Meta)</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Phone Number ID (Meta) {waEnabled ? <span className="text-red-500">*</span> : ''}
+                    </label>
                     <input
                       type="text"
                       value={waPhoneNumberId}
-                      onChange={(e) => setWaPhoneNumberId(e.target.value)}
+                      onChange={(e) => {
+                        setWaPhoneNumberId(e.target.value);
+                        if (fieldErrors.waPhoneNumberId) setFieldErrors(prev => ({ ...prev, waPhoneNumberId: '' }));
+                      }}
                       placeholder="10928374659201"
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500"
+                      className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                        fieldErrors.waPhoneNumberId
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-white border border-slate-200 focus:ring-2 focus:ring-emerald-500'
+                      }`}
                     />
+                    {fieldErrors.waPhoneNumberId && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.waPhoneNumberId}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Permanent Access Token (Bearer)</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Permanent Access Token (Bearer) {waEnabled ? <span className="text-red-500">*</span> : ''}
+                    </label>
                     <div className="relative">
                       <input
                         type={showWaToken ? 'text' : 'password'}
                         value={waAccessToken}
-                        onChange={(e) => setWaAccessToken(e.target.value)}
+                        onChange={(e) => {
+                          setWaAccessToken(e.target.value);
+                          if (fieldErrors.waAccessToken) setFieldErrors(prev => ({ ...prev, waAccessToken: '' }));
+                        }}
                         placeholder="EAABwz12345..."
-                        className="w-full pl-3 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500"
+                        className={`w-full pl-3 pr-9 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.waAccessToken
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-emerald-500'
+                        }`}
                       />
                       <button
                         type="button"
                         onClick={() => setShowWaToken(!showWaToken)}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                       >
                         {showWaToken ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                       </button>
                     </div>
+                    {fieldErrors.waAccessToken && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.waAccessToken}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div>
@@ -630,28 +801,56 @@ export default function NotificationConfigPanel() {
 
             {/* Editing Form Modal / Inline */}
             {editingTemplate && (
-              <form onSubmit={handleSaveTemplate} className="bg-[#1661E1]/5 border border-[#1661E1]/20 p-4 rounded-2xl space-y-3">
+              <form onSubmit={handleSaveTemplate} className="bg-[#1661E1]/5 border border-[#1661E1]/20 p-4 rounded-2xl space-y-3" noValidate>
                 <h4 className="font-extrabold text-xs text-[#0141BC]">Editar Plantilla en Base de Datos</h4>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase">Código Único</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                      Código Único <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={editingTemplate.code || ''}
-                      onChange={(e) => setEditingTemplate({ ...editingTemplate, code: e.target.value.toUpperCase() })}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-mono"
-                      required
+                      onChange={(e) => {
+                        setEditingTemplate({ ...editingTemplate, code: e.target.value.toUpperCase() });
+                        if (fieldErrors.tplCode) setFieldErrors(prev => ({ ...prev, tplCode: '' }));
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-lg text-xs font-mono transition-all outline-hidden ${
+                        fieldErrors.tplCode
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-white border border-slate-200 focus:border-[#1661E1]'
+                      }`}
                     />
+                    {fieldErrors.tplCode && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.tplCode}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-600 uppercase">Nombre</label>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                      Nombre <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       value={editingTemplate.name || ''}
-                      onChange={(e) => setEditingTemplate({ ...editingTemplate, name: e.target.value })}
-                      className="w-full px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs"
-                      required
+                      onChange={(e) => {
+                        setEditingTemplate({ ...editingTemplate, name: e.target.value });
+                        if (fieldErrors.tplName) setFieldErrors(prev => ({ ...prev, tplName: '' }));
+                      }}
+                      className={`w-full px-2.5 py-1.5 rounded-lg text-xs transition-all outline-hidden ${
+                        fieldErrors.tplName
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-white border border-slate-200 focus:border-[#1661E1]'
+                      }`}
                     />
+                    {fieldErrors.tplName && (
+                      <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3 w-3 shrink-0" />
+                        <span>{fieldErrors.tplName}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-600 uppercase">Canal</label>
@@ -679,20 +878,43 @@ export default function NotificationConfigPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-600 uppercase">Cuerpo del Mensaje (con variables {`{{...}}`})</label>
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase">
+                    Cuerpo del Mensaje (con variables {`{{...}}`}) <span className="text-red-500">*</span>
+                  </label>
                   <textarea
                     rows={3}
                     value={editingTemplate.body || ''}
-                    onChange={(e) => setEditingTemplate({ ...editingTemplate, body: e.target.value })}
-                    className="w-full p-2.5 bg-white border border-slate-200 rounded-lg text-xs font-mono"
-                    required
+                    onChange={(e) => {
+                      setEditingTemplate({ ...editingTemplate, body: e.target.value });
+                      if (fieldErrors.tplBody) setFieldErrors(prev => ({ ...prev, tplBody: '' }));
+                    }}
+                    className={`w-full p-2.5 rounded-lg text-xs font-mono transition-all outline-hidden ${
+                      fieldErrors.tplBody
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-white border border-slate-200 focus:border-[#1661E1]'
+                    }`}
                   />
+                  {fieldErrors.tplBody && (
+                    <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                      <AlertCircle className="h-3 w-3 shrink-0" />
+                      <span>{fieldErrors.tplBody}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
-                    onClick={() => setEditingTemplate(null)}
+                    onClick={() => {
+                      setEditingTemplate(null);
+                      setFieldErrors(prev => {
+                        const next = { ...prev };
+                        delete next.tplCode;
+                        delete next.tplName;
+                        delete next.tplBody;
+                        return next;
+                      });
+                    }}
                     className="px-3 py-1.5 bg-slate-200 text-slate-700 font-bold rounded-lg text-xs cursor-pointer"
                   >
                     Cancelar
@@ -740,7 +962,7 @@ export default function NotificationConfigPanel() {
 
         {/* 3. PRUEBA DE ENVÍO */}
         {activeTab === 'test' && (
-          <form onSubmit={handleSendTestNotification} className="max-w-xl mx-auto space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200">
+          <form onSubmit={handleSendTestNotification} className="max-w-xl mx-auto space-y-4 bg-slate-50 p-6 rounded-2xl border border-slate-200" noValidate>
             <h3 className="font-extrabold text-xs text-[#0141BC]">Enviar Notificación de Prueba</h3>
             
             <div className="grid grid-cols-2 gap-3">
@@ -757,15 +979,29 @@ export default function NotificationConfigPanel() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Destinatario</label>
+                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                  Destinatario <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="text"
                   value={testRecipient}
-                  onChange={(e) => setTestRecipient(e.target.value)}
+                  onChange={(e) => {
+                    setTestRecipient(e.target.value);
+                    if (fieldErrors.testRecipient) setFieldErrors(prev => ({ ...prev, testRecipient: '' }));
+                  }}
                   placeholder={testChannel === 'email' ? 'ejemplo@correo.com' : '+5491123456789'}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-mono"
-                  required
+                  className={`w-full px-3 py-2 rounded-xl text-xs font-mono transition-all outline-hidden ${
+                    fieldErrors.testRecipient
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-white border border-slate-200 focus:border-[#1661E1]'
+                  }`}
                 />
+                {fieldErrors.testRecipient && (
+                  <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3 w-3 shrink-0" />
+                    <span>{fieldErrors.testRecipient}</span>
+                  </p>
+                )}
               </div>
             </div>
 
@@ -782,14 +1018,28 @@ export default function NotificationConfigPanel() {
             )}
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Cuerpo del Mensaje</label>
+              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                Cuerpo del Mensaje <span className="text-red-500">*</span>
+              </label>
               <textarea
                 rows={3}
                 value={testBody}
-                onChange={(e) => setTestBody(e.target.value)}
-                className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs font-mono"
-                required
+                onChange={(e) => {
+                  setTestBody(e.target.value);
+                  if (fieldErrors.testBody) setFieldErrors(prev => ({ ...prev, testBody: '' }));
+                }}
+                className={`w-full p-3 rounded-xl text-xs font-mono transition-all outline-hidden ${
+                  fieldErrors.testBody
+                    ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                    : 'bg-white border border-slate-200 focus:border-[#1661E1]'
+                }`}
               />
+              {fieldErrors.testBody && (
+                <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                  <AlertCircle className="h-3 w-3 shrink-0" />
+                  <span>{fieldErrors.testBody}</span>
+                </p>
+              )}
             </div>
 
             {/* Test variables preview */}

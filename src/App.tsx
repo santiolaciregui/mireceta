@@ -192,7 +192,7 @@ export default function App() {
 
   // 3. Logged In -> Sidebar-driven layout with role-based workspace views
   return (
-    <div className="h-screen w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden flex flex-col lg:grid lg:grid-cols-[260px_1fr]">
+    <div className="h-screen h-[100dvh] w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden flex flex-col lg:grid lg:grid-cols-[260px_1fr]">
       {currentUser.requirePasswordChange && (currentUser.role === 'medico' || currentUser.role === 'colaborador') && (
         <ForcePasswordChange 
           token={localStorage.getItem('mi-receta-jwt') || localStorage.getItem('token') || ''} 
@@ -232,20 +232,20 @@ export default function App() {
               <>
                 {activeSubcategory === 'solicitar' && (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mi Receta Online</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Solicita tu medicación de forma ágil y segura.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Mi Receta Online</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Solicita tu medicación de forma ágil y segura.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
                       {/* Notification alert of successful submission */}
                       {successSubmissionId && (
-                        <div className="max-w-6xl mx-auto bg-[#14BE99] text-white p-5 rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
+                        <div className="max-w-6xl mx-auto bg-[#14BE99] text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
                           <div className="flex items-center gap-2">
-                            <ShieldCheck className="h-5.5 w-5.5 text-white shrink-0" />
-                            <h4 className="font-bold text-sm">¡Pedido cargado correctamente!</h4>
+                            <ShieldCheck className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-white shrink-0" />
+                            <h4 className="font-bold text-xs sm:text-sm">¡Pedido cargado correctamente!</h4>
                           </div>
                           <p className="text-xs text-white/90 leading-relaxed font-medium">
                             Tu solicitud ha sido guardada. Podés verificar el estado en tiempo real en la categoría <strong>"Mis Solicitudes"</strong>. El personal de salud lo auditará a la brevedad.
@@ -272,14 +272,14 @@ export default function App() {
 
                 {activeSubcategory === 'pedidos' && (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Mis Trámites de Renovación</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Seguimiento continuo del estado de tus firmas médicas en tiempo real.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Mis Trámites de Renovación</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Seguimiento continuo del estado de tus firmas médicas en tiempo real.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                       <PatientStatus
                         orders={orders}
                         onCancelOrder={deleteOrder}
@@ -300,10 +300,10 @@ export default function App() {
 
                 {activeSubcategory === 'chat' && (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
-                      <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Soporte Médico Directo</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Chateá con los médicos auditores sobre tus recetas o enviá documentación de soporte.</p>
+                    <header className="px-4 py-3 sm:px-8 sm:py-4 bg-white border-b border-[var(--ink-faint)] flex justify-between items-center shrink-0">
+                      <div className="space-y-0.5">
+                        <h1 className="text-lg sm:text-[1.35rem] font-[700] tracking-[-0.03em]">Soporte Médico Directo</h1>
+                        <p className="text-[11px] sm:text-[0.8rem] text-[var(--ink-muted)]">Chateá con los médicos auditores sobre tus recetas o enviá documentación de soporte.</p>
                       </div>
                     </header>
 
@@ -321,15 +321,15 @@ export default function App() {
 
                 {activeSubcategory === 'ayuda' && (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Preguntas Frecuentes</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Instrucciones y soporte para el trámite de renovación municipal.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Preguntas Frecuentes</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Instrucciones y soporte para el trámite de renovación municipal.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-6 sm:p-8">
-                      <div className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-3xl p-6 shadow-xs space-y-6 text-slate-650 text-xs sm:text-sm">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+                      <div className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 sm:space-y-6 text-slate-650 text-xs sm:text-sm">
                         <div className="space-y-2">
                           <h3 className="font-extrabold text-slate-900 text-sm">1. ¿Qué validez tiene la receta digital emitida?</h3>
                           <p className="text-slate-550 font-medium leading-relaxed">
@@ -388,14 +388,14 @@ export default function App() {
                   />
                 ) : activeSubcategory === 'usuarios' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Gestión de Personal Sanitario</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Administrá operadores autorizados, personal médico y credenciales de acceso al sistema.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Gestión de Personal Sanitario</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Administrá operadores autorizados, personal médico y credenciales de acceso al sistema.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-8">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                       <UserManagement
                         users={users}
                         onAddUser={createUser}
@@ -406,27 +406,27 @@ export default function App() {
                   </div>
                 ) : activeSubcategory === 'auditoria' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Historial de Cambios y Auditoría</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Registro cronológico completo de las acciones ejecutadas por administradores, médicos y colaboradores sobre las solicitudes.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Historial de Cambios y Auditoría</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Registro cronológico completo de las acciones ejecutadas por administradores, médicos y colaboradores sobre las solicitudes.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-8">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                       <AuditLogView orders={orders} currentUser={currentUser} />
                     </div>
                   </div>
                 ) : activeSubcategory === 'pagos' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Configuración de Pasarela de Pagos</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Administración de credenciales de Mercado Pago y recaudación de tasas.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Configuración de Pasarela de Pagos</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Administración de credenciales de Mercado Pago y recaudación de tasas.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-8">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                       <div className="max-w-4xl mx-auto w-full">
                         <PaymentConfigPanel />
                       </div>
@@ -434,14 +434,14 @@ export default function App() {
                   </div>
                 ) : activeSubcategory === 'notificaciones' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Canales y Plantillas de Notificación</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión modular de Email (SMTP), WhatsApp (Meta Business API), variables dinámicas e historial.</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Canales y Plantillas de Notificación</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Gestión modular de Email (SMTP), WhatsApp (Meta Business API), variables dinámicas e historial.</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-8">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                       <div className="max-w-5xl mx-auto w-full">
                         <NotificationConfigPanel />
                       </div>
@@ -449,14 +449,14 @@ export default function App() {
                   </div>
                 ) : activeRole === 'superadmin' && activeCategory === 'superadmin_panel' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
-                    <header className="px-8 py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
+                    <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
-                        <h1 className="text-[1.5rem] font-[700] tracking-[-0.03em]">Panel de Superadmin</h1>
-                        <p className="text-[0.85rem] text-[var(--ink-muted)] mt-1">Gestión global de Tenants (Instituciones / Clínicas).</p>
+                        <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Panel de Superadmin</h1>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Gestión global de Tenants (Instituciones / Clínicas).</p>
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-8">
+                    <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
                       <SuperadminDashboard />
                     </div>
                   </div>
@@ -490,10 +490,10 @@ export default function App() {
 
         {/* Minimalist layout footer - only shown when not in full-screen chat view */}
         {activeSubcategory !== 'chat' && (
-          <footer className="border-t border-slate-200/60 py-6 text-slate-400 text-center text-[11px] font-semibold shrink-0 bg-white">
-            <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <footer className="border-t border-slate-200/60 py-3 sm:py-6 text-slate-400 text-center text-[10px] sm:text-[11px] font-semibold shrink-0 bg-white">
+            <div className="max-w-2xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-1 sm:gap-2">
               <span>Mi Receta Online © 2026</span>
-              <span className="text-[10px] text-slate-400/80">
+              <span className="text-[9px] sm:text-[10px] text-slate-400/80">
                 Sistema de Salud Protegido por Firma Digital de la Provincia de Buenos Aires
               </span>
             </div>

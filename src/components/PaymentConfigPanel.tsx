@@ -5,6 +5,7 @@ export default function PaymentConfigPanel() {
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('');
   const [mpEnabled, setMpEnabled] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ mpAccessToken?: string }>({});
   
   const [showAccessToken, setShowAccessToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,8 +32,16 @@ export default function PaymentConfigPanel() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaving(true);
     setMessage(null);
+    setFieldErrors({});
+
+    if (mpEnabled && !mpAccessToken.trim()) {
+      setFieldErrors({ mpAccessToken: 'El Access Token es obligatorio cuando los pagos por Mercado Pago están habilitados.' });
+      setMessage({ type: 'error', text: 'Por favor complete el campo de Access Token obligatorio.' });
+      return;
+    }
+
+    setIsSaving(true);
 
     try {
       const res = await fetch('/api/tenants/payment-config', {
@@ -70,7 +79,7 @@ export default function PaymentConfigPanel() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-xs space-y-5">
+    <div className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-xs space-y-5">
       <div className="flex items-center justify-between flex-wrap gap-3 pb-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#1661E1] rounded-2xl flex items-center justify-center font-bold">
@@ -94,15 +103,15 @@ export default function PaymentConfigPanel() {
       </div>
 
       {message && (
-        <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 ${
+        <div className={`p-3.5 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fadeIn ${
           message.type === 'success' ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30' : 'bg-red-50 text-red-800 border border-red-200'
         }`}>
-          {message.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-[#14BE99]" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+          {message.type === 'success' ? <Check className="h-4 w-4 shrink-0 text-[#14BE99]" /> : <AlertCircle className="h-4 w-4 shrink-0 text-red-600" />}
           <span>{message.text}</span>
         </div>
       )}
 
-      <form onSubmit={handleSave} className="space-y-4">
+      <form onSubmit={handleSave} className="space-y-4" noValidate>
         {/* Toggle Enable */}
         <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <div>
@@ -114,7 +123,10 @@ export default function PaymentConfigPanel() {
             <input
               type="checkbox"
               checked={mpEnabled}
-              onChange={(e) => setMpEnabled(e.target.checked)}
+              onChange={(e) => {
+                setMpEnabled(e.target.checked);
+                if (fieldErrors.mpAccessToken) setFieldErrors({});
+              }}
               className="sr-only peer"
             />
             <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#1661E1]"></div>
@@ -124,15 +136,22 @@ export default function PaymentConfigPanel() {
         {/* Access Token */}
         <div>
           <label className="block text-xs font-bold text-[#0141BC] uppercase tracking-wider mb-1">
-            Mercado Pago Access Token <span className="text-red-500">*</span>
+            Mercado Pago Access Token {mpEnabled ? <span className="text-red-500">*</span> : '(Opcional)'}
           </label>
           <div className="relative">
             <input
               type={showAccessToken ? 'text' : 'password'}
               value={mpAccessToken}
-              onChange={(e) => setMpAccessToken(e.target.value)}
+              onChange={(e) => {
+                setMpAccessToken(e.target.value);
+                if (fieldErrors.mpAccessToken) setFieldErrors({});
+              }}
               placeholder="APP_USR-xxxxxx-xxxxxx-xxxxxx..."
-              className="w-full pl-3 pr-10 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
+              className={`w-full pl-3 pr-10 py-2.5 rounded-xl text-xs font-mono transition-all outline-hidden ${
+                fieldErrors.mpAccessToken
+                  ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                  : 'bg-slate-50 border border-slate-300 text-[#0F172A] focus:bg-white focus:ring-2 focus:ring-[#1661E1]'
+              }`}
             />
             <button
               type="button"
@@ -142,9 +161,16 @@ export default function PaymentConfigPanel() {
               {showAccessToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
-          <span className="text-[10px] text-slate-400 font-medium mt-1 block">
-            Token secreto para la creación segura de preferencias de pago (Production o Test).
-          </span>
+          {fieldErrors.mpAccessToken ? (
+            <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+              <span>{fieldErrors.mpAccessToken}</span>
+            </p>
+          ) : (
+            <span className="text-[10px] text-slate-400 font-medium mt-1 block">
+              Token secreto para la creación segura de preferencias de pago (Production o Test).
+            </span>
+          )}
         </div>
 
         {/* Public Key */}
@@ -157,7 +183,7 @@ export default function PaymentConfigPanel() {
             value={mpPublicKey}
             onChange={(e) => setMpPublicKey(e.target.value)}
             placeholder="APP_USR-xxxxxx-xxxxxx..."
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-250 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
+            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
           />
           <span className="text-[10px] text-slate-400 font-medium mt-1 block">
             Clave pública util para identificadores de checkout frontal.

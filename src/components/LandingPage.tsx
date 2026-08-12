@@ -272,11 +272,11 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                 </div>
 
                 <div className="space-y-4">
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
+                  <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.15] text-white">
                     Solicitá tu medicación y realizamos la receta por tu obra social <span className="text-[#14BE99]">en 24 hs.</span>
                   </h1>
                   
-                  <p className="text-base sm:text-lg text-slate-200 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
+                  <p className="text-sm sm:text-lg text-slate-200 font-medium leading-relaxed max-w-2xl mx-auto lg:mx-0">
                     Un médico matriculado evaluará tu pedido y renovará tu receta para que la entregues en la farmacia, con un mínimo costo.
                   </p>
                 </div>
@@ -712,13 +712,13 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
       </footer>
 
       {/* Floating Action Buttons: WhatsApp & Scroll to top */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col gap-2.5 sm:gap-3">
         <button
           onClick={scrollToTop}
           title="Volver arriba"
-          className="w-10 h-10 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all cursor-pointer"
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm transition-all cursor-pointer"
         >
-          <ArrowUp className="h-5 w-5" />
+          <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5" />
         </button>
 
         <a
@@ -726,9 +726,9 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
           target="_blank"
           rel="noopener noreferrer"
           title="Contacto vía WhatsApp"
-          className="w-14 h-14 bg-[#14BE99] hover:bg-[#0ea885] text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-105"
+          className="w-12 h-12 sm:w-14 sm:h-14 bg-[#14BE99] hover:bg-[#0ea885] text-white rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-105"
         >
-          <MessageCircle className="h-8 w-8 fill-current" />
+          <MessageCircle className="h-6 w-6 sm:h-8 sm:w-8 fill-current" />
         </a>
       </div>
 

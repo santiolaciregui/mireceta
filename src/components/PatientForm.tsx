@@ -92,6 +92,32 @@ export default function PatientForm({
   const [step, setStep] = useState<'info' | 'identification' | 'medication' | 'payment' | 'confirmation'>('info');
   const [draftRestored, setDraftRestored] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    patientDni?: string;
+    patientName?: string;
+    patientLastName?: string;
+    patientBirthDate?: string;
+    patientPhone?: string;
+    patientEmail?: string;
+    selectedObraSocial?: string;
+    obraSocialNumber?: string;
+    curNombreComercial?: string;
+    curCantidadCajas?: string;
+    medicationList?: string;
+    paymentReceipt?: string;
+  }>({});
+  const [depFieldErrors, setDepFieldErrors] = useState<{
+    name?: string;
+    lastName?: string;
+    dni?: string;
+    birthDate?: string;
+    relationship?: string;
+    obraSocial?: string;
+    customObraSocial?: string;
+    obraSocialNumber?: string;
+    phone?: string;
+    email?: string;
+  }>({});
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [returnedOrder, setReturnedOrder] = useState<any>(null);
@@ -252,6 +278,7 @@ export default function PatientForm({
     e.stopPropagation();
     setEditingCardId(cardId);
     setDepFormError(null);
+    setDepFieldErrors({});
 
     let osVal = '';
     if (cardId === 'titular') {
@@ -297,6 +324,7 @@ export default function PatientForm({
   const handleOpenNewDependentModal = () => {
     setEditingCardId(null);
     setDepFormError(null);
+    setDepFieldErrors({});
     setDepName('');
     setDepLastName('');
     setDepDni('');
@@ -312,19 +340,59 @@ export default function PatientForm({
 
   const handleSaveModalPatient = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!depName.trim() || !depLastName.trim() || !depDni.trim()) {
-      setDepFormError('Por favor ingrese Nombre, Apellido y DNI del paciente.');
-      return;
+    setDepFormError(null);
+    const errors: typeof depFieldErrors = {};
+
+    if (!depName.trim()) {
+      errors.name = 'El nombre es obligatorio.';
+    }
+
+    if (!depLastName.trim()) {
+      errors.lastName = 'El apellido es obligatorio.';
+    }
+
+    const cleanDni = depDni.trim();
+    if (!cleanDni) {
+      errors.dni = 'El número de DNI es obligatorio.';
+    } else if (cleanDni.length < 6 || cleanDni.length > 10) {
+      errors.dni = 'Ingrese un DNI válido (entre 6 y 10 dígitos).';
+    }
+
+    if (!depBirthDate) {
+      errors.birthDate = 'La fecha de nacimiento es obligatoria.';
     }
 
     let finalObraSocial = depObraSocial;
-    if (depObraSocial === 'Otra Obra Social / Prepaga') {
+    if (!depObraSocial) {
+      errors.obraSocial = 'Debe seleccionar una obra social o prepaga.';
+    } else if (depObraSocial === 'Otra Obra Social / Prepaga') {
       if (!depCustomObraSocial.trim()) {
-        setDepFormError('Por favor escriba el nombre de la Obra Social / Prepaga.');
-        return;
+        errors.customObraSocial = 'Por favor escriba el nombre de la Obra Social / Prepaga.';
+      } else {
+        finalObraSocial = depCustomObraSocial.trim();
       }
-      finalObraSocial = depCustomObraSocial.trim();
+    } else {
+      const selectedOs = OBRA_SOCIAL_OPTIONS.find((o) => o.name === depObraSocial);
+      if (selectedOs?.requiresNumber && !depObraSocialNumber.trim()) {
+        errors.obraSocialNumber = `El número de afiliado es obligatorio para ${depObraSocial}.`;
+      }
     }
+
+    if (depEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(depEmail.trim())) {
+      errors.email = 'Ingrese un correo electrónico válido o déjelo en blanco.';
+    }
+
+    if (depPhone.trim() && depPhone.replace(/\D/g, '').length < 8) {
+      errors.phone = 'Ingrese un número de teléfono/WhatsApp válido o déjelo en blanco.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setDepFieldErrors(errors);
+      setDepFormError('Por favor complete todos los campos obligatorios marcados en rojo.');
+      return;
+    }
+
+    setDepFieldErrors({});
 
     if (editingCardId === 'titular') {
       const updatedTitular = {
@@ -885,36 +953,60 @@ export default function PatientForm({
 
   const validateStep1 = (): boolean => {
     setError(null);
-    if (!patientDni.trim()) {
-      setError('El número de DNI es obligatorio.');
-      return false;
+    const errors: typeof fieldErrors = {};
+
+    const cleanDni = patientDni.trim();
+    if (!cleanDni) {
+      errors.patientDni = 'El número de DNI es obligatorio.';
+    } else if (cleanDni.length < 6 || cleanDni.length > 10) {
+      errors.patientDni = 'El número de DNI debe contener entre 6 y 10 dígitos.';
     }
-    if (!patientName.trim() || !patientLastName.trim()) {
-      setError('El nombre y el apellido son obligatorios.');
-      return false;
+
+    if (!patientName.trim()) {
+      errors.patientName = 'El nombre del paciente es obligatorio.';
     }
+    if (!patientLastName.trim()) {
+      errors.patientLastName = 'El apellido del paciente es obligatorio.';
+    }
+
     if (!patientBirthDate) {
-      setError('La fecha de nacimiento es obligatoria.');
-      return false;
+      errors.patientBirthDate = 'La fecha de nacimiento es obligatoria.';
+    } else {
+      const age = calculateAge(patientBirthDate);
+      if (age < 18 && selectedCardId === 'titular') {
+        errors.patientBirthDate = 'Debe ser mayor de edad (18 años o más) para ser titular de la solicitud.';
+      }
     }
-    const age = calculateAge(patientBirthDate);
-    if (age < 18) {
-      setError('Debe ser mayor de edad (18 años o más) para realizar la solicitud.');
-      return false;
-    }
+
     // Email is optional, but if entered, validate it
-    if (patientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientEmail)) {
-      setError('Por favor ingrese un correo electrónico válido o déjelo en blanco.');
-      return false;
+    if (patientEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientEmail.trim())) {
+      errors.patientEmail = 'Por favor ingrese un correo electrónico válido o déjelo en blanco.';
     }
-    if (!patientPhone.trim() || patientPhone.replace(/\D/g, '').length < 8) {
-      setError('Por favor ingrese un número de WhatsApp / Celular válido.');
-      return false;
+
+    const cleanPhone = patientPhone.replace(/\D/g, '');
+    if (!patientPhone.trim() || cleanPhone.length < 8) {
+      errors.patientPhone = 'Por favor ingrese un número de WhatsApp / Celular válido (mínimo 8 dígitos).';
     }
+
     if (!selectedObraSocial) {
-      setError('Debe seleccionar su cobertura médica u obra social.');
+      errors.selectedObraSocial = 'Debe seleccionar su cobertura médica u obra social.';
+    } else {
+      const selectedOs = OBRA_SOCIAL_OPTIONS.find(o => o.name === selectedObraSocial);
+      if (selectedOs?.requiresNumber && !obraSocialNumber.trim()) {
+        errors.obraSocialNumber = `El número de afiliado es obligatorio para ${selectedObraSocial}.`;
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setError('Faltan datos obligatorios del paciente o cobertura. Por favor haga clic en "Editar" en la tarjeta seleccionada para completarlos.');
+      setTimeout(() => {
+        document.getElementById('main-error-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
       return false;
     }
+
+    setFieldErrors({});
     return true;
   };
 
@@ -926,14 +1018,29 @@ export default function PatientForm({
 
   const addManualMedication = () => {
     setError(null);
+    const errors: typeof fieldErrors = {};
+
     if (!curNombreComercial.trim()) {
-      setError('Ingrese el nombre comercial del medicamento.');
+      errors.curNombreComercial = 'Ingrese el nombre comercial de la medicación.';
+    }
+
+    const count = parseInt(curCantidadCajas);
+    if (!curCantidadCajas || isNaN(count) || count <= 0) {
+      errors.curCantidadCajas = 'Seleccione una cantidad de cajas válida (mayor a 0).';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(prev => ({ ...prev, ...errors }));
+      setError('Por favor complete el nombre comercial y la cantidad de cajas de la medicación.');
       return;
     }
-    if (!curCantidadCajas || parseInt(curCantidadCajas) <= 0) {
-      setError('Ingrese una cantidad de cajas válida.');
-      return;
-    }
+
+    setFieldErrors(prev => ({
+      ...prev,
+      curNombreComercial: undefined,
+      curCantidadCajas: undefined,
+      medicationList: undefined
+    }));
 
     const newItem: MedicationItem = {
       nombreComercial: curNombreComercial.trim(),
@@ -965,12 +1072,20 @@ export default function PatientForm({
     setError(null);
     if (medicationMethod === 'new_manual') {
       if (medicationItems.length === 0 && medicationPhotos.length === 0) {
+        setFieldErrors(prev => ({ ...prev, medicationList: 'Aún no ha ingresado ningún medicamento al carrito. Complete los datos y presione "Agregar al carrito" para continuar.' }));
         setError('Aún no ha ingresado ningún medicamento al carrito. Por favor complete los datos del medicamento y presione "Agregar al carrito" para continuar.');
+        setTimeout(() => {
+          document.getElementById('main-error-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return false;
       }
     } else if (medicationMethod === 'upload_photo') {
       if (medicationPhotos.length === 0 && medicationItems.length === 0) {
+        setFieldErrors(prev => ({ ...prev, medicationList: 'Aún no ha adjuntado ninguna foto de su receta anterior o medicación. Seleccione o tome una foto para continuar.' }));
         setError('Aún no ha adjuntado ninguna foto de su receta anterior o medicación. Por favor seleccione o tome una foto para continuar.');
+        setTimeout(() => {
+          document.getElementById('main-error-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return false;
       }
     } else if (medicationMethod === 'past_orders') {
@@ -990,12 +1105,13 @@ export default function PatientForm({
       }
     }
 
+    setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
     return true;
   };
 
   const goToPayment = () => {
     if (validateStep2()) {
-      isOficio ? setStep('confirmation') : isOficio ? setStep('confirmation') : setStep('payment');
+      isOficio ? setStep('confirmation') : setStep('payment');
     }
   };
 
@@ -1132,9 +1248,10 @@ export default function PatientForm({
         return;
       }
       if (paymentMethod === 'transfer' && !paymentReceipt) {
+        setFieldErrors(prev => ({ ...prev, paymentReceipt: 'Debe adjuntar el comprobante de transferencia bancaria para continuar.' }));
         setError('Debe adjuntar el comprobante de transferencia bancaria para poder enviar la solicitud.');
         setTimeout(() => {
-          document.getElementById('payment-step-error')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          document.getElementById('payment-receipt-dropzone')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 50);
         return;
       }
@@ -1546,7 +1663,7 @@ export default function PatientForm({
       </div>
 
       {/* Progress Indicators */}
-      <div className="grid grid-cols-4 border-b border-slate-200 bg-slate-50/50 py-3 text-center text-[10px] sm:text-[11px] font-bold">
+      <div className="grid grid-cols-4 border-b border-slate-200 bg-slate-50/50 py-2.5 sm:py-3 text-center text-[10px] sm:text-[11px] font-bold">
         <div 
           onClick={() => setStep('info')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
@@ -1558,7 +1675,8 @@ export default function PatientForm({
               ? 'bg-[#1661E1] text-white shadow' 
               : 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20'
           }`}>1</span>
-          <span>Información Previa</span>
+          <span className="hidden sm:inline">Información Previa</span>
+          <span className="sm:hidden">Info</span>
         </div>
 
         <div 
@@ -1574,7 +1692,8 @@ export default function PatientForm({
               ? 'bg-[#1661E1] text-white shadow' 
               : step !== 'info' ? 'bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20' : 'bg-slate-200 text-slate-400'
           }`}>2</span>
-          <span>Identificación</span>
+          <span className="hidden sm:inline">Identificación</span>
+          <span className="sm:hidden">Datos</span>
         </div>
 
         <div 
@@ -1608,7 +1727,8 @@ export default function PatientForm({
           <span className={`w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
             step === 'payment' ? 'bg-[#1661E1] text-white shadow' : 'bg-slate-200 text-slate-400'
           }`}>4</span>
-          <span>Pagar y Enviar Solicitud</span>
+          <span className="hidden sm:inline">Pagar y Enviar Solicitud</span>
+          <span className="sm:hidden">Pago</span>
         </div>
       </div>
 
@@ -1633,7 +1753,7 @@ export default function PatientForm({
 
       {/* Main Error Box */}
       {error && (
-        <div className="mx-6 mt-4 p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-900 rounded-xl flex items-start gap-2.5 text-sm shadow-sm animate-fadeIn">
+        <div id="main-error-banner" className="mx-6 mt-4 p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-900 rounded-xl flex items-start gap-2.5 text-sm shadow-sm animate-fadeIn">
           <AlertCircle className="h-5 w-5 text-rose-600 shrink-0 mt-0.5" />
           <div>
             <p className="font-bold text-rose-950">Atención</p>
@@ -1643,7 +1763,7 @@ export default function PatientForm({
       )}
 
       {/* Form Content */}
-      <form onSubmit={handleSubmitAll} className="p-4 sm:p-6">
+      <form onSubmit={handleSubmitAll} className="p-4 sm:p-6" noValidate>
         
         {/* STEP 0: INFO */}
         {step === 'info' && (
@@ -1765,41 +1885,41 @@ export default function PatientForm({
                       </h5>
                       
                       <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-400">DNI:</span>
-                          <span className="font-mono font-bold text-[#0141BC]">{titularData.dni || 'Sin registrar'}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-400 shrink-0">DNI:</span>
+                          <span className="font-mono font-bold text-[#0141BC] truncate flex-1 min-w-0 text-right">{titularData.dni || 'Sin registrar'}</span>
                         </div>
 
                         {titularData.birthDate && (
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-400">F. Nacimiento:</span>
-                            <span className="font-bold text-slate-700">{titularData.birthDate}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-400 shrink-0">F. Nacimiento:</span>
+                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.birthDate}</span>
                           </div>
                         )}
 
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-400">Obra Social:</span>
-                          <span className="font-bold text-[#0F6C7D] truncate max-w-[130px] text-right">{titularData.obraSocial || 'Sin especificar'}</span>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
+                          <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{titularData.obraSocial || 'Sin especificar'}</span>
                         </div>
 
                         {titularData.obraSocialNumber && (
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-400">Credencial N°:</span>
-                            <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{titularData.obraSocialNumber}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
+                            <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.obraSocialNumber}</span>
                           </div>
                         )}
 
                         {titularData.phone && (
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-400">WhatsApp:</span>
-                            <span className="font-bold text-slate-700">{titularData.phone}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-400 shrink-0">WhatsApp:</span>
+                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.phone}</span>
                           </div>
                         )}
 
                         {titularData.email && (
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-400">Email:</span>
-                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{titularData.email}</span>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-400 shrink-0">Email:</span>
+                            <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.email}</span>
                           </div>
                         )}
                       </div>
@@ -1815,19 +1935,13 @@ export default function PatientForm({
                         onClick={() => handleSelectCard(dep.id)}
                         className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-white border-emerald-600 ring-2 ring-emerald-600/20 shadow-md'
-                            : 'bg-white border-slate-250 hover:border-emerald-300 hover:shadow-xs'
+                            ? 'bg-white border-[#1661E1] ring-2 ring-[#1E6EFB]/20 shadow-md'
+                            : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
                         }`}
                       >
                         <div>
                           <div className="flex items-center justify-between gap-2 mb-3">
-                            <span className={`inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full ${
-                              dep.relationship === 'Hijo/a'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : dep.relationship === 'Padre/Madre' || dep.relationship === 'Abuelo/a'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                : 'bg-purple-100 text-purple-800 border border-purple-200'
-                            }`}>
+                            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-[#0F6C7D]/10 text-[#0F6C7D] border border-[#0F6C7D]/20">
                               <Heart className="h-3.5 w-3.5" />
                               {dep.relationship || 'A Cargo'}
                             </span>
@@ -1836,10 +1950,10 @@ export default function PatientForm({
                               <button
                                 type="button"
                                 onClick={(e) => handleOpenEditModal(e, dep.id)}
-                                className="px-2 py-1 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                                className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#1661E1] hover:bg-[#1661E1]/10 border border-slate-200 hover:border-[#1661E1]/30 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                                 title="Editar datos del paciente"
                               >
-                                <Edit3 className="h-3.5 w-3.5 text-emerald-600" />
+                                <Edit3 className="h-3.5 w-3.5 text-[#1661E1]" />
                                 <span>Editar</span>
                               </button>
 
@@ -1853,7 +1967,7 @@ export default function PatientForm({
                               </button>
 
                               {isSelected && (
-                                <span className="h-6 w-6 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                                <span className="h-6 w-6 rounded-full bg-[#1661E1] text-white flex items-center justify-center shadow-xs">
                                   <Check className="h-4 w-4 stroke-[3]" />
                                 </span>
                               )}
@@ -1865,41 +1979,41 @@ export default function PatientForm({
                           </h5>
 
                           <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-slate-400">DNI:</span>
-                              <span className="font-mono font-bold text-[#0141BC]">{dep.dni}</span>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-slate-400 shrink-0">DNI:</span>
+                              <span className="font-mono font-bold text-[#0141BC] truncate flex-1 min-w-0 text-right">{dep.dni || 'Sin registrar'}</span>
                             </div>
 
                             {dep.birthDate && (
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-slate-400">F. Nacimiento:</span>
-                                <span className="font-bold text-slate-700">{dep.birthDate}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-400 shrink-0">F. Nacimiento:</span>
+                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.birthDate}</span>
                               </div>
                             )}
 
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-slate-400">Obra Social:</span>
-                              <span className="font-bold text-[#0F6C7D] truncate max-w-[130px] text-right">{dep.obraSocial || 'Sin especif.'}</span>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
+                              <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{dep.obraSocial || 'Sin especif.'}</span>
                             </div>
 
                             {dep.obraSocialNumber && (
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-slate-400">Credencial N°:</span>
-                                <span className="font-mono font-bold text-slate-700 truncate max-w-[130px]">{dep.obraSocialNumber}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
+                                <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.obraSocialNumber}</span>
                               </div>
                             )}
 
                             {dep.phone && (
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-slate-400">WhatsApp:</span>
-                                <span className="font-bold text-slate-700">{dep.phone}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-400 shrink-0">WhatsApp:</span>
+                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.phone}</span>
                               </div>
                             )}
 
                             {dep.email && (
-                              <div className="flex items-center justify-between">
-                                <span className="font-semibold text-slate-400">Email:</span>
-                                <span className="font-medium text-slate-700 truncate max-w-[140px]">{dep.email}</span>
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-400 shrink-0">Email:</span>
+                                <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{dep.email}</span>
                               </div>
                             )}
                           </div>
@@ -1989,7 +2103,11 @@ export default function PatientForm({
             )}
 
             {/* 🛒 CARRITO DE LA SOLICITUD (PLACED ABOVE MÉTODO DE CARGA) */}
-            <div className="bg-slate-50/75 p-4.5 rounded-2xl border border-slate-200 space-y-3 shadow-xs">
+            <div className={`p-4.5 rounded-2xl border space-y-3 transition-all ${
+              fieldErrors.medicationList 
+                ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
+                : 'bg-slate-50/75 border-slate-200 shadow-xs'
+            }`}>
               <div className="flex items-center justify-between">
                 <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <span>🛒 Carrito de la Solicitud</span>
@@ -2007,6 +2125,13 @@ export default function PatientForm({
                   </button>
                 )}
               </div>
+
+              {fieldErrors.medicationList && (
+                <p className="text-xs text-rose-600 font-semibold flex items-center gap-1.5 animate-fadeIn">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{fieldErrors.medicationList}</span>
+                </p>
+              )}
 
               {medicationItems.length === 0 && medicationPhotos.length === 0 ? (
                 <div className="py-5 text-center text-xs text-slate-400 font-medium bg-white/60 rounded-xl border border-dashed border-slate-250">
@@ -2196,10 +2321,23 @@ export default function PatientForm({
                         id="cur-nombre-comercial"
                         type="text"
                         value={curNombreComercial}
-                        onChange={(e) => setCurNombreComercial(e.target.value)}
+                        onChange={(e) => {
+                          setCurNombreComercial(e.target.value);
+                          if (fieldErrors.curNombreComercial) setFieldErrors(prev => ({ ...prev, curNombreComercial: undefined }));
+                        }}
                         placeholder="Ej. Lotrial, Amoxidal, Enalapril..."
-                        className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold transition-all outline-hidden ${
+                          fieldErrors.curNombreComercial
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-250 text-slate-850 focus:ring-2 focus:ring-blue-500'
+                        }`}
                       />
+                      {fieldErrors.curNombreComercial && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{fieldErrors.curNombreComercial}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2239,8 +2377,15 @@ export default function PatientForm({
                         <select
                           id="cur-cajas"
                           value={curCantidadCajas}
-                          onChange={(e) => setCurCantidadCajas(e.target.value)}
-                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 text-center focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                          onChange={(e) => {
+                            setCurCantidadCajas(e.target.value);
+                            if (fieldErrors.curCantidadCajas) setFieldErrors(prev => ({ ...prev, curCantidadCajas: undefined }));
+                          }}
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-bold text-center cursor-pointer outline-hidden ${
+                            fieldErrors.curCantidadCajas
+                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                              : 'bg-white border border-slate-250 text-slate-850 focus:ring-2 focus:ring-blue-500'
+                          }`}
                         >
                           {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                             <option key={num} value={num}>
@@ -2248,6 +2393,12 @@ export default function PatientForm({
                             </option>
                           ))}
                         </select>
+                        {fieldErrors.curCantidadCajas && (
+                          <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            <span>{fieldErrors.curCantidadCajas}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -2710,13 +2861,27 @@ export default function PatientForm({
                     </div>
 
                     {/* Receipt upload / simulation */}
-                    <div className="border border-dashed border-amber-300 rounded-2xl p-4.5 bg-white/70 text-center flex flex-col items-center justify-center">
+                    <div 
+                      id="payment-receipt-dropzone"
+                      className={`rounded-2xl p-4.5 text-center flex flex-col items-center justify-center transition-all ${
+                        fieldErrors.paymentReceipt
+                          ? 'border-2 border-dashed border-rose-400 bg-rose-50/40 ring-2 ring-rose-500/10'
+                          : 'border border-dashed border-amber-300 bg-white/70'
+                      }`}
+                    >
                       <p className="font-bold text-slate-800 mb-1">
                         Adjunte el Comprobante de Transferencia <span className="text-red-500">*</span>
                       </p>
                       <p className="text-[11px] text-slate-500 max-w-sm mb-3">
                         Suba la captura o PDF generado por su Homebanking o billetera virtual.
                       </p>
+
+                      {fieldErrors.paymentReceipt && (
+                        <p className="text-[11px] text-rose-600 font-semibold mb-3 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{fieldErrors.paymentReceipt}</span>
+                        </p>
+                      )}
 
                       {paymentReceipt ? (
                         <div className="w-full bg-white p-2.5 rounded-xl border border-blue-100 flex items-center justify-between text-left">
@@ -2741,6 +2906,7 @@ export default function PatientForm({
                             onClick={() => {
                               setPaymentReceipt(null);
                               setError(null);
+                              setFieldErrors(prev => ({ ...prev, paymentReceipt: undefined }));
                             }}
                             className="text-[11px] text-red-650 hover:text-red-800 hover:bg-red-50 font-bold px-2.5 py-1.5 rounded-lg cursor-pointer"
                           >
@@ -2756,7 +2922,10 @@ export default function PatientForm({
                               id="input-payment-file"
                               type="file"
                               accept=".jpg,.jpeg,.png,.heic,application/pdf"
-                              onChange={(e) => handleFileChange(e, 'payment')}
+                              onChange={(e) => {
+                                handleFileChange(e, 'payment');
+                                setFieldErrors(prev => ({ ...prev, paymentReceipt: undefined }));
+                              }}
                               className="hidden"
                             />
                           </label>
@@ -2846,28 +3015,28 @@ export default function PatientForm({
       {/* MODAL AGREGAR / EDITAR PACIENTE */}
       {showAddDependentModal && (
         <div 
-          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
           onClick={() => setShowAddDependentModal(false)}
         >
           <div 
-            className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp"
+            className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-[#0141BC] text-white p-5 px-6 flex items-center justify-between border-b border-white/10">
+            <div className="bg-[#0141BC] text-white p-4 sm:p-5 sm:px-6 flex items-center justify-between border-b border-white/10 shrink-0">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-white/15 border border-white/20 text-white flex items-center justify-center shrink-0">
-                  {editingCardId ? <Edit3 className="h-5 w-5" /> : <UserPlus className="h-5 w-5" />}
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-white/15 border border-white/20 text-white flex items-center justify-center shrink-0">
+                  {editingCardId ? <Edit3 className="h-4 w-4 sm:h-5 sm:w-5" /> : <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />}
                 </div>
                 <div>
-                  <h3 className="font-black text-white text-base">
+                  <h3 className="font-black text-white text-sm sm:text-base">
                     {editingCardId === 'titular' 
                       ? 'Editar Datos del Titular' 
                       : editingCardId 
                       ? 'Editar Paciente a Cargo' 
                       : 'Agregar Nuevo Paciente a Cargo'}
                   </h3>
-                  <p className="text-xs text-blue-100 font-semibold">
+                  <p className="text-[11px] sm:text-xs text-blue-100 font-semibold">
                     {editingCardId ? 'Modifique los datos necesarios' : 'Complete la información requerida del familiar'}
                   </p>
                 </div>
@@ -2877,15 +3046,16 @@ export default function PatientForm({
                 type="button"
                 onClick={() => setShowAddDependentModal(false)}
                 className="text-slate-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
+                aria-label="Cerrar"
               >
                 ✕
               </button>
             </div>
 
             {/* Modal Body Form */}
-            <form onSubmit={handleSaveModalPatient} className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+            <form onSubmit={handleSaveModalPatient} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
               {depFormError && (
-                <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-xs font-semibold flex items-center gap-2">
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
                   <span>{depFormError}</span>
                 </div>
@@ -2906,11 +3076,23 @@ export default function PatientForm({
                     <input
                       type="text"
                       value={depName}
-                      onChange={(e) => setDepName(e.target.value)}
+                      onChange={(e) => {
+                        setDepName(e.target.value);
+                        if (depFieldErrors.name) setDepFieldErrors(prev => ({ ...prev, name: undefined }));
+                      }}
                       placeholder="Ej. Lucas"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
-                      required
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.name
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.name && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.name}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
@@ -2919,11 +3101,23 @@ export default function PatientForm({
                     <input
                       type="text"
                       value={depLastName}
-                      onChange={(e) => setDepLastName(e.target.value)}
+                      onChange={(e) => {
+                        setDepLastName(e.target.value);
+                        if (depFieldErrors.lastName) setDepFieldErrors(prev => ({ ...prev, lastName: undefined }));
+                      }}
                       placeholder="Ej. Olaciregui"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
-                      required
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.lastName
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.lastName && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.lastName}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2935,11 +3129,23 @@ export default function PatientForm({
                     <input
                       type="text"
                       value={depDni}
-                      onChange={(e) => setDepDni(e.target.value.replace(/\D/g, ''))}
+                      onChange={(e) => {
+                        setDepDni(e.target.value.replace(/\D/g, ''));
+                        if (depFieldErrors.dni) setDepFieldErrors(prev => ({ ...prev, dni: undefined }));
+                      }}
                       placeholder="Ej. 48912345"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
-                      required
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.dni
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.dni && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.dni}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
@@ -2948,10 +3154,22 @@ export default function PatientForm({
                     <input
                       type="date"
                       value={depBirthDate}
-                      onChange={(e) => setDepBirthDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all cursor-pointer"
-                      required
+                      onChange={(e) => {
+                        setDepBirthDate(e.target.value);
+                        if (depFieldErrors.birthDate) setDepFieldErrors(prev => ({ ...prev, birthDate: undefined }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden cursor-pointer ${
+                        depFieldErrors.birthDate
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.birthDate && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.birthDate}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -2962,7 +3180,10 @@ export default function PatientForm({
                     </label>
                     <select
                       value={depRelationship}
-                      onChange={(e) => setDepRelationship(e.target.value)}
+                      onChange={(e) => {
+                        setDepRelationship(e.target.value);
+                        if (depFieldErrors.relationship) setDepFieldErrors(prev => ({ ...prev, relationship: undefined }));
+                      }}
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none cursor-pointer"
                     >
                       <option value="Hijo/a">Hijo/a</option>
@@ -2983,10 +3204,23 @@ export default function PatientForm({
                     <input
                       type="tel"
                       value={depPhone}
-                      onChange={(e) => setDepPhone(e.target.value)}
+                      onChange={(e) => {
+                        setDepPhone(e.target.value);
+                        if (depFieldErrors.phone) setDepFieldErrors(prev => ({ ...prev, phone: undefined }));
+                      }}
                       placeholder="Ej. 2926442385"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.phone
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.phone && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.phone}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
@@ -2995,10 +3229,23 @@ export default function PatientForm({
                     <input
                       type="email"
                       value={depEmail}
-                      onChange={(e) => setDepEmail(e.target.value)}
+                      onChange={(e) => {
+                        setDepEmail(e.target.value);
+                        if (depFieldErrors.email) setDepFieldErrors(prev => ({ ...prev, email: undefined }));
+                      }}
                       placeholder="ejemplo@gmail.com"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.email
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.email && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.email}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3013,18 +3260,31 @@ export default function PatientForm({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Obra Social / Prepaga
+                      Obra Social / Prepaga <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={depObraSocial}
-                      onChange={(e) => setDepObraSocial(e.target.value)}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none cursor-pointer"
+                      onChange={(e) => {
+                        setDepObraSocial(e.target.value);
+                        if (depFieldErrors.obraSocial) setDepFieldErrors(prev => ({ ...prev, obraSocial: undefined }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs cursor-pointer outline-hidden ${
+                        depFieldErrors.obraSocial
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     >
                       <option value="">Seleccionar Obra Social</option>
                       {OBRA_SOCIAL_OPTIONS.map((os) => (
                         <option key={os.id} value={os.name}>{os.name}</option>
                       ))}
                     </select>
+                    {depFieldErrors.obraSocial && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.obraSocial}</span>
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
@@ -3033,10 +3293,23 @@ export default function PatientForm({
                     <input
                       type="text"
                       value={depObraSocialNumber}
-                      onChange={(e) => setDepObraSocialNumber(e.target.value)}
+                      onChange={(e) => {
+                        setDepObraSocialNumber(e.target.value);
+                        if (depFieldErrors.obraSocialNumber) setDepFieldErrors(prev => ({ ...prev, obraSocialNumber: undefined }));
+                      }}
                       placeholder="Ej. 210-48912345"
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-mono font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.obraSocialNumber
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.obraSocialNumber && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.obraSocialNumber}</span>
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -3048,11 +3321,23 @@ export default function PatientForm({
                     <input
                       type="text"
                       value={depCustomObraSocial}
-                      onChange={(e) => setDepCustomObraSocial(e.target.value)}
+                      onChange={(e) => {
+                        setDepCustomObraSocial(e.target.value);
+                        if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
+                      }}
                       placeholder="Escriba el nombre de la obra social o prepaga..."
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none transition-all"
-                      required
+                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                        depFieldErrors.customObraSocial
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
+                      }`}
                     />
+                    {depFieldErrors.customObraSocial && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{depFieldErrors.customObraSocial}</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

@@ -61,6 +61,14 @@ export default function UserManagement({
 
   // Error state and loading state
   const [errorMess, setErrorMess] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    identifier?: string;
+    password?: string;
+    medicoId?: string;
+  }>({});
   const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
@@ -76,6 +84,7 @@ export default function UserManagement({
     setPassword('');
     setShowPassword(false);
     setErrorMess('');
+    setFieldErrors({});
     setShowModal(true);
   };
 
@@ -92,32 +101,51 @@ export default function UserManagement({
     setPassword('');
     setShowPassword(false);
     setErrorMess('');
+    setFieldErrors({});
     setShowModal(true);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMess('');
+    const errors: typeof fieldErrors = {};
 
-    if (!firstName.trim() || !lastName.trim() || !identifier.trim()) {
-      setErrorMess('Por favor, completa los campos requeridos (*).');
-      return;
+    if (!firstName.trim()) {
+      errors.firstName = 'El nombre es obligatorio.';
+    }
+
+    if (!lastName.trim()) {
+      errors.lastName = 'El apellido es obligatorio.';
+    }
+
+    const cleanIdentifier = identifier.trim();
+    if (!cleanIdentifier) {
+      errors.identifier = role === 'paciente' ? 'El DNI es obligatorio.' : role === 'medico' ? 'La matrícula es obligatoria.' : 'El identificador es obligatorio.';
+    } else if (role === 'paciente' && (cleanIdentifier.length < 6 || cleanIdentifier.length > 10)) {
+      errors.identifier = 'El DNI debe contener entre 6 y 10 dígitos.';
+    }
+
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = 'Ingrese un correo electrónico válido o déjelo en blanco.';
     }
 
     if (!editingUserId && !password.trim()) {
-      setErrorMess('Por favor, defina la contraseña inicial del usuario.');
+      errors.password = 'Defina la contraseña inicial del nuevo usuario.';
+    } else if (password.trim() && password.trim().length < 6) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres.';
+    }
+
+    if (role === 'colaborador' && !medicoId) {
+      errors.medicoId = 'Debe seleccionar el médico responsable asociado.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setErrorMess('Por favor corrija los campos marcados en rojo.');
       return;
     }
 
-    if (password.trim() && password.trim().length < 6) {
-      setErrorMess('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-
-    if ((role === 'colaborador') && !medicoId) {
-      setErrorMess('Por favor, asigne un médico al usuario.');
-      return;
-    }
+    setFieldErrors({});
 
     const userData: any = {
       name: firstName.trim(),
@@ -252,7 +280,7 @@ export default function UserManagement({
       {/* Grid List - Table Pattern */}
       <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-white/50 overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <th className="py-4 px-6">Usuario</th>
@@ -382,15 +410,15 @@ export default function UserManagement({
         </div>
       </div>
 
-      {/* Modern, Simple Modal Form */}
+      {/* CREATE / EDIT USER MODAL */}
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/50 animate-scaleUp">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/50 animate-scaleUp max-h-[90vh] flex flex-col">
             
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-650 px-6 py-5 text-white flex items-center justify-between">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-650 px-4 sm:px-6 py-4 sm:py-5 text-white flex items-center justify-between shrink-0">
               <div>
-                <h3 className="text-lg font-bold">
+                <h3 className="text-base sm:text-lg font-bold">
                   {editingUserId ? 'Editar Usuario' : 'Agregar Usuario'}
                 </h3>
                 <p className="text-[11px] text-white/80 mt-0.5">
@@ -407,12 +435,12 @@ export default function UserManagement({
             </div>
 
             {/* Form body */}
-            <form onSubmit={handleSave} className="p-6 space-y-4">
+            <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1" noValidate>
               
               {/* Error Alert */}
               {errorMess && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-1.5">
-                  <XCircle className="h-4 w-4 shrink-0" />
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs font-semibold rounded-xl flex items-center gap-1.5 animate-fadeIn">
+                  <XCircle className="h-4 w-4 shrink-0 text-red-600" />
                   <span>{errorMess}</span>
                 </div>
               )}
@@ -420,50 +448,87 @@ export default function UserManagement({
               {/* Name and Last Name */}
               <div className="grid grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Nombres <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => {
+                      setFirstName(e.target.value);
+                      if (fieldErrors.firstName) setFieldErrors(prev => ({ ...prev, firstName: undefined }));
+                    }}
                     placeholder="Nombre"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                    required
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all outline-hidden ${
+                      fieldErrors.firstName
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-blue-500'
+                    }`}
                   />
+                  {fieldErrors.firstName && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{fieldErrors.firstName}</span>
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
                     Apellidos <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => {
+                      setLastName(e.target.value);
+                      if (fieldErrors.lastName) setFieldErrors(prev => ({ ...prev, lastName: undefined }));
+                    }}
                     placeholder="Apellido"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                    required
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all outline-hidden ${
+                      fieldErrors.lastName
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-blue-500'
+                    }`}
                   />
+                  {fieldErrors.lastName && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{fieldErrors.lastName}</span>
+                    </p>
+                  )}
                 </div>
               </div>
 
               {/* Email */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   Correo Electrónico
                 </label>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (fieldErrors.email) setFieldErrors(prev => ({ ...prev, email: undefined }));
+                  }}
                   placeholder="correo@ejemplo.com"
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                  className={`w-full px-3 py-2 rounded-lg text-xs font-medium transition-all outline-hidden ${
+                    fieldErrors.email
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-blue-500'
+                  }`}
                 />
+                {fieldErrors.email && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{fieldErrors.email}</span>
+                  </p>
+                )}
               </div>
 
               {/* Role selector */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
                   Rol del Usuario
                 </label>
                 <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
@@ -526,8 +591,8 @@ export default function UserManagement({
 
               {(role === 'colaborador') && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 mb-1">
-                    Médico Asociado *
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Médico Asociado <span className="text-red-500">*</span>
                   </label>
                   <select
                     value={medicoId}
@@ -535,21 +600,31 @@ export default function UserManagement({
                       const selected = users.find(u => u.id === e.target.value);
                       setMedicoId(e.target.value);
                       setMedicoName(selected ? `Dr. ${selected.lastName}` : '');
+                      if (fieldErrors.medicoId) setFieldErrors(prev => ({ ...prev, medicoId: undefined }));
                     }}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
-                    required
+                    className={`w-full px-3 py-2 rounded-lg text-xs font-medium cursor-pointer outline-hidden ${
+                      fieldErrors.medicoId
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-[#1661E1]'
+                    }`}
                   >
                     <option value="">Seleccione un médico</option>
                     {users.filter(u => u.role === 'medico').map(med => (
                       <option key={med.id} value={med.id}>Dr. {med.lastName}, {med.name}</option>
                     ))}
                   </select>
+                  {fieldErrors.medicoId && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{fieldErrors.medicoId}</span>
+                    </p>
+                  )}
                 </div>
               )}
 
               {/* Identifier (DNI or Matricula) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {role === 'paciente' 
                     ? 'Documento (DNI) *' 
                     : role === 'medico' 
@@ -559,16 +634,28 @@ export default function UserManagement({
                 <input
                   type="text"
                   value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
+                  onChange={(e) => {
+                    setIdentifier(e.target.value);
+                    if (fieldErrors.identifier) setFieldErrors(prev => ({ ...prev, identifier: undefined }));
+                  }}
                   placeholder={role === 'paciente' ? 'Número de DNI' : role === 'medico' ? 'Número de matrícula' : 'Nombre de usuario'}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono font-bold focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
-                  required
+                  className={`w-full px-3 py-2 rounded-lg text-xs font-mono font-bold transition-all outline-hidden ${
+                    fieldErrors.identifier
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-[#1661E1]'
+                  }`}
                 />
+                {fieldErrors.identifier && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{fieldErrors.identifier}</span>
+                  </p>
+                )}
               </div>
 
               {/* Password definition for Admin */}
               <div>
-                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
                   {editingUserId 
                     ? 'Nueva Contraseña (Opcional - dejar vacío para conservar)' 
                     : 'Contraseña Inicial (Asignada por Administrador) *'}
@@ -577,20 +664,32 @@ export default function UserManagement({
                   <input
                     type={showPassword ? 'text' : 'password'}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (fieldErrors.password) setFieldErrors(prev => ({ ...prev, password: undefined }));
+                    }}
                     placeholder={editingUserId ? 'Dejar vacío para conservar' : 'Mínimo 6 caracteres'}
-                    className="w-full pl-3 pr-9 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-mono focus:ring-1 focus:ring-[#1661E1] focus:outline-none"
-                    required={!editingUserId}
+                    className={`w-full pl-3 pr-9 py-2 rounded-lg text-xs font-mono transition-all outline-hidden ${
+                      fieldErrors.password
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-300 focus:ring-1 focus:ring-[#1661E1]'
+                    }`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
                   </button>
                 </div>
-                {!editingUserId && (role === 'medico' || role === 'colaborador') && (
+                {fieldErrors.password && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{fieldErrors.password}</span>
+                  </p>
+                )}
+                {!editingUserId && (role === 'medico' || role === 'colaborador') && !fieldErrors.password && (
                   <span className="text-[10px] text-amber-600 font-medium mt-1 block">
                     Al acceder por primera vez, el profesional o colaborador deberá cambiar obligatoriamente esta contraseña.
                   </span>

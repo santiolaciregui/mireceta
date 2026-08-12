@@ -517,14 +517,14 @@ export default function SettlementMetricsView({
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50 font-sans">
       {/* 1. TOP HEADER & GLOBAL ACTIONS */}
-      <header className="px-6 py-5 bg-white border-b border-slate-200/80 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="px-4 sm:px-6 py-4 sm:py-5 bg-white border-b border-slate-200/80 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center border border-blue-200/60 shadow-xs">
+            <div className="h-9 w-9 rounded-xl bg-blue-600/10 text-blue-600 flex items-center justify-center border border-blue-200/60 shadow-xs shrink-0">
               <TrendingUp className="h-5 w-5" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <h1 className="text-lg sm:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
                 Liquidaciones y Métricas
                 <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
                   {filteredOrders.length} {filteredOrders.length === 1 ? 'receta' : 'recetas'}
@@ -538,11 +538,11 @@ export default function SettlementMetricsView({
         </div>
 
         {/* Global actions: Settings, Export CSV & Print */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           {/* Tariff Settings Button */}
           <button
             onClick={() => setShowTariffSettings(!showTariffSettings)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-all shadow-xs cursor-pointer"
             title="Configurar tarifas de liquidación"
           >
             <Sliders className="h-4 w-4 text-slate-500" />
@@ -553,7 +553,7 @@ export default function SettlementMetricsView({
           <button
             onClick={handleExportCsv}
             disabled={filteredOrders.length === 0}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-xs cursor-pointer"
           >
             <Download className="h-4 w-4 text-emerald-600" />
             <span>Exportar CSV</span>
@@ -562,7 +562,7 @@ export default function SettlementMetricsView({
           {/* Print Button */}
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xs cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 sm:px-4 sm:py-2 text-xs font-bold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-all shadow-xs cursor-pointer"
           >
             <Printer className="h-4 w-4" />
             <span>Imprimir Liquidación</span>
@@ -572,7 +572,7 @@ export default function SettlementMetricsView({
 
       {/* TARIFF SETTINGS COLLAPSIBLE POPOVER */}
       {showTariffSettings && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border-b border-blue-200 px-6 py-4 animate-fadeIn">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/50 border-b border-blue-200 px-4 sm:px-6 py-4 animate-fadeIn">
           <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs text-blue-900 font-medium">
               <Coins className="h-4.5 w-4.5 text-blue-600 shrink-0" />
@@ -630,12 +630,12 @@ export default function SettlementMetricsView({
       )}
 
       {/* 2. ADVANCED FILTER BAR */}
-      <div className="bg-white border-b border-slate-200/80 px-6 py-3.5 shrink-0 shadow-2xs space-y-3">
+      <div className="bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3.5 shrink-0 shadow-2xs space-y-3">
         {/* Row 1: Date presets & date picker */}
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Quick Date Presets */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-            <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1">
+            <span className="text-xs font-bold text-slate-500 mr-1 flex items-center gap-1 shrink-0">
               <Calendar className="h-3.5 w-3.5" /> Período:
             </span>
             {[
@@ -649,10 +649,10 @@ export default function SettlementMetricsView({
               <button
                 key={p.id}
                 onClick={() => handlePresetChange(p.id as DatePreset)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer shrink-0 ${
                   datePreset === p.id
                     ? 'bg-blue-600 text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/80'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                 }`}
               >
                 {p.label}
@@ -660,10 +660,10 @@ export default function SettlementMetricsView({
             ))}
           </div>
 
-          {/* Manual Date Inputs */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-slate-400 font-bold">Desde:</span>
+          {/* Custom Date Range Inputs */}
+          <div className="flex items-center gap-2 flex-wrap text-xs font-medium text-slate-600">
+            <div className="flex items-center gap-1.5">
+              <span>Desde:</span>
               <input
                 type="date"
                 value={startDate}
@@ -671,11 +671,11 @@ export default function SettlementMetricsView({
                   setStartDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                className="bg-transparent font-medium text-slate-800 outline-none text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1 text-xs">
-              <span className="text-slate-400 font-bold">Hasta:</span>
+            <div className="flex items-center gap-1.5">
+              <span>Hasta:</span>
               <input
                 type="date"
                 value={endDate}
@@ -683,7 +683,7 @@ export default function SettlementMetricsView({
                   setEndDate(e.target.value);
                   setDatePreset('custom');
                 }}
-                className="bg-transparent font-medium text-slate-800 outline-none text-xs"
+                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
           </div>
@@ -768,32 +768,24 @@ export default function SettlementMetricsView({
           {/* Live Search */}
           <div>
             <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
-              Buscar en vivo:
+              Búsqueda Rápida:
             </label>
             <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Paciente, DNI, droga, ID..."
-                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 shadow-2xs"
+                placeholder="Paciente, DNI, ID, medicación..."
+                className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-xs font-medium rounded-xl pl-8 pr-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-400 shadow-2xs"
               />
-              <Search className="h-3.5 w-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
             </div>
           </div>
         </div>
       </div>
 
       {/* 3. MAIN NAVIGATION TABS */}
-      <div className="px-6 bg-white border-b border-slate-200/80 flex items-center gap-1 shrink-0 overflow-x-auto">
+      <div className="px-4 sm:px-6 bg-white border-b border-slate-200/80 flex items-center gap-1 shrink-0 overflow-x-auto">
         {[
           { id: 'overview', label: 'Resumen & Métricas', icon: Activity },
           {
@@ -821,7 +813,7 @@ export default function SettlementMetricsView({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as ActiveTab)}
-              className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              className={`flex items-center gap-2 px-3 sm:px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                 isActive
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-900 hover:border-slate-300'
@@ -844,7 +836,7 @@ export default function SettlementMetricsView({
       </div>
 
       {/* 4. TAB CONTENT VIEW */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
         {/* KPI SUMMARY METRIC CARDS (Always visible for fast reference) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Card 1: Total Generadas */}
@@ -1152,7 +1144,7 @@ export default function SettlementMetricsView({
 
               {/* Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[700px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px] bg-slate-50/60">
                       <th className="py-3 px-4 rounded-l-xl">Colaborador</th>
@@ -1231,7 +1223,7 @@ export default function SettlementMetricsView({
         {/* ---------------------------------------------------- */}
         {activeTab === 'doctors' && (
           <div className="space-y-6">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-xs">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 pb-4 border-b border-slate-100">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -1252,7 +1244,7 @@ export default function SettlementMetricsView({
 
               {/* Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[650px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px] bg-slate-50/60">
                       <th className="py-3 px-4 rounded-l-xl">Médico / Profesional</th>
@@ -1328,7 +1320,7 @@ export default function SettlementMetricsView({
         {/* ---------------------------------------------------- */}
         {activeTab === 'orders' && (
           <div className="space-y-4">
-            <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-xs space-y-4">
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-6 shadow-xs space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <div>
                   <h3 className="text-sm font-bold text-slate-900">Listado Auditable de Recetas</h3>
@@ -1345,7 +1337,7 @@ export default function SettlementMetricsView({
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[850px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px] bg-slate-50/60">
                       <th className="py-3 px-3 rounded-l-xl">ID</th>

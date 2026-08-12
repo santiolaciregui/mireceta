@@ -177,7 +177,7 @@ export default function Sidebar({
   };
 
   const SidebarContent = () => (
-    <aside className="bg-[#0141BC] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg">
+    <aside className="relative bg-[#0141BC] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg">
       <div className="p-6 pb-4 overflow-y-auto">
         {/* Brand Header */}
         <div className="flex items-center gap-3 mb-8 pt-2">
@@ -186,8 +186,9 @@ export default function Sidebar({
         
         {/* Mobile Close Button */}
         <button 
-          className="lg:hidden absolute top-6 right-6 p-1.5 text-slate-300 hover:text-white"
+          className="lg:hidden absolute top-6 right-6 p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           onClick={() => setIsOpen(false)}
+          aria-label="Cerrar menú lateral"
         >
           <X className="h-5 w-5" />
         </button>
@@ -345,7 +346,7 @@ export default function Sidebar({
         >
           {/* Mobile Sidebar Content */}
           <div 
-            className="w-72 h-full shadow-2xl animate-slideRight"
+            className="w-72 max-w-[85vw] h-full shadow-2xl animate-slideRight flex flex-col"
             onClick={(e) => e.stopPropagation()} // Prevent closing on clicking sidebar
           >
             <SidebarContent />

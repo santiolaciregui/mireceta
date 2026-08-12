@@ -70,6 +70,35 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const [forgotInput, setForgotInput] = useState('');
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
 
+  // Field-level error states
+  const [loginErrors, setLoginErrors] = useState<{ identifier?: string; password?: string }>({});
+  const [regErrors, setRegErrors] = useState<{
+    identifier?: string;
+    name?: string;
+    lastName?: string;
+    birthDate?: string;
+    phone?: string;
+    obraSocial?: string;
+    obraSocialNumber?: string;
+    email?: string;
+    password?: string;
+    consents?: string;
+  }>({});
+  const [forgotErrors, setForgotErrors] = useState<{ forgotInput?: string }>({});
+
+  // Helper to calculate age from birthDate
+  const calculateAge = (dateStr: string): number => {
+    if (!dateStr) return 0;
+    const today = new Date();
+    const birth = new Date(dateStr);
+    let age = today.getFullYear() - birth.getFullYear();
+    const m = today.getMonth() - birth.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    return age;
+  };
+
   // General Status
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -88,10 +117,21 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!identifier.trim() || !password.trim()) {
-      setErrorMsg('Por favor complete todos los campos requeridos.');
+    const errors: { identifier?: string; password?: string } = {};
+    if (!identifier.trim()) {
+      errors.identifier = 'El número de DNI o usuario es obligatorio.';
+    }
+    if (!password.trim()) {
+      errors.password = 'La contraseña es obligatoria.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setLoginErrors(errors);
+      setErrorMsg('Por favor complete los campos obligatorios para ingresar.');
       return;
     }
+
+    setLoginErrors({});
 
     if (rememberMe) {
       localStorage.setItem('recetafacil-remember-me', identifier.trim());
@@ -110,14 +150,63 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const handleNextRegisterStep = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    if (!regIdentifier.trim() || !regName.trim() || !regLastName.trim() || !regPassword.trim() || !regBirthDate || !regPhone.trim() || !regObraSocial) {
-      setErrorMsg('Por favor complete todos los campos obligatorios del registro.');
+    const errors: typeof regErrors = {};
+
+    const cleanDni = regIdentifier.trim();
+    if (!cleanDni) {
+      errors.identifier = 'El DNI es obligatorio.';
+    } else if (cleanDni.length < 6 || cleanDni.length > 10) {
+      errors.identifier = 'Ingrese un número de DNI válido (entre 6 y 10 dígitos).';
+    }
+
+    if (!regName.trim()) {
+      errors.name = 'El nombre es obligatorio.';
+    }
+
+    if (!regLastName.trim()) {
+      errors.lastName = 'El apellido es obligatorio.';
+    }
+
+    if (!regBirthDate) {
+      errors.birthDate = 'La fecha de nacimiento es obligatoria.';
+    } else {
+      const age = calculateAge(regBirthDate);
+      if (age < 18) {
+        errors.birthDate = 'Debe ser mayor de 18 años para registrarse como titular.';
+      }
+    }
+
+    const cleanPhone = regPhone.replace(/\D/g, '');
+    if (!regPhone.trim() || cleanPhone.length < 8) {
+      errors.phone = 'Ingrese un número de WhatsApp / celular válido (mínimo 8 dígitos).';
+    }
+
+    if (!regObraSocial) {
+      errors.obraSocial = 'Debe seleccionar su cobertura médica u obra social.';
+    } else {
+      const selectedOs = OBRA_SOCIAL_OPTIONS.find(o => o.name === regObraSocial);
+      if (selectedOs?.requiresNumber && !regObraSocialNumber.trim()) {
+        errors.obraSocialNumber = `El número de afiliado es obligatorio para ${regObraSocial}.`;
+      }
+    }
+
+    if (regEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail.trim())) {
+      errors.email = 'Ingrese un correo electrónico válido o déjelo en blanco.';
+    }
+
+    if (!regPassword.trim()) {
+      errors.password = 'Debe crear una contraseña para su cuenta.';
+    } else if (regPassword.length < 6) {
+      errors.password = 'La contraseña debe tener al menos 6 caracteres por seguridad.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setRegErrors(errors);
+      setErrorMsg('Por favor corrija los campos marcados en rojo para continuar.');
       return;
     }
-    if (regPassword.length < 6) {
-      setErrorMsg('La contraseña debe tener al menos 6 caracteres por seguridad.');
-      return;
-    }
+
+    setRegErrors({});
     setRegStep(2);
   };
 
@@ -127,9 +216,14 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     setSuccessMsg(null);
 
     if (!consentAge || !consentTerms || !consentInformed || !consentSworn) {
+      setRegErrors({
+        consents: 'Debe aceptar obligatoriamente todos los términos, condiciones y declaraciones juradas para continuar.'
+      });
       setErrorMsg('Debe aceptar obligatoriamente todos los consentimientos y declaraciones juradas para continuar.');
       return;
     }
+
+    setRegErrors({});
 
     if (onRegister) {
       const res = await onRegister({
@@ -164,15 +258,18 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     e.preventDefault();
     setErrorMsg(null);
     setForgotSuccessMsg(null);
+    setForgotErrors({});
 
-    if (!forgotInput.trim()) {
+    const cleanInput = forgotInput.trim();
+    if (!cleanInput) {
+      setForgotErrors({ forgotInput: 'Por favor ingrese su DNI o correo electrónico registrado.' });
       setErrorMsg('Por favor ingrese su número de DNI o email registrado.');
       return;
     }
 
     if (onForgotPassword) {
-      const isEmail = forgotInput.includes('@');
-      const res = await onForgotPassword(isEmail ? '' : forgotInput, isEmail ? forgotInput : '');
+      const isEmail = cleanInput.includes('@');
+      const res = await onForgotPassword(isEmail ? '' : cleanInput, isEmail ? cleanInput : '');
       if (res.success) {
         setForgotSuccessMsg(res.data?.message || 'Instrucciones de recuperación enviadas con éxito a su casilla de correo electrónico.');
       } else {
@@ -214,8 +311,8 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       </header>
 
       {/* Center Main Card */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 my-auto">
-        <div className={`w-full ${activeMode === 'register' ? 'max-w-[580px]' : 'max-w-[480px]'} transition-all duration-300 bg-white text-[#0F172A] rounded-3xl shadow-2xl border border-slate-200/80 p-6 sm:p-10 relative overflow-hidden backdrop-blur-md`}>
+      <main className="relative z-10 flex-1 flex items-center justify-center p-3 sm:p-6 lg:p-8 my-auto w-full">
+        <div className={`w-full ${activeMode === 'register' ? 'max-w-[580px]' : 'max-w-[480px]'} transition-all duration-300 bg-white text-[#0F172A] rounded-2xl sm:rounded-3xl shadow-2xl border border-slate-200/80 p-5 sm:p-8 lg:p-10 relative overflow-hidden backdrop-blur-md`}>
           
           {/* Top Decorative Gradient Line */}
           <div className="h-1.5 w-full bg-gradient-to-r from-[#0F6C7D] via-[#1661E1] to-[#14BE99] absolute top-0 left-0" />
@@ -298,29 +395,41 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
               {/* Field: DNI / Identificador */}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Identificador (DNI o Usuario)
+                  Identificador (DNI o Usuario) <span className="text-red-500">*</span>
                 </label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${loginErrors.identifier ? 'text-rose-500' : 'text-slate-400'}`}>
                     <User className="h-4 w-4" />
                   </div>
                   <input
                     type="text"
-                    required
                     value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
+                    onChange={(e) => {
+                      setIdentifier(e.target.value);
+                      if (loginErrors.identifier) setLoginErrors(prev => ({ ...prev, identifier: undefined }));
+                    }}
                     placeholder="Ej: 34555888"
                     disabled={isLoading}
-                    className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                    className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                      loginErrors.identifier
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                    }`}
                   />
                 </div>
+                {loginErrors.identifier && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{loginErrors.identifier}</span>
+                  </p>
+                )}
               </div>
 
               {/* Field: Contraseña */}
               <div className="space-y-1.5">
                 <div className="flex justify-between items-center">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                    Contraseña
+                    Contraseña <span className="text-red-500">*</span>
                   </label>
                   <button
                     type="button"
@@ -328,6 +437,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       setActiveMode('forgot');
                       setErrorMsg(null);
                       setSuccessMsg(null);
+                      setLoginErrors({});
                     }}
                     className="text-xs text-[#0F6C7D] hover:text-[#1661E1] font-bold transition-colors cursor-pointer"
                   >
@@ -335,17 +445,23 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                   </button>
                 </div>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${loginErrors.password ? 'text-rose-500' : 'text-slate-400'}`}>
                     <Lock className="h-4 w-4" />
                   </div>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      if (loginErrors.password) setLoginErrors(prev => ({ ...prev, password: undefined }));
+                    }}
                     placeholder="••••••••"
                     disabled={isLoading}
-                    className="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                    className={`w-full pl-10 pr-10 py-3 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                      loginErrors.password
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                    }`}
                   />
                   <button
                     type="button"
@@ -356,6 +472,12 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 </div>
+                {loginErrors.password && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{loginErrors.password}</span>
+                  </p>
+                )}
               </div>
 
               {/* Recordarme */}
@@ -415,7 +537,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
               </div>
 
               {regStep === 1 ? (
-                <form onSubmit={handleNextRegisterStep} className="space-y-4">
+                <form onSubmit={handleNextRegisterStep} className="space-y-4" noValidate>
                   
                   {/* Field: DNI */}
                   <div className="space-y-1.5">
@@ -423,18 +545,30 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       DNI (Sin puntos) <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.identifier ? 'text-rose-500' : 'text-slate-400'}`}>
                         <User className="h-4 w-4" />
                       </div>
                       <input
                         type="text"
-                        required
                         value={regIdentifier}
-                        onChange={(e) => setRegIdentifier(e.target.value.replace(/\D/g, ''))}
+                        onChange={(e) => {
+                          setRegIdentifier(e.target.value.replace(/\D/g, ''));
+                          if (regErrors.identifier) setRegErrors(prev => ({ ...prev, identifier: undefined }));
+                        }}
                         placeholder="Ej: 34555888"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.identifier
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
                     </div>
+                    {regErrors.identifier && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{regErrors.identifier}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Fields: Nombre & Apellido */}
@@ -445,12 +579,24 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       </label>
                       <input
                         type="text"
-                        required
                         value={regName}
-                        onChange={(e) => setRegName(e.target.value)}
+                        onChange={(e) => {
+                          setRegName(e.target.value);
+                          if (regErrors.name) setRegErrors(prev => ({ ...prev, name: undefined }));
+                        }}
                         placeholder="Ej: Juan"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.name
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
+                      {regErrors.name && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.name}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
@@ -458,12 +604,24 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       </label>
                       <input
                         type="text"
-                        required
                         value={regLastName}
-                        onChange={(e) => setRegLastName(e.target.value)}
+                        onChange={(e) => {
+                          setRegLastName(e.target.value);
+                          if (regErrors.lastName) setRegErrors(prev => ({ ...prev, lastName: undefined }));
+                        }}
                         placeholder="Ej: Pérez"
-                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.lastName
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
+                      {regErrors.lastName && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.lastName}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -474,17 +632,29 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         Fecha de Nacimiento <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.birthDate ? 'text-rose-500' : 'text-slate-400'}`}>
                           <Calendar className="h-4 w-4" />
                         </div>
                         <input
                           type="date"
-                          required
                           value={regBirthDate}
-                          onChange={(e) => setRegBirthDate(e.target.value)}
-                          className="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                          onChange={(e) => {
+                            setRegBirthDate(e.target.value);
+                            if (regErrors.birthDate) setRegErrors(prev => ({ ...prev, birthDate: undefined }));
+                          }}
+                          className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm font-medium transition-all outline-hidden ${
+                            regErrors.birthDate
+                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                              : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                          }`}
                         />
                       </div>
+                      {regErrors.birthDate && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.birthDate}</span>
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-1.5">
@@ -492,18 +662,30 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         Celular / WhatsApp <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.phone ? 'text-rose-500' : 'text-slate-400'}`}>
                           <Phone className="h-4 w-4" />
                         </div>
                         <input
                           type="tel"
-                          required
                           value={regPhone}
-                          onChange={(e) => setRegPhone(e.target.value)}
+                          onChange={(e) => {
+                            setRegPhone(e.target.value);
+                            if (regErrors.phone) setRegErrors(prev => ({ ...prev, phone: undefined }));
+                          }}
                           placeholder="Ej: 1122334455"
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                          className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                            regErrors.phone
+                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                              : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                          }`}
                         />
                       </div>
+                      {regErrors.phone && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.phone}</span>
+                        </p>
+                      )}
                     </div>
                   </div>
 
@@ -514,14 +696,20 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         Obra Social / Prepaga <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.obraSocial ? 'text-rose-500' : 'text-slate-400'}`}>
                           <Building2 className="h-4 w-4" />
                         </div>
                         <select
-                          required
                           value={regObraSocial}
-                          onChange={(e) => setRegObraSocial(e.target.value)}
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden cursor-pointer"
+                          onChange={(e) => {
+                            setRegObraSocial(e.target.value);
+                            if (regErrors.obraSocial) setRegErrors(prev => ({ ...prev, obraSocial: undefined }));
+                          }}
+                          className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium transition-all outline-hidden cursor-pointer ${
+                            regErrors.obraSocial
+                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                              : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                          }`}
                         >
                           <option value="">-- Seleccionar cobertura --</option>
                           {OBRA_SOCIAL_OPTIONS.map((opt) => (
@@ -529,20 +717,39 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                           ))}
                         </select>
                       </div>
+                      {regErrors.obraSocial && (
+                        <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                          <span>{regErrors.obraSocial}</span>
+                        </p>
+                      )}
                     </div>
                     
                     {regObraSocial && regObraSocial !== 'Particular / Sin Obra Social' && (
                       <div className="space-y-1.5 animate-fadeIn">
                         <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                          Nro. Afiliado (Opcional)
+                          Nro. Afiliado {OBRA_SOCIAL_OPTIONS.find(o => o.name === regObraSocial)?.requiresNumber && <span className="text-red-500">*</span>}
                         </label>
                         <input
                           type="text"
                           value={regObraSocialNumber}
-                          onChange={(e) => setRegObraSocialNumber(e.target.value)}
+                          onChange={(e) => {
+                            setRegObraSocialNumber(e.target.value);
+                            if (regErrors.obraSocialNumber) setRegErrors(prev => ({ ...prev, obraSocialNumber: undefined }));
+                          }}
                           placeholder="Ej: 12345678-01"
-                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                          className={`w-full px-3.5 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                            regErrors.obraSocialNumber
+                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                              : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                          }`}
                         />
+                        {regErrors.obraSocialNumber && (
+                          <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            <span>{regErrors.obraSocialNumber}</span>
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -553,17 +760,30 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       Correo Electrónico (Opcional)
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.email ? 'text-rose-500' : 'text-slate-400'}`}>
                         <Mail className="h-4 w-4" />
                       </div>
                       <input
                         type="email"
                         value={regEmail}
-                        onChange={(e) => setRegEmail(e.target.value)}
+                        onChange={(e) => {
+                          setRegEmail(e.target.value);
+                          if (regErrors.email) setRegErrors(prev => ({ ...prev, email: undefined }));
+                        }}
                         placeholder="tuemail@ejemplo.com"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.email
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
                     </div>
+                    {regErrors.email && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{regErrors.email}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Field: Password */}
@@ -572,16 +792,22 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       Crear Contraseña <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.password ? 'text-rose-500' : 'text-slate-400'}`}>
                         <Lock className="h-4 w-4" />
                       </div>
                       <input
                         type={regShowPassword ? 'text' : 'password'}
-                        required
                         value={regPassword}
-                        onChange={(e) => setRegPassword(e.target.value)}
+                        onChange={(e) => {
+                          setRegPassword(e.target.value);
+                          if (regErrors.password) setRegErrors(prev => ({ ...prev, password: undefined }));
+                        }}
                         placeholder="Mínimo 6 caracteres"
-                        className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full pl-10 pr-10 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          regErrors.password
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
                       <button
                         type="button"
@@ -592,13 +818,19 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         {regShowPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {regErrors.password && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{regErrors.password}</span>
+                      </p>
+                    )}
                   </div>
 
                   {/* Stepper Next Button */}
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all font-bold shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
+                      className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 cursor-pointer text-sm"
                     >
                       <span>Continuar al Paso 2</span>
                       <ArrowRight className="h-4 w-4" />
@@ -620,65 +852,100 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                     </div>
                   </div>
 
+                  {regErrors.consents && (
+                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+                      <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+                      <span>{regErrors.consents}</span>
+                    </div>
+                  )}
+
                   {/* Consent Checkboxes */}
                   <div className="space-y-2.5">
                     
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentAge ? 'bg-[#1661E1]/5 border-[#1661E1]/30' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      consentAge
+                        ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
+                        : regErrors.consents && !consentAge
+                          ? 'bg-rose-50/50 border-rose-300'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
                         checked={consentAge} 
-                        onChange={(e) => setConsentAge(e.target.checked)} 
+                        onChange={(e) => {
+                          setConsentAge(e.target.checked);
+                          if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
+                        }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Soy mayor de 18 años</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">Soy mayor de 18 años <span className="text-red-500">*</span></span>
                         <span className="text-[11px] text-slate-500 font-medium">Declaro tener la mayoría de edad requerida para solicitar recetas.</span>
                       </div>
                     </label>
 
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentTerms ? 'bg-[#1661E1]/5 border-[#1661E1]/30' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      consentTerms
+                        ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
+                        : regErrors.consents && !consentTerms
+                          ? 'bg-rose-50/50 border-rose-300'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
                         checked={consentTerms} 
-                        onChange={(e) => setConsentTerms(e.target.checked)} 
+                        onChange={(e) => {
+                          setConsentTerms(e.target.checked);
+                          if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
+                        }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Acepto los Términos y Condiciones</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">Acepto los Términos y Condiciones <span className="text-red-500">*</span></span>
                         <span className="text-[11px] text-slate-500 font-medium">Acepto las condiciones generales del servicio de telemedicina.</span>
                       </div>
                     </label>
 
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentInformed ? 'bg-[#1661E1]/5 border-[#1661E1]/30' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      consentInformed
+                        ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
+                        : regErrors.consents && !consentInformed
+                          ? 'bg-rose-50/50 border-rose-300'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
                         checked={consentInformed} 
-                        onChange={(e) => setConsentInformed(e.target.checked)} 
+                        onChange={(e) => {
+                          setConsentInformed(e.target.checked);
+                          if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
+                        }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Consentimiento Informado</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">Consentimiento Informado <span className="text-red-500">*</span></span>
                         <span className="text-[11px] text-slate-500 font-medium">Entiendo que la emisión queda sujeta al criterio médico profesional.</span>
                       </div>
                     </label>
 
                     <label className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer select-none ${
-                      consentSworn ? 'bg-[#1661E1]/5 border-[#1661E1]/30' : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                      consentSworn
+                        ? 'bg-[#1661E1]/5 border-[#1661E1]/30'
+                        : regErrors.consents && !consentSworn
+                          ? 'bg-rose-50/50 border-rose-300'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                     }`}>
                       <input 
                         type="checkbox" 
                         checked={consentSworn} 
-                        onChange={(e) => setConsentSworn(e.target.checked)} 
+                        onChange={(e) => {
+                          setConsentSworn(e.target.checked);
+                          if (regErrors.consents) setRegErrors(prev => ({ ...prev, consents: undefined }));
+                        }} 
                         className="mt-0.5 w-4 h-4 rounded text-[#1661E1] focus:ring-[#1E6EFB]" 
                       />
                       <div>
-                        <span className="text-xs font-bold text-[#0141BC] block">Declaración Jurada (DDJJ)</span>
+                        <span className="text-xs font-bold text-[#0141BC] block">Declaración Jurada (DDJJ) <span className="text-red-500">*</span></span>
                         <span className="text-[11px] text-slate-500 font-medium">Declaro bajo juramento que los datos suministrados son reales.</span>
                       </div>
                     </label>
@@ -714,7 +981,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
             <div className="space-y-4">
               
               {!forgotSuccessMsg ? (
-                <form onSubmit={handleSubmitForgot} className="space-y-4">
+                <form onSubmit={handleSubmitForgot} className="space-y-4" noValidate>
                   
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed">
                     Ingresá el número de DNI o el correo electrónico registrado con el que creaste tu cuenta y te enviaremos las instrucciones de restablecimiento.
@@ -722,21 +989,33 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
 
                   <div className="space-y-1.5">
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                      DNI o Correo Electrónico
+                      DNI o Correo Electrónico <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                      <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${forgotErrors.forgotInput ? 'text-rose-500' : 'text-slate-400'}`}>
                         <KeyRound className="h-4 w-4" />
                       </div>
                       <input
                         type="text"
-                        required
                         value={forgotInput}
-                        onChange={(e) => setForgotInput(e.target.value)}
+                        onChange={(e) => {
+                          setForgotInput(e.target.value);
+                          if (forgotErrors.forgotInput) setForgotErrors({});
+                        }}
                         placeholder="DNI o email@ejemplo.com"
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-[#0F172A] placeholder:text-slate-400 focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        className={`w-full pl-10 pr-4 py-3 rounded-xl text-sm font-medium placeholder:text-slate-400 transition-all outline-hidden ${
+                          forgotErrors.forgotInput
+                            ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
+                        }`}
                       />
                     </div>
+                    {forgotErrors.forgotInput && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{forgotErrors.forgotInput}</span>
+                      </p>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3 pt-2">
@@ -746,6 +1025,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         setActiveMode('login');
                         setErrorMsg(null);
                         setSuccessMsg(null);
+                        setForgotErrors({});
                       }}
                       className="bg-slate-100 hover:bg-slate-200 text-[#0141BC] py-3.5 px-4 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                     >

@@ -215,6 +215,11 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
     padding: 1.75rem 2rem;
     height: 100%;
 }
+@media (max-width: 640px) {
+  .detail-pane {
+    padding: 1rem 0.875rem;
+  }
+}
 
 .detail-header {
     margin-bottom: 2.5rem;
