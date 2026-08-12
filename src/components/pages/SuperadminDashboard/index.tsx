@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, Trash2, Building, RefreshCcw, AlertCircle } from 'lucide-react';
-import { Tenant } from '../types';
+import { Tenant } from '../../../types';
 
 export default function SuperadminDashboard() {
   const [tenants, setTenants] = useState<Tenant[]>([]);

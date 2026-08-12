@@ -4,9 +4,10 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import PatientForm from './PatientForm';
-import NewOrderForm from './NewOrderForm';
-import { MedicalOrder, OrderStatus, OBRA_SOCIAL_OPTIONS } from '../types';
+import PatientForm from '../PatientForm';
+import NewOrderForm from '../NewOrderForm';
+import { MedicalOrder, OrderStatus } from '../../../types';
+import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { 
   FileText, 
   Clock, 

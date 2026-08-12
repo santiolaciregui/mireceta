@@ -22,8 +22,8 @@ import {
   KeyRound,
   Check
 } from 'lucide-react';
-import { OBRA_SOCIAL_OPTIONS } from '../types';
-import Logo from './Logo';
+import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
+import Logo from '../../Logo';
 
 interface LoginProps {
   onLogin: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;

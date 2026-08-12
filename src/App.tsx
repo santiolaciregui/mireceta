@@ -6,20 +6,21 @@
 import React, { useState, useEffect } from 'react';
 import { useMedicalOrders } from './hooks/useMedicalOrders';
 import Navbar from './components/Navbar';
-import PatientForm from './components/PatientForm';
-import PatientStatus from './components/PatientStatus';
-import DoctorDashboard from './components/DoctorDashboard';
-import UserManagement from './components/UserManagement';
-import LandingPage from './components/LandingPage';
-import Login from './components/Login';
+import PatientForm from './components/pages/PatientForm';
+import PatientStatus from './components/pages/PatientStatus';
+import DoctorDashboard from './components/pages/DoctorDashboard';
+import UserManagement from './components/pages/UserManagement';
+import LandingPage from './components/pages/LandingPage';
+import Login from './components/pages/Login';
 import Sidebar from './components/Sidebar';
-import PatientDoctorChat from './components/PatientDoctorChat';
-import ForcePasswordChange from './components/ForcePasswordChange';
-import SuperadminDashboard from './components/SuperadminDashboard';
-import AuditLogView from './components/AuditLogView';
-import PaymentConfigPanel from './components/PaymentConfigPanel';
-import NotificationConfigPanel from './components/NotificationConfigPanel';
-import SettlementMetricsView from './components/SettlementMetricsView';
+import PatientDoctorChat from './components/pages/PatientDoctorChat';
+import ForcePasswordChange from './components/pages/ForcePasswordChange';
+import SuperadminDashboard from './components/pages/SuperadminDashboard';
+import AuditLogView from './components/pages/AuditLogView';
+import PaymentConfigPanel from './components/pages/PaymentConfigPanel';
+import NotificationConfigPanel from './components/pages/NotificationConfigPanel';
+import SettlementMetricsView from './components/pages/SettlementMetricsView';
+import LoadingSpinner from './components/common/LoadingSpinner';
 import { 
   PlusCircle, 
   Search, 
@@ -152,32 +153,16 @@ export default function App() {
 
   // 0. Resolving tenant
   if (resolvingTenant) {
-    return (
-      <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
-        <div className="relative">
-          <div className="h-14 w-14 border-4 border-[#1661E1]/20 border-t-[#1661E1] rounded-full animate-spin" />
-          <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#1661E1] animate-pulse" />
-        </div>
-        <p className="mt-4 text-xs font-bold text-[#0141BC]">Cargando plataforma...</p>
-      </div>
-    );
+    return <LoadingSpinner message="Cargando plataforma..." />;
   }
 
   // 1. Loading active auth status on start
   if (authLoading && !currentUser) {
     return (
-      <div className="min-h-screen bg-mesh flex flex-col font-sans items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <div className="relative">
-            <div className="h-14 w-14 border-4 border-[#1661E1]/20 border-t-[#1661E1] rounded-full animate-spin" />
-            <Activity className="absolute inset-0 m-auto h-6 w-6 text-[#1661E1] animate-pulse" />
-          </div>
-          <div>
-            <p className="text-xs sm:text-sm font-bold text-[#0141BC]">Conectando con base de datos...</p>
-            <p className="text-[10px] text-slate-400 mt-1">Verificando firma de credenciales electrónicas</p>
-          </div>
-        </div>
-      </div>
+      <LoadingSpinner 
+        message="Conectando con base de datos..." 
+        subMessage="Verificando firma de credenciales electrónicas" 
+      />
     );
   }
 

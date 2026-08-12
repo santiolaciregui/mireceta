@@ -2701,9 +2701,8 @@ export default function PatientForm({
 
             {/* Checkout form */}
             <div className="space-y-4">
-                
-                {/* Payment method selector */}
-                <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
+              {/* Payment method selector */}
+              <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
                   {isThirdPartyUser && (
                     <button
                       id="btn-pay-cash-desk"
@@ -2895,6 +2894,7 @@ export default function PatientForm({
                   </div>
                 )}
               </div>
+            </div>
             </div>
 
             {/* Step 4 Inline Warning/Error Banner */}

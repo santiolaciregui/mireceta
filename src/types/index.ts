@@ -187,23 +187,3 @@ export interface ObraSocialOption {
   name: string;
   requiresNumber: boolean;
 }
-
-export const OBRA_SOCIAL_OPTIONS: ObraSocialOption[] = [
-  { id: 'pami', name: 'PAMI (Inssjp)', requiresNumber: true },
-  { id: 'ioma', name: 'IOMA', requiresNumber: true },
-  { id: 'osde', name: 'OSDE', requiresNumber: true },
-  { id: 'osecac', name: 'OSECAC', requiresNumber: true },
-  { id: 'swiss', name: 'Swiss Medical', requiresNumber: true },
-  { id: 'galeno', name: 'GALENO', requiresNumber: true },
-  { id: 'sancor', name: 'Sancor Salud', requiresNumber: true },
-  { id: 'medicus', name: 'Medicus', requiresNumber: true },
-  { id: 'ospedyc', name: 'OSPEDYC', requiresNumber: true },
-  { id: 'osdepym', name: 'OSDEPYM', requiresNumber: true },
-  { id: 'camioneros', name: 'Obra Social de Camioneros', requiresNumber: true },
-  { id: 'union_personal', name: 'Unión Personal', requiresNumber: true },
-  { id: 'osuthgra', name: 'OSUTHGRA (Gastronómicos)', requiresNumber: true },
-  { id: 'ospacp', name: 'OSPACP (Personal de Casas Particulares)', requiresNumber: true },
-  { id: 'ospg', name: 'OSPG (Petroleros)', requiresNumber: true },
-  { id: 'particular', name: 'Particular / Sin Obra Social', requiresNumber: false },
-  { id: 'otra', name: 'Otra Obra Social / Prepaga', requiresNumber: true },
-];

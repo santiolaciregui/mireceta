@@ -4,7 +4,6 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { MedicalOrder, DependentPatient } from '../types';
 import { 
   Check,
   Clock, 
@@ -33,8 +32,9 @@ import {
   Printer,
   RotateCcw
 } from 'lucide-react';
-import MercadoPagoIcon from './MercadoPagoIcon';
-import OfficialOrderReceipt from './OfficialOrderReceipt';
+import { MedicalOrder, DependentPatient } from '../../../types';
+import MercadoPagoIcon from '../../MercadoPagoIcon';
+import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 
 interface PatientStatusProps {
   orders: MedicalOrder[];

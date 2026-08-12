@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { MedicalOrder, AuditLogEntry } from '../types';
+import { MedicalOrder, AuditLogEntry } from '../../../types';
 import {
   ShieldAlert,
   Search,

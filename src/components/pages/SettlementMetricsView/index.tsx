@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { MedicalOrder, SystemUser } from '../types';
+import { MedicalOrder, SystemUser } from '../../../types';
 import {
   TrendingUp,
   Coins,

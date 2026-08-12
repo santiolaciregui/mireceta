@@ -26,7 +26,7 @@ import {
   FileText,
   Download
 } from 'lucide-react';
-import { MedicalOrder, ChatMessage, SystemUser } from '../types';
+import { MedicalOrder, ChatMessage, SystemUser } from '../../../types';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];

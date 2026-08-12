@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { OBRA_SOCIAL_OPTIONS, MedicationItem } from '../types';
+import { MedicationItem } from '../../../types';
+import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { 
   ArrowLeft, 
   User, 

@@ -24,9 +24,9 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import InformationalModal from './InformationalModal';
-import Logo from './Logo';
-import { trackInitiatePrescription } from '../services/metaPixelService';
+import InformationalModal from '../../InformationalModal';
+import Logo from '../../Logo';
+import { trackInitiatePrescription } from '../../../services/metaPixelService';
 
 
 interface LandingPageProps {
