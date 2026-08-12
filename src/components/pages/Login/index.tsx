@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import Logo from '../../Logo';
+import InformationalModal from '../../InformationalModal';
 
 interface LoginProps {
   onLogin: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -66,6 +67,17 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const [consentTerms, setConsentTerms] = useState(false);
   const [consentInformed, setConsentInformed] = useState(false);
   const [consentSworn, setConsentSworn] = useState(false);
+
+  // Informational Modal State
+  const [infoModal, setInfoModal] = useState<{ isOpen: boolean; type: 'privacidad' | 'terminos' | 'arrepentimiento'; title: string }>({
+    isOpen: false,
+    type: 'terminos',
+    title: 'Términos y Condiciones'
+  });
+
+  const openInfoModal = (type: 'terminos' | 'privacidad' | 'arrepentimiento', title: string) => {
+    setInfoModal({ isOpen: true, type, title });
+  };
 
   // Forgot Password fields
   const [forgotInput, setForgotInput] = useState('');
@@ -882,16 +894,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                 /* STEP 2: LEGAL CONSENTS */
                 <form onSubmit={handleSubmitRegister} className="space-y-4">
                   
-                  <div className="bg-[#0F6C7D]/10 border border-[#0F6C7D]/20 p-4 rounded-2xl text-xs text-[#0141BC] leading-relaxed flex items-start gap-3">
-                    <FileText className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold text-[#0141BC] mb-1">Declaración y Consentimiento de Telemedicina</p>
-                      <p className="text-slate-600 text-[11px]">
-                        Al registrarte confirmás que la información proporcionada es fidedigna y autorizás la evaluación médica asincrónica bajo secreto médico profesional.
-                      </p>
-                    </div>
-                  </div>
-
+      
                   {regErrors.consents && (
                     <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn">
                       <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
@@ -997,7 +1000,31 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                           Política de privacidad <span className="text-[#0F6C7D] font-normal text-[11px] ml-1">(Obligatorio)</span> <span className="text-red-500">*</span>
                         </span>
                         <span className="text-[11px] text-slate-500 font-medium leading-relaxed block mt-0.5">
-                          Acepto los Términos y Condiciones y la Política de Privacidad. Autorizo el tratamiento de mis datos de salud según la Ley 25.326 de Protección de Datos Personales.
+                          Acepto los{' '}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openInfoModal('terminos', 'Términos y Condiciones');
+                            }}
+                            className="text-[#1661E1] hover:underline font-semibold cursor-pointer underline underline-offset-2"
+                          >
+                            Términos y Condiciones
+                          </button>{' '}
+                          y la{' '}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openInfoModal('privacidad', 'Política de Privacidad');
+                            }}
+                            className="text-[#1661E1] hover:underline font-semibold cursor-pointer underline underline-offset-2"
+                          >
+                            Política de Privacidad
+                          </button>
+                          . Autorizo el tratamiento de mis datos de salud según la Ley 25.326 de Protección de Datos Personales.
                         </span>
                       </div>
                     </label>
@@ -1136,6 +1163,14 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
           <span>Mi Receta Online © 2026</span>
         </div>
       </footer>
+
+      {/* Informational Modal */}
+      <InformationalModal
+        isOpen={infoModal.isOpen}
+        onClose={() => setInfoModal(prev => ({ ...prev, isOpen: false }))}
+        title={infoModal.title}
+        type={infoModal.type}
+      />
 
     </div>
   );
