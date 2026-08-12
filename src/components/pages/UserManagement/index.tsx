@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { SystemUser, UserRole } from '../types';
+import { SystemUser, UserRole } from '../../../types';
 import { 
   Users, 
   UserPlus, 

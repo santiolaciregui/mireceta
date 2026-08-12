@@ -12,3 +12,4 @@ README.md
 rewrite.cjs
 package-lock.json
 /scripts
+/.agents

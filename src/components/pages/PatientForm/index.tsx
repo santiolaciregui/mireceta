@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { OBRA_SOCIAL_OPTIONS, MedicationItem, DependentPatient } from '../types';
+import { MedicationItem, DependentPatient } from '../../../types';
+import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { 
   User, 
   Users,
@@ -41,10 +42,10 @@ import {
   Pill,
   RotateCcw
 } from 'lucide-react';
-import MercadoPagoIcon from './MercadoPagoIcon';
-import OfficialOrderReceipt from './OfficialOrderReceipt';
-import { useFormDraft } from '../hooks/useFormDraft';
-import { trackInitiatePrescription, trackCompletePrescription } from '../services/metaPixelService';
+import MercadoPagoIcon from '../../MercadoPagoIcon';
+import OfficialOrderReceipt from '../../OfficialOrderReceipt';
+import { useFormDraft } from '../../../hooks/useFormDraft';
+import { trackInitiatePrescription, trackCompletePrescription } from '../../../services/metaPixelService';
 
 
 interface PatientFormProps {
@@ -2893,8 +2894,6 @@ export default function PatientForm({
                     </div>
                   </div>
                 )}
-              </div>
-            </div>
             </div>
 
             {/* Step 4 Inline Warning/Error Banner */}
