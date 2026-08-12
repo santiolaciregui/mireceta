@@ -13,6 +13,7 @@ import {
   ArrowRight, 
   UserCheck, 
   Pill, 
+  Hand,
   Scale, 
   MessageCircle, 
   User, 
@@ -267,7 +268,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               <div className="lg:col-span-7 space-y-8 text-center lg:text-left">
                 
                 <div className="inline-flex items-center gap-2 bg-[#0F6C7D] text-white px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider shadow-md border border-white/10">
-                  <Pill className="h-4 w-4" />
+                  <Hand className="h-4 w-4" />
                   Tu portal de recetas médicas electrónicas
                 </div>
 
