@@ -21,7 +21,8 @@ import {
   Hash,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  AlertCircle
 } from 'lucide-react';
 
 interface UserManagementProps {

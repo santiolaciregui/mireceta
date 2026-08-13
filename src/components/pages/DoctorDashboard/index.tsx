@@ -45,7 +45,8 @@ import {
   Loader2,
   Copy,
   CheckCheck,
-  Users
+  Users,
+  ArrowLeft
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
