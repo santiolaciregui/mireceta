@@ -417,14 +417,6 @@ export default function App() {
                             </div>
                           );
                         })}
-
-                        <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
-                          <MapPin className="h-5 w-5 text-[#1661E1] shrink-0 mt-0.5" />
-                          <div className="text-xs">
-                            <p className="font-black text-slate-850">Hospital Municipal de Coronel Suárez</p>
-                            <p className="text-slate-500 font-medium mt-1">Atención presencial administrativa: Av. Casey 802 | Teléfono: (02926) 43-2000</p>
-                          </div>
-                        </div>
                       </div>
                     </div>
                   </div>

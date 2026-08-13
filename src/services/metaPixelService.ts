@@ -77,15 +77,15 @@ export function trackInitiatePrescription(
 ): void {
   // Standard Meta event: InitiateCheckout
   trackMetaStandardEvent('InitiateCheckout', {
-    content_name: 'Solicitud de Receta Médica',
-    content_category: 'Prescripción Médica',
+    content_name: 'Inicio de Solicitud',
+    content_category: 'Servicio',
     currency,
     value: estimatedValue,
     source,
   });
 
   // Custom Event for precise attribution
-  trackMetaCustomEvent('StartPrescriptionRequest', {
+  trackMetaCustomEvent('InicioSolicitud', {
     source,
     value: estimatedValue,
     currency,
@@ -104,8 +104,8 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
 
   // Standard Meta event: Purchase
   trackMetaStandardEvent('Purchase', {
-    content_name: 'Receta Médica Digital',
-    content_category: 'Servicio Médico',
+    content_name: 'Servicio Digital',
+    content_category: 'Servicio',
     content_type: 'product',
     order_id: params.orderId,
     value: numericValue,
@@ -114,16 +114,23 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
     delivery_method: params.deliveryMethod || 'email',
   });
 
-  // Standard Meta event: SubmitApplication
-  trackMetaStandardEvent('SubmitApplication', {
-    content_name: 'Solicitud de Receta Médica',
+  // Standard Meta event: CompleteRegistration
+  trackMetaStandardEvent('CompleteRegistration', {
+    content_name: 'Registro de Solicitud',
+    order_id: params.orderId,
+    value: numericValue,
+    currency,
+  });
+
+  // Custom event: FormEnviado
+  trackMetaCustomEvent('FormEnviado', {
     order_id: params.orderId,
     value: numericValue,
     currency,
   });
 
   // Custom event for exact matching
-  trackMetaCustomEvent('CompletePrescriptionRequest', {
+  trackMetaCustomEvent('SolicitudCompletada', {
     order_id: params.orderId,
     value: numericValue,
     currency,
