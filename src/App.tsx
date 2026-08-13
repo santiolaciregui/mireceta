@@ -43,7 +43,7 @@ const patientFaqs = [
   },
   {
     q: "¿Cuánto cuesta?",
-    a: "Tiene un costo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
+    a: "Tiene un costo administrativo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
   },
   {
     q: "¿Cuánto tarda en llegar mi receta?",

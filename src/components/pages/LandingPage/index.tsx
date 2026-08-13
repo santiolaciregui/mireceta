@@ -86,7 +86,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
   const faqs = [
     {
       q: "¿Cuánto cuesta?",
-      a: "Tiene un costo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
+      a: "Tiene un costo administrativo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
     },
     {
       q: "¿Cuánto tarda en llegar mi receta?",
@@ -350,7 +350,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                           <span className="text-[10px] font-extrabold text-[#0F6C7D] bg-[#0F6C7D]/10 px-2 py-0.5 rounded-md shrink-0">Paso 2</span>
                         </div>
                         <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                          Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                          Un médico especialista matriculado evalúa tu solicitud, verifica tus datos y genera la receta según tu obra social.
                         </p>
                       </div>
                     </div>
@@ -423,7 +423,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   </div>
                   <h3 className="text-xl font-bold text-[#0141BC]">Validación Médica</h3>
                   <p className="text-slate-600 text-sm leading-relaxed font-medium">
-                    Un médico especialista matriculado evalúa tu solicitud y verifica tus datos y genera la receta según tu obra social.
+                    Un médico especialista matriculado evalúa tu solicitud, verifica tus datos y genera la receta según tu obra social.
                   </p>
                 </div>
               </div>
