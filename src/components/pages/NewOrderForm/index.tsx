@@ -814,7 +814,7 @@ export default function NewOrderForm({
                 <div className="h-7 w-7 rounded-lg bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center">
                   <CreditCard className="h-4 w-4" />
                 </div>
-                <span>3. Registro de Cobro en Mesa de Entrada</span>
+                <span>3. Registro de Cobro</span>
               </div>
             </div>
 
@@ -827,8 +827,8 @@ export default function NewOrderForm({
                   className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
                 >
                   <option value="cash_desk">Cobrado en Caja / Mesa de Entrada</option>
-                  <option value="bonificado">Exento / Bonificado (PAMI u Orden Municipal)</option>
-                  <option value="transfer">Transferencia Bancaria Comprobada</option>
+                  <option value="transfer">Transferencia Bancaria</option>
+                  <option value="bonificado">Exento / Bonificado</option>
                 </select>
               </div>
 
