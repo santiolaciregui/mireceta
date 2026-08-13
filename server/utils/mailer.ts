@@ -11,6 +11,15 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+const isSmtpConfigured = (): boolean => {
+  return !!(
+    process.env.SMTP_HOST &&
+    process.env.SMTP_USER &&
+    process.env.SMTP_PASS &&
+    config.SMTP_HOST !== 'smtp.ethereal.email'
+  );
+};
+
 interface UserCredentialsEmailPayload {
   email: string;
   name: string;
@@ -18,8 +27,14 @@ interface UserCredentialsEmailPayload {
   identifier: string;
 }
 
+interface PasswordResetEmailPayload {
+  email: string;
+  name: string;
+  resetUrl: string;
+}
+
 export const sendCredentialsEmail = async (user: UserCredentialsEmailPayload, password: string): Promise<void> => {
-  if (config.SMTP_HOST === 'smtp.ethereal.email' || !process.env.SMTP_HOST) {
+  if (!isSmtpConfigured()) {
     console.log('\n=== SIMULATED EMAIL ===');
     console.log(`To: ${user.email}`);
     console.log(`Subject: Bienvenido a Mi Receta - Credenciales de Acceso`);
@@ -48,6 +63,49 @@ export const sendCredentialsEmail = async (user: UserCredentialsEmailPayload, pa
       `
     });
   } catch (error) {
-    console.error('Error sending email:', error);
+    console.error('Error sending credentials email:', error);
+  }
+};
+
+export const sendPasswordResetEmail = async (user: PasswordResetEmailPayload): Promise<void> => {
+  if (!isSmtpConfigured()) {
+    console.log('\n=== SIMULATED PASSWORD RESET EMAIL ===');
+    console.log(`To: ${user.email}`);
+    console.log(`Subject: Mi Receta - Recuperación de Contraseña`);
+    console.log(`Hola ${user.name}, tu link de recuperación es:`);
+    console.log(user.resetUrl);
+    console.log('(Válido por 1 hora)\n');
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from: '"Mi Receta" <no-reply@mireceta.com>',
+      to: user.email,
+      subject: 'Mi Receta — Recuperación de Contraseña',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto;">
+          <h2 style="color: #0141BC;">Recuperación de Contraseña</h2>
+          <p>Hola <strong>${user.name}</strong>,</p>
+          <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta en <strong>Mi Receta</strong>.</p>
+          <p style="margin: 24px 0;">
+            <a href="${user.resetUrl}"
+               style="background-color: #1661E1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+              Restablecer mi contraseña
+            </a>
+          </p>
+          <p style="color: #666; font-size: 13px;">
+            Este enlace es válido por <strong>1 hora</strong>. Si no solicitaste este cambio, podés ignorar este correo.
+          </p>
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;">
+          <p style="color: #999; font-size: 11px;">
+            Si el botón no funciona, copiá y pegá este enlace en tu navegador:<br>
+            <a href="${user.resetUrl}" style="color: #1661E1;">${user.resetUrl}</a>
+          </p>
+        </div>
+      `
+    });
+  } catch (error) {
+    console.error('Error sending password reset email:', error);
   }
 };

@@ -51,6 +51,10 @@ export class UserRepository {
     return user.save();
   }
 
+  async findByResetToken(token: string): Promise<IUser | null> {
+    return User.findOne({ resetToken: token, resetTokenExp: { $gt: new Date() } });
+  }
+
   async delete(id: string): Promise<boolean> {
     const result = await User.deleteOne({ id });
     return result.deletedCount > 0;

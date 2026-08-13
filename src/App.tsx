@@ -22,6 +22,8 @@ import PaymentConfigPanel from './components/pages/PaymentConfigPanel';
 import NotificationConfigPanel from './components/pages/NotificationConfigPanel';
 import SettlementMetricsView from './components/pages/SettlementMetricsView';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import ResetPassword from './components/pages/ResetPassword';
+
 import { 
   PlusCircle, 
   Search, 
@@ -95,6 +97,7 @@ export default function App() {
     logout,
     register,
     forgotPassword,
+    resetPassword,
     orders,
     users,
     activeRole,
@@ -142,6 +145,24 @@ export default function App() {
   const [currentTenant, setCurrentTenant] = useState<any>(null);
   const [resolvingTenant, setResolvingTenant] = useState(true);
   const [openPatientFaq, setOpenPatientFaq] = useState<number | null>(null);
+
+  // Detect password reset token in URL (?token=...)
+  const [resetToken, setResetToken] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('token') || null;
+  });
+
+  const handleResetPasswordSuccess = () => {
+    // Clear token from URL and redirect to login
+    window.history.replaceState({}, '', window.location.pathname);
+    setResetToken(null);
+    setShowLogin(true);
+  };
+
+  const handleResetPasswordBack = () => {
+    window.history.replaceState({}, '', window.location.pathname);
+    setResetToken(null);
+  };
 
   React.useEffect(() => {
     const subdomain = window.location.hostname.split('.')[0] || 'localhost';
@@ -209,12 +230,23 @@ export default function App() {
     return <LoadingSpinner message="Cargando plataforma..." />;
   }
 
+  // 0.5 Password reset token in URL — show reset page regardless of auth state
+  if (resetToken) {
+    return (
+      <ResetPassword
+        token={resetToken}
+        onSuccess={handleResetPasswordSuccess}
+        onBack={handleResetPasswordBack}
+      />
+    );
+  }
+
   // 1. Loading active auth status on start
   if (authLoading && !currentUser) {
     return (
-      <LoadingSpinner 
-        message="Conectando con base de datos..." 
-        subMessage="Verificando firma de credenciales electrónicas" 
+      <LoadingSpinner
+        message="Conectando con base de datos..."
+        subMessage="Verificando firma de credenciales electrónicas"
       />
     );
   }

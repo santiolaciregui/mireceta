@@ -97,6 +97,12 @@ export default function PatientDoctorChat({
       lastMessage: ChatMessage | null;
       lastTimestamp: string;
       hasPatientReplied: boolean;
+      // Real patient fields (may differ from titular when isForDependent = true)
+      actualPatientName: string;
+      actualPatientLastName: string;
+      actualPatientDni: string;
+      isForDependent: boolean;
+      dependentRelationship: string;
     }>();
 
     // 1. Seed with server conversations (which contain unified Patient & WhatsApp inbound history)
@@ -119,7 +125,12 @@ export default function PatientDoctorChat({
         messages: Array.isArray(sc.messages) ? [...sc.messages] : [],
         lastMessage: null,
         lastTimestamp: sc.lastMessageAt || sc.lastPatientWhatsAppInteractionAt || new Date().toISOString(),
-        hasPatientReplied: Boolean(sc.hasPatientReplied)
+        hasPatientReplied: Boolean(sc.hasPatientReplied),
+        actualPatientName: sc.patientName || sc.name || '',
+        actualPatientLastName: sc.patientLastName || sc.lastName || '',
+        actualPatientDni: sc.patientDni || sc.dni || clean,
+        isForDependent: false,
+        dependentRelationship: ''
       });
     }
 
@@ -140,9 +151,13 @@ export default function PatientDoctorChat({
 
       let conv = map.get(clean);
       if (!conv) {
+        // The conversation is grouped by the titular's DNI for WhatsApp threading.
+        // We keep both titular contact data AND the real patient data for display.
+        const isForDep = Boolean(ord.isForDependent && ord.requestedByTitularName);
         conv = {
           dni: ord.requestedByTitularDni || ord.patientDni,
           cleanDni: clean,
+          // Titular name/contact — used for avatar initials and WhatsApp link
           name: ord.requestedByTitularName || ord.patientName,
           lastName: ord.requestedByTitularName ? '' : ord.patientLastName,
           phone: ord.requestedByTitularPhone || ord.patientPhone || '',
@@ -155,7 +170,13 @@ export default function PatientDoctorChat({
           messages: [],
           lastMessage: null,
           lastTimestamp: ord.createdAt || new Date().toISOString(),
-          hasPatientReplied: false
+          hasPatientReplied: false,
+          // Real patient data — used in the "Paciente:" banner
+          actualPatientName: ord.patientName || '',
+          actualPatientLastName: ord.patientLastName || '',
+          actualPatientDni: ord.patientDni || '',
+          isForDependent: isForDep,
+          dependentRelationship: ord.dependentRelationship || ''
         };
         map.set(clean, conv);
       }
@@ -687,7 +708,15 @@ export default function PatientDoctorChat({
                         DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial || 'Particular'}
                       </p>
 
-                      {/* Last message preview */}
+                      {/* Show actual patient name if request is for a dependent */}
+                      {conv.isForDependent && conv.actualPatientName && (
+                        <p className="text-[10px] text-violet-700 font-semibold truncate mt-0.5 flex items-center gap-1">
+                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                          Paciente: {conv.actualPatientName} {conv.actualPatientLastName}
+                          {conv.dependentRelationship && <span className="text-violet-500 font-normal">({conv.dependentRelationship})</span>}
+                        </p>
+                      )}
+
                       <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
                         {lastMsg ? (
                           <>
@@ -873,9 +902,23 @@ export default function PatientDoctorChat({
             {/* PATIENT ORDERS & TREATMENTS BANNER (Visible only to medical staff / admin / colab) */}
             {!isPatient && (
               <div className="bg-white/90 backdrop-blur-xs border-b border-slate-200 px-3 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between gap-2 text-[11px] sm:text-xs text-slate-600 font-medium min-w-0 shrink-0">
-                <div className="min-w-0 truncate flex-1">
-                  <strong className="text-slate-800">Paciente:</strong> {activeConversation.name} {activeConversation.lastName} <span className="text-slate-500 font-mono">(DNI: {activeConversation.dni})</span>
-                  {activeConversation.latestOrderMedication ? <span className="hidden md:inline text-slate-500">{` • Última medicación: ${activeConversation.latestOrderMedication}`}</span> : ''}
+                <div className="min-w-0 flex-1 space-y-0.5 overflow-hidden">
+                  <div className="truncate">
+                    <strong className="text-slate-800">Paciente:</strong>{' '}
+                    {activeConversation.actualPatientName || activeConversation.name}{' '}
+                    {activeConversation.actualPatientLastName || activeConversation.lastName}{' '}
+                    <span className="text-slate-500 font-mono">(DNI: {activeConversation.actualPatientDni || activeConversation.dni})</span>
+                    {activeConversation.latestOrderMedication ? <span className="hidden md:inline text-slate-500">{` • Última medicación: ${activeConversation.latestOrderMedication}`}</span> : ''}
+                  </div>
+                  {activeConversation.isForDependent && (
+                    <div className="truncate text-[10px] text-slate-500">
+                      Solicitado por el titular:{' '}
+                      <span className="font-semibold text-slate-700">{activeConversation.name} {activeConversation.lastName}</span>
+                      {activeConversation.dependentRelationship && (
+                        <span className="ml-1 text-violet-600 font-medium">({activeConversation.dependentRelationship})</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800 font-mono">
                   {activeConversation.latestOrderId || 'Paciente Registrado'}

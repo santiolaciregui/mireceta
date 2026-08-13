@@ -1,11 +1,13 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { config } from '../config/env.js';
 import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generateUserId } from '../utils/idGenerator.js';
+import { sendPasswordResetEmail } from '../utils/mailer.js';
 
 export class AuthService {
   private userRepo: UserRepository;
@@ -161,10 +163,101 @@ export class AuthService {
       throw new Error('No existe ningún usuario registrado con el DNI o correo electrónico ingresado.');
     }
 
+    const hasEmail = user.email && user.email.trim().length > 0;
+
+    if (!hasEmail) {
+      // User has no email — generate a temporary password and return it in the response
+      // so it can be shown on screen. Flag requirePasswordChange so they set a new one on login.
+      const tempPassword = crypto.randomBytes(4).toString('hex'); // 8 char hex
+      const hashedTemp = await bcrypt.hash(tempPassword, 10);
+      await this.userRepo.update(user.id, {
+        password: hashedTemp,
+        requirePasswordChange: true
+      });
+
+      await auditLogService.log({
+        tenantId: user.tenantId || 'TEN-0001',
+        currentUser: user,
+        action: 'PASSWORD_RESET_TEMP',
+        entity: 'Auth',
+        entityId: user.id,
+        details: `Contraseña temporal generada para usuario sin email registrado`
+      });
+
+      return {
+        success: true,
+        hasEmail: false,
+        tempPassword,
+        message: `Tu nueva contraseña temporal es: ${tempPassword}. Usala para ingresar y luego cambiala.`
+      };
+    }
+
+    // User has email — generate a secure reset token (1 hour expiry)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.userRepo.update(user.id, { resetToken, resetTokenExp });
+
+    // Determine base URL for the reset link
+    const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
+    const resetUrl = `${baseUrl}?token=${resetToken}`;
+
+    // Send email (fire and forget — don't block the response)
+    sendPasswordResetEmail({
+      email: user.email,
+      name: user.name,
+      resetUrl
+    }).catch(err => console.error('[AuthService] Error sending reset email:', err));
+
+    await auditLogService.log({
+      tenantId: user.tenantId || 'TEN-0001',
+      currentUser: user,
+      action: 'PASSWORD_RESET_REQUESTED',
+      entity: 'Auth',
+      entityId: user.id,
+      details: `Solicitud de reset de contraseña para: ${user.email}`
+    });
+
     return {
       success: true,
+      hasEmail: true,
       email: user.email,
-      message: `Hemos enviado las instrucciones para restablecer tu contraseña al correo electrónico: ${user.email || 'registrado en tu cuenta'}.`,
+      message: `Enviamos las instrucciones de recuperación a tu correo: ${user.email}. Revisá también la carpeta de Spam.`
     };
   }
+
+  async resetPassword(token: string, newPassword: string) {
+    if (!token || !newPassword) {
+      throw new Error('El token y la nueva contraseña son requeridos.');
+    }
+
+    if (newPassword.length < 6) {
+      throw new Error('La nueva contraseña debe tener al menos 6 caracteres.');
+    }
+
+    const user = await this.userRepo.findByResetToken(token);
+    if (!user) {
+      throw new Error('El enlace de recuperación es inválido o ya expiró. Por favor solicitá uno nuevo.');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.userRepo.update(user.id, {
+      password: hashedPassword,
+      resetToken: undefined,
+      resetTokenExp: undefined,
+      requirePasswordChange: false
+    });
+
+    await auditLogService.log({
+      tenantId: user.tenantId || 'TEN-0001',
+      currentUser: user,
+      action: 'PASSWORD_RESET_SUCCESS',
+      entity: 'Auth',
+      entityId: user.id,
+      details: `Contraseña restablecida exitosamente vía enlace de recuperación`
+    });
+
+    return { success: true, message: '¡Contraseña actualizada con éxito! Ya podés iniciar sesión.' };
+  }
 }
+

@@ -166,39 +166,40 @@ export function useMedicalOrders() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.');
+        return { success: false, error: data.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.' };
       }
 
+      // data may include: { hasEmail, message, email, tempPassword }
       return { success: true, data };
     } catch (err: any) {
-      // Fallback local lookup if backend fetch fails completely due to network
-      const query = (identifier || email || '').trim().toLowerCase();
-      const cleanQ = query.replace(/\D/g, '');
-      const localUser = users.find(u => 
-        (u.identifier && u.identifier.toLowerCase() === query) ||
-        (cleanQ && u.identifier && u.identifier.replace(/\D/g, '') === cleanQ) ||
-        (u.email && u.email.toLowerCase() === query)
-      );
-
-      if (err.message && !err.message.includes('fetch') && !err.message.includes('NetworkError') && !err.message.includes('Failed to fetch')) {
-        return { success: false, error: err.message };
-      }
-
-      if (localUser) {
-        return {
-          success: true,
-          data: {
-            message: `Hemos enviado las instrucciones para restablecer tu contraseña al correo electrónico: ${localUser.email || 'registrado en tu cuenta'}.`,
-            email: localUser.email
-          }
-        };
-      }
-
-      return { success: false, error: err.message || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.' };
+      // Only network-level errors reach here
+      return { success: false, error: 'Error de conexión. Verificá tu conexión a internet e intentá nuevamente.' };
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Handle password reset via token link
+  const resetPassword = async (token: string, newPassword: string): Promise<{ success: boolean; data?: any; error?: string }> => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Error al restablecer la contraseña.' };
+      }
+      return { success: true, data };
+    } catch (err: any) {
+      return { success: false, error: 'Error de conexión. Intentá nuevamente.' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   // Handle Authentication logout
   const logout = () => {
@@ -545,6 +546,7 @@ export function useMedicalOrders() {
     login,
     register,
     forgotPassword,
+    resetPassword,
     logout,
     orders,
     users,

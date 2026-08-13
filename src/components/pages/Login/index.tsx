@@ -82,6 +82,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   // Forgot Password fields
   const [forgotInput, setForgotInput] = useState('');
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
+  const [forgotTempPassword, setForgotTempPassword] = useState<string | null>(null);
 
   // Field-level error states
   const [loginErrors, setLoginErrors] = useState<{ identifier?: string; password?: string }>({});
@@ -278,6 +279,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     e.preventDefault();
     setErrorMsg(null);
     setForgotSuccessMsg(null);
+    setForgotTempPassword(null);
     setForgotErrors({});
 
     const cleanInput = forgotInput.trim();
@@ -292,7 +294,12 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       const isEmail = cleanInput.includes('@');
       const res = await onForgotPassword(isEmail ? '' : cleanInput, isEmail ? cleanInput : '');
       if (res.success) {
-        setForgotSuccessMsg(res.data?.message || 'Instrucciones de recuperación enviadas con éxito a su casilla de correo electrónico.');
+        const data = res.data || {};
+        setForgotSuccessMsg(data.message || 'Solicitud procesada con éxito.');
+        if (data.tempPassword) {
+          // User had no email — backend returned a temporary password
+          setForgotTempPassword(data.tempPassword);
+        }
       } else {
         const errMsg = res.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.';
         setErrorMsg(errMsg);
@@ -1125,25 +1132,47 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                   <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
                     <CheckCircle2 className="h-9 w-9 text-[#14BE99]" />
                   </div>
-                  <h3 className="text-base font-black text-[#0141BC]">¡Solicitud Enviada con Éxito!</h3>
-                  <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed font-medium max-w-sm mx-auto text-left shadow-xs space-y-2.5">
-                    <p className="font-semibold">{forgotSuccessMsg}</p>
-                    <p className="text-[11px] text-emerald-800/90 pt-2 border-t border-emerald-200/80">
-                      💡 <strong>Recuerde:</strong> Si no encuentra el correo en su bandeja principal dentro de los próximos minutos, por favor revise su carpeta de <strong>Correo no deseado (SPAM)</strong> o Promociones.
-                    </p>
-                  </div>
+                  <h3 className="text-base font-black text-[#0141BC]">
+                    {forgotTempPassword ? '¡Contraseña Temporal Generada!' : '¡Instrucciones Enviadas!'}
+                  </h3>
+
+                  {forgotTempPassword ? (
+                    /* Case: user has no email — show temp password on screen */
+                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed font-medium text-left shadow-xs space-y-3">
+                      <p className="font-semibold">Tu cuenta no tiene un correo electrónico registrado.</p>
+                      <p>Generamos una contraseña temporal para que puedas ingresar:</p>
+                      <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-3 text-center">
+                        <span className="font-mono font-black text-xl text-[#0141BC] tracking-widest select-all">
+                          {forgotTempPassword}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-amber-800/90 pt-1 border-t border-amber-200/80">
+                        ⚠️ <strong>Guardá esta contraseña</strong> antes de cerrar esta pantalla. Al ingresar, el sistema te pedirá que la cambies por una nueva.
+                      </p>
+                    </div>
+                  ) : (
+                    /* Case: user has email — standard message */
+                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed font-medium max-w-sm mx-auto text-left shadow-xs space-y-2.5">
+                      <p className="font-semibold">{forgotSuccessMsg}</p>
+                      <p className="text-[11px] text-emerald-800/90 pt-2 border-t border-emerald-200/80">
+                        💡 <strong>Recordá:</strong> Si no encontrás el correo en tu bandeja principal, revisá la carpeta de <strong>Correo no deseado (SPAM)</strong> o Promociones.
+                      </p>
+                    </div>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => {
                       setActiveMode('login');
                       setForgotSuccessMsg(null);
+                      setForgotTempPassword(null);
                       setErrorMsg(null);
                       setForgotInput('');
                       setForgotErrors({});
                     }}
                     className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer text-xs uppercase tracking-wider"
                   >
-                    Volver a Iniciar Sesión
+                    Ir a Iniciar Sesión
                   </button>
                 </div>
               )}

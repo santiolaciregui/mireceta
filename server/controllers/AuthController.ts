@@ -38,4 +38,17 @@ export class AuthController {
       res.status(404).json({ error: err.message });
     }
   };
+
+  resetPassword = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token, newPassword } = req.body;
+      if (!token || !newPassword) {
+        return res.status(400).json({ error: 'El token y la nueva contraseña son requeridos.' });
+      }
+      const result = await authService.resetPassword(token, newPassword);
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  };
 }

@@ -18,6 +18,9 @@ export interface IUser extends Document {
   obraSocialNumber?: string;
   dependents?: any[];
   requirePasswordChange?: boolean;
+  // Password reset flow
+  resetToken?: string;
+  resetTokenExp?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,7 +42,9 @@ const userSchema = new Schema<IUser>({
   obraSocial: { type: String },
   obraSocialNumber: { type: String },
   dependents: { type: Schema.Types.Mixed, default: [] },
-  requirePasswordChange: { type: Boolean, default: false }
+  requirePasswordChange: { type: Boolean, default: false },
+  resetToken: { type: String },
+  resetTokenExp: { type: Date }
 }, {
   timestamps: true, 
 });
