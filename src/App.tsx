@@ -36,6 +36,57 @@ import {
   HelpCircle
 } from 'lucide-react';
 
+const patientFaqs = [
+  {
+    q: "¿Cómo es la modalidad?",
+    a: "Mi Receta Online funciona bajo el modelo de consulta médica asincrónica, donde un médico matriculado evalúa tu caso de manera remota. Si corresponde, el profesional emitirá una receta u orden médica válida a través de plataformas habilitadas según la normativa vigente en Argentina. La emisión de una receta u orden médica depende exclusivamente del criterio del médico. Si el profesional considera que no corresponde, podrá solicitar más información o recomendar una consulta presencial. Si es rechazada se te devolverá el total del dinero."
+  },
+  {
+    q: "¿Cuánto cuesta?",
+    a: "Tiene un costo de $10.000 por cada receta, e incluye hasta dos medicamentos por receta. El costo de esta consulta digital asincrónica para renovación de receta se abonará al momento de solicitarla. Si el médico considera que tu consulta requiere atención presencial, te informaremos sin costo adicional. Si la receta no puede completarse, se te devolverá el dinero abonado."
+  },
+  {
+    q: "¿Cuánto tarda en llegar mi receta?",
+    a: "El tiempo estimado de revisión por nuestro cuerpo médico es de menos de 24 horas hábiles. En la mayoría de los casos, la recibís en cuestión de pocas horas. Podrás ver su estado y descargarla directamente desde la sección 'Mis Trámites de Renovación'."
+  },
+  {
+    q: "¿Es legal y qué validez tiene?",
+    a: "Sí, es 100% legal. Cumplimos con la Ley de Telemedicina y la Ley de Receta Digital (Ley 27.553). Todas las órdenes y prescripciones son emitidas y firmadas digitalmente por profesionales médicos matriculados. Las farmacias están autorizadas a aceptar el código y firma digital presentados en el PDF descargable."
+  },
+  {
+    q: "¿Qué documentación debo adjuntar?",
+    a: "Debés cargar una foto clara de la caja del medicamento (donde se vea la dosis y nombre) y/o el último comprobante de pago o receta anterior. Esto agiliza la firma del profesional médico."
+  },
+  {
+    q: "¿Siempre me van a dar una receta?",
+    a: "La emisión de la receta u orden médica queda siempre sujeta al criterio y evaluación del profesional médico actuante. Si no es posible realizar la receta, se te dará una explicación, sugerencia y se te reintegrará lo abonado. Para evitar rechazos, incorporá todos los detalles del tratamiento."
+  },
+  {
+    q: "¿Qué pasa si rechazan mi solicitud?",
+    a: "En caso de que el profesional considere que no corresponde la prescripción sin una evaluación presencial previa, se te notificará la razón a través del chat de la solicitud y no se te cobrará ningún arancel (se te devolverá el dinero)."
+  },
+  {
+    q: "¿Qué medicamentos no se pueden solicitar?",
+    a: "No se emiten recetas para medicamentos de uso restringido, controlado o que requieren seguimiento especializado, psicofármacos, opioides o trámites de excepción."
+  },
+  {
+    q: "¿Puedo solicitar para un familiar?",
+    a: "Sí, podés cargar familiares a tu cargo y realizar las solicitudes. Los menores de edad no pueden solicitar recetas, deben ser realizadas por un mayor a cargo."
+  },
+  {
+    q: "¿Cómo recibo la receta?",
+    a: "Una vez emitida, podrás descargar el PDF firmado digitalmente desde tu sección 'Mis Trámites de Renovación'. También la recibirás por correo electrónico o WhatsApp, lista para presentar en tu farmacia habitual."
+  },
+  {
+    q: "¿Mis datos están protegidos?",
+    a: "Totalmente. Tu información médica y personal está protegida y encriptada cumpliendo con la Ley de Protección de Datos Personales (Ley 25.326) y normas de secreto médico."
+  },
+  {
+    q: "¿Necesito tener una App?",
+    a: "No, no requerís descargar ninguna aplicación. Podés realizar todo el trámite directamente desde el navegador de tu celular o computadora ingresando a tu panel de usuario."
+  }
+];
+
 export default function App() {
   const {
     currentUser,
@@ -90,6 +141,7 @@ export default function App() {
   const [loginMode, setLoginMode] = useState<'login'|'register'>('login');
   const [currentTenant, setCurrentTenant] = useState<any>(null);
   const [resolvingTenant, setResolvingTenant] = useState(true);
+  const [openPatientFaq, setOpenPatientFaq] = useState<number | null>(null);
 
   React.useEffect(() => {
     const subdomain = window.location.hostname.split('.')[0] || 'localhost';
@@ -327,32 +379,44 @@ export default function App() {
                     <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
                         <h1 className="text-xl sm:text-[1.5rem] font-[700] tracking-[-0.03em]">Preguntas Frecuentes</h1>
-                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Instrucciones y soporte para el trámite de renovación municipal.</p>
+                        <p className="text-xs sm:text-[0.85rem] text-[var(--ink-muted)] mt-0.5 sm:mt-1">Respuestas a tus dudas sobre el servicio de recetas digitales y renovación de medicación.</p>
                       </div>
                     </header>
 
                     <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-                      <div className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-2xl sm:rounded-3xl p-5 sm:p-6 shadow-xs space-y-5 sm:space-y-6 text-slate-650 text-xs sm:text-sm">
-                        <div className="space-y-2">
-                          <h3 className="font-extrabold text-slate-900 text-sm">1. ¿Qué validez tiene la receta digital emitida?</h3>
-                          <p className="text-slate-550 font-medium leading-relaxed">
-                            Tiene plena validez nacional bajo la Ley de Receta Digital. Las farmacias están autorizadas a aceptar el código y firma digital presentados en el PDF descargable.
-                          </p>
-                        </div>
+                      <div className="max-w-2xl mx-auto space-y-3">
+                        {patientFaqs.map((faq, idx) => {
+                          const isOpen = openPatientFaq === idx;
+                          return (
+                            <div 
+                              key={idx} 
+                              className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden transition-all shadow-xs"
+                            >
+                              <button
+                                onClick={() => setOpenPatientFaq(isOpen ? null : idx)}
+                                className="w-full p-4 sm:p-5 flex items-center justify-between font-bold text-slate-800 text-sm text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                              >
+                                <span className="flex items-center gap-2.5">
+                                  <HelpCircle className="h-4.5 w-4.5 text-[#1661E1] shrink-0" />
+                                  <span className="font-extrabold text-slate-900">{faq.q}</span>
+                                </span>
+                                {isOpen ? (
+                                  <ChevronUp className="h-4 w-4 text-slate-400 shrink-0" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                                )}
+                              </button>
 
-                        <div className="space-y-2 border-t border-slate-100 pt-4">
-                          <h3 className="font-extrabold text-slate-900 text-sm">2. ¿Cuánto demora la auditoría del trámite?</h3>
-                          <p className="text-slate-550 font-medium leading-relaxed">
-                            La validación de la medicación crónica dura típicamente entre 12 y 24 horas hábiles. En caso de requerirse aclaraciones, el equipo médico se comunicará directamente con vos a través del chat integrado.
-                          </p>
-                        </div>
-
-                        <div className="space-y-2 border-t border-slate-100 pt-4">
-                          <h3 className="font-extrabold text-slate-900 text-sm">3. ¿Qué documentación debo adjuntar?</h3>
-                          <p className="text-slate-550 font-medium leading-relaxed">
-                            Debés cargar una foto clara de la caja del medicamento (donde se vea la dosis y nombre) y el último comprobante de pago o receta anterior. Esto agiliza la firma del profesional médico.
-                          </p>
-                        </div>
+                              {isOpen && (
+                                <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-xs sm:text-sm text-slate-650 font-medium leading-relaxed border-t border-slate-150/60 bg-slate-50/50">
+                                  <p className="mt-3 text-slate-600 leading-relaxed font-medium">
+                                    {faq.a}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
 
                         <div className="flex items-start gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 mt-4">
                           <MapPin className="h-5 w-5 text-[#1661E1] shrink-0 mt-0.5" />

@@ -135,18 +135,18 @@ export default function PatientDoctorChat({
       : orders;
 
     for (const ord of sourceOrders) {
-      const clean = cleanDni(ord.patientDni);
+      const clean = cleanDni(ord.requestedByTitularDni || ord.patientDni);
       if (!clean) continue;
 
       let conv = map.get(clean);
       if (!conv) {
         conv = {
-          dni: ord.patientDni,
+          dni: ord.requestedByTitularDni || ord.patientDni,
           cleanDni: clean,
-          name: ord.patientName,
-          lastName: ord.patientLastName,
-          phone: ord.patientPhone || '',
-          email: ord.patientEmail || '',
+          name: ord.requestedByTitularName || ord.patientName,
+          lastName: ord.requestedByTitularName ? '' : ord.patientLastName,
+          phone: ord.requestedByTitularPhone || ord.patientPhone || '',
+          email: ord.requestedByTitularEmail || ord.patientEmail || '',
           obraSocial: ord.obraSocial || '',
           ordersCount: 0,
           latestOrderId: ord.id,
@@ -251,7 +251,7 @@ export default function PatientDoctorChat({
     if (initialSelectedOrderId) {
       const matchOrder = orders.find(o => o.id === initialSelectedOrderId);
       if (matchOrder) {
-        const orderCleanDni = cleanDni(matchOrder.patientDni);
+        const orderCleanDni = cleanDni(matchOrder.requestedByTitularDni || matchOrder.patientDni);
         setSelectedPatientDni(orderCleanDni);
       }
       if (onClearInitialOrderId) {

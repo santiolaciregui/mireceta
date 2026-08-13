@@ -1624,7 +1624,7 @@ export default function PatientForm({
                 </button>
 
                 <a
-                  href={`https://wa.me/5492926414331?text=${encodeURIComponent(`Hola! Acabo de ingresar la solicitud con Nro de Gestión ${createdOrderId}. Quisiera hacer una consulta.`)}`}
+                  href={`https://wa.me/15554511065?text=${encodeURIComponent(`Hola! Acabo de ingresar la solicitud con Nro de Gestión ${createdOrderId}. Quisiera hacer una consulta.`)}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold py-2.5 px-4 rounded-xl border border-emerald-200 transition-colors flex items-center justify-center gap-2 text-xs text-center"

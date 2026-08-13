@@ -96,6 +96,7 @@ export default function DoctorDashboard({
   onNavigateToSubview
 }: DoctorDashboardProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const skipClearOrderIdRef = useRef<string | null>(null);
   
   const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'En revisión' | 'Listos' | 'Rechazadas'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
@@ -105,7 +106,12 @@ export default function DoctorDashboard({
 
   // Sync with forcedSubview from sidebar
   React.useEffect(() => {
-    setSelectedOrderId(null);
+    if (skipClearOrderIdRef.current) {
+      setSelectedOrderId(skipClearOrderIdRef.current);
+      skipClearOrderIdRef.current = null;
+    } else {
+      setSelectedOrderId(null);
+    }
     if (forcedSubview) {
       if (forcedSubview === 'pendientes') {
         setFilter('Pendientes');
@@ -336,6 +342,14 @@ export default function DoctorDashboard({
   const handleMarkInProcess = (id: string) => {
     onUpdateStatus(id, 'En revisión', 'Trabajando en el pedido. Evaluando médicamente la renovación.');
     showToast('El pedido ha sido marcado en estado "En Revisión". El paciente lo verá actualizado en tiempo real.');
+    
+    // Set ref to keep this order ID selected when changing subview
+    skipClearOrderIdRef.current = id;
+    
+    // Move to the medical review subview/tab in the sidebar
+    if (onNavigateToSubview) {
+      onNavigateToSubview('revision');
+    }
   };
 
   // Helper to validate and process PDF files (Drag & Drop or File Input)
