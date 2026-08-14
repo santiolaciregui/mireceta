@@ -773,18 +773,28 @@ export default function PatientStatus({
                         {order.medicationPhotos && order.medicationPhotos.length > 0 && (
                           <div className="pt-2 border-t border-slate-100">
                             <span className="text-[10px] font-mono font-bold uppercase text-slate-400 block mb-1.5">
-                              Fotos Adjuntas:
+                              Fotos / Archivos Adjuntos:
                             </span>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap gap-2">
                               {order.medicationPhotos.map((photo, idx) => (
                                 <button
                                   key={idx}
                                   type="button"
-                                  onClick={() => setPreviewPhotoUrl(photo.url)}
-                                  className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 hover:border-blue-500 relative group cursor-pointer"
-                                  title="Ver foto de la medicación"
+                                  onClick={() => {
+                                    if (photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf')) {
+                                      window.open(photo.url, '_blank');
+                                    } else {
+                                      setPreviewPhotoUrl(photo.url);
+                                    }
+                                  }}
+                                  className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 hover:border-blue-500 relative group cursor-pointer flex items-center justify-center bg-slate-50 shrink-0"
+                                  title={photo.name || "Ver adjunto"}
                                 >
-                                  <img src={photo.url} alt="Foto" className="h-full w-full object-cover" />
+                                  {photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf') ? (
+                                    <FileText className="h-6 w-6 text-rose-500" />
+                                  ) : (
+                                    <img src={photo.url} alt="Adjunto" className="h-full w-full object-cover" />
+                                  )}
                                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
                                     <Eye className="h-4 w-4" />
                                   </div>

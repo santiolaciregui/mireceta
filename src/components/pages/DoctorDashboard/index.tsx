@@ -166,6 +166,23 @@ export default function DoctorDashboard({
     return dateStr;
   };
 
+  const getOrderPaymentMethod = (order: MedicalOrder) => {
+    if (order.paymentMethod) return order.paymentMethod;
+    const paymentId = order.paymentId || '';
+    const receiptName = order.paymentReceiptName || '';
+    const receiptUrl = order.paymentReceiptUrl || '';
+    if (paymentId.startsWith('EFECTIVO-') || receiptName === 'cobrado_ventanilla.png' || receiptName === 'carga_manual_efectivo.png' || receiptName === 'registro_oficio.png') {
+      return 'cash_desk';
+    }
+    if (order.paymentStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0') {
+      return 'bonificado';
+    }
+    if (receiptUrl && !receiptUrl.startsWith('data:image/svg+xml') && receiptName !== 'cobrado_ventanilla.png' && receiptName !== 'carga_manual_efectivo.png' && receiptName !== 'registro_oficio.png') {
+      return 'transfer';
+    }
+    return 'mp';
+  };
+
   const CopyableFieldRow = ({
     label,
     value,
@@ -547,6 +564,7 @@ export default function DoctorDashboard({
           medicationPhotoName: null,
           paymentReceiptUrl: simulatedReceiptSvg,
           paymentReceiptName: 'carga_manual_efectivo.png',
+          paymentMethod: 'cash_desk',
           paymentAmount: newOrderPaymentAmount || '10000',
           paymentDate: new Date().toISOString().split('T')[0],
           lastConsultationTime: newOrderConsultationTime || undefined,
@@ -1057,6 +1075,111 @@ export default function DoctorDashboard({
                                 <span className="text-[#0F6C7D]">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
                               )}
                             </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. INFORMACIÓN DE PAGO */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+                      <div className="bg-slate-50/60 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                        <CreditCard className="h-4 w-4 text-blue-600" />
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">Información de Pago</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        <CopyableFieldRow 
+                          label="Método de Pago" 
+                          value={(() => {
+                            const method = getOrderPaymentMethod(selectedOrder);
+                            if (method === 'mp') return 'Mercado Pago (Online)';
+                            if (method === 'transfer') return 'Transferencia Bancaria';
+                            if (method === 'cash_desk') return 'Mesa de Entrada / Efectivo';
+                            if (method === 'bonificado') return 'Bonificado / Exento';
+                            return 'No especificado';
+                          })()} 
+                          fieldId="paymentMethodDisplay" 
+                        />
+                        {selectedOrder.paymentId && (
+                          <CopyableFieldRow label="ID de Transacción / Pago" value={selectedOrder.paymentId} fieldId="paymentId" />
+                        )}
+                        <CopyableFieldRow label="Monto" value={`$${selectedOrder.paymentAmount || '0'}`} fieldId="paymentAmount" />
+                        <CopyableFieldRow 
+                          label="Estado del Pago" 
+                          value={(() => {
+                            const status = selectedOrder.paymentStatus;
+                            if (status === 'approved') return 'Aprobado';
+                            if (status === 'pending') return 'Pendiente';
+                            if (status === 'rejected') return 'Rechazado';
+                            if (status === 'refunded') return 'Devuelto';
+                            if (status === 'exempt') return 'Exento';
+                            return 'Desconocido';
+                          })()} 
+                          fieldId="paymentStatusDisplay" 
+                        />
+                        {selectedOrder.paymentDate && (
+                          <CopyableFieldRow 
+                            label="Fecha de Pago" 
+                            value={new Date(selectedOrder.paymentDate).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.paymentDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
+                            copyValue={selectedOrder.paymentDate}
+                            fieldId="paymentDate" 
+                          />
+                        )}
+                      </div>
+
+                      {/* En caso de ser transferencia, mostrar el comprobante de pago cargado */}
+                      {getOrderPaymentMethod(selectedOrder) === 'transfer' && selectedOrder.paymentReceiptUrl && (
+                        <div className="p-4 bg-slate-50/40 border-t border-slate-100">
+                          <span className="text-xs font-bold text-slate-500 block mb-2">Comprobante de Transferencia:</span>
+                          <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs max-w-[280px]">
+                            {selectedOrder.paymentReceiptUrl.startsWith('data:application/pdf') || selectedOrder.paymentReceiptName?.endsWith('.pdf') ? (
+                              <div className="p-4 flex flex-col items-center justify-center text-center">
+                                <FileText className="h-10 w-10 text-rose-500 mb-2" />
+                                <span className="text-[11px] text-slate-700 font-medium truncate max-w-full mb-3">
+                                  {selectedOrder.paymentReceiptName || 'comprobante.pdf'}
+                                </span>
+                                <div className="flex gap-2 w-full">
+                                  <a 
+                                    href={selectedOrder.paymentReceiptUrl} 
+                                    download={selectedOrder.paymentReceiptName || 'comprobante.pdf'}
+                                    className="flex-1 inline-flex items-center justify-center gap-1 bg-[#1661E1] hover:bg-[#1E6EFB] text-white px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                                  >
+                                    <Download className="h-3.5 w-3.5" /> Descargar
+                                  </a>
+                                  <a 
+                                    href={selectedOrder.paymentReceiptUrl} 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-slate-200"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" /> Ver
+                                  </a>
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <a href={selectedOrder.paymentReceiptUrl} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
+                                  <img 
+                                    src={selectedOrder.paymentReceiptUrl} 
+                                    alt="Comprobante de Transferencia" 
+                                    className="max-h-48 w-full object-contain bg-slate-50 group-hover:opacity-90 transition-opacity" 
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                    <Eye className="h-4 w-4" /> Ampliar comprobante
+                                  </div>
+                                </a>
+                                <div className="p-2 text-[10px] truncate bg-slate-50 font-mono text-slate-600 border-t border-slate-100 flex justify-between items-center">
+                                  <span className="truncate">{selectedOrder.paymentReceiptName || 'comprobante.jpg'}</span>
+                                  <a 
+                                    href={selectedOrder.paymentReceiptUrl} 
+                                    download={selectedOrder.paymentReceiptName || 'comprobante.jpg'}
+                                    className="text-blue-600 hover:text-blue-800 shrink-0 ml-2"
+                                    title="Descargar comprobante"
+                                  >
+                                    <Download className="h-3.5 w-3.5" />
+                                  </a>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}

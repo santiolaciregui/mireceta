@@ -68,6 +68,7 @@ export interface MedicalOrder {
   medicationPhotoName: string | null;
   
   // Payments (Mercado Pago)
+  paymentMethod?: 'mp' | 'transfer' | 'cash_desk' | 'bonificado';
   paymentReceiptUrl: string | null;
   paymentReceiptName: string | null;
   paymentAmount: string;

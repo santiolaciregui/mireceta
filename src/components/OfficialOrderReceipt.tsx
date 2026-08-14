@@ -193,47 +193,59 @@ export default function OfficialOrderReceipt({
           2. Detalle de la Medicación Solicitada
         </h2>
 
-        {medicationItems && medicationItems.length > 0 ? (
-          <table className="w-full text-left text-xs border-collapse border border-slate-300">
-            <thead>
-              <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
-                <th className="p-2 border-r border-slate-300">Medicamento / Monodroga</th>
-                <th className="p-2 border-r border-slate-300">Dosis / Presentación</th>
-                <th className="p-2 border-r border-slate-300 text-center w-24">Cantidad</th>
-                <th className="p-2">Diagnóstico Asignado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {medicationItems.map((item, idx) => (
-                <tr key={idx} className="border-b border-slate-200">
-                  <td className="p-2 border-r border-slate-200 font-bold text-[#0141BC]">
-                    {item.nombreComercial}
-                    {item.droga && <span className="block text-[11px] text-slate-500 font-normal">Principio activo: {item.droga}</span>}
-                  </td>
-                  <td className="p-2 border-r border-slate-200 text-slate-700">
-                    {item.miligramos || ''} {item.presentacion ? `(${item.presentacion})` : ''}
-                  </td>
-                  <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-800">
-                    {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
-                  </td>
-                  <td className="p-2 text-slate-700">
-                    {item.diagnostic || diagnostic || 'Tratamiento crónico continuado'}
-                  </td>
+        {medicationItems && medicationItems.length > 0 && (
+          <div className="mb-4">
+            <table className="w-full text-left text-xs border-collapse border border-slate-300">
+              <thead>
+                <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
+                  <th className="p-2 border-r border-slate-300">Medicamento / Monodroga</th>
+                  <th className="p-2 border-r border-slate-300">Dosis / Presentación</th>
+                  <th className="p-2 border-r border-slate-300 text-center w-24">Cantidad</th>
+                  <th className="p-2">Diagnóstico Asignado</th>
                 </tr>
+              </thead>
+              <tbody>
+                {medicationItems.map((item, idx) => (
+                  <tr key={idx} className="border-b border-slate-200">
+                    <td className="p-2 border-r border-slate-200 font-bold text-[#0141BC]">
+                      {item.nombreComercial}
+                      {item.droga && <span className="block text-[11px] text-slate-500 font-normal">Principio activo: {item.droga}</span>}
+                    </td>
+                    <td className="p-2 border-r border-slate-200 text-slate-700">
+                      {item.miligramos || ''} {item.presentacion ? `(${item.presentacion})` : ''}
+                    </td>
+                    <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-800">
+                      {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                    </td>
+                    <td className="p-2 text-slate-700">
+                      {item.diagnostic || diagnostic || 'Tratamiento crónico continuado'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {medicationPhotos && medicationPhotos.length > 0 && (
+          <div className="border border-slate-300 p-3 rounded bg-slate-50 text-xs mb-4">
+            <p className="font-bold text-slate-800 mb-2">Archivos / Fotografías de envases o recetas previas adjuntas:</p>
+            <ul className="list-disc list-inside space-y-1 text-slate-650 font-mono">
+              {medicationPhotos.map((photo, i) => (
+                <li key={i} className="truncate">
+                  {photo.name || `archivo_adjunto_${i + 1}`}
+                </li>
               ))}
-            </tbody>
-          </table>
-        ) : (
+            </ul>
+          </div>
+        )}
+
+        {(!medicationItems || medicationItems.length === 0) && (!medicationPhotos || medicationPhotos.length === 0) && (
           <div className="border border-slate-300 p-3 rounded bg-slate-50 text-xs">
-            <p className="font-bold text-slate-800">Prescripción adjuntada mediante archivo / fotografía:</p>
+            <p className="font-bold text-slate-800">Prescripción adjuntada:</p>
             <p className="text-slate-600 mt-1">
-              {medicationPhotos && medicationPhotos.length > 0 
-                ? `Se adjuntaron ${medicationPhotos.length} imagen(es) de envases o recetas anteriores para evaluación médica.`
-                : (medicationText || 'Documentación en evaluación por el equipo de auditoría médica.')}
+              {medicationText || 'Documentación en evaluación por el equipo de auditoría médica.'}
             </p>
-            {diagnostic && (
-              <p className="text-slate-700 mt-1 font-semibold">Diagnóstico: {diagnostic}</p>
-            )}
           </div>
         )}
 

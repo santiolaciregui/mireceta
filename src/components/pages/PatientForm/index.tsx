@@ -1182,6 +1182,7 @@ export default function PatientForm({
         medicationPhotos,
         medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
         medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
+        paymentMethod: 'mp',
         paymentAmount,
         paymentDate: new Date().toISOString(),
         paymentStatus: 'pending',
@@ -1306,6 +1307,7 @@ export default function PatientForm({
       medicationPhotos,
       medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
+      paymentMethod,
       
       // Payment details
       paymentReceiptUrl: paymentMethod === 'cash_desk'
@@ -1562,10 +1564,12 @@ export default function PatientForm({
                 </div>
 
                 {/* Medication Summary */}
-                <div className="border-t border-slate-100 pt-3">
-                  <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider">Medicación Solicitada</p>
-                  {displayMedicationItems.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="border-t border-slate-100 pt-3 text-left">
+                  <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider text-left">Medicación Solicitada</p>
+                  
+                  {/* Manual Medication Items */}
+                  {displayMedicationItems.length > 0 && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
                       {displayMedicationItems.map((item, idx) => (
                         <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
@@ -1579,15 +1583,37 @@ export default function PatientForm({
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
-                      <Camera className="h-4 w-4 text-[#1661E1] shrink-0" />
-                      <span>
-                        {displayMedicationPhotos.length > 0
-                          ? `Se adjuntaron ${displayMedicationPhotos.length} foto(s) de envase / receta previa para auditoría.`
-                          : 'Medicación cargada mediante imagen/documentación adjunta.'}
-                      </span>
+                  )}
+
+                  {/* Attached Medication Photos/Documents */}
+                  {displayMedicationPhotos.length > 0 ? (
+                    <div className="mt-3 text-left">
+                      <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider text-left">Documentación / Fotos de Envases Adjuntas</p>
+                      <div className="flex flex-wrap gap-2.5">
+                        {displayMedicationPhotos.map((photo, i) => (
+                          <div key={i} className="bg-slate-50 p-2 rounded-xl border border-slate-200/80 flex items-center gap-2.5 max-w-[260px] truncate">
+                            <div className="h-8 w-10 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden shrink-0">
+                              {photo.url.startsWith('data:application/pdf') || photo.name.toLowerCase().endsWith('.pdf') ? (
+                                <FileText className="h-4 w-4 text-rose-500" />
+                              ) : (
+                                <img src={photo.url} alt="Adjunto" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                              )}
+                            </div>
+                            <div className="truncate text-left">
+                              <p className="font-bold text-slate-750 text-[11px] truncate max-w-[150px]">{photo.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium">Archivo #{i + 1}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  ) : (
+                    displayMedicationItems.length === 0 && (
+                      <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
+                        <Camera className="h-4 w-4 text-[#1661E1] shrink-0" />
+                        <span>Medicación cargada mediante imagen/documentación adjunta.</span>
+                      </div>
+                    )
                   )}
                 </div>
               </div>

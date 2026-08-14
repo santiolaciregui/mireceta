@@ -62,6 +62,40 @@ export class OrderService {
     const requestedByTitularEmail = orderData.requestedByTitularEmail || (isForDependent && currentUser?.role === 'paciente' ? currentUser.email : undefined);
     const requestedByTitularPhone = orderData.requestedByTitularPhone || (isForDependent && currentUser?.role === 'paciente' ? currentUser.phone : undefined);
 
+    // Process and save payment receipt if it's a base64 string
+    let paymentReceiptUrl = orderData.paymentReceiptUrl;
+    if (paymentReceiptUrl && (paymentReceiptUrl.startsWith('data:') || paymentReceiptUrl.length > 500)) {
+      try {
+        const fileName = orderData.paymentReceiptName || `comprobante_${newId}.pdf`;
+        const savedUrl = await storageService.saveRecipePdf(fileName, paymentReceiptUrl);
+        paymentReceiptUrl = savedUrl;
+      } catch (storageErr) {
+        console.error('[OrderService] Error guardando comprobante en almacenamiento, utilizando URL directa:', storageErr);
+      }
+    }
+
+    // Process and save medication photos if they are base64 strings
+    let medicationPhotos = orderData.medicationPhotos || [];
+    if (Array.isArray(medicationPhotos) && medicationPhotos.length > 0) {
+      const savedPhotos = [];
+      for (let i = 0; i < medicationPhotos.length; i++) {
+        const photo = medicationPhotos[i];
+        if (photo.url && (photo.url.startsWith('data:') || photo.url.length > 500)) {
+          try {
+            const fileName = photo.name || `medica_${newId}_${i}.jpg`;
+            const savedUrl = await storageService.saveRecipePdf(fileName, photo.url);
+            savedPhotos.push({ url: savedUrl, name: photo.name });
+          } catch (storageErr) {
+            console.error('[OrderService] Error guardando foto en almacenamiento, utilizando URL directa:', storageErr);
+            savedPhotos.push(photo);
+          }
+        } else {
+          savedPhotos.push(photo);
+        }
+      }
+      medicationPhotos = savedPhotos;
+    }
+
     const newOrder: any = {
       ...orderData,
       id: newId,
@@ -83,7 +117,11 @@ export class OrderService {
       createdAt: new Date().toISOString(),
       auditLog: [],
       notificationsSent: [],
-      messages: orderData.messages || []
+      messages: orderData.messages || [],
+      paymentReceiptUrl,
+      medicationPhotos,
+      medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
+      medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null
     };
 
     let creatorName = 'Paciente (Autogestión)';

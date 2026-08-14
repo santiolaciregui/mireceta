@@ -50,6 +50,7 @@ export interface IMedicalOrder extends Document {
   medicationPhotoUrl: string | null;
   medicationPhotoName: string | null;
   
+  paymentMethod?: 'mp' | 'transfer' | 'cash_desk' | 'bonificado';
   paymentReceiptUrl: string | null;
   paymentReceiptName: string | null;
   paymentAmount: string;
@@ -168,6 +169,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   medicationPhotoUrl: { type: String },
   medicationPhotoName: { type: String },
   
+  paymentMethod: { type: String },
   paymentReceiptUrl: { type: String },
   paymentReceiptName: { type: String },
   paymentAmount: { type: String, required: false, default: '10000' },

@@ -293,6 +293,7 @@ export default function NewOrderForm({
         lastConsultationDoctor: lastConsultationDoctor.trim() || undefined,
         paymentReceiptUrl: simulatedReceiptSvg,
         paymentReceiptName: 'registro_oficio.png',
+        paymentMethod,
         paymentAmount: paymentMethod === 'bonificado' ? '0' : paymentAmount,
         paymentStatus: paymentMethod === 'bonificado' ? 'exempt' : 'approved',
         status: 'En revisión',
