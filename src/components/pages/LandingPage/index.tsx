@@ -290,7 +290,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       trackInitiatePrescription('landing_hero_cta');
                       onGoToLogin('login');
                     }}
-                    className="bg-[#1661E1] hover:bg-[#1E6EFB] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#1E6EFB]"
+                    className="bg-[#14BE99] hover:bg-[#0F6C7D] text-[#0141BC] hover:text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#14BE99] hover:border-[#0F6C7D]"
                   >
                     <span>Solicitar Receta</span>
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
@@ -525,14 +525,16 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/15"
+                      className={`bg-white/10 text-white rounded-xl overflow-hidden transition-all border ${
+                        isOpen ? 'border-[#14BE99]/40' : 'border-white/15'
+                      }`}
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
                         className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-2.5">
-                          <span className="text-lg font-black text-[#1E6EFB]">
+                          <span className="text-lg font-black text-[#14BE99]">
                             {isOpen ? '−' : '+'}
                           </span>
                           {faq.q}
@@ -557,14 +559,16 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className="bg-white/10 text-white rounded-xl overflow-hidden transition-all border border-white/15"
+                      className={`bg-white/10 text-white rounded-xl overflow-hidden transition-all border ${
+                        isOpen ? 'border-[#14BE99]/40' : 'border-white/15'
+                      }`}
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
                         className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
                       >
                         <span className="flex items-center gap-2.5">
-                          <span className="text-lg font-black text-[#1E6EFB]">
+                          <span className="text-lg font-black text-[#14BE99]">
                             {isOpen ? '−' : '+'}
                           </span>
                           {faq.q}
