@@ -46,7 +46,8 @@ import {
   Copy,
   CheckCheck,
   Users,
-  ArrowLeft
+  ArrowLeft,
+  Image as ImageIcon
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -133,11 +134,74 @@ export default function DoctorDashboard({
 
   // Doctor Action Inputs
   const [doctorNotes, setDoctorNotes] = useState('');
+  const [prescriptionType, setPrescriptionType] = useState<'RCTA' | 'PAMI' | 'IOMA'>('RCTA');
   const [uploadedRecipe, setUploadedRecipe] = useState<{ url: string; name: string; size?: number } | null>(null);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  const handleCopy = (text: string, fieldId: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldId);
+    showToast(`Copiado: ${label}`);
+    setTimeout(() => {
+      setCopiedField(null);
+    }, 2000);
+  };
+
+  const formatBirthDate = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1]}`;
+    }
+    try {
+      const d = new Date(dateStr);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleDateString('es-AR', { timeZone: 'UTC' });
+      }
+    } catch (e) {}
+    return dateStr;
+  };
+
+  const CopyableFieldRow = ({
+    label,
+    value,
+    copyValue,
+    fieldId
+  }: {
+    label: string;
+    value: string;
+    copyValue?: string;
+    fieldId: string;
+  }) => {
+    const isCopied = copiedField === fieldId;
+    const textToCopy = copyValue !== undefined ? copyValue : value;
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-3 items-center py-3 px-4 hover:bg-slate-50/70 transition-colors border-b border-slate-100 last:border-0 gap-1 sm:gap-4">
+        <span className="text-xs font-semibold text-slate-500">{label}</span>
+        <div className="sm:col-span-2 flex items-center justify-between gap-3 min-w-0">
+          <span className="text-xs font-bold text-slate-800 break-words font-sans">{value || '—'}</span>
+          {value && value !== '—' && (
+            <button
+              onClick={() => handleCopy(textToCopy, fieldId, label)}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100/80 transition-all cursor-pointer shrink-0 flex items-center justify-center border border-transparent active:scale-95"
+              title={`Copiar ${label}`}
+            >
+              {isCopied ? (
+                <Check className="h-3.5 w-3.5 text-emerald-600" />
+              ) : (
+                <Copy className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // Operator Payout settings
   const [payoutRate, setPayoutRate] = useState<number>(500); // 500 ARS per prescription by default
@@ -282,11 +346,18 @@ export default function DoctorDashboard({
     if (selectedOrder) {
       setDoctorNotes(selectedOrder.doctorNotes || '');
       if (selectedOrder.recipePdfUrl) {
-        setUploadedRecipe({
-          url: selectedOrder.recipePdfUrl,
-          name: selectedOrder.recipePdfName || 'receta_cargada.pdf'
-        });
+        if (selectedOrder.recipePdfUrl === 'PAMI' || selectedOrder.recipePdfUrl === 'IOMA') {
+          setPrescriptionType(selectedOrder.recipePdfUrl as 'PAMI' | 'IOMA');
+          setUploadedRecipe(null);
+        } else {
+          setPrescriptionType('RCTA');
+          setUploadedRecipe({
+            url: selectedOrder.recipePdfUrl,
+            name: selectedOrder.recipePdfName || 'receta_cargada.pdf'
+          });
+        }
       } else {
+        setPrescriptionType('RCTA');
         setUploadedRecipe(null);
       }
 
@@ -330,6 +401,7 @@ export default function DoctorDashboard({
       }
     } else {
       setDoctorNotes('');
+      setPrescriptionType('RCTA');
       setUploadedRecipe(null);
     }
   }, [selectedOrderId, selectedOrder]);
@@ -352,21 +424,25 @@ export default function DoctorDashboard({
     }
   };
 
-  // Helper to validate and process PDF files (Drag & Drop or File Input)
+  // Helper to validate and process recipe files (PDF or Images)
   const processPdfFile = (file: File) => {
     setPdfUploadError(null);
 
     // Validate MIME type and extension
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    if (!isPdf) {
-      setPdfUploadError('Formato no válido. Solo se admiten archivos en formato PDF (.pdf).');
-      showToast('Error: Solo se admiten archivos PDF.');
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+    
+    const isValid = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension);
+    if (!isValid) {
+      setPdfUploadError('Formato no válido. Se admiten archivos PDF o imágenes (PNG, JPG, JPEG, WEBP).');
+      showToast('Error: Formato no soportado. Use PDF o imágenes.');
       return;
     }
 
     if (file.size > 15 * 1024 * 1024) {
       setPdfUploadError('El archivo excede el tamaño máximo permitido (15 MB).');
-      showToast('Error: El PDF no puede superar los 15 MB.');
+      showToast('Error: El archivo no puede superar los 15 MB.');
       return;
     }
 
@@ -378,11 +454,11 @@ export default function DoctorDashboard({
         name: file.name,
         size: file.size
       });
-      showToast(`Archivo PDF "${file.name}" adjuntado correctamente.`);
+      showToast(`Archivo "${file.name}" adjuntado correctamente.`);
     };
     reader.onerror = () => {
-      setPdfUploadError('Error al leer el archivo PDF seleccionado.');
-      showToast('Error al leer el archivo PDF.');
+      setPdfUploadError('Error al leer el archivo seleccionado.');
+      showToast('Error al leer el archivo.');
     };
     reader.readAsDataURL(file);
   };
@@ -771,153 +847,202 @@ export default function DoctorDashboard({
                       )}
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                      <div>
-                        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                          {selectedOrder.patientLastName}, {selectedOrder.patientName}
-                        </h2>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1.5 text-xs text-slate-500 font-mono">
-                          <span className="font-bold text-slate-700">ID: {selectedOrder.id}</span>
-                          <span>•</span>
-                          <span>DNI: {selectedOrder.patientDni}</span>
-                          <span>•</span>
-                          <span>{new Date(selectedOrder.createdAt).toLocaleDateString('es-AR')} {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
-                        </div>
-                      </div>
+                  </div>
 
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        <div className="bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 flex items-center gap-2 text-slate-700">
-                          <Shield className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                          <span className="font-bold">{selectedOrder.obraSocial}</span>
-                          {selectedOrder.obraSocialNumber && (
-                            <span className="text-slate-400 font-mono text-[11px]">({selectedOrder.obraSocialNumber})</span>
-                          )}
-                        </div>
-                        {selectedOrder.patientPhone && (
-                          <div className="bg-slate-50 border border-slate-200/90 rounded-xl px-3 py-1.5 flex items-center gap-1.5 text-slate-700">
-                            <Phone className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                            <span className="font-mono text-[11px]">{selectedOrder.patientPhone}</span>
-                          </div>
+                  {/* New Structured Ordered Lists */}
+                  <div className="space-y-6">
+                    {/* 1. INFORMACIÓN DEL PACIENTE */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+                      <div className="bg-slate-50/60 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                        <User className="h-4 w-4 text-[#1661E1]" />
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">Información del Paciente</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        <CopyableFieldRow label="ID Solicitud" value={selectedOrder.id} fieldId="id" />
+                        <CopyableFieldRow label="Nombre" value={selectedOrder.patientName} fieldId="patientName" />
+                        <CopyableFieldRow label="Apellido" value={selectedOrder.patientLastName} fieldId="patientLastName" />
+                        <CopyableFieldRow label="DNI / Identificación" value={selectedOrder.patientDni} fieldId="patientDni" />
+                        <CopyableFieldRow 
+                          label="Fecha de Nacimiento" 
+                          value={formatBirthDate(selectedOrder.patientBirthDate)} 
+                          copyValue={formatBirthDate(selectedOrder.patientBirthDate)}
+                          fieldId="patientBirthDate" 
+                        />
+                        <CopyableFieldRow label="Teléfono / WhatsApp" value={selectedOrder.patientPhone || '—'} fieldId="patientPhone" />
+                        <CopyableFieldRow label="Correo Electrónico" value={selectedOrder.patientEmail || '—'} fieldId="patientEmail" />
+                        <CopyableFieldRow 
+                          label="Canal de Entrega" 
+                          value={selectedOrder.deliveryMethod === 'both' ? 'Email y WhatsApp' : selectedOrder.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
+                          copyValue={selectedOrder.deliveryMethod} 
+                          fieldId="deliveryMethod" 
+                        />
+                        <CopyableFieldRow 
+                          label="Fecha de Solicitud" 
+                          value={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
+                          copyValue={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
+                          fieldId="createdAt" 
+                        />
+                        {selectedOrder.lastConsultationTime && (
+                          <CopyableFieldRow label="Última Consulta" value={selectedOrder.lastConsultationTime} fieldId="lastConsultationTime" />
+                        )}
+                        {selectedOrder.lastConsultationDoctor && (
+                          <CopyableFieldRow label="Médico de Última Consulta" value={selectedOrder.lastConsultationDoctor} fieldId="lastConsultationDoctor" />
                         )}
                       </div>
                     </div>
 
+                    {/* 1.1 PACIENTE A CARGO (Si aplica) */}
                     {selectedOrder.isForDependent && (
-                      <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-start gap-3 text-xs text-purple-950">
-                        <Users className="h-5 w-5 text-purple-700 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="font-extrabold text-purple-900 text-sm">
-                            Solicitud para Paciente a Cargo ({selectedOrder.dependentRelationship || 'Familiar'})
-                          </p>
-                          <p className="text-purple-800">
-                            Esta receta fue tramitada por el titular de la cuenta: <strong className="font-extrabold">{selectedOrder.requestedByTitularName || 'Titular de la cuenta'}</strong>
-                            {selectedOrder.requestedByTitularDni && <> • DNI Titular: <span className="font-mono font-bold">{selectedOrder.requestedByTitularDni}</span></>}
-                            {selectedOrder.requestedByTitularPhone && <> • Tel Titular: <span className="font-mono">{selectedOrder.requestedByTitularPhone}</span></>}
-                            {selectedOrder.requestedByTitularEmail && <> • Email: {selectedOrder.requestedByTitularEmail}</>}
-                          </p>
+                      <div className="bg-purple-50/30 border border-purple-200/60 rounded-2xl shadow-2xs overflow-hidden">
+                        <div className="bg-purple-50/80 px-4 py-3 border-b border-purple-200/50 flex items-center gap-2">
+                          <Users className="h-4 w-4 text-purple-700" />
+                          <h3 className="text-xs font-extrabold uppercase tracking-wider text-purple-800">Paciente a Cargo / Familiar</h3>
+                        </div>
+                        <div className="divide-y divide-purple-100">
+                          <CopyableFieldRow label="Relación / Parentesco" value={selectedOrder.dependentRelationship || 'Familiar'} fieldId="dependentRelationship" />
+                          <CopyableFieldRow label="Nombre Titular de Cuenta" value={selectedOrder.requestedByTitularName || '—'} fieldId="requestedByTitularName" />
+                          <CopyableFieldRow label="DNI Titular" value={selectedOrder.requestedByTitularDni || '—'} fieldId="requestedByTitularDni" />
+                          <CopyableFieldRow label="Teléfono Titular" value={selectedOrder.requestedByTitularPhone || '—'} fieldId="requestedByTitularPhone" />
+                          <CopyableFieldRow label="Email Titular" value={selectedOrder.requestedByTitularEmail || '—'} fieldId="requestedByTitularEmail" />
                         </div>
                       </div>
                     )}
-                  </div>
 
-                  {/* Medication Section */}
-                  <div className="space-y-4">
-                    <span className="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5">
-                      <Pill className="h-4 w-4 text-blue-600" /> Medicación Solicitada
-                    </span>
+                    {/* 2. INFORMACIÓN DE LA OBRA SOCIAL */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+                      <div className="bg-slate-50/60 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-blue-600" />
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">Obra Social / Cobertura Médica</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        <CopyableFieldRow label="Cobertura / Obra Social" value={selectedOrder.obraSocial} fieldId="obraSocial" />
+                        <CopyableFieldRow 
+                          label="Número de Credencial / Afiliado" 
+                          value={selectedOrder.obraSocialNumber || 'Particular / Sin Obra Social'} 
+                          copyValue={selectedOrder.obraSocialNumber || ''} 
+                          fieldId="obraSocialNumber" 
+                        />
+                      </div>
+                    </div>
 
-                    {/* Structured items if available */}
-                    {selectedOrder.medicationItems && selectedOrder.medicationItems.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {selectedOrder.medicationItems.map((item, idx) => (
-                          <div key={idx} className="bg-slate-50/90 hover:bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col justify-between gap-3 transition-all shadow-xs">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-extrabold text-slate-900 text-sm">{item.nombreComercial}</span>
+                    {/* 3. MEDICACIÓN SOLICITADA */}
+                    <div className="bg-white border border-slate-200/90 rounded-2xl shadow-2xs overflow-hidden">
+                      <div className="bg-slate-50/60 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                        <Pill className="h-4 w-4 text-emerald-600" />
+                        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-600">Medicación y Diagnóstico</h3>
+                      </div>
+                      <div className="divide-y divide-slate-100">
+                        <CopyableFieldRow label="Diagnóstico Principal" value={selectedOrder.diagnostic || '—'} fieldId="diagnostic" />
+                        {selectedOrder.comments && (
+                          <CopyableFieldRow label="Comentarios del Paciente" value={selectedOrder.comments} fieldId="comments" />
+                        )}
+                      </div>
+
+                      {/* Detalle estructurado de medicamentos si está disponible */}
+                      {selectedOrder.medicationItems && selectedOrder.medicationItems.length > 0 ? (
+                        <div className="p-4 bg-slate-50/40 border-t border-slate-100 space-y-4">
+                          <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Detalle de Medicamentos</h4>
+                          <div className="space-y-3">
+                            {selectedOrder.medicationItems.map((item, idx) => (
+                              <div key={idx} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs divide-y divide-slate-100">
+                                <div className="bg-slate-50/50 px-3.5 py-2 flex justify-between items-center">
+                                  <span className="text-[11px] font-extrabold text-slate-500">Medicamento #{idx + 1}</span>
+                                  <span className="bg-white border border-slate-200 text-slate-700 font-extrabold text-[11px] px-2 py-0.5 rounded-md">
+                                    {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                                  </span>
+                                </div>
+                                <div className="divide-y divide-slate-100">
+                                  <CopyableFieldRow label="Nombre Comercial" value={item.nombreComercial} fieldId={`med-${idx}-nombre`} />
                                   {item.droga && (
-                                    <span className="text-xs text-slate-500 font-normal">({item.droga})</span>
+                                    <CopyableFieldRow label="Droga / Monodroga" value={item.droga} fieldId={`med-${idx}-droga`} />
+                                  )}
+                                  {item.presentacion && (
+                                    <CopyableFieldRow label="Presentación" value={item.presentacion} fieldId={`med-${idx}-pres`} />
+                                  )}
+                                  {item.posologia && (
+                                    <CopyableFieldRow label="Posología" value={item.posologia} fieldId={`med-${idx}-pos`} />
+                                  )}
+                                  {item.diagnostico && (
+                                    <CopyableFieldRow label="Diagnóstico de la Medicación" value={item.diagnostico} fieldId={`med-${idx}-diag`} />
                                   )}
                                 </div>
-                                {(item.presentacion || item.posologia) && (
-                                  <p className="text-xs text-slate-600 mt-0.5">
-                                    {item.presentacion} {item.posologia ? `• ${item.posologia}` : ''}
-                                  </p>
-                                )}
                               </div>
-                              <span className="bg-white border border-slate-200/90 text-slate-800 font-extrabold text-xs px-2.5 py-1 rounded-lg shrink-0 shadow-2xs">
-                                {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
-                              </span>
-                            </div>
-
-                            {item.diagnostico && (
-                              <div className="text-[11px] text-blue-700 bg-blue-50/80 border border-blue-100 rounded-lg px-2.5 py-1">
-                                <strong>Diag:</strong> {item.diagnostico}
-                              </div>
-                            )}
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : selectedOrder.medicationText ? (
-                      <div className="bg-slate-50/90 border border-slate-200 rounded-2xl p-4 text-slate-800 text-sm font-medium leading-relaxed">
-                        {selectedOrder.medicationText}
-                      </div>
-                    ) : null}
+                        </div>
+                      ) : selectedOrder.medicationText ? (
+                        <div className="p-4 bg-slate-50/40 border-t border-slate-100">
+                          <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-1.5">Detalle de Receta (Texto Libre)</h4>
+                          <div className="bg-white border border-slate-200 rounded-xl p-3 flex justify-between items-start gap-3 shadow-2xs">
+                            <span className="text-xs font-semibold text-slate-800 whitespace-pre-wrap">{selectedOrder.medicationText}</span>
+                            <button
+                              onClick={() => handleCopy(selectedOrder.medicationText, 'medicationText', 'Detalle de Medicación')}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer shrink-0 flex items-center justify-center border border-transparent active:scale-95"
+                              title="Copiar Medicación"
+                            >
+                              {copiedField === 'medicationText' ? <Check className="h-3.5 w-3.5 text-emerald-600 animate-scaleIn" /> : <Copy className="h-3.5 w-3.5" />}
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
 
-                    {/* Photo attachments */}
-                    {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                      <div className="mt-4 pt-3 border-t border-slate-100">
-                        <span className="text-xs font-bold text-slate-500 block mb-2">Fotos de envases / Recetas adjuntas:</span>
-                        <div className="flex flex-wrap gap-3">
-                          {(selectedOrder.medicationPhotos || 
-                            (selectedOrder.medicationPhotoUrl ? [{ url: selectedOrder.medicationPhotoUrl, name: selectedOrder.medicationPhotoName || 'foto.jpg' }] : [])
-                          ).map((photo, i) => (
-                            <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs max-w-[220px]">
-                              {photo.url.startsWith('MOCK') || photo.url.startsWith('RECIPE') ? (
-                                <div className="h-28 bg-slate-100 flex flex-col items-center justify-center text-xs text-slate-500 font-medium p-3 text-center">
-                                  <FileText className="h-6 w-6 text-slate-400 mb-1" />
-                                  <span>Archivo Adjunto</span>
+                      {/* Fotos de envases y recetas adjuntas */}
+                      {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
+                        <div className="p-4 border-t border-slate-100 bg-slate-50/10">
+                          <span className="text-xs font-bold text-slate-500 block mb-2">Fotos de envases / Recetas adjuntas:</span>
+                          <div className="flex flex-wrap gap-3">
+                            {(selectedOrder.medicationPhotos || 
+                              (selectedOrder.medicationPhotoUrl ? [{ url: selectedOrder.medicationPhotoUrl, name: selectedOrder.medicationPhotoName || 'foto.jpg' }] : [])
+                            ).map((photo, i) => (
+                              <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs max-w-[220px]">
+                                {photo.url.startsWith('MOCK') || photo.url.startsWith('RECIPE') ? (
+                                  <div className="h-28 bg-slate-100 flex flex-col items-center justify-center text-xs text-slate-500 font-medium p-3 text-center">
+                                    <FileText className="h-6 w-6 text-slate-400 mb-1" />
+                                    <span>Archivo Adjunto</span>
+                                  </div>
+                                ) : photo.url.startsWith('data:application/pdf') ? (
+                                  <div className="h-28 bg-slate-50 flex flex-col items-center justify-center p-3">
+                                    <FileText className="h-8 w-8 text-rose-500 mb-1" />
+                                    <span className="text-[10px] text-slate-500 font-mono truncate max-w-full">Documento PDF</span>
+                                  </div>
+                                ) : (
+                                  <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
+                                    <img src={photo.url} alt="Envase" className="h-28 w-full object-cover group-hover:opacity-90 transition-opacity" />
+                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                      <Eye className="h-4 w-4" /> Ver foto
+                                    </div>
+                                  </a>
+                                )}
+                                <div className="p-2 text-[10px] truncate bg-slate-50 font-mono text-slate-600 border-t border-slate-100">
+                                  {photo.name}
                                 </div>
-                              ) : photo.url.startsWith('data:application/pdf') ? (
-                                <div className="h-28 bg-slate-50 flex flex-col items-center justify-center p-3">
-                                  <FileText className="h-8 w-8 text-rose-500 mb-1" />
-                                  <span className="text-[10px] text-slate-500 font-mono truncate max-w-full">Documento PDF</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Análisis automático de envase con IA */}
+                      {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
+                        <div className="p-4 border-t border-slate-100 bg-[#0F6C7D]/5 text-[#0F6C7D]">
+                          <div className="flex gap-3 items-start text-xs">
+                            <Sparkles className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
+                            <div className="flex-1">
+                              <strong className="block text-[#0141BC] font-bold mb-1">Análisis Automático de Envase (IA):</strong>
+                              {isExtractingCache[selectedOrder.id] ? (
+                                <span className="text-[#0F6C7D] italic">Analizando imagen de envase...</span>
+                              ) : extractedTextCache[selectedOrder.id] ? (
+                                <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/90 p-2.5 rounded-xl border border-[#0F6C7D]/20 mt-1 text-[#0141BC]">
+                                  {extractedTextCache[selectedOrder.id]}
                                 </div>
                               ) : (
-                                <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
-                                  <img src={photo.url} alt="Envase" className="h-28 w-full object-cover group-hover:opacity-90 transition-opacity" />
-                                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
-                                    <Eye className="h-4 w-4" /> Ver foto
-                                  </div>
-                                </a>
+                                <span className="text-[#0F6C7D]">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
                               )}
-                              <div className="p-2 text-[10px] truncate bg-slate-50 font-mono text-slate-600 border-t border-slate-100">
-                                {photo.name}
-                              </div>
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* AI Analysis feedback */}
-                    {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                      <div className="mt-3 bg-[#0F6C7D]/5 border border-dashed border-[#0F6C7D]/30 rounded-2xl p-4 flex gap-3 items-start text-xs text-[#0F6C7D]">
-                        <Sparkles className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
-                        <div className="flex-1">
-                          <strong className="block text-[#0141BC] font-bold mb-1">Análisis Automático de Envase (IA):</strong>
-                          {isExtractingCache[selectedOrder.id] ? (
-                            <span className="text-[#0F6C7D] italic">Analizando imagen de envase...</span>
-                          ) : extractedTextCache[selectedOrder.id] ? (
-                            <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/90 p-2.5 rounded-xl border border-[#0F6C7D]/20 mt-1 text-[#0141BC]">
-                              {extractedTextCache[selectedOrder.id]}
-                            </div>
-                          ) : (
-                            <span className="text-[#0F6C7D]">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
-                          )}
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
 
                   {/* Doctor Actions & Prescribing Workflow */}
@@ -976,107 +1101,158 @@ export default function DoctorDashboard({
                             </div>
 
                             <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                                <span>Adjuntar Receta Firmada Digitalmente (PDF)</span>
-                                <span className="text-[11px] text-slate-400 font-normal">Formato obligatorio: .pdf</span>
+                              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                                Sistema de Emisión de Receta
                               </label>
+                              <div className="grid grid-cols-3 gap-2 p-1 bg-slate-100 rounded-xl mb-4">
+                                {(['RCTA', 'PAMI', 'IOMA'] as const).map((type) => (
+                                  <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => {
+                                      setPrescriptionType(type);
+                                      setPdfUploadError(null);
+                                    }}
+                                    className={`py-2 text-xs font-bold rounded-lg cursor-pointer transition-all text-center ${
+                                      prescriptionType === type
+                                        ? 'bg-white text-[#1661E1] shadow-xs'
+                                        : 'text-slate-600 hover:text-slate-900'
+                                    }`}
+                                  >
+                                    {type}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
 
-                              {uploadedRecipe ? (
-                                <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
-                                      <FileText className="h-5 w-5" />
-                                    </div>
-                                    <div className="min-w-0">
-                                      <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
-                                      <div className="flex items-center gap-2 mt-0.5">
-                                        <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
-                                          <Check className="h-3 w-3" /> PDF Listo para emisión oficial
-                                        </span>
-                                        {uploadedRecipe.size && (
-                                          <span className="text-[10px] text-slate-400 font-mono">
-                                            ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
+                            {prescriptionType !== 'RCTA' ? (
+                              <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-5 text-center space-y-2 animate-fadeIn">
+                                <div className="h-10 w-10 mx-auto rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
+                                  <Check className="h-5 w-5" />
+                                </div>
+                                <h5 className="font-bold text-slate-800 text-xs">Emisión Electrónica via {prescriptionType}</h5>
+                                <p className="text-xs text-slate-600">
+                                  Los medicamentos estarán listos para ser retirados en la farmacia bajo la cobertura de <strong>{prescriptionType}</strong> con el Nro de Obra Social:
+                                </p>
+                                <div className="inline-block bg-white px-4 py-2 rounded-xl border border-blue-200 font-mono text-sm font-bold text-slate-855 shadow-xs">
+                                  {selectedOrder.obraSocialNumber || 'Sin número de afiliado cargado'}
+                                </div>
+                                <p className="text-[10px] text-slate-400">
+                                  No es necesario adjuntar ningún archivo. Al presionar "Emitir Receta Final", el paciente será notificado con esta información.
+                                </p>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                                  <span>Adjuntar Receta Firmada Digitalmente o Documento</span>
+                                  <span className="text-[11px] text-slate-400 font-normal">Formatos admitidos: PDF o Imágenes (.png, .jpg, .jpeg, .webp)</span>
+                                </label>
+
+                                {uploadedRecipe ? (
+                                  <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                      {uploadedRecipe.name.toLowerCase().match(/\.(png|jpg|jpeg|webp)$/) ? (
+                                        <img src={uploadedRecipe.url} className="h-10 w-10 object-cover rounded-lg shrink-0 border border-slate-200" alt="Vista previa receta" />
+                                      ) : (
+                                        <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
+                                          <FileText className="h-5 w-5" />
+                                        </div>
+                                      )}
+                                      <div className="min-w-0">
+                                        <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
+                                        <div className="flex items-center gap-2 mt-0.5">
+                                          <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
+                                            <Check className="h-3 w-3" /> Documento Listo para emisión oficial
                                           </span>
-                                        )}
+                                          {uploadedRecipe.size && (
+                                            <span className="text-[10px] text-slate-400 font-mono">
+                                              ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
+                                            </span>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
 
-                                  <div className="flex items-center gap-2 shrink-0">
-                                    <button
-                                      type="button"
-                                      onClick={() => pdfInputRef.current?.click()}
-                                      className="text-xs font-bold text-[#1661E1] hover:text-[#1E6EFB] bg-[#1661E1]/10 hover:bg-[#1661E1]/20 px-3 py-1.5 rounded-lg border border-[#1661E1]/20 transition-colors cursor-pointer"
-                                    >
-                                      Cambiar
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setUploadedRecipe(null);
-                                        setPdfUploadError(null);
-                                      }}
-                                      className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                                      title="Quitar archivo"
-                                    >
-                                      <Trash2 className="h-4 w-4" />
-                                    </button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <button
+                                        type="button"
+                                        onClick={() => pdfInputRef.current?.click()}
+                                        className="text-xs font-bold text-[#1661E1] hover:text-[#1E6EFB] bg-[#1661E1]/10 hover:bg-[#1661E1]/20 px-3 py-1.5 rounded-lg border border-[#1661E1]/20 transition-colors cursor-pointer"
+                                      >
+                                        Cambiar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setUploadedRecipe(null);
+                                          setPdfUploadError(null);
+                                        }}
+                                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                                        title="Quitar archivo"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              ) : (
-                                <div
-                                  onDragOver={handlePdfDragOver}
-                                  onDragLeave={handlePdfDragLeave}
-                                  onDrop={handlePdfDrop}
-                                  onClick={() => pdfInputRef.current?.click()}
-                                  className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
-                                    pdfUploadError
-                                      ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
-                                      : isDraggingPdf
-                                      ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
-                                      : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
-                                  }`}
-                                >
-                                  <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                    pdfUploadError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
-                                  }`}>
-                                    <FileUp className="h-5 w-5" />
+                                ) : (
+                                  <div
+                                    onDragOver={handlePdfDragOver}
+                                    onDragLeave={handlePdfDragLeave}
+                                    onDrop={handlePdfDrop}
+                                    onClick={() => pdfInputRef.current?.click()}
+                                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
+                                      pdfUploadError
+                                        ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
+                                        : isDraggingPdf
+                                        ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
+                                        : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
+                                    }`}
+                                  >
+                                    <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
+                                      pdfUploadError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
+                                    }`}>
+                                      <FileUp className="h-5 w-5" />
+                                    </div>
+                                    <p className={`text-xs font-bold ${pdfUploadError ? 'text-rose-900' : 'text-slate-800'}`}>
+                                      {isDraggingPdf ? 'Suelte el archivo aquí' : 'Arrastre y suelte la receta (PDF o Imagen) aquí *'}
+                                    </p>
+                                    <p className="text-[11px] text-slate-500 mt-0.5">
+                                      o haga clic para seleccionar desde su equipo (PDF o imágenes PNG, JPG, JPEG, WEBP)
+                                    </p>
                                   </div>
-                                  <p className={`text-xs font-bold ${pdfUploadError ? 'text-rose-900' : 'text-slate-800'}`}>
-                                    {isDraggingPdf ? 'Suelte el archivo PDF aquí' : 'Arrastre y suelte la receta en PDF aquí *'}
+                                )}
+
+                                <input
+                                  ref={pdfInputRef}
+                                  type="file"
+                                  accept="application/pdf,.pdf,image/png,.png,image/jpeg,.jpeg,image/jpg,.jpg,image/webp,.webp"
+                                  onChange={handleFileInputChange}
+                                  className="hidden"
+                                />
+
+                                {pdfUploadError && (
+                                  <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1 animate-fadeIn">
+                                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                    <span>{pdfUploadError}</span>
                                   </p>
-                                  <p className="text-[11px] text-slate-500 mt-0.5">
-                                    o haga clic para seleccionar desde su equipo (únicamente archivos .pdf)
-                                  </p>
-                                </div>
-                              )}
-
-                              <input
-                                ref={pdfInputRef}
-                                type="file"
-                                accept="application/pdf,.pdf"
-                                onChange={handleFileInputChange}
-                                className="hidden"
-                              />
-
-                              {pdfUploadError && (
-                                <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1 animate-fadeIn">
-                                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                                  <span>{pdfUploadError}</span>
-                                </p>
-                              )}
-                            </div>
+                                )}
+                              </div>
+                            )}
 
                             {/* Buttons */}
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <button
                                 onClick={() => {
-                                  if (!uploadedRecipe) {
-                                    setPdfUploadError('Debe adjuntar el archivo PDF de la receta oficial firmada antes de emitir.');
-                                    showToast('Error: Debe adjuntar el PDF de la receta oficial.');
+                                  if (prescriptionType === 'RCTA' && !uploadedRecipe) {
+                                    setPdfUploadError('Debe adjuntar el archivo (PDF o Imagen) de la receta oficial firmada antes de emitir.');
+                                    showToast('Error: Debe adjuntar la receta oficial.');
                                     return;
                                   }
-                                  onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, uploadedRecipe?.url, uploadedRecipe?.name);
+                                  
+                                  const finalUrl = prescriptionType === 'RCTA' ? uploadedRecipe?.url : prescriptionType;
+                                  const finalName = prescriptionType === 'RCTA' ? uploadedRecipe?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
+
+                                  onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, finalUrl, finalName);
                                   showToast('Receta emitida y enviada con éxito.');
                                 }}
                                 className="flex-1 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
@@ -1103,16 +1279,20 @@ export default function DoctorDashboard({
                             <h4 className="font-bold text-[#0F6C7D] text-base">Receta Digital Emitida</h4>
                             <p className="text-xs text-[#0F6C7D]/80 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
                             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                              {selectedOrder.recipePdfUrl && (
+                              {selectedOrder.recipePdfUrl && selectedOrder.recipePdfUrl !== 'PAMI' && selectedOrder.recipePdfUrl !== 'IOMA' ? (
                                 <a
                                   href={selectedOrder.recipePdfUrl}
                                   download={selectedOrder.recipePdfName || 'receta.pdf'}
                                   className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
                                 >
                                   <Download className="h-4 w-4" />
-                                  <span>Descargar Receta PDF</span>
+                                  <span>Descargar Receta Emitida</span>
                                 </a>
-                              )}
+                              ) : selectedOrder.recipePdfUrl ? (
+                                <div className="px-5 py-2.5 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#1661E1] rounded-xl text-xs font-bold">
+                                  Emitida Electrónicamente vía {selectedOrder.recipePdfUrl} (Afiliado: {selectedOrder.obraSocialNumber || 'Sin cargar'})
+                                </div>
+                              ) : null}
                               <button
                                 type="button"
                                 onClick={() => {

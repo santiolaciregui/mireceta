@@ -418,7 +418,7 @@ export default function PatientDoctorChat({
       fileType: 'audio',
       status: 'sent',
       audioDuration: duration,
-      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
+      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: (currentUser.role === 'paciente' && replyingTo.sender !== 'paciente') ? 'mireceta.online' : replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
     };
 
     setReplyingTo(null);
@@ -469,7 +469,7 @@ export default function PatientDoctorChat({
         fileName: previewImage.name, 
         fileType: 'image' 
       } : {}),
-      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
+      ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: (currentUser.role === 'paciente' && replyingTo.sender !== 'paciente') ? 'mireceta.online' : replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
     };
 
     playSynthBeep('send');
@@ -957,7 +957,7 @@ export default function PatientDoctorChat({
                       {/* Sender name label for incoming */}
                       {!isOwn && (
                         <span className="text-[10px] font-bold text-[#075E54] mb-0.5 ml-1">
-                          {msg.senderName} ({msg.sender})
+                          {isPatient ? 'mireceta.online' : `${msg.senderName} (${msg.sender})`}
                         </span>
                       )}
 
@@ -980,7 +980,9 @@ export default function PatientDoctorChat({
                         {/* QUOTED MESSAGE PREVIEW */}
                         {msg.replyTo && (
                           <div className="mb-2 p-2 bg-black/5 border-l-4 border-[#00a884] rounded text-xs font-medium text-slate-700 max-w-full overflow-hidden">
-                            <p className="font-bold text-[#075E54] text-[10px] truncate">{msg.replyTo.senderName}</p>
+                            <p className="font-bold text-[#075E54] text-[10px] truncate">
+                              {isPatient && msg.replyTo.senderName !== 'Paciente' ? 'mireceta.online' : msg.replyTo.senderName}
+                            </p>
                             <p className="truncate text-slate-600 text-[11px]">{msg.replyTo.text}</p>
                           </div>
                         )}
@@ -1122,7 +1124,9 @@ export default function PatientDoctorChat({
             {replyingTo && (
               <div className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-100 border-t border-slate-200 flex items-center justify-between animate-fadeIn z-10 shrink-0">
                 <div className="border-l-4 border-[#00a884] pl-2.5 min-w-0 flex-1">
-                  <p className="text-[10px] font-bold text-[#075E54] truncate">Respondiendo a {replyingTo.senderName}</p>
+                  <p className="text-[10px] font-bold text-[#075E54] truncate">
+                    Respondiendo a {isPatient && replyingTo.sender !== 'paciente' ? 'mireceta.online' : replyingTo.senderName}
+                  </p>
                   <p className="text-xs text-slate-600 truncate">{replyingTo.text || replyingTo.fileName}</p>
                 </div>
                 <button 

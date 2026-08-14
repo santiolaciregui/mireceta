@@ -200,6 +200,23 @@ export class ChatService {
     const dedupedMessages = this.dedupeAndSortMessages(allMessages);
     const latestOrder = patientOrders[0];
 
+    let maskedMessages = dedupedMessages;
+    if (currentUser?.role === 'paciente') {
+      maskedMessages = dedupedMessages.map((m) => {
+        const isFromPatient = m.sender === 'paciente';
+        return {
+          ...m,
+          senderName: isFromPatient ? m.senderName : 'mireceta.online',
+          senderId: isFromPatient ? m.senderId : 'mireceta.online',
+          senderRole: isFromPatient ? m.senderRole : 'mireceta.online',
+          replyTo: m.replyTo ? {
+            ...m.replyTo,
+            senderName: m.replyTo.senderName === 'Paciente' || m.replyTo.senderName === 'paciente' ? m.replyTo.senderName : 'mireceta.online'
+          } : undefined
+        };
+      });
+    }
+
     return {
       patientDni: dni,
       cleanDni: clean,
@@ -213,7 +230,7 @@ export class ChatService {
       latestOrderId: latestOrder?.id || '',
       latestMedicationText: latestOrder?.medicationText || '',
       orders: patientOrders.map((o) => ({ id: o.id, status: o.status, medicationText: o.medicationText, createdAt: o.createdAt })),
-      messages: dedupedMessages,
+      messages: maskedMessages,
       lastPatientWhatsAppInteractionAt: patientDoc?.lastPatientWhatsAppInteractionAt || latestOrder?.lastPatientWhatsAppInteractionAt || ''
     };
   }

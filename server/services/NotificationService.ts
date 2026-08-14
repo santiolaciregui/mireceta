@@ -423,14 +423,48 @@ export class NotificationService {
     orderId: string;
     recipeLink: string;
     interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
+    recipePdfUrl?: string | null;
+    obraSocial?: string | null;
+    obraSocialNumber?: string | null;
   }): Promise<SendNotificationResult> {
-    const { tenantId, patientPhone, patientName, orderId, recipeLink, interactionRecord } = params;
+    const { tenantId, patientPhone, patientName, orderId, recipeLink, interactionRecord, recipePdfUrl, obraSocial, obraSocialNumber } = params;
     if (!patientPhone) {
       return { success: false, error: 'Número de teléfono no disponible para este paciente.' };
     }
 
     try {
       const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
+      const isElectronic = recipePdfUrl === 'PAMI' || recipePdfUrl === 'IOMA';
+
+      if (isElectronic) {
+        const osName = recipePdfUrl;
+        const affiliateNumber = obraSocialNumber || 'No especificado';
+        
+        if (isWithin24h) {
+          return await this.sendNotification({
+            tenantId,
+            channel: 'whatsapp',
+            to: patientPhone,
+            body: `¡Hola ${patientName}! Tu solicitud #${orderId} ha sido aprobada por el profesional médico.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${osName} con el número de afiliado: ${affiliateNumber}.\nNo es necesario descargar ninguna receta.`
+          });
+        }
+
+        const waConfig = await this.getConfig(tenantId, 'whatsapp');
+        const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode || 'receta_emitida') as string;
+
+        return await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          templateCode: templateCode || undefined,
+          variables: {
+            patientName,
+            orderId,
+            recipeLink: `Obra Social: ${osName} - Nro: ${affiliateNumber}`
+          },
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Cobertura: ${osName}, Nro Afiliado: ${affiliateNumber}. Los medicamentos se pueden retirar directamente en la farmacia.`
+        });
+      }
 
       if (isWithin24h) {
         return await this.sendNotification({
@@ -471,14 +505,67 @@ export class NotificationService {
     patientName: string;
     orderId: string;
     recipeLink: string;
+    recipePdfUrl?: string | null;
+    obraSocial?: string | null;
+    obraSocialNumber?: string | null;
   }): Promise<SendNotificationResult> {
-    const { tenantId, patientEmail, patientName, orderId, recipeLink } = params;
+    const { tenantId, patientEmail, patientName, orderId, recipeLink, recipePdfUrl, obraSocial, obraSocialNumber } = params;
     if (!patientEmail) {
       return { success: false, error: 'Correo electrónico no disponible para este paciente.' };
     }
 
     try {
-      const htmlBody = `
+      const isElectronic = recipePdfUrl === 'PAMI' || recipePdfUrl === 'IOMA';
+      const osName = recipePdfUrl;
+      const affiliateNumber = obraSocialNumber || 'No especificado';
+
+      const htmlBody = isElectronic ? `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 24px; color: #1e293b;">
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 580px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05); border: 1px solid #e2e8f0;">
+    <tr>
+      <td style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); padding: 32px 24px; text-align: center; color: #ffffff;">
+        <div style="font-size: 28px; margin-bottom: 8px;">✅</div>
+        <h1 style="margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.025em; color: #ffffff;">Prescripción Electrónica Lista</h1>
+        <p style="margin: 6px 0 0 0; font-size: 13px; opacity: 0.9; color: #e0e7ff;">Mi Receta Digital • Emisión ${osName}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 32px 24px;">
+        <p style="font-size: 15px; line-height: 1.6; margin: 0 0 16px 0;">Hola <strong style="color: #0f172a;">${patientName}</strong>,</p>
+        <p style="font-size: 14px; line-height: 1.6; color: #475569; margin: 0 0 24px 0;">
+          El profesional médico ha completado la auditoría clínica y ha emitido tu receta electrónica para la solicitud <strong>#${orderId}</strong>.
+        </p>
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+          <p style="margin: 0 0 8px 0; font-size: 14px; color: #166534; font-weight: bold;">
+            Los medicamentos están listos para ser retirados en la farmacia
+          </p>
+          <p style="margin: 0 0 8px 0; font-size: 13px; color: #1e293b;">
+            Se ha emitido la orden a través del sistema de <strong>${osName}</strong>.
+          </p>
+          <div style="display: inline-block; background-color: #ffffff; padding: 10px 20px; border-radius: 8px; border: 1px solid #bbf7d0; font-family: monospace; font-size: 16px; font-weight: bold; color: #166534;">
+            Nro de Afiliado: ${affiliateNumber}
+          </div>
+          <p style="margin: 8px 0 0 0; font-size: 11px; color: #15803d; font-style: italic;">
+            Presentando tu carnet de obra social en tu farmacia habitual podrás retirar la medicación.
+          </p>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 20px 24px; text-align: center; font-size: 11px; color: #94a3b8;">
+        Este es un mensaje automático de notificación médica. Si tienes dudas, puedes consultar en el portal de pacientes.
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `.trim() : `
 <!DOCTYPE html>
 <html>
 <head>

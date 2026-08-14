@@ -308,7 +308,10 @@ export class OrderService {
           patientName: order.patientName,
           orderId: order.id,
           recipeLink,
-          interactionRecord: order
+          interactionRecord: order,
+          recipePdfUrl: order.recipePdfUrl,
+          obraSocial: order.obraSocial,
+          obraSocialNumber: order.obraSocialNumber
         }).catch((err) => console.error('Error enviando WhatsApp de receta emitida:', err));
       }
 
@@ -318,7 +321,10 @@ export class OrderService {
           patientEmail: order.patientEmail,
           patientName: order.patientName,
           orderId: order.id,
-          recipeLink
+          recipeLink,
+          recipePdfUrl: order.recipePdfUrl,
+          obraSocial: order.obraSocial,
+          obraSocialNumber: order.obraSocialNumber
         }).catch((err) => console.error('Error enviando Email de receta emitida:', err));
       }
 
@@ -327,6 +333,11 @@ export class OrderService {
         ? `${currentUser.name} ${currentUser.lastName || ''}`.trim()
         : 'Equipo Médico';
 
+      const isElectronic = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
+      const chatText = isElectronic
+        ? `¡Hola ${order.patientName}! Tu solicitud #${order.id} ha sido aprobada por el profesional médico.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${order.recipePdfUrl} con tu número de obra social: ${order.obraSocialNumber || 'No ingresado'}.`
+        : `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`;
+
       const emissionChatMessage: any = {
         id: generateMessageId(),
         sender: currentUser?.role === 'medico' ? 'medico' : (currentUser?.role === 'admin' ? 'admin' : (currentUser?.role === 'colaborador' ? 'colaborador' : 'sistema')),
@@ -334,10 +345,10 @@ export class OrderService {
         senderRole: currentUser?.role || 'medico',
         timestamp: new Date().toISOString(),
         status: 'sent',
-        text: `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`,
+        text: chatText,
         fileUrl: order.recipePdfUrl || recipeLink,
         fileName: order.recipePdfName || `receta_${order.id}.pdf`,
-        fileType: 'pdf'
+        fileType: isElectronic ? 'text' : 'pdf'
       };
 
       const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];
@@ -479,7 +490,10 @@ export class OrderService {
           patientName: order.patientName,
           orderId: order.id,
           recipeLink,
-          interactionRecord: order
+          interactionRecord: order,
+          recipePdfUrl: order.recipePdfUrl,
+          obraSocial: order.obraSocial,
+          obraSocialNumber: order.obraSocialNumber
         });
         waResult = { success: res.success, error: res.error };
       }
@@ -494,7 +508,10 @@ export class OrderService {
           patientEmail: order.patientEmail,
           patientName: order.patientName,
           orderId: order.id,
-          recipeLink
+          recipeLink,
+          recipePdfUrl: order.recipePdfUrl,
+          obraSocial: order.obraSocial,
+          obraSocialNumber: order.obraSocialNumber
         });
         emailResult = { success: res.success, error: res.error };
       }
@@ -518,6 +535,11 @@ export class OrderService {
 
     // Persist resend event as chat message in patient conversation
     const channelText = channel === 'both' ? 'WhatsApp y Correo electrónico' : channel === 'whatsapp' ? 'WhatsApp' : 'Correo electrónico';
+    const isElectronicResend = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
+    const resendText = isElectronicResend
+      ? `Se han enviado los detalles de tu receta electrónica #${order.id} mediante ${channelText}.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${order.recipePdfUrl} con tu número de obra social: ${order.obraSocialNumber || 'No ingresado'}.`
+      : `Se ha enviado el enlace de tu receta digital #${order.id} mediante ${channelText}.\n\nEnlace de descarga directa del PDF:\n${recipeLink}`;
+
     const resendChatMessage: any = {
       id: generateMessageId(),
       sender: currentUser?.role === 'medico' ? 'medico' : (currentUser?.role === 'admin' ? 'admin' : (currentUser?.role === 'colaborador' ? 'colaborador' : 'sistema')),
@@ -525,10 +547,10 @@ export class OrderService {
       senderRole: currentUser?.role || 'medico',
       timestamp: new Date().toISOString(),
       status: 'sent',
-      text: `Se ha enviado el enlace de tu receta digital #${order.id} mediante ${channelText}.\n\nEnlace de descarga directa del PDF:\n${recipeLink}`,
+      text: resendText,
       fileUrl: order.recipePdfUrl || recipeLink,
       fileName: order.recipePdfName || `receta_${order.id}.pdf`,
-      fileType: 'pdf'
+      fileType: isElectronicResend ? 'text' : 'pdf'
     };
 
     const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];

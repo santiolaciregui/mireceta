@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { OrderService } from '../services/OrderService.js';
 import { getCurrentUser } from '../utils/httpHelpers.js';
+import { storageService } from '../services/storage/StorageService.js';
 
 const orderService = new OrderService();
 
@@ -51,17 +52,37 @@ export class OrderController {
 
       const pdfUrl = order.recipePdfUrl;
 
-      if (pdfUrl.startsWith('data:application/pdf;base64,')) {
-        const base64Data = pdfUrl.replace(/^data:application\/pdf;base64,/, '');
-        const pdfBuffer = Buffer.from(base64Data, 'base64');
+      if (pdfUrl.startsWith('data:')) {
+        const match = pdfUrl.match(/^data:([^;]+);base64,/);
+        const mimeType = match ? match[1] : 'application/pdf';
+        const cleanBase64 = pdfUrl.replace(/^data:[^;]+;base64,/, '');
+        const fileBuffer = Buffer.from(cleanBase64, 'base64');
 
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.pdf"`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        return res.end(pdfBuffer);
+        let ext = 'pdf';
+        if (mimeType.includes('png')) ext = 'png';
+        else if (mimeType.includes('jpeg')) ext = 'jpg';
+        else if (mimeType.includes('jpg')) ext = 'jpg';
+        else if (mimeType.includes('webp')) ext = 'webp';
+
+        res.setHeader('Content-Type', mimeType);
+        res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.${ext}"`);
+        res.setHeader('Content-Length', fileBuffer.length);
+        return res.end(fileBuffer);
       } else if (pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')) {
         return res.redirect(pdfUrl);
       } else {
+        const fileData = await storageService.getRecipeFile(pdfUrl);
+        if (fileData) {
+          res.setHeader('Content-Type', fileData.mimeType);
+          let ext = 'pdf';
+          if (fileData.mimeType.includes('png')) ext = 'png';
+          else if (fileData.mimeType.includes('jpeg')) ext = 'jpg';
+          else if (fileData.mimeType.includes('jpg')) ext = 'jpg';
+          else if (fileData.mimeType.includes('webp')) ext = 'webp';
+
+          res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.${ext}"`);
+          return res.send(fileData.buffer);
+        }
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.pdf"`);
         return res.send(pdfUrl);

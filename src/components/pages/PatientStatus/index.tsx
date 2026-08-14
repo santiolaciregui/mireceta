@@ -530,16 +530,16 @@ export default function PatientStatus({
                   {/* Actions & Chevron Right */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                     {/* Direct Download Button if emitted */}
-                    {isEmitida && order.recipePdfUrl && (
+                    {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                       <a
                         href={order.recipePdfUrl}
                         download={order.recipePdfName || `receta-${order.id}.pdf`}
                         onClick={(e) => e.stopPropagation()}
                         className="bg-[#14BE99] hover:bg-[#0fa685] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                        title="Descargar receta firmada en PDF"
+                        title="Descargar receta firmada"
                       >
                         <Download className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Descargar PDF</span>
+                        <span className="hidden sm:inline">Descargar Receta</span>
                       </a>
                     )}
 
@@ -796,6 +796,32 @@ export default function PatientStatus({
                       </div>
                     )}
 
+                    {/* Electronic Recipe Information Box (PAMI / IOMA) */}
+                    {isEmitida && (order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA') && (
+                      <div className="p-5 rounded-2xl border border-emerald-200 bg-emerald-50 text-emerald-950 text-xs space-y-2.5 animate-fadeIn">
+                        <div className="flex items-center gap-2 font-bold text-emerald-800 text-sm">
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                          <span>¡Medicamentos Listos en Farmacia!</span>
+                        </div>
+                        <p className="leading-relaxed font-medium">
+                          Tu receta ha sido emitida de manera electrónica en el sistema de <strong>{order.recipePdfUrl}</strong>. No necesitas descargar ningún archivo impreso ni digital.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3 pt-1">
+                          <div className="bg-white border border-emerald-200 px-3.5 py-2 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">Obra Social</span>
+                            <span className="font-bold text-emerald-900">{order.obraSocial || order.recipePdfUrl}</span>
+                          </div>
+                          <div className="bg-white border border-emerald-200 px-3.5 py-2 rounded-xl">
+                            <span className="text-[10px] uppercase font-bold text-slate-500 block">Nro de Afiliado</span>
+                            <span className="font-mono font-bold text-emerald-900">{order.obraSocialNumber || 'No ingresado'}</span>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-emerald-600 font-semibold italic">
+                          Dirígete a tu farmacia habitual y presenta tu credencial física o digital de la obra social para retirar los medicamentos prescritos.
+                        </p>
+                      </div>
+                    )}
+
                     {/* Bottom Action Buttons */}
                     <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
                       <div className="flex flex-wrap items-center gap-2">
@@ -841,14 +867,14 @@ export default function PatientStatus({
                       </div>
 
                       {/* PDF Download Button */}
-                      {isEmitida && order.recipePdfUrl && (
+                      {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                         <a
                           href={order.recipePdfUrl}
                           download={order.recipePdfName || `receta-${order.id}.pdf`}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer ml-auto"
                         >
                           <Download className="h-4 w-4" />
-                          <span>Descargar Receta Oficial (PDF)</span>
+                          <span>Descargar Receta Oficial</span>
                         </a>
                       )}
                     </div>

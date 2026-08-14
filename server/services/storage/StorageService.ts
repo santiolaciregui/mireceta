@@ -29,8 +29,10 @@ export class DatabaseStorageProvider implements StorageProvider {
 
   async getFile(fileKeyOrUrl: string): Promise<{ buffer: Buffer; mimeType: string } | null> {
     if (fileKeyOrUrl.startsWith('data:')) {
+      const match = fileKeyOrUrl.match(/^data:([^;]+);base64,/);
+      const mimeType = match ? match[1] : 'application/pdf';
       const clean = fileKeyOrUrl.replace(/^data:[^;]+;base64,/, '');
-      return { buffer: Buffer.from(clean, 'base64'), mimeType: 'application/pdf' };
+      return { buffer: Buffer.from(clean, 'base64'), mimeType };
     }
     return null;
   }
@@ -94,7 +96,14 @@ export class LocalStorageProvider implements StorageProvider {
       }
 
       const buffer = await fs.promises.readFile(filePath);
-      return { buffer, mimeType: 'application/pdf' };
+      let mimeType = 'application/pdf';
+      const ext = path.extname(filename).toLowerCase();
+      if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.gif') mimeType = 'image/gif';
+
+      return { buffer, mimeType };
     } catch {
       return null;
     }
@@ -162,8 +171,14 @@ export class StorageService {
    */
   async saveRecipePdf(filename: string, dataBase64OrBuffer: string | Buffer): Promise<string> {
     let buffer: Buffer;
+    let mimeType = 'application/pdf';
+
     if (typeof dataBase64OrBuffer === 'string') {
       if (dataBase64OrBuffer.startsWith('data:')) {
+        const match = dataBase64OrBuffer.match(/^data:([^;]+);base64,/);
+        if (match) {
+          mimeType = match[1];
+        }
         const base64Data = dataBase64OrBuffer.replace(/^data:[^;]+;base64,/, '');
         buffer = Buffer.from(base64Data, 'base64');
       } else {
@@ -173,7 +188,16 @@ export class StorageService {
       buffer = dataBase64OrBuffer;
     }
 
-    return this.provider.saveFile(filename, buffer, 'application/pdf');
+    // Determine mimeType from filename extension if it's generic application/pdf but has an image extension
+    if (mimeType === 'application/pdf') {
+      const ext = path.extname(filename).toLowerCase();
+      if (ext === '.png') mimeType = 'image/png';
+      else if (ext === '.jpg' || ext === '.jpeg') mimeType = 'image/jpeg';
+      else if (ext === '.webp') mimeType = 'image/webp';
+      else if (ext === '.gif') mimeType = 'image/gif';
+    }
+
+    return this.provider.saveFile(filename, buffer, mimeType);
   }
 
   async getRecipeFile(fileUrl: string) {
