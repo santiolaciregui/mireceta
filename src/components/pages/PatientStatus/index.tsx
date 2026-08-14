@@ -628,12 +628,27 @@ export default function PatientStatus({
                                 <div className="flex items-center justify-between">
                                   <span className="font-extrabold text-slate-900">{item.nombreComercial}</span>
                                   <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
-                                    {item.cantidadCajas || 1} caja(s)
+                                    {item.cantidadCajas || 1} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
                                   </span>
                                 </div>
                                 {(item.droga || item.miligramos || item.presentacion) && (
                                   <p className="text-[11px] text-slate-500 font-medium">
                                     {item.droga} {item.miligramos} {item.presentacion ? `- ${item.presentacion}` : ''}
+                                  </p>
+                                )}
+                                {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && item.unidadesPorCaja > 0 && (
+                                  <p className="text-[10px] text-slate-400">
+                                    Unidades por caja: <span className="font-semibold text-slate-600">{item.unidadesPorCaja}</span>
+                                  </p>
+                                )}
+                                {(item.diagnostic || item.diagnostico) && (
+                                  <p className="text-[10px] text-slate-400">
+                                    Diagnóstico: <span className="font-semibold text-indigo-650">{item.diagnostic || item.diagnostico}</span>
+                                  </p>
+                                )}
+                                {item.comments && (
+                                  <p className="text-[10px] text-slate-400 italic">
+                                    Aclaraciones: <span className="font-medium text-slate-650">{item.comments}</span>
                                   </p>
                                 )}
                               </div>

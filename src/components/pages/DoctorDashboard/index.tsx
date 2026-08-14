@@ -956,14 +956,32 @@ export default function DoctorDashboard({
                                   {item.droga && (
                                     <CopyableFieldRow label="Droga / Monodroga" value={item.droga} fieldId={`med-${idx}-droga`} />
                                   )}
+                                  {item.miligramos && (
+                                    <CopyableFieldRow label="Dosis / Miligramos" value={item.miligramos} fieldId={`med-${idx}-mgs`} />
+                                  )}
                                   {item.presentacion && (
                                     <CopyableFieldRow label="Presentación" value={item.presentacion} fieldId={`med-${idx}-pres`} />
                                   )}
+                                  {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && item.unidadesPorCaja > 0 && (
+                                    <CopyableFieldRow label="Unidades por Caja" value={String(item.unidadesPorCaja)} fieldId={`med-${idx}-unidades`} />
+                                  )}
+                                  <CopyableFieldRow 
+                                    label="Cantidad de Cajas" 
+                                    value={`${item.cantidadCajas} ${item.cantidadCajas === 1 ? 'caja' : 'cajas'}`} 
+                                    fieldId={`med-${idx}-cajas`} 
+                                  />
+                                  {(item.diagnostic || item.diagnostico) && (
+                                    <CopyableFieldRow 
+                                      label="Diagnóstico de la Medicación" 
+                                      value={item.diagnostic || item.diagnostico || ''} 
+                                      fieldId={`med-${idx}-diag`} 
+                                    />
+                                  )}
+                                  {item.comments && (
+                                    <CopyableFieldRow label="Comentarios / Aclaraciones" value={item.comments} fieldId={`med-${idx}-comments`} />
+                                  )}
                                   {item.posologia && (
                                     <CopyableFieldRow label="Posología" value={item.posologia} fieldId={`med-${idx}-pos`} />
-                                  )}
-                                  {item.diagnostico && (
-                                    <CopyableFieldRow label="Diagnóstico de la Medicación" value={item.diagnostico} fieldId={`med-${idx}-diag`} />
                                   )}
                                 </div>
                               </div>
@@ -1087,18 +1105,6 @@ export default function DoctorDashboard({
                               </span>
                             </div>
 
-                            <div>
-                              <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                                Notas Clínicas / Indicaciones al Paciente
-                              </label>
-                              <textarea
-                                className="w-full p-3.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1E6EFB]/15 transition-all"
-                                rows={3}
-                                placeholder="Indicaciones para el paciente, posología especial o motivo en caso de rechazo..."
-                                value={doctorNotes}
-                                onChange={e => setDoctorNotes(e.target.value)}
-                              />
-                            </div>
 
                             <div>
                               <label className="block text-xs font-bold text-slate-700 mb-1.5">
