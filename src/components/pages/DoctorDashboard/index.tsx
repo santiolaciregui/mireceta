@@ -47,6 +47,7 @@ import {
   CheckCheck,
   Users,
   ArrowLeft,
+  Calendar,
   Image as ImageIcon
 } from 'lucide-react';
 
@@ -863,6 +864,16 @@ export default function DoctorDashboard({
                           <span>Chatear con Paciente</span>
                         </button>
                       )}
+                    </div>
+
+                    <div className="mt-4 sm:mt-5">
+                      <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+                        {selectedOrder.patientName} {selectedOrder.patientLastName}
+                      </h1>
+                      <p className="text-xs sm:text-sm text-slate-500 mt-1.5 flex items-center gap-1.5 font-medium">
+                        <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
+                        <span>Fecha de solicitud: {new Date(selectedOrder.createdAt).toLocaleDateString('es-AR')} {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
+                      </p>
                     </div>
 
                   </div>
