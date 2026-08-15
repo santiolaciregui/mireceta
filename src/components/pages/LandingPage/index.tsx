@@ -290,7 +290,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       trackInitiatePrescription('landing_hero_cta');
                       onGoToLogin('login');
                     }}
-                    className="bg-[#14BE99] hover:bg-[#0F6C7D] text-[#0141BC] hover:text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#14BE99] hover:border-[#0F6C7D]"
+                    className="bg-[#14BE99] hover:bg-[#0F6C7D] text-white font-black px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center gap-3 text-base group cursor-pointer border border-[#14BE99] hover:border-[#0F6C7D]"
                   >
                     <span>Solicitar Receta</span>
                     <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
