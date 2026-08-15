@@ -674,8 +674,7 @@ export class NotificationService {
         templateCode: templateCode || undefined,
         variables: {
           patientName,
-          orderId,
-          reason
+          orderId
         },
         body: `Hola ${patientName}, su solicitud #${orderId} no pudo ser aprobada (${reason}). Nos pondremos en contacto para coordinar la devolución del dinero.`
       });
