@@ -7,6 +7,8 @@ export interface IPatient extends Document {
   lastName: string;
   email?: string;
   phone?: string;
+  city?: string;
+  province?: string;
   birthDate?: string;
   obraSocial?: string;
   obraSocialNumber?: string;
@@ -46,6 +48,8 @@ const patientSchema = new Schema<IPatient>({
   lastName: { type: String, required: true },
   email: { type: String },
   phone: { type: String },
+  city: { type: String },
+  province: { type: String },
   birthDate: { type: String },
   obraSocial: { type: String },
   obraSocialNumber: { type: String },

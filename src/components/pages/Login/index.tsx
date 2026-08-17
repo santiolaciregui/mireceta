@@ -20,7 +20,8 @@ import {
   AlertCircle,
   FileText,
   KeyRound,
-  Check
+  Check,
+  MapPin
 } from 'lucide-react';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import Logo from '../../Logo';
@@ -57,6 +58,8 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const [regShowPassword, setRegShowPassword] = useState(false);
   const [regBirthDate, setRegBirthDate] = useState('');
   const [regPhone, setRegPhone] = useState('');
+  const [regCity, setRegCity] = useState('');
+  const [regProvince, setRegProvince] = useState('');
   const [regObraSocial, setRegObraSocial] = useState('');
   const [regCustomObraSocial, setRegCustomObraSocial] = useState('');
   const [regObraSocialNumber, setRegObraSocialNumber] = useState('');
@@ -254,6 +257,8 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
         lastName: regLastName.trim(),
         email: regEmail.trim(),
         phone: regPhone.trim(),
+        city: regCity.trim(),
+        province: regProvince.trim(),
         birthDate: regBirthDate,
         obraSocial: finalObraSocial,
         obraSocialNumber: regObraSocialNumber.trim(),
@@ -843,6 +848,44 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                         <span>{regErrors.email}</span>
                       </p>
                     )}
+                  </div>
+
+                  {/* Fields: Ciudad & Provincia */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-fadeIn">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        Ciudad
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <MapPin className="h-4 w-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={regCity}
+                          onChange={(e) => setRegCity(e.target.value)}
+                          placeholder="Ej. Coronel Suárez"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                        Provincia
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                          <MapPin className="h-4 w-4" />
+                        </div>
+                        <input
+                          type="text"
+                          value={regProvince}
+                          onChange={(e) => setRegProvince(e.target.value)}
+                          placeholder="Ej. Buenos Aires"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-xl text-sm font-medium placeholder:text-slate-400 bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Field: Password */}

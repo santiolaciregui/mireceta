@@ -12,6 +12,8 @@ export interface IUser extends Document {
   medicoId?: string; // If 'colaborador', which doctor is this linked to
   medicoName?: string; // Friendly name of the doctor
   phone?: string;
+  city?: string;
+  province?: string;
   tenantId?: string; // Temporarily optional for the DB schema so we can migrate
   birthDate?: string;
   obraSocial?: string;
@@ -38,6 +40,8 @@ const userSchema = new Schema<IUser>({
   medicoName: { type: String },
   tenantId: { type: String },
   phone: { type: String },
+  city: { type: String },
+  province: { type: String },
   birthDate: { type: String },
   obraSocial: { type: String },
   obraSocialNumber: { type: String },

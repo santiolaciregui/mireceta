@@ -221,6 +221,28 @@ export default function DoctorDashboard({
     );
   };
 
+  const handleViewReceipt = (e: React.MouseEvent<HTMLAnchorElement>, url: string, name: string) => {
+    if (url.startsWith('data:')) {
+      e.preventDefault();
+      try {
+        const parts = url.split(',');
+        const byteString = atob(parts[1]);
+        const mimeString = parts[0].split(':')[1].split(';')[0];
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+      } catch (err) {
+        console.error('Error opening preview:', err);
+        window.open(url, '_blank');
+      }
+    }
+  };
+
   // Operator Payout settings
   const [payoutRate, setPayoutRate] = useState<number>(500); // 500 ARS per prescription by default
   const [selectedReportOperator, setSelectedReportOperator] = useState<string>('Todos');
@@ -899,6 +921,12 @@ export default function DoctorDashboard({
                         />
                         <CopyableFieldRow label="Teléfono / WhatsApp" value={selectedOrder.patientPhone || '—'} fieldId="patientPhone" />
                         <CopyableFieldRow label="Correo Electrónico" value={selectedOrder.patientEmail || '—'} fieldId="patientEmail" />
+                        {selectedOrder.patientCity && (
+                          <CopyableFieldRow label="Ciudad" value={selectedOrder.patientCity} fieldId="patientCity" />
+                        )}
+                        {selectedOrder.patientProvince && (
+                          <CopyableFieldRow label="Provincia" value={selectedOrder.patientProvince} fieldId="patientProvince" />
+                        )}
                         <CopyableFieldRow 
                           label="Canal de Entrega" 
                           value={selectedOrder.deliveryMethod === 'both' ? 'Email y WhatsApp' : selectedOrder.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
@@ -973,14 +1001,14 @@ export default function DoctorDashboard({
                           <h4 className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 mb-2">Detalle de Medicamentos</h4>
                           <div className="space-y-3">
                             {selectedOrder.medicationItems.map((item, idx) => (
-                              <div key={idx} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs divide-y divide-slate-100">
-                                <div className="bg-slate-50/50 px-3.5 py-2 flex justify-between items-center">
-                                  <span className="text-[11px] font-extrabold text-slate-500">Medicamento #{idx + 1}</span>
-                                  <span className="bg-white border border-slate-200 text-slate-700 font-extrabold text-[11px] px-2 py-0.5 rounded-md">
+                              <div key={idx} className="bg-slate-50/80 border-2 border-slate-300 rounded-2xl overflow-hidden shadow-xs divide-y divide-slate-200">
+                                <div className="bg-slate-200/60 px-4 py-2.5 flex justify-between items-center border-b border-slate-300">
+                                  <span className="text-xs font-black text-slate-700">Medicamento #{idx + 1}</span>
+                                  <span className="bg-white border-2 border-slate-300 text-slate-800 font-extrabold text-[11px] px-2.5 py-0.5 rounded-md shadow-3xs">
                                     {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
                                   </span>
                                 </div>
-                                <div className="divide-y divide-slate-100">
+                                <div className="divide-y divide-slate-200 bg-white/40">
                                   <CopyableFieldRow label="Nombre Comercial" value={item.nombreComercial} fieldId={`med-${idx}-nombre`} />
                                   {item.droga && (
                                     <CopyableFieldRow label="Droga / Monodroga" value={item.droga} fieldId={`med-${idx}-droga`} />
@@ -1048,12 +1076,27 @@ export default function DoctorDashboard({
                                     <span>Archivo Adjunto</span>
                                   </div>
                                 ) : photo.url.startsWith('data:application/pdf') ? (
-                                  <div className="h-28 bg-slate-50 flex flex-col items-center justify-center p-3">
+                                  <a 
+                                    href={photo.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={(e) => handleViewReceipt(e, photo.url, photo.name || 'receta.pdf')}
+                                    className="block h-28 bg-slate-50 flex flex-col items-center justify-center p-3 hover:bg-slate-100 transition-colors relative group cursor-zoom-in text-center"
+                                  >
                                     <FileText className="h-8 w-8 text-rose-500 mb-1" />
-                                    <span className="text-[10px] text-slate-500 font-mono truncate max-w-full">Documento PDF</span>
-                                  </div>
+                                    <span className="text-[10px] text-slate-500 font-mono truncate max-w-full px-1">Documento PDF</span>
+                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                                      <Eye className="h-4 w-4" /> Ver PDF
+                                    </div>
+                                  </a>
                                 ) : (
-                                  <a href={photo.url} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
+                                  <a 
+                                    href={photo.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    onClick={(e) => handleViewReceipt(e, photo.url, photo.name || 'foto.jpg')}
+                                    className="block relative group cursor-zoom-in"
+                                  >
                                     <img src={photo.url} alt="Envase" className="h-28 w-full object-cover group-hover:opacity-90 transition-opacity" />
                                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
                                       <Eye className="h-4 w-4" /> Ver foto
@@ -1160,6 +1203,7 @@ export default function DoctorDashboard({
                                     href={selectedOrder.paymentReceiptUrl} 
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={(e) => handleViewReceipt(e, selectedOrder.paymentReceiptUrl, selectedOrder.paymentReceiptName || 'comprobante.pdf')}
                                     className="inline-flex items-center justify-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer border border-slate-200"
                                   >
                                     <ExternalLink className="h-3.5 w-3.5" /> Ver
@@ -1168,7 +1212,13 @@ export default function DoctorDashboard({
                               </div>
                             ) : (
                               <div>
-                                <a href={selectedOrder.paymentReceiptUrl} target="_blank" rel="noopener noreferrer" className="block relative group cursor-zoom-in">
+                                <a 
+                                  href={selectedOrder.paymentReceiptUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  onClick={(e) => handleViewReceipt(e, selectedOrder.paymentReceiptUrl, selectedOrder.paymentReceiptName || 'comprobante.jpg')}
+                                  className="block relative group cursor-zoom-in"
+                                >
                                   <img 
                                     src={selectedOrder.paymentReceiptUrl} 
                                     alt="Comprobante de Transferencia" 

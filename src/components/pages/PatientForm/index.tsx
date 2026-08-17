@@ -186,6 +186,8 @@ export default function PatientForm({
     obraSocialNumber: currentUser?.obraSocialNumber || '',
     email: currentUser?.email || '',
     phone: currentUser?.phone || '',
+    city: currentUser?.city || '',
+    province: currentUser?.province || '',
   }));
 
   // Keep titularData synced if currentUser updates
@@ -200,6 +202,8 @@ export default function PatientForm({
         obraSocialNumber: currentUser.obraSocialNumber || prev.obraSocialNumber,
         email: currentUser.email || prev.email,
         phone: currentUser.phone || prev.phone,
+        city: currentUser.city || prev.city,
+        province: currentUser.province || prev.province,
       }));
     }
   }, [currentUser, initialName, initialLastName, recentDni]);
@@ -211,6 +215,8 @@ export default function PatientForm({
   const [patientBirthDate, setPatientBirthDate] = useState(currentUser?.birthDate || '');
   const [patientEmail, setPatientEmail] = useState(currentUser?.email || '');
   const [patientPhone, setPatientPhone] = useState(currentUser?.phone || '');
+  const [patientCity, setPatientCity] = useState(isThirdPartyUser ? '' : (currentUser?.city || ''));
+  const [patientProvince, setPatientProvince] = useState(isThirdPartyUser ? '' : (currentUser?.province || ''));
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('both');
   const [selectedObraSocial, setSelectedObraSocial] = useState(currentUser?.obraSocial || '');
   const [obraSocialNumber, setObraSocialNumber] = useState(currentUser?.obraSocialNumber || '');
@@ -235,6 +241,8 @@ export default function PatientForm({
   const [depObraSocialNumber, setDepObraSocialNumber] = useState('');
   const [depEmail, setDepEmail] = useState('');
   const [depPhone, setDepPhone] = useState('');
+  const [depCity, setDepCity] = useState('');
+  const [depProvince, setDepProvince] = useState('');
   const [depFormError, setDepFormError] = useState<string | null>(null);
 
   // Keep dependents synced if currentUser updates
@@ -255,6 +263,8 @@ export default function PatientForm({
       setObraSocialNumber(titularData.obraSocialNumber);
       setPatientEmail(titularData.email);
       setPatientPhone(titularData.phone);
+      setPatientCity(titularData.city || '');
+      setPatientProvince(titularData.province || '');
       if (searchStatus) setSearchStatus(null);
     } else {
       const dep = dependents.find((d) => d.id === cardId);
@@ -267,6 +277,8 @@ export default function PatientForm({
         setObraSocialNumber(dep.obraSocialNumber || '');
         setPatientEmail(dep.email || titularData.email || '');
         setPatientPhone(dep.phone || titularData.phone || '');
+        setPatientCity(dep.city || '');
+        setPatientProvince(dep.province || '');
         setSearchStatus({
           found: true,
           message: `Cargados datos de paciente a cargo: ${dep.name} ${dep.lastName} (${dep.relationship})`,
@@ -292,6 +304,8 @@ export default function PatientForm({
       setDepObraSocialNumber(titularData.obraSocialNumber);
       setDepEmail(titularData.email);
       setDepPhone(titularData.phone);
+      setDepCity(titularData.city || '');
+      setDepProvince(titularData.province || '');
     } else {
       const dep = dependents.find((d) => d.id === cardId);
       if (dep) {
@@ -304,6 +318,8 @@ export default function PatientForm({
         setDepObraSocialNumber(dep.obraSocialNumber || '');
         setDepEmail(dep.email || '');
         setDepPhone(dep.phone || '');
+        setDepCity(dep.city || '');
+        setDepProvince(dep.province || '');
       }
     }
 
@@ -336,6 +352,8 @@ export default function PatientForm({
     setDepObraSocialNumber('');
     setDepEmail(titularData.email || '');
     setDepPhone(titularData.phone || '');
+    setDepCity('');
+    setDepProvince('');
     setShowAddDependentModal(true);
   };
 
@@ -406,6 +424,8 @@ export default function PatientForm({
         obraSocialNumber: depObraSocialNumber,
         email: depEmail,
         phone: depPhone,
+        city: depCity.trim(),
+        province: depProvince.trim(),
       };
       setTitularData(updatedTitular);
 
@@ -418,6 +438,8 @@ export default function PatientForm({
         setObraSocialNumber(updatedTitular.obraSocialNumber);
         setPatientEmail(updatedTitular.email);
         setPatientPhone(updatedTitular.phone);
+        setPatientCity(updatedTitular.city);
+        setPatientProvince(updatedTitular.province);
       }
 
       setShowAddDependentModal(false);
@@ -439,6 +461,8 @@ export default function PatientForm({
         obraSocialNumber: depObraSocialNumber,
         email: depEmail,
         phone: depPhone,
+        city: depCity.trim(),
+        province: depProvince.trim(),
       };
 
       const updated = dependents.map((d) => (d.id === editingCardId ? updatedDep : d));
@@ -457,6 +481,8 @@ export default function PatientForm({
         setObraSocialNumber(updatedDep.obraSocialNumber || '');
         setPatientEmail(updatedDep.email || '');
         setPatientPhone(updatedDep.phone || '');
+        setPatientCity(updatedDep.city || '');
+        setPatientProvince(updatedDep.province || '');
       }
 
       setShowAddDependentModal(false);
@@ -477,6 +503,8 @@ export default function PatientForm({
       obraSocialNumber: depObraSocialNumber,
       email: depEmail || titularData.email || '',
       phone: depPhone || titularData.phone || '',
+      city: depCity.trim(),
+      province: depProvince.trim(),
     };
 
     const updated = [...dependents, newDep];
@@ -496,6 +524,8 @@ export default function PatientForm({
     setObraSocialNumber(newDep.obraSocialNumber || '');
     setPatientEmail(newDep.email || titularData.email || '');
     setPatientPhone(newDep.phone || titularData.phone || '');
+    setPatientCity(newDep.city || '');
+    setPatientProvince(newDep.province || '');
 
     setShowAddDependentModal(false);
     setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
@@ -788,6 +818,8 @@ export default function PatientForm({
       if (draft.patientBirthDate) setPatientBirthDate(draft.patientBirthDate);
       if (draft.patientEmail) setPatientEmail(draft.patientEmail);
       if (draft.patientPhone) setPatientPhone(draft.patientPhone);
+      if (draft.patientCity) setPatientCity(draft.patientCity);
+      if (draft.patientProvince) setPatientProvince(draft.patientProvince);
       if (draft.deliveryMethod) setDeliveryMethod(draft.deliveryMethod);
       if (draft.selectedObraSocial) setSelectedObraSocial(draft.selectedObraSocial);
       if (draft.obraSocialNumber) setObraSocialNumber(draft.obraSocialNumber);
@@ -838,6 +870,8 @@ export default function PatientForm({
         patientBirthDate,
         patientEmail,
         patientPhone,
+        patientCity,
+        patientProvince,
         deliveryMethod,
         selectedObraSocial,
         obraSocialNumber,
@@ -867,6 +901,8 @@ export default function PatientForm({
     patientBirthDate,
     patientEmail,
     patientPhone,
+    patientCity,
+    patientProvince,
     deliveryMethod,
     selectedObraSocial,
     obraSocialNumber,
@@ -1165,6 +1201,8 @@ export default function PatientForm({
         patientBirthDate,
         patientEmail: patientEmail.trim(),
         patientPhone: patientPhone.trim(),
+        patientCity: patientCity.trim() || undefined,
+        patientProvince: patientProvince.trim() || undefined,
         deliveryMethod,
         obraSocial: selectedObraSocial,
         obraSocialNumber: obraSocialNumber.trim() || undefined,
@@ -1290,6 +1328,8 @@ export default function PatientForm({
       patientBirthDate,
       patientEmail: patientEmail.trim(),
       patientPhone: patientPhone.trim(),
+      patientCity: patientCity.trim() || undefined,
+      patientProvince: patientProvince.trim() || undefined,
       deliveryMethod,
       obraSocial: selectedObraSocial,
       obraSocialNumber: obraSocialNumber.trim() || undefined,
@@ -1870,10 +1910,10 @@ export default function PatientForm({
                   {/* CARD TITULAR */}
                   <div
                     onClick={() => handleSelectCard('titular')}
-                    className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
+                    className={`relative rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
                       selectedCardId === 'titular'
-                        ? 'bg-blue-50/80 border-[#1661E1] ring-2 ring-[#1E6EFB]/30 shadow-md'
-                        : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
+                        ? 'p-[17px] bg-blue-50/60 border-2 border-[#1661E1] ring-4 ring-[#1E6EFB]/15 shadow-md'
+                        : 'p-[18px] bg-white border border-slate-250 hover:border-slate-350 hover:shadow-xs'
                     }`}
                   >
                     <div>
@@ -1895,8 +1935,8 @@ export default function PatientForm({
                           </button>
 
                           {selectedCardId === 'titular' && (
-                            <span className="h-6 w-6 rounded-full bg-[#1661E1] text-white flex items-center justify-center shadow-xs">
-                              <Check className="h-4 w-4 stroke-[3]" />
+                            <span className="h-8 w-8 rounded-full bg-[#14BE99] text-white flex items-center justify-center shadow-md border-2 border-white ring-1 ring-[#14BE99]/20 animate-scaleUp">
+                              <Check className="h-5 w-5 stroke-[3.5]" />
                             </span>
                           )}
                         </div>
@@ -1944,6 +1984,15 @@ export default function PatientForm({
                             <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.email}</span>
                           </div>
                         )}
+
+                        {(titularData.city || titularData.province) && (
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-semibold text-slate-400 shrink-0">Ciudad/Prov:</span>
+                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">
+                              {titularData.city || '—'}{titularData.province ? `, ${titularData.province}` : ''}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -1955,10 +2004,10 @@ export default function PatientForm({
                       <div
                         key={dep.id}
                         onClick={() => handleSelectCard(dep.id)}
-                        className={`relative rounded-2xl p-4.5 transition-all cursor-pointer border flex flex-col justify-between ${
+                        className={`relative rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
                           isSelected
-                            ? 'bg-blue-50/80 border-[#1661E1] ring-2 ring-[#1E6EFB]/30 shadow-md'
-                            : 'bg-white border-slate-250 hover:border-slate-350 hover:shadow-xs'
+                            ? 'p-[17px] bg-blue-50/60 border-2 border-[#1661E1] ring-4 ring-[#1E6EFB]/15 shadow-md'
+                            : 'p-[18px] bg-white border border-slate-250 hover:border-slate-350 hover:shadow-xs'
                         }`}
                       >
                         <div>
@@ -1989,8 +2038,8 @@ export default function PatientForm({
                               </button>
 
                               {isSelected && (
-                                <span className="h-6 w-6 rounded-full bg-[#1661E1] text-white flex items-center justify-center shadow-xs">
-                                  <Check className="h-4 w-4 stroke-[3]" />
+                                <span className="h-8 w-8 rounded-full bg-[#14BE99] text-white flex items-center justify-center shadow-md border-2 border-white ring-1 ring-[#14BE99]/20 animate-scaleUp">
+                                  <Check className="h-5 w-5 stroke-[3.5]" />
                                 </span>
                               )}
                             </div>
@@ -2038,6 +2087,15 @@ export default function PatientForm({
                                 <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{dep.email}</span>
                               </div>
                             )}
+
+                            {(dep.city || dep.province) && (
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold text-slate-400 shrink-0">Ciudad/Prov:</span>
+                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">
+                                  {dep.city || '—'}{dep.province ? `, ${dep.province}` : ''}
+                                </span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -2078,11 +2136,13 @@ export default function PatientForm({
               </label>
               <select
                 id="delivery-method"
-                value="both"
-                disabled
-                className="w-full px-4 py-3 bg-slate-100 border border-slate-250 rounded-xl font-semibold text-[#0F172A] opacity-90 cursor-not-allowed text-xs"
+                value={deliveryMethod}
+                onChange={(e) => setDeliveryMethod(e.target.value as 'email' | 'whatsapp' | 'both')}
+                className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] focus:outline-none text-xs transition-all shadow-2xs hover:border-slate-350"
               >
                 <option value="both">Enviar por Ambos Medios (Email y WhatsApp)</option>
+                <option value="whatsapp">Enviar solo por WhatsApp</option>
+                <option value="email">Enviar solo por Email (Correo Electrónico)</option>
               </select>
             </div>
 
@@ -2126,12 +2186,12 @@ export default function PatientForm({
             <div className={`p-4.5 rounded-2xl border space-y-3 transition-all ${
               fieldErrors.medicationList 
                 ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
-                : 'bg-slate-50/75 border-slate-200 shadow-xs'
+                : 'bg-emerald-50/30 border-[#14BE99]/30 shadow-xs'
             }`}>
               <div className="flex items-center justify-between">
                 <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <span>🛒 Carrito de la Solicitud</span>
-                  <span className="bg-blue-600 text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
+                  <span className="bg-[#14BE99] text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
                     {medicationItems.length + medicationPhotos.length} {medicationItems.length + medicationPhotos.length === 1 ? 'item' : 'items'}
                   </span>
                 </h5>
@@ -2167,7 +2227,7 @@ export default function PatientForm({
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <span className="text-[9px] font-black text-[#1661E1] bg-[#1661E1]/10 border border-[#1661E1]/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                          <span className="text-[9px] font-black text-[#14BE99] bg-[#14BE99]/10 border border-[#14BE99]/20 px-2 py-0.5 rounded-md uppercase tracking-wider">
                             Medicamento #{index + 1}
                           </span>
                           <h6 className="font-extrabold text-[#0141BC] text-sm mt-1">
@@ -2196,7 +2256,9 @@ export default function PatientForm({
                         <div className="flex items-center justify-between">
                           <span className="font-semibold text-slate-400">Cantidad:</span>
                           <span className="font-bold text-slate-800">
-                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'} {item.presentacion ? `(${item.presentacion})` : ''}
+                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'Caja' : 'Cajas'}
+                            {item.unidadesPorCaja ? ` x ${item.unidadesPorCaja} u.` : ''}
+                            {item.presentacion ? ` (${item.presentacion})` : ''}
                           </span>
                         </div>
 
@@ -2323,10 +2385,10 @@ export default function PatientForm({
             {medicationMethod === 'new_manual' && (
               <div className="space-y-4 animate-fadeIn">
                 {/* A1. Formulario intuitivo para agregar medicación */}
-                <div className="bg-slate-50/75 p-5 rounded-2xl border border-slate-200 space-y-4">
+                <div className="bg-slate-100 p-5 rounded-2xl border-2 border-slate-300 space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                      <Sparkles className="h-4 w-4 text-blue-600 animate-pulse" />
+                      <Sparkles className="h-4 w-4 text-[#14BE99] animate-pulse" />
                       <span>Datos del Medicamento</span>
                     </h4>
                   </div>
@@ -2335,7 +2397,7 @@ export default function PatientForm({
                   <div className="space-y-3">
                     <div>
                       <label htmlFor="cur-nombre-comercial" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                        Nombre Comercial de la Medicación <span className="text-red-500">*</span>
+                        Nombre Comercial o Droga de la Medicación <span className="text-red-500">*</span>
                       </label>
                       <input
                         id="cur-nombre-comercial"
@@ -2360,7 +2422,7 @@ export default function PatientForm({
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                       <div>
                         <label htmlFor="cur-miligramos" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
                           Dosis / Miligramos
@@ -2406,8 +2468,22 @@ export default function PatientForm({
                       </div>
 
                       <div>
+                        <label htmlFor="cur-unidades-por-caja" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                          Cantidad x envase
+                        </label>
+                        <input
+                          id="cur-unidades-por-caja"
+                          type="number"
+                          value={curUnidadesPorCaja}
+                          onChange={(e) => setCurUnidadesPorCaja(e.target.value)}
+                          placeholder="Ej. 30, 60"
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl text-xs font-bold text-slate-850 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div>
                         <label htmlFor="cur-cajas" className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                          Cantidad de cajas o envases <span className="text-red-500">*</span>
+                          Cant. Envases <span className="text-red-500">*</span>
                         </label>
                         <select
                           id="cur-cajas"
@@ -2472,7 +2548,7 @@ export default function PatientForm({
                         id="btn-add-medication-item"
                         type="button"
                         onClick={addManualMedication}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                        className="w-full bg-[#14BE99] hover:bg-[#0fa685] text-white font-extrabold py-3.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                       >
                         <Plus className="h-4.5 w-4.5" />
                         <span>Agregar al carrito</span>
@@ -3250,6 +3326,33 @@ export default function PatientForm({
                         <span>{depFieldErrors.email}</span>
                       </p>
                     )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Ciudad
+                    </label>
+                    <input
+                      type="text"
+                      value={depCity}
+                      onChange={(e) => setDepCity(e.target.value)}
+                      placeholder="Ej. Coronel Suárez"
+                      className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                      Provincia
+                    </label>
+                    <input
+                      type="text"
+                      value={depProvince}
+                      onChange={(e) => setDepProvince(e.target.value)}
+                      placeholder="Ej. Buenos Aires"
+                      className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                    />
                   </div>
                 </div>
               </div>

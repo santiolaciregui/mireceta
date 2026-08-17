@@ -35,6 +35,8 @@ export interface IMedicalOrder extends Document {
   patientBirthDate: string;
   patientEmail: string;
   patientPhone: string;
+  patientCity?: string;
+  patientProvince?: string;
   deliveryMethod: 'email' | 'whatsapp' | 'both';
 
   obraSocial: string;
@@ -151,6 +153,8 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   patientBirthDate: { type: String, required: false, default: '' },
   patientEmail: { type: String, required: false, default: '' },
   patientPhone: { type: String, required: false, default: '' },
+  patientCity: { type: String, required: false, default: '' },
+  patientProvince: { type: String, required: false, default: '' },
   deliveryMethod: { type: String, enum: ['email', 'whatsapp', 'both'], required: false, default: 'email' },
   
   obraSocial: { type: String, required: true },

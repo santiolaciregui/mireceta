@@ -373,7 +373,7 @@ export class OrderService {
 
       const isElectronic = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
       const chatText = isElectronic
-        ? `¡Hola ${order.patientName}! Tu solicitud #${order.id} ha sido aprobada por el profesional médico.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${order.recipePdfUrl} con tu número de obra social: ${order.obraSocialNumber || 'No ingresado'}.`
+        ? `¡Hola ${order.patientName}! Tu solicitud #${order.id} ha sido aprobada por el profesional médico.\n\nSu receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
         : `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`;
 
       const emissionChatMessage: any = {

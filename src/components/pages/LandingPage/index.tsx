@@ -509,7 +509,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         </section>
 
         {/* SECTION: Preguntas Frecuentes */}
-        <section id="faq" className="bg-[#0141BC] text-white py-20 px-4">
+        <section id="faq" className="bg-slate-50 text-[#0141BC] py-20 px-4">
           <div className="max-w-6xl mx-auto space-y-12">
             
             <h2 className="text-3xl sm:text-4xl font-black text-center tracking-tight">
@@ -525,15 +525,15 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className={`bg-white/10 text-white rounded-xl overflow-hidden transition-all border ${
-                        isOpen ? 'border-[#14BE99]/40' : 'border-white/15'
+                      className={`bg-white text-slate-800 rounded-xl overflow-hidden transition-all border ${
+                        isOpen ? 'border-[#14BE99]' : 'border-slate-200'
                       }`}
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
-                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
+                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
                       >
-                        <span className="flex items-center gap-2.5">
+                        <span className="flex items-center gap-2.5 text-slate-800">
                           <span className="text-lg font-black text-[#14BE99]">
                             {isOpen ? '−' : '+'}
                           </span>
@@ -542,7 +542,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       </button>
 
                       {isOpen && (
-                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-100 font-medium leading-relaxed border-t border-white/10 bg-[#081B4B]">
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-600 font-medium leading-relaxed border-t border-slate-100 bg-slate-50/50">
                           {faq.a}
                         </div>
                       )}
@@ -559,15 +559,15 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                   return (
                     <div 
                       key={idx} 
-                      className={`bg-white/10 text-white rounded-xl overflow-hidden transition-all border ${
-                        isOpen ? 'border-[#14BE99]/40' : 'border-white/15'
+                      className={`bg-white text-slate-800 rounded-xl overflow-hidden transition-all border ${
+                        isOpen ? 'border-[#14BE99]' : 'border-slate-200'
                       }`}
                     >
                       <button
                         onClick={() => toggleFaq(idx)}
-                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-white/15 transition-colors cursor-pointer"
+                        className="w-full p-4 flex items-center justify-between font-bold text-sm text-left hover:bg-slate-50/80 transition-colors cursor-pointer"
                       >
-                        <span className="flex items-center gap-2.5">
+                        <span className="flex items-center gap-2.5 text-slate-800">
                           <span className="text-lg font-black text-[#14BE99]">
                             {isOpen ? '−' : '+'}
                           </span>
@@ -576,7 +576,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                       </button>
 
                       {isOpen && (
-                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-100 font-medium leading-relaxed border-t border-white/10 bg-[#081B4B]">
+                        <div className="p-4 pt-2 text-xs sm:text-sm text-slate-600 font-medium leading-relaxed border-t border-slate-100 bg-slate-50/50">
                           {faq.a}
                         </div>
                       )}

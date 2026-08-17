@@ -445,7 +445,7 @@ export class NotificationService {
             tenantId,
             channel: 'whatsapp',
             to: patientPhone,
-            body: `¡Hola ${patientName}! Tu solicitud #${orderId} ha sido aprobada por el profesional médico.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${osName} con el número de afiliado: ${affiliateNumber}.\nNo es necesario descargar ninguna receta.`
+            body: `¡Hola ${patientName}! Tu solicitud #${orderId} ha sido aprobada por el profesional médico.\n\nSu receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
           });
         }
 
@@ -460,9 +460,9 @@ export class NotificationService {
           variables: {
             patientName,
             orderId,
-            recipeLink: `Obra Social: ${osName} - Nro: ${affiliateNumber}`
+            recipeLink: `Su receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
           },
-          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Cobertura: ${osName}, Nro Afiliado: ${affiliateNumber}. Los medicamentos se pueden retirar directamente en la farmacia.`
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Su receta ya ha sido emitida y transmitida a la red de farmacias. Podrá retirarla con su DNI o Carnet de obra social que lo acredite.`
         });
       }
 

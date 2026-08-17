@@ -50,6 +50,8 @@ export interface MedicalOrder {
   patientBirthDate: string; // Birth Date
   patientEmail: string;     // Email
   patientPhone: string;     // WhatsApp
+  patientCity?: string;
+  patientProvince?: string;
   deliveryMethod: 'email' | 'whatsapp' | 'both'; // Receiver channels
 
   obraSocial: string;
@@ -161,6 +163,8 @@ export interface DependentPatient {
   obraSocialNumber?: string;
   email?: string;
   phone?: string;
+  city?: string;
+  province?: string;
 }
 
 export interface SystemUser {
@@ -177,6 +181,8 @@ export interface SystemUser {
   medicoName?: string; // Friendly name of the doctor
   requirePasswordChange?: boolean;
   phone?: string;
+  city?: string;
+  province?: string;
   birthDate?: string;
   obraSocial?: string;
   obraSocialNumber?: string;

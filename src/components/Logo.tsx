@@ -45,14 +45,14 @@ export default function Logo({
     <div className="flex flex-col justify-center leading-none select-none">
       <div className={`tracking-tight flex items-baseline ${titleSizeClasses[size]}`}>
         <span className={`font-bold ${isDark ? 'text-white' : 'text-[#0141BC]'}`}>mireceta</span>
-        <span className="font-light text-[#1661E1]">.online</span>
+        <span className="font-light text-[#1E6EFB]">.online</span>
       </div>
       <span
         className={`font-semibold tracking-tight mt-0.5 whitespace-nowrap ${subtitleSizeClasses[size]} ${
           isDark ? 'text-slate-400' : 'text-slate-500'
         }`}
       >
-        Tu portal de recetas médicas electrónicas
+        TU PORTAL DE RECETAS MÉDICAS
       </span>
     </div>
   );
