@@ -450,19 +450,18 @@ export class NotificationService {
         }
 
         const waConfig = await this.getConfig(tenantId, 'whatsapp');
-        const templateCode = (waConfig?.credentials?.issuedTemplateCode || waConfig?.credentials?.templateCode || 'receta_emitida') as string;
+        const electronicTemplateCode = (waConfig?.credentials?.electronicTemplateCode || 'receta_pami_ioma') as string;
 
         return await this.sendNotification({
           tenantId,
           channel: 'whatsapp',
           to: patientPhone,
-          templateCode: templateCode || undefined,
+          templateCode: electronicTemplateCode,
           variables: {
             patientName,
-            orderId,
-            recipeLink: `Su receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
+            orderId
           },
-          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Su receta ya ha sido emitida y transmitida a la red de farmacias. Podrá retirarla con su DNI o Carnet de obra social que lo acredite.`
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
         });
       }
 

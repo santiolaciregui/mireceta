@@ -28,6 +28,8 @@ export class UserService {
       identifier: user.identifier,
       email: user.email,
       phone: user.phone,
+      city: user.city,
+      province: user.province,
       birthDate: user.birthDate,
       obraSocial: user.obraSocial,
       obraSocialNumber: user.obraSocialNumber,
