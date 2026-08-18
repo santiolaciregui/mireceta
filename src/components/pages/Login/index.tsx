@@ -32,11 +32,12 @@ interface LoginProps {
   isLoading: boolean;
   onRegister?: (userData: any) => Promise<{ success: boolean; error?: string }>;
   onForgotPassword?: (identifier: string, email: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  onSendForgotPasswordLink?: (identifier: string, channel: 'email' | 'whatsapp') => Promise<{ success: boolean; message?: string; error?: string }>;
   onBack?: () => void;
   initialMode?: 'login' | 'register';
 }
 
-export default function Login({ onLogin, isLoading, onRegister, onForgotPassword, onBack, initialMode }: LoginProps) {
+export default function Login({ onLogin, isLoading, onRegister, onForgotPassword, onSendForgotPasswordLink, onBack, initialMode }: LoginProps) {
   const [activeMode, setActiveMode] = useState<'login' | 'register' | 'forgot'>(initialMode || 'login');
   
   useEffect(() => {
@@ -86,6 +87,14 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
   const [forgotInput, setForgotInput] = useState('');
   const [forgotSuccessMsg, setForgotSuccessMsg] = useState<string | null>(null);
   const [forgotTempPassword, setForgotTempPassword] = useState<string | null>(null);
+  const [forgotStep, setForgotStep] = useState<1 | 2>(1);
+  const [recoveryOptions, setRecoveryOptions] = useState<{
+    action: 'sent' | 'offer' | 'temp_password';
+    method: 'email' | 'whatsapp' | 'both';
+    email?: string;
+    phone?: string;
+    identifier: string;
+  } | null>(null);
 
   // Field-level error states
   const [loginErrors, setLoginErrors] = useState<{ identifier?: string; password?: string }>({});
@@ -285,6 +294,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     setErrorMsg(null);
     setForgotSuccessMsg(null);
     setForgotTempPassword(null);
+    setRecoveryOptions(null);
     setForgotErrors({});
 
     const cleanInput = forgotInput.trim();
@@ -300,10 +310,26 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       const res = await onForgotPassword(isEmail ? '' : cleanInput, isEmail ? cleanInput : '');
       if (res.success) {
         const data = res.data || {};
-        setForgotSuccessMsg(data.message || 'Solicitud procesada con éxito.');
-        if (data.tempPassword) {
-          // User had no email — backend returned a temporary password
+        if (data.action === 'sent') {
+          setForgotSuccessMsg(data.message || 'Solicitud procesada con éxito.');
+          setForgotStep(2);
+        } else if (data.action === 'temp_password') {
           setForgotTempPassword(data.tempPassword);
+          setForgotSuccessMsg(data.message);
+          setForgotStep(2);
+        } else if (data.action === 'offer') {
+          setRecoveryOptions({
+            action: data.action,
+            method: data.method,
+            email: data.email,
+            phone: data.phone,
+            identifier: data.identifier || cleanInput
+          });
+          setForgotStep(2);
+        } else {
+          // Fallback just in case
+          setForgotSuccessMsg(data.message || 'Solicitud procesada con éxito.');
+          setForgotStep(2);
         }
       } else {
         const errMsg = res.error || 'No existe ningún usuario registrado con el DNI o correo electrónico ingresado.';
@@ -312,6 +338,25 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       }
     } else {
       setForgotSuccessMsg('Se ha enviado un correo electrónico para reestablecer la contraseña.');
+      setForgotStep(2);
+    }
+  };
+
+  const handleSendLink = async (channel: 'email' | 'whatsapp') => {
+    if (!recoveryOptions) return;
+    setErrorMsg(null);
+    setForgotSuccessMsg(null);
+
+    if (onSendForgotPasswordLink) {
+      const res = await onSendForgotPasswordLink(recoveryOptions.identifier, channel);
+      if (res.success) {
+        setForgotSuccessMsg(res.message || 'Se ha enviado el enlace de recuperación con éxito.');
+        setRecoveryOptions(null); // Clear options so we show success screen
+      } else {
+        setErrorMsg(res.error || 'Error al enviar el enlace de recuperación.');
+      }
+    } else {
+      setErrorMsg('El servicio de recuperación no está disponible temporalmente.');
     }
   };
 
@@ -1109,7 +1154,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
           {activeMode === 'forgot' && (
             <div className="space-y-4">
               
-              {!forgotSuccessMsg ? (
+              {forgotStep === 1 ? (
                 <form onSubmit={handleSubmitForgot} className="space-y-4" noValidate>
                   
                   <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed">
@@ -1172,51 +1217,98 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                 </form>
               ) : (
                 <div className="space-y-4 text-center py-2 animate-fadeIn">
-                  <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
-                    <CheckCircle2 className="h-9 w-9 text-[#14BE99]" />
-                  </div>
-                  <h3 className="text-base font-black text-[#0141BC]">
-                    {forgotTempPassword ? '¡Contraseña Temporal Generada!' : '¡Instrucciones Enviadas!'}
-                  </h3>
-
-                  {forgotTempPassword ? (
-                    /* Case: user has no email — show temp password on screen */
-                    <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed font-medium text-left shadow-xs space-y-3">
-                      <p className="font-semibold">Tu cuenta no tiene un correo electrónico registrado.</p>
-                      <p>Generamos una contraseña temporal para que puedas ingresar:</p>
-                      <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-3 text-center">
-                        <span className="font-mono font-black text-xl text-[#0141BC] tracking-widest select-all">
-                          {forgotTempPassword}
-                        </span>
+                  {recoveryOptions && recoveryOptions.action === 'offer' ? (
+                    <div className="space-y-4 text-left">
+                      <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed text-center shadow-xs">
+                        <p className="font-semibold text-sm text-[#0141BC] mb-2">¿Cómo querés recibir el enlace de recuperación?</p>
+                        Seleccioná una de las opciones registradas en tu cuenta para recibir tu enlace único para restablecer la contraseña.
                       </div>
-                      <p className="text-[11px] text-amber-800/90 pt-1 border-t border-amber-200/80">
-                        ⚠️ <strong>Guardá esta contraseña</strong> antes de cerrar esta pantalla. Al ingresar, el sistema te pedirá que la cambies por una nueva.
-                      </p>
+
+                      <div className="space-y-2.5 pt-2">
+                        {(recoveryOptions.method === 'whatsapp' || recoveryOptions.method === 'both') && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendLink('whatsapp')}
+                            disabled={isLoading}
+                            className="w-full bg-[#14BE99] hover:bg-[#0F9E7F] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            <span>Enviar enlace por WhatsApp ({recoveryOptions.phone})</span>
+                          </button>
+                        )}
+
+                        {recoveryOptions.method === 'both' && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendLink('email')}
+                            disabled={isLoading}
+                            className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            <span>Enviar enlace por Correo ({recoveryOptions.email})</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setForgotStep(1);
+                          setRecoveryOptions(null);
+                          setErrorMsg(null);
+                        }}
+                        className="w-full bg-slate-100 hover:bg-slate-200 text-[#0141BC] py-3.5 px-4 rounded-xl text-xs font-bold transition-colors cursor-pointer text-center"
+                      >
+                        Volver
+                      </button>
                     </div>
                   ) : (
-                    /* Case: user has email — standard message */
-                    <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed font-medium max-w-sm mx-auto text-left shadow-xs space-y-2.5">
-                      <p className="font-semibold">{forgotSuccessMsg}</p>
-                      <p className="text-[11px] text-emerald-800/90 pt-2 border-t border-emerald-200/80">
-                        💡 <strong>Recordá:</strong> Si no encontrás el correo en tu bandeja principal, revisá la carpeta de <strong>Correo no deseado (SPAM)</strong> o Promociones.
-                      </p>
-                    </div>
-                  )}
+                    <>
+                      <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-xs">
+                        <CheckCircle2 className="h-9 w-9 text-[#14BE99]" />
+                      </div>
+                      <h3 className="text-base font-black text-[#0141BC]">
+                        {forgotTempPassword ? '¡Contraseña Temporal Generada!' : '¡Enlace Enviado!'}
+                      </h3>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveMode('login');
-                      setForgotSuccessMsg(null);
-                      setForgotTempPassword(null);
-                      setErrorMsg(null);
-                      setForgotInput('');
-                      setForgotErrors({});
-                    }}
-                    className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer text-xs uppercase tracking-wider"
-                  >
-                    Ir a Iniciar Sesión
-                  </button>
+                      {forgotTempPassword ? (
+                        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 leading-relaxed font-medium text-left shadow-xs space-y-3">
+                          <p className="font-semibold">Tu cuenta no tiene datos de contacto registrados.</p>
+                          <p>Generamos una contraseña temporal para que puedas ingresar:</p>
+                          <div className="bg-white border-2 border-amber-300 rounded-xl px-4 py-3 text-center">
+                            <span className="font-mono font-black text-xl text-[#0141BC] tracking-widest select-all">
+                              {forgotTempPassword}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-amber-800/90 pt-1 border-t border-amber-200/80">
+                            ⚠️ <strong>Guardá esta contraseña</strong> antes de cerrar esta pantalla. Al ingresar, el sistema te pedirá que la cambies por una nueva.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4 text-xs text-emerald-900 leading-relaxed font-medium max-w-sm mx-auto text-left shadow-xs space-y-2.5">
+                          <p className="font-semibold">{forgotSuccessMsg}</p>
+                          <p className="text-[11px] text-emerald-800/90 pt-2 border-t border-emerald-200/80 text-center">
+                            💡 <strong>Recordá:</strong> Si es por correo y no lo encontrás, revisá la carpeta de <strong>Correo no deseado (SPAM)</strong>.
+                          </p>
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveMode('login');
+                          setForgotSuccessMsg(null);
+                          setForgotTempPassword(null);
+                          setRecoveryOptions(null);
+                          setForgotStep(1);
+                          setErrorMsg(null);
+                          setForgotInput('');
+                          setForgotErrors({});
+                        }}
+                        className="w-full bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-3.5 px-6 rounded-xl transition-all shadow-md hover:shadow-lg cursor-pointer text-xs uppercase tracking-wider"
+                      >
+                        Ir a Iniciar Sesión
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
 

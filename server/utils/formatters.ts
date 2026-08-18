@@ -91,3 +91,31 @@ export function formatWhatsAppPhone(phone: string | null | undefined, defaultCou
 
   return cleaned;
 }
+
+/**
+ * Obfuscates an email address for display (e.g. s***i@gmail.com).
+ */
+export function obfuscateEmail(email: string | null | undefined): string {
+  if (!email) return '';
+  const clean = email.trim();
+  const parts = clean.split('@');
+  if (parts.length !== 2) return clean;
+  const [local, domain] = parts;
+  if (local.length <= 2) {
+    return `${local[0] || ''}*@${domain}`;
+  }
+  return `${local[0]}${'*'.repeat(local.length - 2)}${local[local.length - 1]}@${domain}`;
+}
+
+/**
+ * Obfuscates a phone number for display (e.g. ******4331).
+ */
+export function obfuscatePhone(phone: string | null | undefined): string {
+  if (!phone) return '';
+  const clean = phone.replace(/\D/g, '').trim();
+  if (clean.length <= 4) {
+    return '****' + clean;
+  }
+  return '******' + clean.substring(clean.length - 4);
+}
+

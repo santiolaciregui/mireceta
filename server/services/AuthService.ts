@@ -5,9 +5,10 @@ import { UserRepository } from '../repositories/UserRepository.js';
 import { config } from '../config/env.js';
 import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
-import { cleanDni } from '../utils/formatters.js';
+import { cleanDni, obfuscateEmail, obfuscatePhone } from '../utils/formatters.js';
 import { generateUserId } from '../utils/idGenerator.js';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
+import { notificationService } from './NotificationService.js';
 
 export class AuthService {
   private userRepo: UserRepository;
@@ -167,67 +168,170 @@ export class AuthService {
       throw new Error('No existe ningún usuario registrado con el DNI o correo electrónico ingresado.');
     }
 
-    const hasEmail = user.email && user.email.trim().length > 0;
+    const hasEmail = !!(user.email && user.email.trim());
+    const hasPhone = !!(user.phone && user.phone.trim());
 
-    if (!hasEmail) {
-      // User has no email — generate a temporary password and return it in the response
-      // so it can be shown on screen. Flag requirePasswordChange so they set a new one on login.
-      const tempPassword = crypto.randomBytes(4).toString('hex'); // 8 char hex
-      const hashedTemp = await bcrypt.hash(tempPassword, 10);
-      await this.userRepo.update(user.id, {
-        password: hashedTemp,
-        requirePasswordChange: true
+    const obfuscatedEmail = hasEmail ? obfuscateEmail(user.email) : undefined;
+    const obfuscatedPhone = hasPhone ? obfuscatePhone(user.phone) : undefined;
+
+    // Case 1: Has only email -> Send directly by email
+    if (hasEmail && !hasPhone) {
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await this.userRepo.update(user.id, { resetToken, resetTokenExp });
+
+      const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
+      const resetUrl = `${baseUrl}?token=${resetToken}`;
+
+      sendPasswordResetEmail({
+        email: user.email,
+        name: user.name,
+        resetUrl
+      }).catch(err => console.error('[AuthService] Error sending reset email:', err));
+
+      await auditLogService.log({
+        tenantId: user.tenantId || 'TEN-0001',
+        currentUser: user,
+        action: 'PASSWORD_RESET_REQUESTED',
+        entity: 'Auth',
+        entityId: user.id,
+        details: `Solicitud de reset de contraseña para: ${user.email} (Enviado directo por correo)`
+      });
+
+      return {
+        success: true,
+        action: 'sent',
+        method: 'email',
+        email: obfuscatedEmail,
+        message: `Enviamos las instrucciones de recuperación a tu correo: ${obfuscatedEmail}. Revisá también la carpeta de Spam.`
+      };
+    }
+
+    // Case 2: Has only phone -> Offer whatsapp
+    if (!hasEmail && hasPhone) {
+      return {
+        success: true,
+        action: 'offer',
+        method: 'whatsapp',
+        phone: obfuscatedPhone,
+        identifier: user.identifier
+      };
+    }
+
+    // Case 3: Has both -> Offer both
+    if (hasEmail && hasPhone) {
+      return {
+        success: true,
+        action: 'offer',
+        method: 'both',
+        email: obfuscatedEmail,
+        phone: obfuscatedPhone,
+        identifier: user.identifier
+      };
+    }
+
+    // Case 4: Has neither -> Fallback to temporary password (legacy support)
+    const tempPassword = crypto.randomBytes(4).toString('hex'); // 8 char hex
+    const hashedTemp = await bcrypt.hash(tempPassword, 10);
+    await this.userRepo.update(user.id, {
+      password: hashedTemp,
+      requirePasswordChange: true
+    });
+
+    await auditLogService.log({
+      tenantId: user.tenantId || 'TEN-0001',
+      currentUser: user,
+      action: 'PASSWORD_RESET_TEMP',
+      entity: 'Auth',
+      entityId: user.id,
+      details: `Contraseña temporal generada para usuario sin email ni teléfono registrado`
+    });
+
+    return {
+      success: true,
+      action: 'temp_password',
+      tempPassword,
+      message: `Tu cuenta no tiene un correo electrónico ni celular registrado. Tu nueva contraseña temporal es: ${tempPassword}. Usala para ingresar y luego cambiala.`
+    };
+  }
+
+  async sendForgotPasswordLink(identifier: string, channel: 'email' | 'whatsapp') {
+    const rawIdentifier = (identifier || '').trim();
+    let user = await this.userRepo.findByIdentifier(rawIdentifier);
+    if (!user) {
+      const cleanInput = cleanDni(rawIdentifier);
+      if (cleanInput) {
+        user = await this.userRepo.findByIdentifier(cleanInput);
+      }
+    }
+
+    if (!user) {
+      throw new Error('Usuario no encontrado.');
+    }
+
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    await this.userRepo.update(user.id, { resetToken, resetTokenExp });
+
+    const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
+    const resetUrl = `${baseUrl}?token=${resetToken}`;
+
+    if (channel === 'email') {
+      if (!user.email || !user.email.trim()) {
+        throw new Error('El usuario no tiene un correo electrónico registrado.');
+      }
+
+      sendPasswordResetEmail({
+        email: user.email,
+        name: user.name,
+        resetUrl
+      }).catch(err => console.error('[AuthService] Error sending reset email:', err));
+
+      await auditLogService.log({
+        tenantId: user.tenantId || 'TEN-0001',
+        currentUser: user,
+        action: 'PASSWORD_RESET_REQUESTED',
+        entity: 'Auth',
+        entityId: user.id,
+        details: `Solicitud de reset de contraseña para: ${user.email} (Enviado por correo)`
+      });
+
+      return {
+        success: true,
+        message: `Enviamos las instrucciones de recuperación a tu correo: ${obfuscateEmail(user.email)}. Revisá también la carpeta de Spam.`
+      };
+    } else {
+      if (!user.phone || !user.phone.trim()) {
+        throw new Error('El usuario no tiene un número de celular registrado.');
+      }
+
+      // Send via WhatsApp
+      await notificationService.sendNotification({
+        tenantId: user.tenantId || 'TEN-0001',
+        channel: 'whatsapp',
+        to: user.phone,
+        templateCode: 'PASSWORD_RESET',
+        variables: {
+          name: user.name,
+          resetUrl
+        },
+        body: `Hola ${user.name}, recibimos una solicitud para restablecer tu contraseña en Mi Receta. Para continuar, ingresá al siguiente enlace de uso único: ${resetUrl} (Válido por 1 hora)`
       });
 
       await auditLogService.log({
         tenantId: user.tenantId || 'TEN-0001',
         currentUser: user,
-        action: 'PASSWORD_RESET_TEMP',
+        action: 'PASSWORD_RESET_REQUESTED',
         entity: 'Auth',
         entityId: user.id,
-        details: `Contraseña temporal generada para usuario sin email registrado`
+        details: `Solicitud de reset de contraseña para: ${user.phone} (Enviado por WhatsApp)`
       });
 
       return {
         success: true,
-        hasEmail: false,
-        tempPassword,
-        message: `Tu nueva contraseña temporal es: ${tempPassword}. Usala para ingresar y luego cambiala.`
+        message: `Enviamos el enlace de recuperación por WhatsApp al celular: ${obfuscatePhone(user.phone)}.`
       };
     }
-
-    // User has email — generate a secure reset token (1 hour expiry)
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await this.userRepo.update(user.id, { resetToken, resetTokenExp });
-
-    // Determine base URL for the reset link
-    const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
-    const resetUrl = `${baseUrl}?token=${resetToken}`;
-
-    // Send email (fire and forget — don't block the response)
-    sendPasswordResetEmail({
-      email: user.email,
-      name: user.name,
-      resetUrl
-    }).catch(err => console.error('[AuthService] Error sending reset email:', err));
-
-    await auditLogService.log({
-      tenantId: user.tenantId || 'TEN-0001',
-      currentUser: user,
-      action: 'PASSWORD_RESET_REQUESTED',
-      entity: 'Auth',
-      entityId: user.id,
-      details: `Solicitud de reset de contraseña para: ${user.email}`
-    });
-
-    return {
-      success: true,
-      hasEmail: true,
-      email: user.email,
-      message: `Enviamos las instrucciones de recuperación a tu correo: ${user.email}. Revisá también la carpeta de Spam.`
-    };
   }
 
   async resetPassword(token: string, newPassword: string) {

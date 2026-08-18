@@ -93,10 +93,12 @@ export default function App() {
   const {
     currentUser,
     isLoading: authLoading,
+    isSessionChecking,
     login,
     logout,
     register,
     forgotPassword,
+    sendForgotPasswordLink,
     resetPassword,
     orders,
     users,
@@ -242,7 +244,7 @@ export default function App() {
   }
 
   // 1. Loading active auth status on start
-  if (authLoading && !currentUser) {
+  if (isSessionChecking && !currentUser) {
     return (
       <LoadingSpinner
         message="Conectando con base de datos..."
@@ -269,6 +271,7 @@ export default function App() {
         isLoading={authLoading}
         onRegister={(data) => register({ ...data, tenantId: currentTenant?.id })}
         onForgotPassword={forgotPassword}
+        onSendForgotPasswordLink={sendForgotPasswordLink}
         onBack={() => setShowLogin(false)}
         initialMode={loginMode}
       />

@@ -10,6 +10,7 @@ const userController = new UserController();
 router.post('/login', controller.login);
 router.post('/register', controller.register);
 router.post('/forgot-password', controller.forgotPassword);
+router.post('/forgot-password/send', controller.sendForgotPasswordLink);
 router.post('/reset-password', controller.resetPassword);
 router.get('/me', authenticateToken, userController.getProfile);
 

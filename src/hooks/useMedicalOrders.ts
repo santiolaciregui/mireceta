@@ -23,6 +23,7 @@ export function useMedicalOrders() {
   const [orders, setOrders] = useState<MedicalOrder[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSessionChecking, setIsSessionChecking] = useState(!!token);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Derive activeRole and currentPatientDni from authenticated session
@@ -43,7 +44,7 @@ export function useMedicalOrders() {
   // Check backend session validation on startup
   useEffect(() => {
     if (token) {
-      setIsLoading(true);
+      setIsSessionChecking(true);
       fetch('/api/auth/me', { headers: fetchHeaders() })
         .then(async (res) => {
           if (!res.ok) {
@@ -58,8 +59,10 @@ export function useMedicalOrders() {
           logout();
         })
         .finally(() => {
-          setIsLoading(false);
+          setIsSessionChecking(false);
         });
+    } else {
+      setIsSessionChecking(false);
     }
   }, [token]);
 
@@ -174,6 +177,27 @@ export function useMedicalOrders() {
     } catch (err: any) {
       // Only network-level errors reach here
       return { success: false, error: 'Error de conexión. Verificá tu conexión a internet e intentá nuevamente.' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Send forgot password recovery link via selected channel
+  const sendForgotPasswordLink = async (identifier: string, channel: 'email' | 'whatsapp'): Promise<{ success: boolean; message?: string; error?: string }> => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/auth/forgot-password/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier, channel }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || 'Error al enviar el enlace de recuperación.' };
+      }
+      return { success: true, message: data.message };
+    } catch (err: any) {
+      return { success: false, error: 'Error de conexión. Intentá nuevamente.' };
     } finally {
       setIsLoading(false);
     }
@@ -542,10 +566,12 @@ export function useMedicalOrders() {
     currentUser,
     token,
     isLoading,
+    isSessionChecking,
     errorMsg,
     login,
     register,
     forgotPassword,
+    sendForgotPasswordLink,
     resetPassword,
     logout,
     orders,

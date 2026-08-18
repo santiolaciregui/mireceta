@@ -243,6 +243,19 @@ export class NotificationService {
         isActive: true
       });
     }
+
+    const resetTemplate = await this.templateRepo.findByTenantAndCode(tenantId, 'PASSWORD_RESET');
+    if (!resetTemplate) {
+      await this.templateRepo.upsertTemplate(tenantId, {
+        code: 'PASSWORD_RESET',
+        name: 'Restablecer Contraseña',
+        channel: 'all',
+        subject: 'Recuperación de Contraseña',
+        body: 'Hola {{name}}, recibimos una solicitud para restablecer tu contraseña en Mi Receta. Para continuar, ingresá al siguiente enlace de uso único: {{resetUrl}} (Válido por 1 hora)',
+        variables: ['name', 'resetUrl'],
+        isActive: true
+      });
+    }
   }
 
   public async getTemplates(tenantId: string) {

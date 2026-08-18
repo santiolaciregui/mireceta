@@ -39,6 +39,22 @@ export class AuthController {
     }
   };
 
+  sendForgotPasswordLink = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { identifier, channel } = req.body;
+      if (!identifier || !channel) {
+        return res.status(400).json({ error: 'El identificador y el canal de envío son requeridos.' });
+      }
+      if (channel !== 'email' && channel !== 'whatsapp') {
+        return res.status(400).json({ error: 'Canal inválido. Debe ser email o whatsapp.' });
+      }
+      const result = await authService.sendForgotPasswordLink(identifier, channel);
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  };
+
   resetPassword = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { token, newPassword } = req.body;
