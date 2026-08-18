@@ -33,11 +33,12 @@ interface LoginProps {
   onRegister?: (userData: any) => Promise<{ success: boolean; error?: string }>;
   onForgotPassword?: (identifier: string, email: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   onSendForgotPasswordLink?: (identifier: string, channel: 'email' | 'whatsapp') => Promise<{ success: boolean; message?: string; error?: string }>;
+  onResetPassword?: (token: string, newPassword: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   onBack?: () => void;
   initialMode?: 'login' | 'register';
 }
 
-export default function Login({ onLogin, isLoading, onRegister, onForgotPassword, onSendForgotPasswordLink, onBack, initialMode }: LoginProps) {
+export default function Login({ onLogin, isLoading, onRegister, onForgotPassword, onSendForgotPasswordLink, onResetPassword, onBack, initialMode }: LoginProps) {
   const [activeMode, setActiveMode] = useState<'login' | 'register' | 'forgot'>(initialMode || 'login');
   
   useEffect(() => {
@@ -95,6 +96,14 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
     phone?: string;
     identifier: string;
   } | null>(null);
+
+  // States for WhatsApp OTP code entry & reset
+  const [isEnteringWhatsAppCode, setIsEnteringWhatsAppCode] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Field-level error states
   const [loginErrors, setLoginErrors] = useState<{ identifier?: string; password?: string }>({});
@@ -351,12 +360,66 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
       const res = await onSendForgotPasswordLink(recoveryOptions.identifier, channel);
       if (res.success) {
         setForgotSuccessMsg(res.message || 'Se ha enviado el enlace de recuperación con éxito.');
-        setRecoveryOptions(null); // Clear options so we show success screen
+        if (channel === 'whatsapp') {
+          setIsEnteringWhatsAppCode(true);
+        } else {
+          setRecoveryOptions(null); // Clear options so we show success screen
+        }
       } else {
         setErrorMsg(res.error || 'Error al enviar el enlace de recuperación.');
       }
     } else {
       setErrorMsg('El servicio de recuperación no está disponible temporalmente.');
+    }
+  };
+
+  const handleSubmitWhatsAppReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setSuccessMsg(null);
+
+    const cleanCode = verificationCode.trim();
+    if (!cleanCode) {
+      setErrorMsg('Por favor ingrese el código de verificación de 6 dígitos.');
+      return;
+    }
+    if (cleanCode.length !== 6 || !/^\d+$/.test(cleanCode)) {
+      setErrorMsg('El código de verificación debe ser un número de 6 dígitos.');
+      return;
+    }
+    if (!newPassword.trim()) {
+      setErrorMsg('Por favor ingrese su nueva contraseña.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      setErrorMsg('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setErrorMsg('Las contraseñas no coinciden.');
+      return;
+    }
+
+    if (onResetPassword) {
+      const res = await onResetPassword(cleanCode, newPassword);
+      if (res.success) {
+        setSuccessMsg(res.data?.message || '¡Contraseña restablecida con éxito! Ya podés iniciar sesión.');
+        
+        // Reset states and return to login view
+        setActiveMode('login');
+        setForgotSuccessMsg(null);
+        setForgotTempPassword(null);
+        setRecoveryOptions(null);
+        setForgotStep(1);
+        setIsEnteringWhatsAppCode(false);
+        setVerificationCode('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        setErrorMsg(res.error || 'El código de verificación es inválido o ya expiró.');
+      }
+    } else {
+      setErrorMsg('El servicio de restablecimiento no está disponible.');
     }
   };
 
@@ -1217,11 +1280,104 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                 </form>
               ) : (
                 <div className="space-y-4 text-center py-2 animate-fadeIn">
-                  {recoveryOptions && recoveryOptions.action === 'offer' ? (
+                  {isEnteringWhatsAppCode ? (
+                    <form onSubmit={handleSubmitWhatsAppReset} className="space-y-4 text-left" noValidate>
+                      <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-xs text-[#0141BC] leading-relaxed text-center font-medium shadow-xs">
+                        {forgotSuccessMsg}
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                          Código de Verificación <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={6}
+                          value={verificationCode}
+                          onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                          placeholder="Ej: 123456"
+                          className="w-full px-4 py-3 rounded-xl text-sm font-medium bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden text-center tracking-widest font-mono text-lg"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                            Nueva Contraseña <span className="text-red-500">*</span>
+                          </label>
+                        </div>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <Lock className="h-4 w-4" />
+                          </div>
+                          <input
+                            type={showNewPassword ? 'text' : 'password'}
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            placeholder="Mínimo 6 caracteres"
+                            className="w-full pl-10 pr-10 py-3 rounded-xl text-sm font-medium bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowNewPassword(!showNewPassword)}
+                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+                          Confirmar Contraseña <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <Lock className="h-4 w-4" />
+                          </div>
+                          <input
+                            type={showConfirmPassword ? 'text' : 'password'}
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            placeholder="Repetir contraseña"
+                            className="w-full pl-10 pr-10 py-3 rounded-xl text-sm font-medium bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15 transition-all outline-hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                          >
+                            {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsEnteringWhatsAppCode(false);
+                            setForgotSuccessMsg(null);
+                            setErrorMsg(null);
+                          }}
+                          className="bg-slate-100 hover:bg-slate-200 text-[#0141BC] py-3.5 px-4 rounded-xl text-xs font-bold transition-colors cursor-pointer text-center"
+                        >
+                          Atrás
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="bg-[#1661E1] hover:bg-[#0141BC] text-white py-3.5 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                        >
+                          {isLoading ? 'Guardando...' : 'Cambiar Clave'}
+                        </button>
+                      </div>
+                    </form>
+                  ) : recoveryOptions && recoveryOptions.action === 'offer' ? (
                     <div className="space-y-4 text-left">
                       <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-600 leading-relaxed text-center shadow-xs">
-                        <p className="font-semibold text-sm text-[#0141BC] mb-2">¿Cómo querés recibir el enlace de recuperación?</p>
-                        Seleccioná una de las opciones registradas en tu cuenta para recibir tu enlace único para restablecer la contraseña.
+                        <p className="font-semibold text-sm text-[#0141BC] mb-2">¿Cómo querés recuperar tu acceso?</p>
+                        Seleccioná una de las opciones registradas en tu cuenta para recibir tu código o enlace de recuperación.
                       </div>
 
                       <div className="space-y-2.5 pt-2">
@@ -1232,7 +1388,7 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                             disabled={isLoading}
                             className="w-full bg-[#14BE99] hover:bg-[#0F9E7F] text-white py-3 px-4 rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                           >
-                            <span>Enviar enlace por WhatsApp ({recoveryOptions.phone})</span>
+                            <span>Enviar código por WhatsApp ({recoveryOptions.phone})</span>
                           </button>
                         )}
 

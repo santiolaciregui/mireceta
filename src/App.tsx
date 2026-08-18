@@ -272,6 +272,7 @@ export default function App() {
         onRegister={(data) => register({ ...data, tenantId: currentTenant?.id })}
         onForgotPassword={forgotPassword}
         onSendForgotPasswordLink={sendForgotPasswordLink}
+        onResetPassword={resetPassword}
         onBack={() => setShowLogin(false)}
         initialMode={loginMode}
       />

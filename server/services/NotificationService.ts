@@ -244,10 +244,10 @@ export class NotificationService {
       });
     }
 
-    const resetTemplate = await this.templateRepo.findByTenantAndCode(tenantId, 'PASSWORD_RESET');
+    const resetTemplate = await this.templateRepo.findByTenantAndCode(tenantId, 'PASSWORD_RESETEO');
     if (!resetTemplate) {
       await this.templateRepo.upsertTemplate(tenantId, {
-        code: 'PASSWORD_RESET',
+        code: 'PASSWORD_RESETEO',
         name: 'Restablecer Contraseña',
         channel: 'all',
         subject: 'Recuperación de Contraseña',

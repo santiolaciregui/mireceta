@@ -269,17 +269,17 @@ export class AuthService {
       throw new Error('Usuario no encontrado.');
     }
 
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await this.userRepo.update(user.id, { resetToken, resetTokenExp });
-
-    const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
-    const resetUrl = `${baseUrl}?token=${resetToken}`;
-
     if (channel === 'email') {
       if (!user.email || !user.email.trim()) {
         throw new Error('El usuario no tiene un correo electrónico registrado.');
       }
+
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExp = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await this.userRepo.update(user.id, { resetToken, resetTokenExp });
+
+      const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
+      const resetUrl = `${baseUrl}?token=${resetToken}`;
 
       sendPasswordResetEmail({
         email: user.email,
@@ -305,17 +305,21 @@ export class AuthService {
         throw new Error('El usuario no tiene un número de celular registrado.');
       }
 
-      // Send via WhatsApp
+      // Generate a 6-digit verification code
+      const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetTokenExp = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+      await this.userRepo.update(user.id, { resetToken, resetTokenExp });
+
+      // Send via WhatsApp using Meta template password_reseteo
       await notificationService.sendNotification({
         tenantId: user.tenantId || 'TEN-0001',
         channel: 'whatsapp',
         to: user.phone,
-        templateCode: 'PASSWORD_RESET',
+        templateCode: 'password_reseteo',
         variables: {
-          name: user.name,
-          resetUrl
+          code: resetToken
         },
-        body: `Hola ${user.name}, recibimos una solicitud para restablecer tu contraseña en Mi Receta. Para continuar, ingresá al siguiente enlace de uso único: ${resetUrl} (Válido por 1 hora)`
+        body: `${resetToken} es tu código de verificación de Mi Receta.`
       });
 
       await auditLogService.log({
@@ -324,19 +328,19 @@ export class AuthService {
         action: 'PASSWORD_RESET_REQUESTED',
         entity: 'Auth',
         entityId: user.id,
-        details: `Solicitud de reset de contraseña para: ${user.phone} (Enviado por WhatsApp)`
+        details: `Solicitud de reset de contraseña para: ${user.phone} (Enviado código OTP por WhatsApp)`
       });
 
       return {
         success: true,
-        message: `Enviamos el enlace de recuperación por WhatsApp al celular: ${obfuscatePhone(user.phone)}.`
+        message: `Enviamos el código de verificación por WhatsApp al celular: ${obfuscatePhone(user.phone)}.`
       };
     }
   }
 
   async resetPassword(token: string, newPassword: string) {
     if (!token || !newPassword) {
-      throw new Error('El token y la nueva contraseña son requeridos.');
+      throw new Error('El token/código y la nueva contraseña son requeridos.');
     }
 
     if (newPassword.length < 6) {
@@ -345,7 +349,7 @@ export class AuthService {
 
     const user = await this.userRepo.findByResetToken(token);
     if (!user) {
-      throw new Error('El enlace de recuperación es inválido o ya expiró. Por favor solicitá uno nuevo.');
+      throw new Error('El código o enlace de recuperación es inválido o ya expiró. Por favor solicitá uno nuevo.');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
