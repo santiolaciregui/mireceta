@@ -64,6 +64,13 @@ input, select, textarea, select option {
   font-family: 'Geist', sans-serif;
 }
 
+/* Prevent auto-zoom on mobile inputs in iOS Safari/Chrome by ensuring font-size is at least 16px */
+@media (max-width: 767px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
   cursor: pointer;
 }
