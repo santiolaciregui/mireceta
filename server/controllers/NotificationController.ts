@@ -126,13 +126,23 @@ export class NotificationController {
       const expectedToken = String(rawExpected).replace(/['"]/g, '').trim();
       const receivedToken = token ? String(token).replace(/['"]/g, '').trim() : '';
 
-      console.log('[WhatsApp Webhook Verification]', {
+      console.log('[WhatsApp Webhook Verification Debug]', {
+        url: req.url,
+        originalUrl: req.originalUrl,
+        query: req.query,
+        queryKeys: Object.keys(req.query || {}),
+        hubKeys: hub ? Object.keys(hub) : null,
+        rawQueryString: req.url.includes('?') ? req.url.split('?')[1] : (req.originalUrl.includes('?') ? req.originalUrl.split('?')[1] : ''),
+        headers: {
+          host: req.headers.host,
+          userAgent: req.headers['user-agent'],
+          xVercelForwardedPath: req.headers['x-vercel-forwarded-path'],
+          xMatchedPath: req.headers['x-matched-path']
+        },
         mode,
         receivedTokenLength: receivedToken.length,
         expectedTokenLength: expectedToken.length,
-        match: receivedToken === expectedToken,
-        queryKeys: Object.keys(req.query),
-        hubKeys: hub ? Object.keys(hub) : null
+        match: receivedToken === expectedToken
       });
 
       if (mode === 'subscribe' && receivedToken === expectedToken) {
