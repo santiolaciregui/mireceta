@@ -2920,7 +2920,7 @@ export default function PatientForm({
                   </div>
                   <div>
                     <h4 className="font-extrabold text-sm text-slate-50">Arancel de la medicación</h4>
-                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Gestión Digital de Firmas</p>
+                    <p className="text-[10px] text-slate-400 font-semibold uppercase">Gestión</p>
                   </div>
                 </div>
 
@@ -2935,25 +2935,32 @@ export default function PatientForm({
               {/* Cost rules explained */}
               <div className="text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-3 space-y-2">
                 <div className="flex items-center justify-between">
-                  <p className="font-semibold text-slate-200">Medicamentos a Auditar ({medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length}):</p>
+                  <p className="font-semibold text-slate-200">Medicamentos Solicitados ({medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length}):</p>
                   <span className="text-[11px] text-blue-300 font-mono font-bold">
                     $10.000 c/ 2 medicamentos
                   </span>
                 </div>
                 
                 {medicationItems.length > 0 ? (
-                  <div className="space-y-1.5 pt-1">
+                  <div className="space-y-2 pt-1">
                     {medicationItems.map((med, idx) => (
-                      <div key={idx} className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <Pill className="h-3.5 w-3.5 text-blue-400 shrink-0" />
-                          <span className="font-bold text-slate-100 truncate">{med.nombreComercial}</span>
-                          {med.miligramos && <span className="text-blue-300 text-[11px] shrink-0 font-medium">({med.miligramos})</span>}
-                          {med.presentacion && <span className="text-slate-400 text-[10px] truncate">· {med.presentacion}</span>}
+                      <div key={idx} className="bg-slate-800/80 border border-slate-600 rounded-xl p-3 flex flex-col gap-1.5 text-xs shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Pill className="h-4 w-4 text-blue-400 shrink-0" />
+                            <span className="font-bold text-slate-100 text-[13px] leading-tight">{med.nombreComercial}</span>
+                          </div>
+                          <span className="bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0 whitespace-nowrap">
+                            {med.cantidadCajas} {med.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                          </span>
                         </div>
-                        <span className="bg-slate-900 border border-slate-700 text-blue-300 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0">
-                          {med.cantidadCajas} {med.cantidadCajas === 1 ? 'caja' : 'cajas'}
-                        </span>
+                        {(med.miligramos || med.presentacion) && (
+                          <div className="pl-6 text-slate-400 flex items-center gap-1.5 text-[11px] font-medium">
+                            {med.miligramos && <span>{med.miligramos}</span>}
+                            {med.miligramos && med.presentacion && <span>•</span>}
+                            {med.presentacion && <span>{med.presentacion}</span>}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -3061,7 +3068,7 @@ export default function PatientForm({
                       <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-4 text-xs text-blue-900 leading-relaxed space-y-1.5">
                         <p className="font-bold flex items-center gap-1.5 text-blue-950">
                           <MercadoPagoIcon className="h-4 w-4" />
-                          <span>Cobro digital oficial con Mercado Pago</span>
+                          <span>Pago con Mercado Pago</span>
                         </p>
                         <p className="text-[11px] text-blue-800 font-medium">
                           Al presionar el botón <strong>"Pagar con Mercado Pago y Enviar"</strong>, serás redirigido a la pasarela segura de Mercado Pago para abonar con tarjeta de crédito, débito o dinero en cuenta. Al confirmarse el pago, tu solicitud ingresará automáticamente.

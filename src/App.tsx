@@ -209,7 +209,15 @@ export default function App() {
   // Quick stats for the navbar
   const pendingOrdersCount = orders.filter((o) => o.status === 'Pendiente').length;
   const completedOrdersCount = orders.filter((o) => o.status === 'Emitida' || o.status === 'Enviada').length;
-  const chatCount = orders.filter((o) => o.messages && o.messages.length > 0).length;
+  const chatCount = orders.filter((o) => {
+    if (!o.messages || o.messages.length === 0) return false;
+    const lastMessage = o.messages[o.messages.length - 1];
+    if (activeRole === 'paciente') {
+      return lastMessage.sender !== 'paciente';
+    } else {
+      return lastMessage.sender === 'paciente';
+    }
+  }).length;
 
   const handleOrderSubmitted = (orderId: string) => {
     setSuccessSubmissionId(orderId);

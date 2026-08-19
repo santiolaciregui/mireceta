@@ -400,7 +400,7 @@ export class NotificationService {
           tenantId,
           channel: 'whatsapp',
           to: patientPhone,
-          body: `[Consulta Dr. ${doctorName} - Receta #${orderId}]\n${messageText}`
+          body: `[Mi Receta Online - Receta #${orderId}]\n${messageText}`
         });
       }
 
@@ -418,7 +418,7 @@ export class NotificationService {
           orderId,
           messagePreview: messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText
         } : undefined,
-        body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText}". Por favor responda a este WhatsApp para continuar la conversación directa.`
+        body: `[Mi Receta Online - Receta #${orderId}]\n${messageText}`
       });
     } catch (err: any) {
       console.error('Error al despachar notificación de consulta médica WhatsApp:', err);
