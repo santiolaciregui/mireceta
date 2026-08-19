@@ -416,9 +416,9 @@ export class NotificationService {
           patientName,
           doctorName,
           orderId,
-          messagePreview: messageText.substring(0, 60)
+          messagePreview: messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText
         } : undefined,
-        body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.substring(0, 80)}...". Por favor responda a este WhatsApp para continuar la conversación directa.`
+        body: `Hola ${patientName}, el Dr. ${doctorName} envió una consulta sobre su receta #${orderId}: "${messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText}". Por favor responda a este WhatsApp para continuar la conversación directa.`
       });
     } catch (err: any) {
       console.error('Error al despachar notificación de consulta médica WhatsApp:', err);

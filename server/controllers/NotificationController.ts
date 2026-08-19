@@ -119,12 +119,27 @@ export class NotificationController {
       const token = req.query['hub.verify_token'];
       const challenge = req.query['hub.challenge'];
 
-      const expectedToken = process.env.WA_VERIFY_TOKEN || 'mireceta-wa-verify';
+      const rawExpected = process.env.WA_VERIFY_TOKEN || 'mireceta-wa-verify';
+      const expectedToken = String(rawExpected).replace(/['"]/g, '').trim();
+      const receivedToken = token ? String(token).replace(/['"]/g, '').trim() : '';
 
-      if (mode === 'subscribe' && token === expectedToken) {
+      console.log('[WhatsApp Webhook Verification]', {
+        mode,
+        receivedTokenLength: receivedToken.length,
+        expectedTokenLength: expectedToken.length,
+        match: receivedToken === expectedToken
+      });
+
+      if (mode === 'subscribe' && receivedToken === expectedToken) {
         res.status(200).send(challenge);
       } else {
-        res.status(403).json({ error: 'Token de verificación inválido' });
+        res.status(403).json({ 
+          error: 'Token de verificación inválido',
+          details: {
+            mode,
+            match: receivedToken === expectedToken
+          }
+        });
       }
     } catch (err) {
       next(err);
