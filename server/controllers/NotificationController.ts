@@ -115,9 +115,12 @@ export class NotificationController {
 
   verifyWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const mode = req.query['hub.mode'];
-      const token = req.query['hub.verify_token'];
-      const challenge = req.query['hub.challenge'];
+      // Handle both flat query parameters (hub.mode) and nested objects (hub: { mode: ... })
+      const hub = req.query.hub as Record<string, unknown> | undefined;
+      
+      const mode = req.query['hub.mode'] || hub?.mode;
+      const token = req.query['hub.verify_token'] || hub?.verify_token;
+      const challenge = req.query['hub.challenge'] || hub?.challenge;
 
       const rawExpected = process.env.WA_VERIFY_TOKEN || 'mireceta-wa-verify';
       const expectedToken = String(rawExpected).replace(/['"]/g, '').trim();
@@ -127,17 +130,21 @@ export class NotificationController {
         mode,
         receivedTokenLength: receivedToken.length,
         expectedTokenLength: expectedToken.length,
-        match: receivedToken === expectedToken
+        match: receivedToken === expectedToken,
+        queryKeys: Object.keys(req.query),
+        hubKeys: hub ? Object.keys(hub) : null
       });
 
       if (mode === 'subscribe' && receivedToken === expectedToken) {
-        res.status(200).send(challenge);
+        res.status(200).send(challenge ? String(challenge) : '');
       } else {
         res.status(403).json({ 
           error: 'Token de verificación inválido',
           details: {
             mode,
-            match: receivedToken === expectedToken
+            match: receivedToken === expectedToken,
+            receivedTokenLength: receivedToken.length,
+            expectedTokenLength: expectedToken.length
           }
         });
       }
