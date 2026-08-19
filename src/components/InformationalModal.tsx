@@ -14,8 +14,8 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[calc(100dvh-2rem)]">
         
         {/* Header */}
         <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex justify-between items-center border-b border-white/10 shrink-0">
@@ -40,7 +40,7 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
         </div>
 
         {/* Content Area */}
-        <div className="p-4 sm:p-8 overflow-y-auto space-y-4 sm:space-y-6 text-xs sm:text-sm text-[#0F172A] leading-relaxed font-medium">
+        <div className="p-4 sm:p-8 flex-1 min-h-0 overflow-y-auto space-y-4 sm:space-y-6 text-xs sm:text-sm text-[#0F172A] leading-relaxed font-medium">
           
           {type === 'privacidad' && (
             <>
@@ -243,7 +243,7 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
         </div>
 
         {/* Footer */}
-        <div className="bg-slate-50 border-t border-slate-200 p-4 sm:px-6 flex justify-end gap-3">
+        <div className="bg-slate-50 border-t border-slate-200 p-4 sm:px-6 flex justify-end gap-3 shrink-0">
           <button
             onClick={onClose}
             className="bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold px-6 py-2.5 rounded-xl text-sm transition-colors cursor-pointer"

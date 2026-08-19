@@ -200,29 +200,50 @@ export default function OfficialOrderReceipt({
                 <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-300">
                   <th className="p-2 border-r border-slate-300">Medicamento / Monodroga</th>
                   <th className="p-2 border-r border-slate-300">Dosis / Presentación</th>
-                  <th className="p-2 border-r border-slate-300 text-center w-24">Cantidad</th>
-                  <th className="p-2">Diagnóstico Asignado</th>
+                  <th className="p-2 border-r border-slate-300 text-center w-28">Cantidad</th>
+                  <th className="p-2">Diagnóstico / Indicaciones</th>
                 </tr>
               </thead>
               <tbody>
                 {medicationItems.map((item, idx) => (
                   <tr key={idx} className="border-b border-slate-200">
                     <td className="p-2 border-r border-slate-200 font-bold text-[#0141BC]">
-                      {item.nombreComercial}
-                      {item.droga && <span className="block text-[11px] text-slate-500 font-normal">Principio activo: {item.droga}</span>}
+                      <div>{item.nombreComercial}</div>
+                      {item.droga && item.droga.toLowerCase() !== item.nombreComercial.toLowerCase() && (
+                        <span className="block text-[10px] text-slate-500 font-normal">Principio activo: {item.droga}</span>
+                      )}
                     </td>
                     <td className="p-2 border-r border-slate-200 text-slate-700">
-                      {item.miligramos || ''} {item.presentacion ? `(${item.presentacion})` : ''}
+                      <div>{item.miligramos || 'Dosis habitual'} {item.presentacion ? `(${item.presentacion})` : ''}</div>
+                      {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && Number(item.unidadesPorCaja) > 0 && (
+                        <span className="text-[10px] text-slate-500 font-normal block">Contenido: {item.unidadesPorCaja} u. / caja</span>
+                      )}
                     </td>
                     <td className="p-2 border-r border-slate-200 text-center font-mono font-bold text-slate-800">
                       {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
                     </td>
                     <td className="p-2 text-slate-700">
-                      {item.diagnostic || diagnostic || 'Tratamiento crónico continuado'}
+                      <div className="font-semibold text-slate-850">{item.diagnostic || diagnostic || 'Tratamiento crónico continuado'}</div>
+                      {(item.comments || item.posologia) && (
+                        <div className="text-[10px] text-slate-500 italic mt-0.5">Indicaciones: "{item.comments || item.posologia}"</div>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
+              <tfoot>
+                <tr className="bg-slate-50 font-bold text-slate-700 border-t border-slate-300">
+                  <td colSpan={2} className="p-2 border-r border-slate-300 text-right">
+                    Total Medicamentos: {medicationItems.length}
+                  </td>
+                  <td className="p-2 border-r border-slate-300 text-center font-mono text-[#0141BC]">
+                    {medicationItems.reduce((acc, it) => acc + (Number(it.cantidadCajas) || 1), 0)} {medicationItems.reduce((acc, it) => acc + (Number(it.cantidadCajas) || 1), 0) === 1 ? 'caja' : 'cajas'}
+                  </td>
+                  <td className="p-2 text-slate-500 text-[10px] font-normal">
+                    Prescripción digital formal
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         )}

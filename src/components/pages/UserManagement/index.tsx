@@ -414,7 +414,7 @@ export default function UserManagement({
       {/* CREATE / EDIT USER MODAL */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/50 animate-scaleUp max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200/50 animate-scaleUp max-h-[calc(100dvh-2rem)] flex flex-col">
             
             {/* Modal Header */}
             <div className="bg-gradient-to-r from-blue-600 to-indigo-650 px-4 sm:px-6 py-4 sm:py-5 text-white flex items-center justify-between shrink-0">
@@ -436,7 +436,7 @@ export default function UserManagement({
             </div>
 
             {/* Form body */}
-            <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1" noValidate>
+            <form onSubmit={handleSave} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 min-h-0" noValidate>
               
               {/* Error Alert */}
               {errorMess && (
@@ -759,11 +759,11 @@ export default function UserManagement({
 
       {/* Safe confirmation modal for user deletion */}
       {userToDelete && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-205 animate-scaleUp">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-205 animate-scaleUp max-h-[calc(100dvh-2rem)] flex flex-col">
             
             {/* Header */}
-            <div className="bg-red-50 border-b border-red-100 px-6 py-5 flex items-center gap-3">
+            <div className="bg-red-50 border-b border-red-100 px-4 sm:px-6 py-4 sm:py-5 flex items-center gap-3 shrink-0">
               <div className="h-10 w-10 bg-red-100 rounded-xl flex items-center justify-center text-red-700 shrink-0">
                 <Trash2 className="h-5 w-5" />
               </div>
@@ -774,7 +774,7 @@ export default function UserManagement({
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4 flex-1 min-h-0 overflow-y-auto">
               <p className="text-xs text-slate-600 leading-relaxed font-semibold">
                 ¿Estás seguro que deseas eliminar permanentemente de las bases de datos a:
               </p>
@@ -787,7 +787,7 @@ export default function UserManagement({
             </div>
 
             {/* Actions */}
-            <div className="px-6 pb-6 pt-2 flex items-center gap-2">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6 pt-2 flex items-center gap-2 shrink-0">
               <button
                 type="button"
                 onClick={() => setUserToDelete(null)}

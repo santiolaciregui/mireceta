@@ -76,16 +76,16 @@ export default function ForcePasswordChange({ onSuccess, token }: ForcePasswordC
 
   return (
     <div className="fixed inset-0 z-[9999] bg-[#0141BC]/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-fadeIn">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp border border-slate-200 max-h-[90vh] flex flex-col">
-        <div className="bg-[#0141BC] p-5 sm:p-6 text-white text-center border-b border-white/10 shrink-0">
-          <div className="bg-white/15 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 border border-white/20">
-            <ShieldAlert className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-scaleUp border border-slate-200 max-h-[calc(100dvh-2rem)] flex flex-col">
+        <div className="bg-[#0141BC] p-4 sm:p-6 text-white text-center border-b border-white/10 shrink-0">
+          <div className="bg-white/15 w-11 h-11 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center mx-auto mb-2.5 sm:mb-3 border border-white/20">
+            <ShieldAlert className="w-5 h-5 sm:w-7 sm:h-7 text-white" />
           </div>
-          <h2 className="text-lg sm:text-xl font-bold">Cambio de Contraseña Obligatorio</h2>
-          <p className="text-blue-100 text-xs sm:text-sm mt-1.5">Por tu seguridad, debes actualizar tu contraseña antes de continuar utilizando la plataforma.</p>
+          <h2 className="text-base sm:text-xl font-bold">Cambio de Contraseña Obligatorio</h2>
+          <p className="text-blue-100 text-xs sm:text-sm mt-1">Por tu seguridad, debes actualizar tu contraseña antes de continuar utilizando la plataforma.</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex-1" noValidate>
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 overflow-y-auto flex-1 min-h-0" noValidate>
           {error && (
             <div className="bg-red-50 text-red-600 p-3.5 rounded-xl text-xs font-semibold mb-4 border border-red-200 flex items-center gap-2 animate-fadeIn">
               <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />

@@ -4,10 +4,13 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import PatientForm from '../PatientForm';
 import NewOrderForm from '../NewOrderForm';
 import { MedicalOrder, OrderStatus } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
+import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
+import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
 import { 
   FileText, 
   Clock, 
@@ -48,7 +51,8 @@ import {
   Users,
   ArrowLeft,
   Calendar,
-  Image as ImageIcon
+  Image as ImageIcon,
+  AppWindow
 } from 'lucide-react';
 
 interface DoctorDashboardProps {
@@ -376,6 +380,20 @@ export default function DoctorDashboard({
 
   // Compute selected order reference (strictly scoped to currently filtered list)
   const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
+
+  // Floating Prescription Assistant (Document PiP / Popup window)
+  const {
+    isOpen: isFloatingWindowOpen,
+    isPipSupported,
+    pipContainer,
+    autoOpenOnTabSwitch,
+    openFloatingWindow,
+    closeFloatingWindow,
+    toggleFloatingWindow,
+    toggleAutoOpen,
+  } = useFloatingPrescriptionWindow({
+    hasActiveOrder: !!selectedOrder,
+  });
 
   const [extractedTextCache, setExtractedTextCache] = useState<Record<string, string>>({});
   const [isExtractingCache, setIsExtractingCache] = useState<Record<string, boolean>>({});
@@ -877,15 +895,30 @@ export default function DoctorDashboard({
                         })()}
                       </div>
 
-                      {onNavigateToChat && (
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => onNavigateToChat(selectedOrder.id)}
-                          className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shadow-xs"
+                          onClick={toggleFloatingWindow}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all shadow-xs ${
+                            isFloatingWindowOpen
+                              ? 'bg-[#1661E1] hover:bg-[#1E6EFB] text-white ring-2 ring-[#1661E1]/40'
+                              : 'bg-white hover:bg-slate-50 text-[#1661E1] border border-blue-200/90'
+                          }`}
+                          title={isFloatingWindowOpen ? 'Cerrar ventana flotante' : 'Abrir ventana flotante (Picture-in-Picture) para tener los datos a mano mientras usás otro sistema'}
                         >
-                          <MessageSquare className="h-4 w-4 text-emerald-600" />
-                          <span>Chatear con Paciente</span>
+                          <AppWindow className="h-4 w-4" />
+                          <span>{isFloatingWindowOpen ? 'Ventana Flotante (Abierta)' : 'Asistente Flotante (PiP)'}</span>
                         </button>
-                      )}
+
+                        {onNavigateToChat && (
+                          <button
+                            onClick={() => onNavigateToChat(selectedOrder.id)}
+                            className="bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer transition-colors shadow-xs"
+                          >
+                            <MessageSquare className="h-4 w-4 text-emerald-600" />
+                            <span>Chatear con Paciente</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-4 sm:mt-5">
@@ -896,6 +929,61 @@ export default function DoctorDashboard({
                         <Calendar className="h-4 w-4 text-slate-400 shrink-0" />
                         <span>Fecha de solicitud: {new Date(selectedOrder.createdAt).toLocaleDateString('es-AR')} {new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</span>
                       </p>
+                    </div>
+
+                    {/* Banner del Asistente Flotante para Prescripción Externa */}
+                    <div className="mt-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/60 to-slate-50 border border-blue-200/80 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-xl bg-[#1661E1] text-white shadow-xs shrink-0 mt-0.5 sm:mt-0">
+                          <AppWindow className="h-4.5 w-4.5" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">
+                              Asistente Flotante de Medicación
+                            </h4>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#0141BC] border border-blue-200">
+                              {isPipSupported ? 'Always-on-Top / PiP' : 'Ventana Emergente'}
+                            </span>
+                          </div>
+                          <p className="text-[11px] sm:text-xs text-slate-600 mt-0.5 leading-relaxed">
+                            Mantiene los datos del paciente y la medicación visibles sobre el sistema oficial de recetas (RCTA, PAMI, IOMA, etc.) mientras cambiás de pestaña.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 w-full sm:w-auto shrink-0 justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-blue-200/60">
+                        <label className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-700 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={autoOpenOnTabSwitch}
+                            onChange={(e) => toggleAutoOpen(e.target.checked)}
+                            className="rounded text-[#1661E1] focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer"
+                          />
+                          <span>Auto-activar al cambiar pestaña</span>
+                        </label>
+
+                        <button
+                          onClick={toggleFloatingWindow}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer ${
+                            isFloatingWindowOpen
+                              ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
+                              : 'bg-[#1661E1] hover:bg-[#1E6EFB] text-white'
+                          }`}
+                        >
+                          {isFloatingWindowOpen ? (
+                            <>
+                              <X className="h-3.5 w-3.5" />
+                              <span>Cerrar</span>
+                            </>
+                          ) : (
+                            <>
+                              <AppWindow className="h-3.5 w-3.5" />
+                              <span>Abrir Ventana</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
 
                   </div>
@@ -1635,17 +1723,17 @@ export default function DoctorDashboard({
 
       {/* Modal: Enviar link de receta (WhatsApp / Correo / Ambos) */}
       {isSendLinkModalOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 animate-scaleUp">
+        <div className="fixed inset-0 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-lg w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden border border-slate-200 animate-scaleUp">
             {/* Header */}
-            <div className="bg-gradient-to-r from-[#0141BC] to-[#1661E1] p-6 text-white flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-xs">
-                  <Send className="h-5 w-5 text-white" />
+            <div className="bg-gradient-to-r from-[#0141BC] to-[#1661E1] p-4 sm:p-6 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 bg-white/20 rounded-xl sm:rounded-2xl flex items-center justify-center backdrop-blur-xs shrink-0">
+                  <Send className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold">Enviar link de receta</h3>
-                  <p className="text-xs text-blue-100 mt-0.5">Seleccioná los canales de entrega al paciente</p>
+                  <h3 className="text-sm sm:text-base font-extrabold">Enviar link de receta</h3>
+                  <p className="text-[11px] sm:text-xs text-blue-100 mt-0.5">Seleccioná los canales de entrega al paciente</p>
                 </div>
               </div>
               <button
@@ -1656,16 +1744,16 @@ export default function DoctorDashboard({
                     setSendLinkFeedback(null);
                   }
                 }}
-                className="text-white/80 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="text-white/80 hover:text-white p-1.5 sm:p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Body */}
-            <div className="p-6 space-y-5 max-h-[80vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 flex-1 min-h-0 overflow-y-auto">
               {/* Patient Info Card */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 text-xs space-y-2">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 sm:p-4 text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-800 text-sm">
                     {selectedOrder.patientName} {selectedOrder.patientLastName}
@@ -1688,14 +1776,14 @@ export default function DoctorDashboard({
 
               {/* Channel Selector */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2.5">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
                   Canal de envío
                 </label>
-                <div className="space-y-2.5">
+                <div className="space-y-2 sm:space-y-2.5">
                   {/* WhatsApp Option */}
                   <label
                     onClick={() => setSendChannel('whatsapp')}
-                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-3 sm:p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'whatsapp'
                         ? 'border-[#14BE99] bg-[#14BE99]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -1709,9 +1797,9 @@ export default function DoctorDashboard({
                       onChange={() => setSendChannel('whatsapp')}
                       className="mt-1 text-[#14BE99] focus:ring-[#14BE99]"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <MessageSquare className="h-4 w-4 text-[#14BE99]" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <MessageSquare className="h-4 w-4 text-[#14BE99] shrink-0" />
                         <span className="font-bold text-slate-900 text-xs">WhatsApp</span>
                         {selectedOrder.patientPhone ? (
                           <span className="text-[10px] bg-[#14BE99]/15 text-[#0F6C7D] px-1.5 py-0.5 rounded font-mono font-bold">
@@ -1732,7 +1820,7 @@ export default function DoctorDashboard({
                   {/* Email Option */}
                   <label
                     onClick={() => setSendChannel('email')}
-                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-3 sm:p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'email'
                         ? 'border-[#1661E1] bg-[#1661E1]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -1746,12 +1834,12 @@ export default function DoctorDashboard({
                       onChange={() => setSendChannel('email')}
                       className="mt-1 text-[#1661E1] focus:ring-[#1661E1]"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-[#1661E1]" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <Mail className="h-4 w-4 text-[#1661E1] shrink-0" />
                         <span className="font-bold text-slate-900 text-xs">Correo Electrónico</span>
                         {selectedOrder.patientEmail ? (
-                          <span className="text-[10px] bg-[#1661E1]/15 text-[#1661E1] px-1.5 py-0.5 rounded font-mono font-bold">
+                          <span className="text-[10px] bg-[#1661E1]/15 text-[#1661E1] px-1.5 py-0.5 rounded font-mono font-bold truncate max-w-full">
                             {selectedOrder.patientEmail}
                           </span>
                         ) : (
@@ -1769,7 +1857,7 @@ export default function DoctorDashboard({
                   {/* Both Option */}
                   <label
                     onClick={() => setSendChannel('both')}
-                    className={`flex items-start gap-3.5 p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
+                    className={`flex items-start gap-3 p-3 sm:p-3.5 rounded-2xl border-2 cursor-pointer transition-all ${
                       sendChannel === 'both'
                         ? 'border-[#0F6C7D] bg-[#0F6C7D]/5 shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 bg-white'
@@ -1783,9 +1871,9 @@ export default function DoctorDashboard({
                       onChange={() => setSendChannel('both')}
                       className="mt-1 text-[#0F6C7D] focus:ring-[#0F6C7D]"
                     />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <Share2 className="h-4 w-4 text-[#0F6C7D]" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                        <Share2 className="h-4 w-4 text-[#0F6C7D] shrink-0" />
                         <span className="font-bold text-slate-900 text-xs">Ambos (WhatsApp y Correo)</span>
                         <span className="text-[10px] bg-[#0F6C7D]/15 text-[#0F6C7D] px-1.5 py-0.5 rounded font-bold">
                           Recomendado
@@ -1800,7 +1888,7 @@ export default function DoctorDashboard({
               </div>
 
               {/* Link Direct Preview & Copy */}
-              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-3.5">
                 <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1.5">
                   <span>Enlace público del PDF:</span>
                   <button
@@ -1851,7 +1939,7 @@ export default function DoctorDashboard({
             </div>
 
             {/* Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-3">
+            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
               <button
                 type="button"
                 disabled={isSendingLink}
@@ -1859,7 +1947,7 @@ export default function DoctorDashboard({
                   setIsSendLinkModalOpen(false);
                   setSendLinkFeedback(null);
                 }}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl cursor-pointer transition-colors"
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl cursor-pointer transition-colors"
               >
                 Cancelar
               </button>
@@ -1867,7 +1955,7 @@ export default function DoctorDashboard({
                 type="button"
                 disabled={isSendingLink}
                 onClick={handleSendLinkSubmit}
-                className="px-5 py-2.5 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
+                className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50"
               >
                 {isSendingLink ? (
                   <>
@@ -1884,6 +1972,16 @@ export default function DoctorDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Prescription Assistant Portal (PiP / Popup) */}
+      {isFloatingWindowOpen && pipContainer && createPortal(
+        <FloatingPrescriptionWidget
+          order={selectedOrder}
+          onClose={closeFloatingWindow}
+          onFocusMainWindow={() => window.focus()}
+        />,
+        pipContainer
       )}
     </div>
   );

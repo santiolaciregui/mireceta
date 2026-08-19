@@ -177,8 +177,8 @@ export default function Sidebar({
   };
 
   const SidebarContent = () => (
-    <aside className="relative bg-[#0141BC] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg">
-      <div className="p-6 pb-4 overflow-y-auto">
+    <aside className="relative bg-[#0141BC] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg overflow-hidden">
+      <div className="p-6 pb-4 overflow-y-auto flex-1 min-h-0">
         {/* Brand Header */}
         <div className="flex items-center gap-3 mb-8 pt-2">
           <Logo variant="full" size="md" theme="dark" />
@@ -235,7 +235,7 @@ export default function Sidebar({
       </div>
 
       {/* Bottom section: Configuración collapsible above User Profile */}
-      <div className="p-5 pt-3 border-t border-white/10 bg-[#081B4B]">
+      <div className="p-5 pt-3 border-t border-white/10 bg-[#081B4B] shrink-0">
         {/* Configuración Dropdown for Admin & Superadmin */}
         {(role === 'admin' || role === 'superadmin') && (
           <div className="mb-3">

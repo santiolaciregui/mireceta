@@ -323,13 +323,13 @@ export default function PatientForm({
       }
     }
 
-    const matchOS = OBRA_SOCIAL_OPTIONS.find((o) => o.name === osVal);
+    const matchOS = OBRA_SOCIAL_OPTIONS.find((o) => o.name === osVal && o.id !== 'otra');
     if (matchOS) {
       setDepObraSocial(osVal);
       setDepCustomObraSocial('');
     } else if (osVal) {
       setDepObraSocial('Otra Obra Social / Prepaga');
-      setDepCustomObraSocial(osVal);
+      setDepCustomObraSocial(osVal === 'Otra Obra Social / Prepaga' ? '' : osVal);
     } else {
       setDepObraSocial('');
       setDepCustomObraSocial('');
@@ -1604,51 +1604,160 @@ export default function PatientForm({
                 </div>
 
                 {/* Medication Summary */}
-                <div className="border-t border-slate-100 pt-3 text-left">
-                  <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider text-left">Medicación Solicitada</p>
+                <div className="border-t border-slate-100 pt-3.5 text-left space-y-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider text-left">
+                      Medicación Solicitada {displayMedicationItems.length > 0 ? `(${displayMedicationItems.length})` : ''}
+                    </p>
+                    {displayMedicationItems.length > 0 && (
+                      <span className="text-[11px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md font-mono">
+                        {displayMedicationItems.reduce((acc: number, it: any) => acc + (Number(it.cantidadCajas) || 1), 0)}{' '}
+                        {displayMedicationItems.reduce((acc: number, it: any) => acc + (Number(it.cantidadCajas) || 1), 0) === 1 ? 'caja en total' : 'cajas en total'}
+                      </span>
+                    )}
+                  </div>
                   
                   {/* Manual Medication Items */}
                   {displayMedicationItems.length > 0 && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {displayMedicationItems.map((item, idx) => (
-                        <div key={idx} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Pill className="h-3.5 w-3.5 text-[#1661E1] shrink-0" />
-                            <span className="font-bold text-slate-800 text-xs truncate">{item.nombreComercial}</span>
-                            {item.droga && <span className="text-[11px] text-slate-500 truncate font-normal">({item.droga})</span>}
+                        <div 
+                          key={idx} 
+                          className="bg-slate-50/90 hover:bg-slate-50 p-3.5 rounded-2xl border border-slate-200/90 flex flex-col justify-between gap-2.5 transition-all shadow-3xs text-left"
+                        >
+                          {/* Header: Icon, Name, Active Ingredient & Quantity */}
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-start gap-2.5 min-w-0">
+                              <div className="h-8 w-8 rounded-xl bg-blue-50 text-[#1661E1] border border-blue-100/80 flex items-center justify-center shrink-0 mt-0.5">
+                                <Pill className="h-4 w-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider font-mono">
+                                    #{idx + 1}
+                                  </span>
+                                  {item.droga && item.droga.toLowerCase() !== item.nombreComercial.toLowerCase() && (
+                                    <span className="text-[10px] text-slate-500 font-normal">
+                                      ({item.droga})
+                                    </span>
+                                  )}
+                                </div>
+                                <h5 className="font-extrabold text-slate-900 text-sm leading-snug break-words">
+                                  {item.nombreComercial}
+                                </h5>
+                              </div>
+                            </div>
+
+                            <span className="bg-white border border-slate-250 text-[#0141BC] font-extrabold text-[11px] px-2.5 py-1 rounded-xl shrink-0 shadow-3xs flex items-center gap-1">
+                              <span>{item.cantidadCajas || 1}</span>
+                              <span className="text-slate-600 font-semibold">{item.cantidadCajas === 1 ? 'caja' : 'cajas'}</span>
+                            </span>
                           </div>
-                          <span className="bg-white border border-slate-200 text-slate-800 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0">
-                            {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
-                          </span>
+
+                          {/* Specification Badges (Dosis, Presentación, Unidades) */}
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            {item.miligramos && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-3xs">
+                                <span className="text-slate-400 font-normal">Dosis:</span>
+                                <span className="text-[#0141BC] font-extrabold">{item.miligramos}</span>
+                              </span>
+                            )}
+                            {item.presentacion && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-3xs">
+                                <span className="text-slate-400 font-normal">Formato:</span>
+                                <span>{item.presentacion}</span>
+                              </span>
+                            )}
+                            {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && Number(item.unidadesPorCaja) > 0 && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-3xs">
+                                <span className="text-slate-400 font-normal">Envase:</span>
+                                <span>x {item.unidadesPorCaja} u.</span>
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Diagnostic / Comments */}
+                          {((item.diagnostic || item.diagnostico) || item.comments || item.posologia) && (
+                            <div className="pt-2 border-t border-slate-200/60 space-y-1 text-[11px]">
+                              {(item.diagnostic || item.diagnostico) && (
+                                <div className="flex items-start gap-1.5">
+                                  <span className="font-bold text-slate-400 text-[10px] uppercase shrink-0">Diagnóstico:</span>
+                                  <span className="font-semibold text-[#0141BC] bg-blue-50/70 border border-blue-150 px-1.5 py-0.2 rounded text-[10px]">
+                                    {item.diagnostic || item.diagnostico}
+                                  </span>
+                                </div>
+                              )}
+                              {(item.comments || item.posologia) && (
+                                <div className="flex items-start gap-1.5 text-slate-600 italic text-[10px]">
+                                  <span className="font-bold text-slate-400 not-italic uppercase text-[9px] shrink-0">Indicaciones:</span>
+                                  <span className="text-slate-700 font-medium">"{item.comments || item.posologia}"</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
                   )}
 
+                  {/* Free text medication if loaded without structured items */}
+                  {displayMedicationText && displayMedicationItems.length === 0 && displayMedicationPhotos.length === 0 && (
+                    <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 text-left space-y-1">
+                      <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+                        <Pill className="h-4 w-4 text-[#1661E1]" />
+                        <span>Prescripción cargada en texto libre</span>
+                      </div>
+                      <p className="text-xs text-slate-700 font-medium whitespace-pre-wrap pl-6">{displayMedicationText}</p>
+                    </div>
+                  )}
+
+                  {/* Overall Clinical Context / Order Diagnostic */}
+                  {(displayDiagnostic && displayDiagnostic !== 'Sin especificar' && !displayMedicationItems.some(i => (i.diagnostic || i.diagnostico) === displayDiagnostic)) || (displayComments && !displayMedicationItems.some(i => i.comments === displayComments)) ? (
+                    <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 text-left space-y-1.5 mt-2">
+                      {displayDiagnostic && displayDiagnostic !== 'Sin especificar' && !displayMedicationItems.some(i => (i.diagnostic || i.diagnostico) === displayDiagnostic) && (
+                        <div className="text-[11px] flex items-center gap-1.5">
+                          <span className="font-bold text-slate-400 uppercase tracking-wide text-[10px]">Diagnóstico Clínico General:</span>
+                          <span className="font-bold text-slate-800 bg-white border border-slate-200 px-2 py-0.5 rounded text-[11px]">{displayDiagnostic}</span>
+                        </div>
+                      )}
+                      {displayComments && !displayMedicationItems.some(i => i.comments === displayComments) && (
+                        <div className="text-[11px] flex items-start gap-1.5 text-slate-600">
+                          <span className="font-bold text-slate-400 uppercase tracking-wide text-[10px] shrink-0">Aclaraciones Generales:</span>
+                          <span className="font-medium italic text-slate-700">"{displayComments}"</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+
                   {/* Attached Medication Photos/Documents */}
                   {displayMedicationPhotos.length > 0 ? (
                     <div className="mt-3 text-left">
-                      <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider text-left">Documentación / Fotos de Envases Adjuntas</p>
-                      <div className="flex flex-wrap gap-2.5">
+                      <p className="text-[10px] text-slate-400 font-bold mb-2 uppercase tracking-wider text-left">
+                        Documentación / Fotos de Envases o Recetas Adjuntas ({displayMedicationPhotos.length})
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                         {displayMedicationPhotos.map((photo, i) => (
-                          <div key={i} className="bg-slate-50 p-2 rounded-xl border border-slate-200/80 flex items-center gap-2.5 max-w-[260px] truncate">
-                            <div className="h-8 w-10 bg-white border border-slate-200 rounded flex items-center justify-center overflow-hidden shrink-0">
+                          <div key={i} className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 flex items-center gap-3">
+                            <div className="h-10 w-12 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0 shadow-3xs">
                               {photo.url.startsWith('data:application/pdf') || photo.name.toLowerCase().endsWith('.pdf') ? (
-                                <FileText className="h-4 w-4 text-rose-500" />
+                                <FileText className="h-5 w-5 text-rose-500" />
                               ) : (
                                 <img src={photo.url} alt="Adjunto" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                               )}
                             </div>
-                            <div className="truncate text-left">
-                              <p className="font-bold text-slate-750 text-[11px] truncate max-w-[150px]">{photo.name}</p>
-                              <p className="text-[9px] text-slate-400 font-medium">Archivo #{i + 1}</p>
+                            <div className="truncate text-left flex-1 min-w-0">
+                              <p className="font-bold text-slate-800 text-[11px] truncate">{photo.name}</p>
+                              <p className="text-[9px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
+                                <Camera className="h-3 w-3 text-blue-500" />
+                                <span>Archivo #{i + 1}</span>
+                              </p>
                             </div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    displayMedicationItems.length === 0 && (
+                    displayMedicationItems.length === 0 && !displayMedicationText && (
                       <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 flex items-center gap-2.5 text-xs text-slate-700 font-medium">
                         <Camera className="h-4 w-4 text-[#1661E1] shrink-0" />
                         <span>Medicación cargada mediante imagen/documentación adjunta.</span>
@@ -2543,12 +2652,12 @@ export default function PatientForm({
                       </div>
                     </div>
 
-                    <div className="pt-1">
+                    <div className="pt-1 flex justify-end">
                       <button
                         id="btn-add-medication-item"
                         type="button"
                         onClick={addManualMedication}
-                        className="w-full bg-[#14BE99] hover:bg-[#0fa685] text-white font-extrabold py-3.5 px-4 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
+                        className="bg-[#14BE99] hover:bg-[#0fa685] text-white font-extrabold py-2.5 px-5 rounded-xl text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md"
                       >
                         <Plus className="h-4.5 w-4.5" />
                         <span>Agregar al carrito</span>
@@ -2813,11 +2922,36 @@ export default function PatientForm({
               </div>
 
               {/* Cost rules explained */}
-              <div className="text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-3 space-y-1">
-                <p className="font-semibold text-slate-200">¿Cómo se calcula el costo de arancel?</p>
-                <p className="text-slate-400 text-[11px]">
-                  La tasa de auditoría y renovación es de <strong>$10.000 ARS por cada dos (2) medicamentos</strong>. Se han cargado {medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length} medicamentos en su solicitud.
-                </p>
+              <div className="text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="font-semibold text-slate-200">Medicamentos a Auditar ({medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length}):</p>
+                  <span className="text-[11px] text-blue-300 font-mono font-bold">
+                    $10.000 c/ 2 medicamentos
+                  </span>
+                </div>
+                
+                {medicationItems.length > 0 ? (
+                  <div className="space-y-1.5 pt-1">
+                    {medicationItems.map((med, idx) => (
+                      <div key={idx} className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Pill className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                          <span className="font-bold text-slate-100 truncate">{med.nombreComercial}</span>
+                          {med.miligramos && <span className="text-blue-300 text-[11px] shrink-0 font-medium">({med.miligramos})</span>}
+                          {med.presentacion && <span className="text-slate-400 text-[10px] truncate">· {med.presentacion}</span>}
+                        </div>
+                        <span className="bg-slate-900 border border-slate-700 text-blue-300 font-bold text-[10px] px-2 py-0.5 rounded-md shrink-0">
+                          {med.cantidadCajas} {med.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : medicationPhotos.length > 0 ? (
+                  <div className="bg-slate-800/80 border border-slate-700/80 rounded-xl p-2.5 flex items-center gap-2 text-xs text-slate-300">
+                    <Camera className="h-4 w-4 text-blue-400 shrink-0" />
+                    <span>{medicationPhotos.length} foto(s) de envase o receta adjunta(s).</span>
+                  </div>
+                ) : null}
               </div>
             </div>
 
@@ -3095,11 +3229,11 @@ export default function PatientForm({
       {/* MODAL AGREGAR / EDITAR PACIENTE */}
       {showAddDependentModal && (
         <div 
-          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 animate-fadeIn"
           onClick={() => setShowAddDependentModal(false)}
         >
           <div 
-            className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp max-h-[90vh] flex flex-col"
+            className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -3133,7 +3267,7 @@ export default function PatientForm({
             </div>
 
             {/* Modal Body Form */}
-            <form onSubmit={handleSaveModalPatient} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1">
+            <form onSubmit={handleSaveModalPatient} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
               {depFormError && (
                 <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
                   <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
@@ -3374,6 +3508,7 @@ export default function PatientForm({
                       onChange={(e) => {
                         setDepObraSocial(e.target.value);
                         if (depFieldErrors.obraSocial) setDepFieldErrors(prev => ({ ...prev, obraSocial: undefined }));
+                        if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
                       }}
                       className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs cursor-pointer outline-hidden ${
                         depFieldErrors.obraSocial

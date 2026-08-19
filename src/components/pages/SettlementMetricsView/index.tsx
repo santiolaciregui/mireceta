@@ -1424,12 +1424,12 @@ export default function SettlementMetricsView({
 
       {/* 5. INDIVIDUAL PERSON INSPECTING DETAIL MODAL */}
       {inspectingPerson && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-200 animate-scaleUp">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 z-50 animate-fadeIn">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-4xl w-full max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col overflow-hidden border border-slate-200 animate-scaleUp">
             {/* Header */}
-            <div className="p-6 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
+            <div className="p-4 sm:p-6 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 bg-white/10 rounded-2xl flex items-center justify-center">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 bg-white/10 rounded-xl sm:rounded-2xl flex items-center justify-center shrink-0">
                   {inspectingPerson.type === 'collaborator' ? (
                     <Users className="h-5 w-5 text-blue-400" />
                   ) : (
@@ -1437,10 +1437,10 @@ export default function SettlementMetricsView({
                   )}
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-white">
+                  <h3 className="text-sm sm:text-base font-extrabold text-white">
                     Detalle de Liquidación: {inspectingPerson.name}
                   </h3>
-                  <p className="text-xs text-slate-300">
+                  <p className="text-[11px] sm:text-xs text-slate-300">
                     {inspectingPerson.type === 'collaborator' ? 'Colaborador / Operador' : 'Médico Auditor'} • Tarifa:${' '}
                     {inspectingPerson.rate} p/receta
                   </p>
@@ -1448,15 +1448,15 @@ export default function SettlementMetricsView({
               </div>
               <button
                 onClick={() => setInspectingPerson(null)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-colors"
+                className="text-slate-400 hover:text-white p-1.5 sm:p-2 rounded-xl hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             {/* Summary Bar */}
-            <div className="p-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-3 text-xs shrink-0">
-              <div className="flex items-center gap-4">
+            <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-2 sm:gap-3 text-xs shrink-0">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <span>
                   Total Trámites: <strong>{inspectingPersonOrders.length}</strong>
                 </span>
@@ -1481,9 +1481,9 @@ export default function SettlementMetricsView({
             </div>
 
             {/* Order rows */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-6">
               <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
+                <table className="w-full min-w-[600px] text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold text-[10px]">
                       <th className="py-2.5 px-3">ID</th>
@@ -1525,7 +1525,7 @@ export default function SettlementMetricsView({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
+            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200 flex justify-end shrink-0">
               <button
                 onClick={() => setInspectingPerson(null)}
                 className="px-5 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-colors cursor-pointer"

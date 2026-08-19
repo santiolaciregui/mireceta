@@ -188,27 +188,27 @@ export default function PatientStatus({
       {/* Lightbox Modal for Photo Preview */}
       {previewPhotoUrl && (
         <div 
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 md:p-6 animate-fadeIn"
           onClick={() => setPreviewPhotoUrl(null)}
         >
           <div 
-            className="relative max-w-2xl w-full bg-[#0141BC] p-3 rounded-3xl border border-white/20 shadow-2xl space-y-3 animate-scaleUp"
+            className="relative max-w-2xl w-full bg-[#0141BC] p-3 sm:p-4 rounded-2xl sm:rounded-3xl border border-white/20 shadow-2xl space-y-3 animate-scaleUp max-h-[calc(100dvh-2rem)] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-2 pt-1">
+            <div className="flex items-center justify-between px-2 pt-1 shrink-0">
               <h4 className="text-xs font-bold text-white uppercase tracking-wider">Foto de Medicación Adjunta</h4>
               <button 
                 onClick={() => setPreviewPhotoUrl(null)}
-                className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="rounded-2xl overflow-hidden bg-black/40 flex items-center justify-center max-h-[70vh]">
+            <div className="rounded-2xl overflow-hidden bg-black/40 flex items-center justify-center flex-1 min-h-0">
               <img 
                 src={previewPhotoUrl} 
                 alt="Foto Medicación" 
-                className="max-h-[68vh] w-auto object-contain rounded-xl"
+                className="max-h-[70dvh] max-w-full w-auto object-contain rounded-xl"
               />
             </div>
           </div>
@@ -622,34 +622,64 @@ export default function PatientStatus({
                         </h5>
 
                         {order.medicationItems && order.medicationItems.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-2.5">
                             {order.medicationItems.map((item, idx) => (
-                              <div key={idx} className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 space-y-1 text-xs">
-                                <div className="flex items-center justify-between">
-                                  <span className="font-extrabold text-slate-900">{item.nombreComercial}</span>
-                                  <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
+                              <div key={idx} className="p-3 bg-slate-50/90 rounded-2xl border border-slate-200/80 space-y-2 text-xs text-left shadow-3xs">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <span className="text-[9px] font-black text-slate-400 uppercase font-mono">#{idx + 1}</span>
+                                      {item.droga && item.droga.toLowerCase() !== item.nombreComercial.toLowerCase() && (
+                                        <span className="text-[10px] text-slate-500 font-normal">({item.droga})</span>
+                                      )}
+                                    </div>
+                                    <h6 className="font-extrabold text-slate-900 text-sm leading-snug break-words mt-0.5">
+                                      {item.nombreComercial}
+                                    </h6>
+                                  </div>
+                                  <span className="text-[11px] bg-white border border-slate-250 text-[#0141BC] font-extrabold px-2.5 py-0.5 rounded-lg shadow-3xs shrink-0">
                                     {item.cantidadCajas || 1} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
                                   </span>
                                 </div>
-                                {(item.droga || item.miligramos || item.presentacion) && (
-                                  <p className="text-[11px] text-slate-500 font-medium">
-                                    {item.droga} {item.miligramos} {item.presentacion ? `- ${item.presentacion}` : ''}
-                                  </p>
-                                )}
-                                {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && item.unidadesPorCaja > 0 && (
-                                  <p className="text-[10px] text-slate-400">
-                                    Unidades por caja: <span className="font-semibold text-slate-600">{item.unidadesPorCaja}</span>
-                                  </p>
-                                )}
-                                {(item.diagnostic || item.diagnostico) && (
-                                  <p className="text-[10px] text-slate-400">
-                                    Diagnóstico: <span className="font-semibold text-indigo-650">{item.diagnostic || item.diagnostico}</span>
-                                  </p>
-                                )}
-                                {item.comments && (
-                                  <p className="text-[10px] text-slate-400 italic">
-                                    Aclaraciones: <span className="font-medium text-slate-650">{item.comments}</span>
-                                  </p>
+
+                                <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                                  {item.miligramos && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                                      <span className="text-slate-400 font-normal">Dosis:</span>
+                                      <span className="text-[#0141BC] font-extrabold">{item.miligramos}</span>
+                                    </span>
+                                  )}
+                                  {item.presentacion && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                                      <span className="text-slate-400 font-normal">Formato:</span>
+                                      <span>{item.presentacion}</span>
+                                    </span>
+                                  )}
+                                  {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && Number(item.unidadesPorCaja) > 0 && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                                      <span className="text-slate-400 font-normal">Envase:</span>
+                                      <span>x {item.unidadesPorCaja} u.</span>
+                                    </span>
+                                  )}
+                                </div>
+
+                                {((item.diagnostic || item.diagnostico) || item.comments || item.posologia) && (
+                                  <div className="pt-2 border-t border-slate-200/60 space-y-1 text-[11px]">
+                                    {(item.diagnostic || item.diagnostico) && (
+                                      <div className="flex items-start gap-1.5">
+                                        <span className="font-bold text-slate-400 text-[10px] uppercase shrink-0">Diagnóstico:</span>
+                                        <span className="font-semibold text-[#0141BC] bg-blue-50/70 border border-blue-150 px-1.5 py-0.2 rounded text-[10px]">
+                                          {item.diagnostic || item.diagnostico}
+                                        </span>
+                                      </div>
+                                    )}
+                                    {(item.comments || item.posologia) && (
+                                      <div className="flex items-start gap-1.5 text-slate-600 italic text-[10px]">
+                                        <span className="font-bold text-slate-400 not-italic uppercase text-[9px] shrink-0">Indicaciones:</span>
+                                        <span className="text-slate-700 font-medium">"{item.comments || item.posologia}"</span>
+                                      </div>
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             ))}

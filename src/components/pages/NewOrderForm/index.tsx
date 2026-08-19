@@ -50,6 +50,7 @@ export default function NewOrderForm({
     patientPhone?: string;
     patientEmail?: string;
     selectedObraSocial?: string;
+    customObraSocial?: string;
     obraSocialNumber?: string;
     curNombreComercial?: string;
     curCantidadCajas?: string;
@@ -69,6 +70,7 @@ export default function NewOrderForm({
   const [patientPhone, setPatientPhone] = useState('');
   const [deliveryMethod, setDeliveryMethod] = useState<'email' | 'whatsapp' | 'both'>('both');
   const [selectedObraSocial, setSelectedObraSocial] = useState('');
+  const [customObraSocial, setCustomObraSocial] = useState('');
   const [obraSocialNumber, setObraSocialNumber] = useState('');
 
   // Medication Items State
@@ -118,7 +120,16 @@ export default function NewOrderForm({
       if (gender) setPatientGender(gender);
       if (email) setPatientEmail(email);
       if (phone) setPatientPhone(phone);
-      if (obraSocial) setSelectedObraSocial(obraSocial);
+      if (obraSocial) {
+        const matchOs = OBRA_SOCIAL_OPTIONS.find(o => o.name === obraSocial && o.id !== 'otra');
+        if (matchOs) {
+          setSelectedObraSocial(obraSocial);
+          setCustomObraSocial('');
+        } else {
+          setSelectedObraSocial('Otra Obra Social / Prepaga');
+          setCustomObraSocial(obraSocial === 'Otra Obra Social / Prepaga' ? '' : obraSocial);
+        }
+      }
       if (osNumber) setObraSocialNumber(osNumber);
 
       setFieldErrors({});
@@ -224,8 +235,18 @@ export default function NewOrderForm({
       errors.patientEmail = 'Ingrese un formato de correo electrónico válido.';
     }
 
+    let finalObraSocial = selectedObraSocial;
     if (!selectedObraSocial) {
       errors.selectedObraSocial = 'Debe seleccionar la obra social o prepaga del paciente.';
+    } else if (selectedObraSocial === 'Otra Obra Social / Prepaga') {
+      if (!customObraSocial.trim()) {
+        errors.customObraSocial = 'Por favor escriba el nombre de la Obra Social / Prepaga.';
+      } else {
+        finalObraSocial = customObraSocial.trim();
+      }
+      if (!obraSocialNumber.trim()) {
+        errors.obraSocialNumber = 'El número de afiliado es obligatorio para Otra Obra Social / Prepaga.';
+      }
     } else {
       const requiresNumber = OBRA_SOCIAL_OPTIONS.find(o => o.name === selectedObraSocial)?.requiresNumber;
       if (requiresNumber && !obraSocialNumber.trim()) {
@@ -281,7 +302,7 @@ export default function NewOrderForm({
         patientEmail: patientEmail.trim() || undefined,
         patientPhone: patientPhone.trim() || undefined,
         deliveryMethod,
-        obraSocial: selectedObraSocial,
+        obraSocial: finalObraSocial,
         obraSocialNumber: obraSocialNumber.trim() || undefined,
         medicationMethod: medicationItems.length > 0 ? 'manual' : 'foto',
         medicationText: summaryText,
@@ -554,6 +575,7 @@ export default function NewOrderForm({
                   onChange={e => {
                     setSelectedObraSocial(e.target.value);
                     if (fieldErrors.selectedObraSocial) setFieldErrors(prev => ({ ...prev, selectedObraSocial: undefined }));
+                    if (fieldErrors.customObraSocial) setFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
                   }}
                   className={`w-full px-3.5 py-2.5 rounded-xl text-xs cursor-pointer outline-hidden ${
                     fieldErrors.selectedObraSocial
@@ -575,6 +597,34 @@ export default function NewOrderForm({
                   </p>
                 )}
               </div>
+
+              {selectedObraSocial === 'Otra Obra Social / Prepaga' && (
+                <div className="animate-fadeIn">
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Nombre de la Obra Social / Prepaga <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={customObraSocial}
+                    onChange={e => {
+                      setCustomObraSocial(e.target.value);
+                      if (fieldErrors.customObraSocial) setFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
+                    }}
+                    placeholder="Escriba el nombre de la obra social o prepaga..."
+                    className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-medium transition-all outline-hidden ${
+                      fieldErrors.customObraSocial
+                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                        : 'bg-white border border-slate-300 focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10'
+                    }`}
+                  />
+                  {fieldErrors.customObraSocial && (
+                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      <span>{fieldErrors.customObraSocial}</span>
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
