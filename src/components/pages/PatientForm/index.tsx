@@ -1246,10 +1246,9 @@ export default function PatientForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId,
-          amount: paymentAmount,
-          patientName: `${patientName} ${patientLastName}`,
-          patientEmail: patientEmail,
-          patientDni: patientDni,
+          patientName: `${patientName} ${patientLastName}`.trim(),
+          patientEmail,
+          patientDni,
           origin: window.location.origin,
         }),
       });

@@ -1,20 +1,24 @@
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
+import { TenantRepository } from '../repositories/TenantRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { notificationService } from './NotificationService.js';
 import { chatService } from './ChatService.js';
 import { storageService } from './storage/StorageService.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { cleanDni } from '../utils/formatters.js';
+import { PricingService } from './PricingService.js';
 import { generateOrderId, generateMessageId } from '../utils/idGenerator.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
   private patientRepo: PatientRepository;
+  private tenantRepo: TenantRepository;
 
   constructor() {
     this.orderRepo = new OrderRepository();
     this.patientRepo = new PatientRepository();
+    this.tenantRepo = new TenantRepository();
   }
 
   async getOrdersForUser(currentUser: any) {
@@ -49,10 +53,29 @@ export class OrderService {
     const newId = generateOrderId();
     const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
-    const isExempt = orderData.paymentMethod === 'bonificado' || 
-      String(orderData.paymentAmount) === '0' ||
-      orderData.paymentStatus === 'exempt';
+    const tenantIdToUse = currentUser?.tenantId || orderData.tenantId || 'TEN-0001';
+    let basePricePerPrescription = 10000;
+    try {
+      const tenant = await this.tenantRepo.findById(tenantIdToUse);
+      if (tenant && tenant.pricePerPrescription) {
+         basePricePerPrescription = tenant.pricePerPrescription;
+      }
+    } catch(err) {
+      console.error('Error fetching tenant pricing:', err);
+    }
 
+    // Calculate official price in backend
+    const pricing = PricingService.calculatePrice({
+      medicationItems: orderData.medicationItems,
+      medicationPhotos: orderData.medicationPhotos,
+      obraSocial: orderData.obraSocial,
+      paymentMethod: orderData.paymentMethod,
+      userRole: currentUser?.role,
+      customAmount: orderData.paymentAmount,
+      basePricePerPrescription,
+    });
+
+    const isExempt = pricing.isExempt;
     const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
 
     const isForDependent = Boolean(orderData.isForDependent);
@@ -112,7 +135,7 @@ export class OrderService {
       requestedByTitularPhone,
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
-      paymentAmount: isExempt ? '0' : (orderData.paymentAmount || '10000'),
+      paymentAmount: pricing.amountFormatted,
       status: orderData.status || 'Pendiente',
       createdAt: new Date().toISOString(),
       auditLog: [],
@@ -136,7 +159,7 @@ export class OrderService {
       creatorName = `Colaborador ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
     } else if (currentUser?.role === 'medico') {
       newOrder.createdByOperatorId = currentUser.id;
-      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''} (Médico)`.trim();
+      newOrder.createdByOperatorName = `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
       creatorName = `Médico ${currentUser.name || ''} ${currentUser.lastName || ''}`.trim();
     }
 
@@ -159,7 +182,14 @@ export class OrderService {
         newOrder,
         'Arancel exento',
         'Sistema (Convenio / Bonificado)',
-        `Solicitud registrada como exenta / bonificada (arancel $0).`
+        `Solicitud registrada como exenta / bonificada (arancel $0). Detalle: ${pricing.breakdown}.`
+      );
+    } else {
+      addAuditLogEntry(
+        newOrder,
+        'Arancel oficial fijado',
+        'Sistema (Cálculo Oficial)',
+        `Arancel calculado por el servidor: $${newOrder.paymentAmount} (${pricing.breakdown}).`
       );
     }
 

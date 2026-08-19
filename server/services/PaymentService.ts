@@ -48,7 +48,26 @@ export class PaymentService {
   }
 
   async createPreference(tenantId: string, orderData: any) {
-    const tenant = await this.tenantRepo.findById(tenantId);
+    const orderId = orderData.orderId;
+    if (!orderId) {
+      throw new Error('El ID de solicitud (orderId) es obligatorio para iniciar el cobro con Mercado Pago.');
+    }
+
+    const order: any = await this.orderRepo.findById(orderId);
+    if (!order) {
+      throw new Error(`Solicitud con ID ${orderId} no encontrada.`);
+    }
+
+    if (order.paymentStatus === 'approved') {
+      throw new Error('Esta solicitud ya se encuentra abonada y aprobada.');
+    }
+
+    if (order.paymentStatus === 'exempt' || String(order.paymentAmount) === '0') {
+      throw new Error('Esta solicitud cuenta con arancel bonificado / exento y no requiere pago.');
+    }
+
+    const targetTenantId = order.tenantId || tenantId;
+    const tenant = await this.tenantRepo.findById(targetTenantId);
     const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
 
     if (!accessToken) {
@@ -58,27 +77,35 @@ export class PaymentService {
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
-    const amount = Number(orderData.amount) || 10000;
+    // Arancel oficial obtenido exclusivamente de la orden persistida en el servidor
+    const amount = Number(order.paymentAmount);
+    if (isNaN(amount) || amount <= 0) {
+      throw new Error('El arancel de la solicitud no es válido para procesar en Mercado Pago.');
+    }
+
     const origin = orderData.origin || process.env.APP_URL || 'http://localhost:3000';
-    const orderId = orderData.orderId || generateOrderId();
 
     const notificationUrl = process.env.WEBHOOK_URL
       ? `${process.env.WEBHOOK_URL}/api/payments/webhook`
       : `${origin}/api/payments/webhook`;
 
+    const itemCount = (order.medicationItems?.length || 0) + (order.medicationPhotos?.length || 0);
+    const rxCount = Math.max(1, Math.ceil(itemCount / 2));
+    const patientFullName = `${order.patientName || ''} ${order.patientLastName || ''}`.trim() || 'Paciente';
+
     const preferenceBody: any = {
       items: [
         {
           id: orderId,
-          title: `Renovación de Receta Médica - ${orderData.patientName || 'Paciente'}`,
+          title: `Renovación de Receta Médica (${rxCount} receta${rxCount > 1 ? 's' : ''}) - ${patientFullName}`,
           quantity: 1,
           unit_price: amount,
           currency_id: 'ARS',
         },
       ],
       payer: {
-        name: orderData.patientName || 'Paciente',
-        email: orderData.patientEmail || 'paciente@ejemplo.com',
+        name: patientFullName,
+        email: order.patientEmail || orderData.patientEmail || 'paciente@ejemplo.com',
       },
       back_urls: {
         success: `${origin}?payment=approved&orderId=${orderId}`,
@@ -91,8 +118,9 @@ export class PaymentService {
       statement_descriptor: 'MI RECETA',
       metadata: {
         order_id: orderId,
-        tenant_id: tenantId,
-        patient_dni: orderData.patientDni || '',
+        tenant_id: targetTenantId,
+        patient_dni: order.patientDni || '',
+        expected_amount: amount,
       },
     };
 
@@ -110,6 +138,7 @@ export class PaymentService {
       preferenceId: result.id,
       publicKey: tenant?.mpPublicKey || process.env.MP_PUBLIC_KEY || '',
       isTestMode: isTestToken,
+      amount,
     };
   }
 
@@ -158,16 +187,34 @@ export class PaymentService {
 
       const orderId = paymentInfo.external_reference || (paymentInfo as any).metadata?.order_id;
       const status = paymentInfo.status;
+      const paidAmount = Number(paymentInfo.transaction_amount) || 0;
 
-      console.log(`[MercadoPago Webhook] Payment ${paymentId} for Order ${orderId} status: ${status}`);
+      console.log(`[MercadoPago Webhook] Payment ${paymentId} for Order ${orderId} status: ${status}, amount: $${paidAmount}`);
 
       if (orderId) {
         const order: any = await this.orderRepo.findById(orderId);
         if (order) {
+          const expectedAmount = Number(order.paymentAmount) || 0;
           let updatedPaymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' = 'pending';
           let recipeStatus = order.status;
 
           if (status === 'approved') {
+            // Amount integrity check: avoid approving underpaid orders
+            if (expectedAmount > 0 && paidAmount < expectedAmount) {
+              console.warn(`[MercadoPago Webhook Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
+              order.paymentStatus = 'rejected';
+              order.paymentId = String(paymentId);
+              order.paymentDate = new Date().toISOString();
+              addAuditLogEntry(
+                order,
+                'Alerta: Pago insuficiente detectado',
+                'Sistema (Seguridad Mercado Pago)',
+                `Se acreditó un importe de $${paidAmount}, inferior al arancel oficial de $${expectedAmount}. Operación #${paymentId} retenida.`
+              );
+              await this.orderRepo.update(orderId, order);
+              return { received: true, error: 'Monto insuficiente abonado' };
+            }
+
             updatedPaymentStatus = 'approved';
             if (recipeStatus === 'Pendiente de Pago' || recipeStatus === 'Pendiente') {
               recipeStatus = 'Pendiente';
@@ -189,7 +236,7 @@ export class PaymentService {
             order,
             `Mercado Pago Webhook: ${status}`,
             'Sistema (Mercado Pago API)',
-            `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}". Receta configurada en "${recipeStatus}".`
+            `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}", Monto $${paidAmount}. Receta configurada en "${recipeStatus}".`
           );
 
           await this.orderRepo.update(orderId, order);
@@ -233,12 +280,21 @@ export class PaymentService {
 
         if (fetchedPayment) {
           const status = fetchedPayment.status;
+          const paidAmount = Number(fetchedPayment.transaction_amount) || 0;
+          const expectedAmount = Number(order.paymentAmount) || 0;
+
           let updatedPaymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' = 'pending';
           let recipeStatus = order.status;
 
           if (status === 'approved') {
-            updatedPaymentStatus = 'approved';
-            recipeStatus = 'Pendiente';
+            if (expectedAmount > 0 && paidAmount < expectedAmount) {
+              console.warn(`[MercadoPago Sync Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
+              updatedPaymentStatus = 'rejected';
+              recipeStatus = 'Rechazada';
+            } else {
+              updatedPaymentStatus = 'approved';
+              recipeStatus = 'Pendiente';
+            }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
             recipeStatus = 'Rechazada';
@@ -257,7 +313,7 @@ export class PaymentService {
               order,
               `Sync Pago Mercado Pago: ${status}`,
               'Sistema (Consulta Sync API)',
-              `Sincronización activa: Pago ID ${fetchedPayment.id} estado "${status}".`
+              `Sincronización activa: Pago ID ${fetchedPayment.id}, estado "${status}", monto $${paidAmount}.`
             );
 
             await this.orderRepo.update(orderId, order);
@@ -317,19 +373,36 @@ export class PaymentService {
         if (paymentInfo) {
           verifiedWithApi = true;
           const status = paymentInfo.status;
+          const paidAmount = Number(paymentInfo.transaction_amount) || 0;
+          const expectedAmount = Number(order.paymentAmount) || 0;
+
           if (status === 'approved') {
-            order.paymentStatus = 'approved';
-            order.paymentId = String(paymentInfo.id);
-            order.paymentDate = new Date().toISOString();
-            if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
-              order.status = 'Pendiente';
+            if (expectedAmount > 0 && paidAmount < expectedAmount) {
+              console.warn(`[MercadoPago syncReturn Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
+              order.paymentStatus = 'rejected';
+              order.status = 'Rechazada';
+              order.paymentId = String(paymentInfo.id);
+              order.paymentDate = new Date().toISOString();
+              addAuditLogEntry(
+                order,
+                'Alerta: Pago insuficiente en retorno',
+                'Sistema (Seguridad Mercado Pago)',
+                `Se intentó validar pago #${paymentInfo.id} por $${paidAmount}, menor a los $${expectedAmount} exigidos.`
+              );
+            } else {
+              order.paymentStatus = 'approved';
+              order.paymentId = String(paymentInfo.id);
+              order.paymentDate = new Date().toISOString();
+              if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
+                order.status = 'Pendiente';
+              }
+              addAuditLogEntry(
+                order,
+                'Pago acreditado (Mercado Pago API)',
+                'Sistema (Mercado Pago)',
+                `Verificación en tiempo real: Se acreditó el pago de $${paidAmount} con código de operación oficial #${paymentInfo.id}.`
+              );
             }
-            addAuditLogEntry(
-              order,
-              'Pago acreditado (Mercado Pago API)',
-              'Sistema (Mercado Pago)',
-              `Verificación en tiempo real: Se acreditó el pago de $${order.paymentAmount} con código de operación oficial #${paymentInfo.id}.`
-            );
           } else if (status === 'rejected' || status === 'cancelled') {
             order.paymentStatus = 'rejected';
             order.status = 'Rechazada';
