@@ -5,6 +5,7 @@ export default function PaymentConfigPanel() {
   const [mpAccessToken, setMpAccessToken] = useState('');
   const [mpPublicKey, setMpPublicKey] = useState('');
   const [mpEnabled, setMpEnabled] = useState(false);
+  const [pricePerPrescription, setPricePerPrescription] = useState('10000');
   const [fieldErrors, setFieldErrors] = useState<{ mpAccessToken?: string }>({});
   
   const [showAccessToken, setShowAccessToken] = useState(false);
@@ -24,6 +25,9 @@ export default function PaymentConfigPanel() {
           setMpAccessToken(data.mpAccessToken || '');
           setMpPublicKey(data.mpPublicKey || '');
           setMpEnabled(Boolean(data.mpEnabled));
+          if (data.pricePerPrescription) {
+            setPricePerPrescription(data.pricePerPrescription.toString());
+          }
         }
       })
       .catch(err => console.error(err))
@@ -53,7 +57,8 @@ export default function PaymentConfigPanel() {
         body: JSON.stringify({
           mpAccessToken: mpAccessToken.trim(),
           mpPublicKey: mpPublicKey.trim(),
-          mpEnabled
+          mpEnabled,
+          pricePerPrescription: Number(pricePerPrescription)
         })
       });
 
@@ -62,7 +67,7 @@ export default function PaymentConfigPanel() {
         throw new Error(data.error || 'Error al guardar la configuración');
       }
 
-      setMessage({ type: 'success', text: 'Configuración de Mercado Pago guardada correctamente en la base de datos.' });
+      setMessage({ type: 'success', text: 'Configuración guardada correctamente en la base de datos.' });
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message || 'Error al guardar cambios' });
     } finally {
@@ -86,8 +91,8 @@ export default function PaymentConfigPanel() {
             <CreditCard className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-extrabold text-sm text-[#0141BC]">Configuración Pasarela de Pago (Mercado Pago)</h3>
-            <p className="text-xs text-slate-500 font-medium">Credenciales de producción / sandbox para cobro de aranceles</p>
+            <h3 className="font-extrabold text-sm text-[#0141BC]">Configuración Pasarela de Pago y Aranceles</h3>
+            <p className="text-xs text-slate-500 font-medium">Precios base y credenciales de Mercado Pago</p>
           </div>
         </div>
 
@@ -112,6 +117,27 @@ export default function PaymentConfigPanel() {
       )}
 
       <form onSubmit={handleSave} className="space-y-4" noValidate>
+        {/* Precio base por receta */}
+        <div>
+          <label className="block text-xs font-bold text-[#0141BC] uppercase tracking-wider mb-1">
+            Precio Base por Receta (cada 2 medicamentos)
+          </label>
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">$</span>
+            <input
+              type="number"
+              min="0"
+              value={pricePerPrescription}
+              onChange={(e) => setPricePerPrescription(e.target.value)}
+              placeholder="10000"
+              className="w-full pl-7 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono text-[#0F172A] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
+            />
+          </div>
+          <span className="text-[10px] text-slate-400 font-medium mt-1 block">
+            Este será el precio base que se cobrará por cada receta. Una receta puede contener hasta 2 medicamentos.
+          </span>
+        </div>
+
         {/* Toggle Enable */}
         <div className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border border-slate-200">
           <div>
@@ -196,7 +222,7 @@ export default function PaymentConfigPanel() {
           className="bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold px-6 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-sm cursor-pointer disabled:opacity-50"
         >
           <Save className="h-4 w-4" />
-          <span>{isSaving ? 'Guardando...' : 'Guardar Credenciales de Mercado Pago'}</span>
+          <span>{isSaving ? 'Guardando...' : 'Guardar Configuración'}</span>
         </button>
       </form>
     </div>

@@ -69,7 +69,8 @@ export class TenantService {
     return {
       mpAccessToken: tenant.mpAccessToken || '',
       mpPublicKey: tenant.mpPublicKey || '',
-      mpEnabled: tenant.mpEnabled || false
+      mpEnabled: tenant.mpEnabled || false,
+      pricePerPrescription: tenant.pricePerPrescription || 10000
     };
   }
 
@@ -80,12 +81,14 @@ export class TenantService {
     const updated = await this.tenantRepo.update(tenantId, {
       mpAccessToken: data.mpAccessToken,
       mpPublicKey: data.mpPublicKey,
-      mpEnabled: Boolean(data.mpEnabled)
+      mpEnabled: Boolean(data.mpEnabled),
+      pricePerPrescription: data.pricePerPrescription ? Number(data.pricePerPrescription) : undefined
     });
     return {
       mpAccessToken: updated?.mpAccessToken,
       mpPublicKey: updated?.mpPublicKey,
-      mpEnabled: updated?.mpEnabled
+      mpEnabled: updated?.mpEnabled,
+      pricePerPrescription: updated?.pricePerPrescription
     };
   }
 }

@@ -7,6 +7,7 @@ export interface ITenant extends Document {
   mpAccessToken?: string;
   mpPublicKey?: string;
   mpEnabled?: boolean;
+  pricePerPrescription?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,7 +18,8 @@ const tenantSchema = new Schema<ITenant>({
   subdomain: { type: String, required: true, unique: true },
   mpAccessToken: { type: String },
   mpPublicKey: { type: String },
-  mpEnabled: { type: Boolean, default: false }
+  mpEnabled: { type: Boolean, default: false },
+  pricePerPrescription: { type: Number, default: 10000 }
 }, {
   timestamps: true
 });
