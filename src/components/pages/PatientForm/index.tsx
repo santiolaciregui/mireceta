@@ -252,6 +252,18 @@ export default function PatientForm({
     }
   }, [currentUser?.dependents]);
 
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (showAddDependentModal) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [showAddDependentModal]);
+
   const handleSelectCard = (cardId: string) => {
     setSelectedCardId(cardId);
     if (cardId === 'titular') {
