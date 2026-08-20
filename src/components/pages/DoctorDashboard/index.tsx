@@ -1981,6 +1981,8 @@ export default function DoctorDashboard({
           order={selectedOrder}
           onClose={closeFloatingWindow}
           onFocusMainWindow={() => window.focus()}
+          extractedText={selectedOrder ? extractedTextCache[selectedOrder.id] : undefined}
+          isExtracting={selectedOrder ? isExtractingCache[selectedOrder.id] : false}
         />,
         pipContainer
       )}

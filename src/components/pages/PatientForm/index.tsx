@@ -2158,7 +2158,6 @@ export default function PatientForm({
                   {OBRA_SOCIAL_OPTIONS.map((os) => (
                     <option key={os.id} value={os.name}>{os.name}</option>
                   ))}
-                  <option value="Otra Obra Social / Prepaga">Otra Obra Social / Prepaga</option>
                 </select>
                 {depFieldErrors.obraSocial && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">

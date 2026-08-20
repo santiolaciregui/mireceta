@@ -18,23 +18,34 @@ import {
   FileText,
   Eye,
   CheckCheck,
-  Maximize2
+  CreditCard,
+  Users,
+  Download,
+  Phone,
+  Mail,
+  MapPin,
+  Clock,
+  Tag
 } from 'lucide-react';
 
 interface FloatingPrescriptionWidgetProps {
   order: MedicalOrder | null;
   onClose?: () => void;
   onFocusMainWindow?: () => void;
+  extractedText?: string;
+  isExtracting?: boolean;
 }
 
 export default function FloatingPrescriptionWidget({
   order,
   onClose,
   onFocusMainWindow,
+  extractedText,
+  isExtracting,
 }: FloatingPrescriptionWidgetProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
-  const [activeTab, setActiveTab] = useState<'meds' | 'patient' | 'photos'>('meds');
+  const [activeTab, setActiveTab] = useState<'meds' | 'patient' | 'payment' | 'photos'>('meds');
 
   if (!order) {
     return (
@@ -42,15 +53,17 @@ export default function FloatingPrescriptionWidget({
         <Pill className="h-10 w-10 text-slate-400 mb-3 animate-pulse" />
         <h3 className="font-bold text-sm text-slate-800">Sin solicitud seleccionada</h3>
         <p className="text-xs text-slate-500 mt-1 max-w-[260px]">
-          Seleccioná una solicitud en la bandeja principal de Mi Receta para ver los datos de medicación en esta ventana.
+          Seleccioná una solicitud en la bandeja principal de Mi Receta para ver los datos completos en esta ventana flotante.
         </p>
       </div>
     );
   }
 
-  const handleCopy = (text: string, fieldId: string) => {
-    if (!text || text === '—') return;
-    navigator.clipboard.writeText(text);
+  const handleCopy = (text: string | number | undefined | null, fieldId: string) => {
+    if (text === undefined || text === null) return;
+    const strText = String(text).trim();
+    if (!strText || strText === '—') return;
+    navigator.clipboard.writeText(strText);
     setCopiedField(fieldId);
     setTimeout(() => {
       setCopiedField((curr) => (curr === fieldId ? null : curr));
@@ -89,23 +102,96 @@ export default function FloatingPrescriptionWidget({
     return dateStr;
   };
 
+  const formatDateTime = (dateStr?: string) => {
+    if (!dateStr) return '—';
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getPaymentMethodLabel = (ord: MedicalOrder) => {
+    if (ord.paymentMethod === 'mp') return 'Mercado Pago (Online)';
+    if (ord.paymentMethod === 'transfer') return 'Transferencia Bancaria';
+    if (ord.paymentMethod === 'cash_desk') return 'Mesa de Entrada / Efectivo';
+    if (ord.paymentMethod === 'bonificado') return 'Bonificado / Exento';
+
+    const paymentId = ord.paymentId || '';
+    const receiptName = ord.paymentReceiptName || '';
+    const receiptUrl = ord.paymentReceiptUrl || '';
+    if (paymentId.startsWith('EFECTIVO-') || receiptName === 'cobrado_ventanilla.png' || receiptName === 'carga_manual_efectivo.png' || receiptName === 'registro_oficio.png') {
+      return 'Mesa de Entrada / Efectivo';
+    }
+    if (ord.paymentStatus === 'exempt' || ord.obraSocial === 'PAMI (Inssjp)' || String(ord.paymentAmount) === '0') {
+      return 'Bonificado / Exento';
+    }
+    if (receiptUrl && !receiptUrl.startsWith('data:image/svg+xml') && receiptName !== 'cobrado_ventanilla.png' && receiptName !== 'carga_manual_efectivo.png' && receiptName !== 'registro_oficio.png') {
+      return 'Transferencia Bancaria';
+    }
+    return 'Mercado Pago (Online)';
+  };
+
+  const getPaymentStatusLabel = (status?: string) => {
+    if (status === 'approved') return 'Aprobado';
+    if (status === 'pending') return 'Pendiente';
+    if (status === 'rejected') return 'Rechazado';
+    if (status === 'refunded') return 'Devuelto';
+    if (status === 'exempt') return 'Exento';
+    return 'Desconocido';
+  };
+
   const handleCopyAllSummary = () => {
     const lines: string[] = [];
+    lines.push(`SOLICITUD ID: ${order.id}`);
+    lines.push(`FECHA DE SOLICITUD: ${formatDateTime(order.createdAt)}`);
+    lines.push(`ESTADO: ${order.status}`);
+    lines.push(`CANAL ENTREGA: ${order.deliveryMethod === 'both' ? 'Email y WhatsApp' : order.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'}`);
+    lines.push('');
     lines.push(`PACIENTE: ${order.patientLastName}, ${order.patientName}`);
     lines.push(`DNI: ${order.patientDni}`);
     if (order.patientBirthDate) {
       const age = calculateAge(order.patientBirthDate);
       lines.push(`FECHA NAC.: ${formatBirthDate(order.patientBirthDate)} ${age ? `(${age})` : ''}`);
     }
-    lines.push(`OBRA SOCIAL: ${order.obraSocial}`);
+    if (order.patientEmail) lines.push(`EMAIL: ${order.patientEmail}`);
+    if (order.patientPhone) lines.push(`TELÉFONO / WHATSAPP: ${order.patientPhone}`);
+    if (order.patientCity || order.patientProvince) {
+      lines.push(`UBICACIÓN: ${[order.patientCity, order.patientProvince].filter(Boolean).join(', ')}`);
+    }
+    if (order.lastConsultationTime) lines.push(`ÚLTIMA CONSULTA: ${order.lastConsultationTime}`);
+    if (order.lastConsultationDoctor) lines.push(`MÉDICO ÚLTIMA CONSULTA: ${order.lastConsultationDoctor}`);
+
+    if (order.isForDependent) {
+      lines.push('');
+      lines.push(`PACIENTE A CARGO (${order.dependentRelationship || 'Familiar'}):`);
+      lines.push(`  - Titular: ${order.requestedByTitularName || '—'}`);
+      lines.push(`  - DNI Titular: ${order.requestedByTitularDni || '—'}`);
+      if (order.requestedByTitularPhone) lines.push(`  - Tel Titular: ${order.requestedByTitularPhone}`);
+      if (order.requestedByTitularEmail) lines.push(`  - Email Titular: ${order.requestedByTitularEmail}`);
+    }
+
+    lines.push('');
+    lines.push(`OBRA SOCIAL / COBERTURA: ${order.obraSocial}`);
     if (order.obraSocialNumber) {
       lines.push(`N° AFILIADO: ${order.obraSocialNumber}`);
     }
-    if (order.diagnostic) {
-      lines.push(`DIAGNÓSTICO: ${order.diagnostic}`);
-    }
+
+    lines.push('');
+    lines.push('INFORMACIÓN DE PAGO:');
+    lines.push(`  - Método: ${getPaymentMethodLabel(order)}`);
+    lines.push(`  - Monto: $${order.paymentAmount || '0'}`);
+    lines.push(`  - Estado Pago: ${getPaymentStatusLabel(order.paymentStatus)}`);
+    if (order.paymentId) lines.push(`  - ID Transacción: ${order.paymentId}`);
+    if (order.paymentDate) lines.push(`  - Fecha Pago: ${formatDateTime(order.paymentDate)}`);
+
     lines.push('');
     lines.push('MEDICACIÓN SOLICITADA:');
+    if (order.diagnostic) {
+      lines.push(`DIAGNÓSTICO PRINCIPAL: ${order.diagnostic}`);
+    }
 
     if (order.medicationItems && order.medicationItems.length > 0) {
       order.medicationItems.forEach((item, idx) => {
@@ -113,13 +199,17 @@ export default function FloatingPrescriptionWidget({
         if (item.droga) lines.push(`  - Monodroga: ${item.droga}`);
         if (item.miligramos) lines.push(`  - Dosis: ${item.miligramos}`);
         if (item.presentacion) lines.push(`  - Presentación: ${item.presentacion}`);
+        if (item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null) lines.push(`  - Unidades por caja: ${item.unidadesPorCaja}`);
         lines.push(`  - Cantidad: ${item.cantidadCajas} ${item.cantidadCajas === 1 ? 'caja' : 'cajas'}`);
-        if (item.diagnostic || item.diagnostico) lines.push(`  - Diagnóstico: ${item.diagnostic || item.diagnostico}`);
+        if (item.diagnostic || item.diagnostico) lines.push(`  - Diagnóstico específico: ${item.diagnostic || item.diagnostico}`);
         if (item.posologia) lines.push(`  - Posología: ${item.posologia}`);
-        if (item.comments) lines.push(`  - Observaciones: ${item.comments}`);
+        if (item.comments) lines.push(`  - Comentarios: ${item.comments}`);
       });
     } else if (order.medicationText) {
       lines.push(order.medicationText);
+    }
+    if (order.comments) {
+      lines.push(`COMENTARIOS PACIENTE: ${order.comments}`);
     }
 
     navigator.clipboard.writeText(lines.join('\n'));
@@ -127,8 +217,45 @@ export default function FloatingPrescriptionWidget({
     setTimeout(() => setCopiedAll(false), 2000);
   };
 
-  const hasPhotos = (order.medicationPhotos && order.medicationPhotos.length > 0) || !!order.medicationPhotoUrl;
-  const photoList = order.medicationPhotos || (order.medicationPhotoUrl ? [{ url: order.medicationPhotoUrl, name: order.medicationPhotoName || 'envase.jpg' }] : []);
+  const medicationPhotoList = order.medicationPhotos || (order.medicationPhotoUrl ? [{ url: order.medicationPhotoUrl, name: order.medicationPhotoName || 'envase.jpg' }] : []);
+  const hasMedicationPhotos = medicationPhotoList.length > 0;
+  const hasPaymentReceipt = !!order.paymentReceiptUrl;
+  const totalPhotosCount = medicationPhotoList.length + (hasPaymentReceipt ? 1 : 0);
+
+  const WidgetRow = ({
+    label,
+    value,
+    copyValue,
+    fieldId,
+    highlight = false,
+  }: {
+    label: string;
+    value: React.ReactNode;
+    copyValue?: string;
+    fieldId: string;
+    highlight?: boolean;
+  }) => {
+    const textToCopy = copyValue ?? (typeof value === 'string' || typeof value === 'number' ? String(value) : '');
+    const canCopy = Boolean(textToCopy && textToCopy !== '—');
+
+    return (
+      <div className={`p-2 flex items-center justify-between gap-2 transition-colors ${highlight ? 'bg-amber-50/60' : 'hover:bg-slate-50/80'}`}>
+        <div className="min-w-0 flex-1">
+          <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">{label}</span>
+          <div className="text-[11px] font-bold text-slate-800 break-words leading-tight mt-0.5">{value}</div>
+        </div>
+        {canCopy && (
+          <button
+            onClick={() => handleCopy(textToCopy, fieldId)}
+            className="p-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all shrink-0 cursor-pointer border border-slate-200 active:scale-95"
+            title={`Copiar ${label}`}
+          >
+            {copiedField === fieldId ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+          </button>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-900 text-xs select-text overflow-hidden font-sans">
@@ -143,7 +270,7 @@ export default function FloatingPrescriptionWidget({
               {order.patientLastName}, {order.patientName}
             </h2>
             <p className="text-[10px] text-slate-400 font-mono truncate leading-none mt-0.5">
-              DNI: <strong className="text-white">{order.patientDni}</strong> • {order.obraSocial}
+              ID: <strong className="text-white">{order.id}</strong> • DNI: <strong className="text-white">{order.patientDni}</strong> • {order.obraSocial}
             </p>
           </div>
         </div>
@@ -152,7 +279,7 @@ export default function FloatingPrescriptionWidget({
           <button
             onClick={handleCopyAllSummary}
             className="px-2 py-1 bg-[#1661E1] hover:bg-[#1E6EFB] text-white rounded-md text-[10px] font-bold flex items-center gap-1 transition-all active:scale-95 shadow-xs cursor-pointer"
-            title="Copiar todo el resumen del paciente y medicación"
+            title="Copiar todo el resumen completo de la solicitud"
           >
             {copiedAll ? (
               <>
@@ -180,11 +307,11 @@ export default function FloatingPrescriptionWidget({
       </header>
 
       {/* Tabs navigation */}
-      <div className="bg-white border-b border-slate-200 px-3 flex items-center justify-between shrink-0 select-none">
+      <div className="bg-white border-b border-slate-200 px-2 flex items-center justify-between shrink-0 select-none overflow-x-auto">
         <div className="flex gap-1 py-1.5">
           <button
             onClick={() => setActiveTab('meds')}
-            className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 ${
               activeTab === 'meds'
                 ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                 : 'text-slate-600 hover:bg-slate-100'
@@ -196,32 +323,44 @@ export default function FloatingPrescriptionWidget({
 
           <button
             onClick={() => setActiveTab('patient')}
-            className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5 ${
+            className={`px-2 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 ${
               activeTab === 'patient'
                 ? 'bg-blue-50 text-blue-700 border border-blue-200'
                 : 'text-slate-600 hover:bg-slate-100'
             }`}
           >
             <User className="h-3 w-3 text-[#1661E1]" />
-            <span>Paciente & Obra Social</span>
+            <span>Paciente & Solicitud</span>
           </button>
 
-          {hasPhotos && (
+          <button
+            onClick={() => setActiveTab('payment')}
+            className={`px-2 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 ${
+              activeTab === 'payment'
+                ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <CreditCard className="h-3 w-3 text-indigo-600" />
+            <span>Pago (${order.paymentAmount || '0'})</span>
+          </button>
+
+          {totalPhotosCount > 0 && (
             <button
               onClick={() => setActiveTab('photos')}
-              className={`px-2.5 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1.5 ${
+              className={`px-2 py-1 rounded-md font-bold text-[11px] transition-colors cursor-pointer flex items-center gap-1 ${
                 activeTab === 'photos'
                   ? 'bg-purple-50 text-purple-700 border border-purple-200'
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
               <Eye className="h-3 w-3 text-purple-600" />
-              <span>Fotos ({photoList.length})</span>
+              <span>Adjuntos ({totalPhotosCount})</span>
             </button>
           )}
         </div>
 
-        <span className="text-[10px] font-semibold text-slate-400 px-1">
+        <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-slate-100 border border-slate-200 text-slate-700 rounded-md shrink-0 ml-1">
           {order.status}
         </span>
       </div>
@@ -235,7 +374,7 @@ export default function FloatingPrescriptionWidget({
             {order.diagnostic && (
               <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-2.5 flex items-start justify-between gap-2 shadow-2xs">
                 <div className="min-w-0">
-                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">Diagnóstico</span>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">Diagnóstico Principal</span>
                   <p className="text-[11px] font-bold text-amber-950 mt-0.5 leading-snug break-words">
                     {order.diagnostic}
                   </p>
@@ -243,7 +382,7 @@ export default function FloatingPrescriptionWidget({
                 <button
                   onClick={() => handleCopy(order.diagnostic, 'diag-main')}
                   className="p-1 rounded bg-white/80 hover:bg-white text-amber-700 border border-amber-200 transition-all shrink-0 cursor-pointer shadow-3xs"
-                  title="Copiar Diagnóstico"
+                  title="Copiar Diagnóstico Principal"
                 >
                   {copiedField === 'diag-main' ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
                 </button>
@@ -264,103 +403,47 @@ export default function FloatingPrescriptionWidget({
                     </span>
                   </div>
 
-                  <div className="p-2.5 space-y-2 bg-white">
-                    {/* Nombre comercial */}
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="min-w-0">
-                        <span className="text-[9px] font-bold text-slate-400 block uppercase">Nombre Comercial</span>
-                        <span className="text-[12px] font-black text-slate-900 break-words">{item.nombreComercial}</span>
-                      </div>
-                      <button
-                        onClick={() => handleCopy(item.nombreComercial, `med-${idx}-nombre`)}
-                        className="p-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 transition-all shrink-0 cursor-pointer"
-                        title="Copiar Nombre"
-                      >
-                        {copiedField === `med-${idx}-nombre` ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                      </button>
-                    </div>
-
-                    {/* Droga / Monodroga */}
+                  <div className="divide-y divide-slate-100 bg-white">
+                    <WidgetRow label="Nombre Comercial" value={item.nombreComercial} fieldId={`med-${idx}-nombre`} />
+                    
                     {item.droga && (
-                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                        <div className="min-w-0">
-                          <span className="text-[9px] font-bold text-slate-400 block uppercase">Droga / Monodroga</span>
-                          <span className="text-[11px] font-bold text-slate-800 break-words">{item.droga}</span>
-                        </div>
-                        <button
-                          onClick={() => handleCopy(item.droga!, `med-${idx}-droga`)}
-                          className="p-1 rounded bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 transition-all shrink-0 cursor-pointer"
-                          title="Copiar Droga"
-                        >
-                          {copiedField === `med-${idx}-droga` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                        </button>
-                      </div>
+                      <WidgetRow label="Droga / Monodroga" value={item.droga} fieldId={`med-${idx}-droga`} />
                     )}
 
-                    {/* Dosis / Presentación / Unidades */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-100">
+                    <div className="grid grid-cols-2 divide-x divide-slate-100">
                       {item.miligramos && (
-                        <div className="flex items-center justify-between gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200/60">
-                          <div className="min-w-0">
-                            <span className="text-[8px] font-bold text-slate-400 block uppercase">Dosis/Mg</span>
-                            <span className="text-[10px] font-extrabold text-slate-800 truncate block">{item.miligramos}</span>
-                          </div>
-                          <button
-                            onClick={() => handleCopy(item.miligramos!, `med-${idx}-mg`)}
-                            className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                            title="Copiar Dosis"
-                          >
-                            {copiedField === `med-${idx}-mg` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                          </button>
-                        </div>
+                        <WidgetRow label="Dosis/Mg" value={item.miligramos} fieldId={`med-${idx}-mg`} />
                       )}
-
                       {item.presentacion && (
-                        <div className="flex items-center justify-between gap-1 bg-slate-50 p-1.5 rounded-lg border border-slate-200/60">
-                          <div className="min-w-0">
-                            <span className="text-[8px] font-bold text-slate-400 block uppercase">Presentación</span>
-                            <span className="text-[10px] font-extrabold text-slate-800 truncate block">{item.presentacion}</span>
-                          </div>
-                          <button
-                            onClick={() => handleCopy(item.presentacion!, `med-${idx}-pres`)}
-                            className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
-                            title="Copiar Presentación"
-                          >
-                            {copiedField === `med-${idx}-pres` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                          </button>
-                        </div>
+                        <WidgetRow label="Presentación" value={item.presentacion} fieldId={`med-${idx}-pres`} />
                       )}
                     </div>
 
-                    {/* Cantidad de cajas */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
-                      <span className="text-[10px] font-semibold text-slate-500">Cantidad Solicitada:</span>
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-extrabold text-slate-900">{item.cantidadCajas} cajas</span>
-                        <button
-                          onClick={() => handleCopy(String(item.cantidadCajas), `med-${idx}-cant`)}
-                          className="p-1 rounded bg-slate-50 hover:bg-slate-100 text-slate-500 border border-slate-200 transition-all shrink-0 cursor-pointer"
-                          title="Copiar Cantidad"
-                        >
-                          {copiedField === `med-${idx}-cant` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                        </button>
-                      </div>
-                    </div>
+                    {item.unidadesPorCaja !== undefined && item.unidadesPorCaja !== null && item.unidadesPorCaja > 0 && (
+                      <WidgetRow label="Unidades por Caja" value={String(item.unidadesPorCaja)} fieldId={`med-${idx}-unidades`} />
+                    )}
 
-                    {/* Posología o Diagnóstico individual si existe */}
+                    <WidgetRow 
+                      label="Cantidad Solicitada" 
+                      value={`${item.cantidadCajas} ${item.cantidadCajas === 1 ? 'caja' : 'cajas'}`} 
+                      copyValue={String(item.cantidadCajas)}
+                      fieldId={`med-${idx}-cant`} 
+                    />
+
+                    {(item.diagnostic || item.diagnostico) && (
+                      <WidgetRow 
+                        label="Diagnóstico Específico" 
+                        value={item.diagnostic || item.diagnostico || ''} 
+                        fieldId={`med-${idx}-diag`} 
+                      />
+                    )}
+
                     {item.posologia && (
-                      <div className="bg-slate-50 p-2 rounded-lg border border-slate-200/60">
-                        <div className="flex justify-between items-start gap-1">
-                          <span className="text-[9px] font-bold text-slate-400 uppercase">Posología:</span>
-                          <button
-                            onClick={() => handleCopy(item.posologia!, `med-${idx}-pos`)}
-                            className="text-slate-400 hover:text-slate-700 cursor-pointer"
-                          >
-                            {copiedField === `med-${idx}-pos` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
-                          </button>
-                        </div>
-                        <p className="text-[10px] font-medium text-slate-700 mt-0.5">{item.posologia}</p>
-                      </div>
+                      <WidgetRow label="Posología" value={item.posologia} fieldId={`med-${idx}-pos`} />
+                    )}
+
+                    {item.comments && (
+                      <WidgetRow label="Comentarios / Aclaraciones" value={item.comments} fieldId={`med-${idx}-comm`} />
                     )}
                   </div>
                 </div>
@@ -386,163 +469,221 @@ export default function FloatingPrescriptionWidget({
 
             {/* Comentarios adicionales del paciente */}
             {order.comments && (
-              <div className="bg-slate-100 border border-slate-200 rounded-xl p-2.5 text-[10px] text-slate-600">
-                <span className="font-bold text-slate-700 block mb-0.5">Comentarios del Paciente:</span>
-                <p className="italic">{order.comments}</p>
+              <div className="bg-slate-100 border border-slate-200 rounded-xl p-2.5 text-[10px] text-slate-600 flex justify-between items-start gap-2">
+                <div className="min-w-0">
+                  <span className="font-bold text-slate-700 block mb-0.5">Comentarios del Paciente:</span>
+                  <p className="italic">{order.comments}</p>
+                </div>
+                <button
+                  onClick={() => handleCopy(order.comments, 'p-comments')}
+                  className="p-1 rounded bg-white hover:bg-slate-200 text-slate-600 border border-slate-200 shrink-0 cursor-pointer"
+                  title="Copiar Comentarios"
+                >
+                  {copiedField === 'p-comments' ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                </button>
               </div>
             )}
-          </div>
-        )}
 
-        {/* TAB 2: PACIENTE Y OBRA SOCIAL */}
-        {activeTab === 'patient' && (
-          <div className="space-y-2.5">
-            <div className="bg-white border border-slate-200 rounded-xl shadow-xs divide-y divide-slate-100 overflow-hidden">
-              {/* DNI */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">DNI / Documento</span>
-                  <span className="text-[12px] font-black text-slate-900">{order.patientDni}</span>
+            {/* Análisis automático de envase con IA */}
+            {(extractedText || isExtracting) && (
+              <div className="p-2.5 rounded-xl border border-[#0F6C7D]/30 bg-[#0F6C7D]/5 text-[#0F6C7D] space-y-1">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-[#0F6C7D] shrink-0" />
+                    <span className="font-extrabold text-[11px] text-[#0141BC]">Análisis de Envase (IA)</span>
+                  </div>
+                  {extractedText && (
+                    <button
+                      onClick={() => handleCopy(extractedText, 'ia-extracted')}
+                      className="p-1 rounded bg-white hover:bg-slate-100 text-[#0F6C7D] border border-[#0F6C7D]/30 transition-all shrink-0 cursor-pointer"
+                      title="Copiar texto extraído"
+                    >
+                      {copiedField === 'ia-extracted' ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                    </button>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleCopy(order.patientDni, 'p-dni')}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                  title="Copiar DNI"
-                >
-                  {copiedField === 'p-dni' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {/* Apellido */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Apellido</span>
-                  <span className="text-[11px] font-bold text-slate-800">{order.patientLastName}</span>
-                </div>
-                <button
-                  onClick={() => handleCopy(order.patientLastName, 'p-lastname')}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                  title="Copiar Apellido"
-                >
-                  {copiedField === 'p-lastname' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {/* Nombre */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Nombre</span>
-                  <span className="text-[11px] font-bold text-slate-800">{order.patientName}</span>
-                </div>
-                <button
-                  onClick={() => handleCopy(order.patientName, 'p-name')}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                  title="Copiar Nombre"
-                >
-                  {copiedField === 'p-name' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {/* Fecha de Nacimiento & Edad */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Fecha de Nacimiento</span>
-                  <span className="text-[11px] font-bold text-slate-800">
-                    {formatBirthDate(order.patientBirthDate)} {order.patientBirthDate ? `(${calculateAge(order.patientBirthDate)})` : ''}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleCopy(formatBirthDate(order.patientBirthDate), 'p-birth')}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                  title="Copiar Fecha de Nacimiento"
-                >
-                  {copiedField === 'p-birth' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {/* Obra Social */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">Obra Social / Prepaga</span>
-                  <span className="text-[11px] font-bold text-blue-700">{order.obraSocial}</span>
-                </div>
-                <button
-                  onClick={() => handleCopy(order.obraSocial, 'p-os')}
-                  className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                  title="Copiar Obra Social"
-                >
-                  {copiedField === 'p-os' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                </button>
-              </div>
-
-              {/* Número de Afiliado */}
-              <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                <div className="min-w-0">
-                  <span className="text-[9px] font-bold text-slate-400 block uppercase">N° Credencial / Afiliado</span>
-                  <span className="text-[11px] font-bold text-slate-800 font-mono">
-                    {order.obraSocialNumber || 'Particular / Sin número'}
-                  </span>
-                </div>
-                {order.obraSocialNumber && (
-                  <button
-                    onClick={() => handleCopy(order.obraSocialNumber!, 'p-osnum')}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                    title="Copiar N° Afiliado"
-                  >
-                    {copiedField === 'p-osnum' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
+                {isExtracting ? (
+                  <p className="text-[10px] italic text-slate-600">Analizando imagen de envase...</p>
+                ) : (
+                  <div className="font-mono text-[10px] whitespace-pre-wrap bg-white/90 p-2 rounded-lg border border-[#0F6C7D]/20 text-[#0141BC]">
+                    {extractedText}
+                  </div>
                 )}
               </div>
+            )}
+          </div>
+        )}
 
-              {/* Teléfono / WhatsApp */}
-              {order.patientPhone && (
-                <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-slate-50/80">
-                  <div className="min-w-0">
-                    <span className="text-[9px] font-bold text-slate-400 block uppercase">Teléfono / WhatsApp</span>
-                    <span className="text-[11px] font-medium text-slate-800">{order.patientPhone}</span>
-                  </div>
-                  <button
-                    onClick={() => handleCopy(order.patientPhone, 'p-phone')}
-                    className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer"
-                    title="Copiar Teléfono"
-                  >
-                    {copiedField === 'p-phone' ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              )}
+        {/* TAB 2: PACIENTE Y SOLICITUD */}
+        {activeTab === 'patient' && (
+          <div className="space-y-3">
+            {/* 1. Datos de la Solicitud */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-[#1661E1]" />
+                <h4 className="font-extrabold text-slate-700 text-[11px] uppercase tracking-wider">Datos de la Solicitud</h4>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <WidgetRow label="ID Solicitud" value={order.id} fieldId="sol-id" />
+                <WidgetRow label="Fecha de Solicitud" value={formatDateTime(order.createdAt)} fieldId="sol-created" />
+                <WidgetRow label="Estado" value={order.status} fieldId="sol-status" />
+                <WidgetRow 
+                  label="Canal de Entrega" 
+                  value={order.deliveryMethod === 'both' ? 'Email y WhatsApp' : order.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
+                  fieldId="sol-delivery" 
+                />
+                {order.lastConsultationTime && (
+                  <WidgetRow label="Última Consulta" value={order.lastConsultationTime} fieldId="sol-last-time" />
+                )}
+                {order.lastConsultationDoctor && (
+                  <WidgetRow label="Médico de Última Consulta" value={order.lastConsultationDoctor} fieldId="sol-last-doc" />
+                )}
+              </div>
             </div>
 
-            {/* Familiar a cargo si aplica */}
+            {/* 2. Información del Paciente */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                <User className="h-3.5 w-3.5 text-[#1661E1]" />
+                <h4 className="font-extrabold text-slate-700 text-[11px] uppercase tracking-wider">Información del Paciente</h4>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <WidgetRow label="Apellido" value={order.patientLastName} fieldId="p-lastname" />
+                <WidgetRow label="Nombre" value={order.patientName} fieldId="p-name" />
+                <WidgetRow label="DNI / Documento" value={order.patientDni} fieldId="p-dni" />
+                <WidgetRow 
+                  label="Fecha de Nacimiento" 
+                  value={`${formatBirthDate(order.patientBirthDate)} ${order.patientBirthDate ? `(${calculateAge(order.patientBirthDate)})` : ''}`} 
+                  copyValue={formatBirthDate(order.patientBirthDate)}
+                  fieldId="p-birth" 
+                />
+                <WidgetRow label="Teléfono / WhatsApp" value={order.patientPhone || '—'} fieldId="p-phone" />
+                <WidgetRow label="Correo Electrónico" value={order.patientEmail || '—'} fieldId="p-email" />
+                {order.patientCity && (
+                  <WidgetRow label="Ciudad" value={order.patientCity} fieldId="p-city" />
+                )}
+                {order.patientProvince && (
+                  <WidgetRow label="Provincia" value={order.patientProvince} fieldId="p-prov" />
+                )}
+              </div>
+            </div>
+
+            {/* 3. Cobertura Médica */}
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                <Shield className="h-3.5 w-3.5 text-blue-600" />
+                <h4 className="font-extrabold text-slate-700 text-[11px] uppercase tracking-wider">Obra Social / Cobertura</h4>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <WidgetRow label="Obra Social / Prepaga" value={order.obraSocial} fieldId="p-os" />
+                <WidgetRow 
+                  label="Número de Credencial / Afiliado" 
+                  value={order.obraSocialNumber || 'Particular / Sin número'} 
+                  copyValue={order.obraSocialNumber || ''}
+                  fieldId="p-osnum" 
+                />
+              </div>
+            </div>
+
+            {/* 4. Paciente a Cargo (Si aplica) */}
             {order.isForDependent && (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-2.5 space-y-1">
-                <span className="text-[9px] font-black uppercase tracking-wider text-purple-800 block">
-                  Paciente a Cargo ({order.dependentRelationship || 'Familiar'})
-                </span>
-                <p className="text-[10px] text-purple-900">
-                  Titular de la cuenta: <strong>{order.requestedByTitularName || '—'}</strong> (DNI: {order.requestedByTitularDni || '—'})
-                </p>
+              <div className="bg-purple-50/50 border border-purple-200 rounded-xl shadow-xs overflow-hidden">
+                <div className="bg-purple-100/80 px-3 py-1.5 border-b border-purple-200 flex items-center gap-1.5">
+                  <Users className="h-3.5 w-3.5 text-purple-700" />
+                  <h4 className="font-extrabold text-purple-900 text-[11px] uppercase tracking-wider">Paciente a Cargo / Familiar</h4>
+                </div>
+                <div className="divide-y divide-purple-100/80">
+                  <WidgetRow label="Relación / Parentesco" value={order.dependentRelationship || 'Familiar'} fieldId="dep-rel" />
+                  <WidgetRow label="Nombre Titular de Cuenta" value={order.requestedByTitularName || '—'} fieldId="dep-tit-name" />
+                  <WidgetRow label="DNI Titular" value={order.requestedByTitularDni || '—'} fieldId="dep-tit-dni" />
+                  <WidgetRow label="Teléfono Titular" value={order.requestedByTitularPhone || '—'} fieldId="dep-tit-phone" />
+                  <WidgetRow label="Email Titular" value={order.requestedByTitularEmail || '—'} fieldId="dep-tit-email" />
+                </div>
               </div>
             )}
           </div>
         )}
 
-        {/* TAB 3: FOTOS Y ADJUNTOS */}
-        {activeTab === 'photos' && hasPhotos && (
+        {/* TAB 3: INFORMACIÓN DE PAGO */}
+        {activeTab === 'payment' && (
           <div className="space-y-3">
-            <span className="text-[10px] font-bold text-slate-500 block">Fotos de envases o recetas anteriores:</span>
-            <div className="grid grid-cols-1 gap-2.5">
-              {photoList.map((photo, i) => (
-                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-                  {photo.url.startsWith('data:application/pdf') ? (
+            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+              <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
+                <CreditCard className="h-3.5 w-3.5 text-indigo-600" />
+                <h4 className="font-extrabold text-slate-700 text-[11px] uppercase tracking-wider">Detalles de Pago</h4>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <WidgetRow label="Método de Pago" value={getPaymentMethodLabel(order)} fieldId="pay-method" />
+                <WidgetRow label="Monto Solicitado" value={`$${order.paymentAmount || '0'}`} fieldId="pay-amount" />
+                <WidgetRow label="Estado del Pago" value={getPaymentStatusLabel(order.paymentStatus)} fieldId="pay-status" />
+                {order.paymentId && (
+                  <WidgetRow label="ID de Transacción / Pago" value={order.paymentId} fieldId="pay-id" />
+                )}
+                {order.paymentDate && (
+                  <WidgetRow label="Fecha de Pago" value={formatDateTime(order.paymentDate)} fieldId="pay-date" />
+                )}
+              </div>
+            </div>
+
+            {/* Comprobante de pago si existe */}
+            {order.paymentReceiptUrl && (
+              <div className="bg-white border border-slate-200 rounded-xl shadow-xs p-3 space-y-2">
+                <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider block">Comprobante de Transferencia</span>
+                <div className="border border-slate-200 rounded-lg overflow-hidden bg-slate-50 p-2.5 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-6 w-6 text-rose-500 shrink-0" />
+                    <span className="text-[11px] font-bold text-slate-700 truncate">
+                      {order.paymentReceiptName || 'comprobante_pago.jpg'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
                     <a
-                      href={photo.url}
+                      href={order.paymentReceiptUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="p-4 bg-slate-50 flex items-center justify-center gap-2 hover:bg-slate-100 transition-colors"
+                      className="px-2 py-1 bg-slate-200 hover:bg-slate-300 text-slate-800 rounded font-bold text-[10px] flex items-center gap-1 transition-colors"
+                      title="Ver en pantalla completa"
                     >
-                      <FileText className="h-6 w-6 text-rose-500" />
-                      <span className="text-[11px] font-bold text-slate-700">Ver Archivo PDF</span>
+                      <ExternalLink className="h-3 w-3" /> Ver
                     </a>
+                    <a
+                      href={order.paymentReceiptUrl}
+                      download={order.paymentReceiptName || 'comprobante_pago'}
+                      className="px-2 py-1 bg-[#1661E1] hover:bg-[#1E6EFB] text-white rounded font-bold text-[10px] flex items-center gap-1 transition-colors"
+                      title="Descargar comprobante"
+                    >
+                      <Download className="h-3 w-3" /> Descargar
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 4: FOTOS Y ADJUNTOS */}
+        {activeTab === 'photos' && totalPhotosCount > 0 && (
+          <div className="space-y-3">
+            <span className="text-[10px] font-bold text-slate-500 block">Archivos y fotos adjuntas en la solicitud:</span>
+            <div className="grid grid-cols-1 gap-2.5">
+              {/* Fotos de envases o recetas anteriores */}
+              {medicationPhotoList.map((photo, i) => (
+                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                  {photo.url.startsWith('data:application/pdf') ? (
+                    <div className="p-4 bg-slate-50 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-6 w-6 text-rose-500 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-700 truncate">{photo.name}</span>
+                      </div>
+                      <a
+                        href={photo.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 bg-[#1661E1] text-white rounded font-bold text-[10px] flex items-center gap-1 shrink-0"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Abrir PDF
+                      </a>
+                    </div>
                   ) : (
                     <a
                       href={photo.url}
@@ -557,10 +698,49 @@ export default function FloatingPrescriptionWidget({
                     </a>
                   )}
                   <div className="p-2 text-[9px] font-mono text-slate-500 truncate bg-slate-50 border-t border-slate-100">
-                    {photo.name}
+                    Envase/Receta: {photo.name}
                   </div>
                 </div>
               ))}
+
+              {/* Comprobante de pago */}
+              {hasPaymentReceipt && (
+                <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                  {order.paymentReceiptUrl!.startsWith('data:application/pdf') || order.paymentReceiptName?.endsWith('.pdf') ? (
+                    <div className="p-4 bg-slate-50 flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText className="h-6 w-6 text-indigo-500 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-700 truncate">
+                          {order.paymentReceiptName || 'comprobante_pago.pdf'}
+                        </span>
+                      </div>
+                      <a
+                        href={order.paymentReceiptUrl!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 bg-[#1661E1] text-white rounded font-bold text-[10px] flex items-center gap-1 shrink-0"
+                      >
+                        <ExternalLink className="h-3 w-3" /> Abrir PDF
+                      </a>
+                    </div>
+                  ) : (
+                    <a
+                      href={order.paymentReceiptUrl!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block relative group cursor-zoom-in"
+                    >
+                      <img src={order.paymentReceiptUrl!} alt="Comprobante" className="max-h-48 w-full object-contain bg-slate-100" />
+                      <div className="p-1.5 bg-slate-900/80 text-white text-[9px] flex items-center justify-center gap-1">
+                        <ExternalLink className="h-3 w-3" /> Abrir comprobante de pago
+                      </div>
+                    </a>
+                  )}
+                  <div className="p-2 text-[9px] font-mono text-slate-500 truncate bg-slate-50 border-t border-slate-100">
+                    Comprobante de Pago: {order.paymentReceiptName || 'comprobante_pago'}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
