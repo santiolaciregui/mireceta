@@ -138,7 +138,7 @@ export default function Sidebar({
         }
       ];
     } else if (role === 'medico' || role === 'colaborador') {
-      return [
+      const baseMenu = [
         {
           id: 'solicitudes',
           title: 'Bandeja de Pedidos',
@@ -156,15 +156,20 @@ export default function Sidebar({
           items: [
             { id: 'chat', label: 'Chat con Pacientes', icon: MessageSquare, count: chatCount, countColor: 'bg-[#14BE99] text-white' },
           ]
-        },
-        {
+        }
+      ];
+
+      if (role === 'medico') {
+        baseMenu.push({
           id: 'reportes_cat',
           title: 'Reportes',
           items: [
             { id: 'reportes', label: 'Liquidaciones y Métricas', icon: TrendingUp },
           ]
-        }
-      ];
+        });
+      }
+
+      return baseMenu;
     }
     return [];
   };

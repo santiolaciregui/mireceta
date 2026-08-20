@@ -186,23 +186,29 @@ export default function UserManagement({
     setUserToDelete(user);
   };
 
-  // Filtered list
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = 
-      `${user.name} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.identifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filtered and alphabetically sorted list (A-Z by name)
+  const filteredUsers = users
+    .filter(user => {
+      const matchesSearch = 
+        `${user.name} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.identifier.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase());
+        
+      const matchesRole = roleFilter === 'all' || user.role === roleFilter;
       
-    const matchesRole = roleFilter === 'all' || user.role === roleFilter;
-    
-    return matchesSearch && matchesRole;
-  });
+      return matchesSearch && matchesRole;
+    })
+    .sort((a, b) => {
+      const nameA = `${a.name} ${a.lastName}`.trim();
+      const nameB = `${b.name} ${b.lastName}`.trim();
+      return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
+    });
 
   return (
     <div className="space-y-6">
       
       {/* Search and Action Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white/40 backdrop-blur-md p-4 rounded-2xl border border-white/50 shadow-xs">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-100/80 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xs">
         
         {/* Search */}
         <div className="relative flex-1 max-w-md">
@@ -218,11 +224,11 @@ export default function UserManagement({
 
         {/* Filters and Add Button */}
         <div className="flex flex-wrap items-center gap-2">
-          <div className="bg-slate-100/80 p-0.5 rounded-xl border border-slate-200/50 flex text-xs font-semibold">
+          <div className="bg-slate-200/70 p-0.5 rounded-xl border border-slate-300/50 flex text-xs font-semibold">
             <button
               onClick={() => setRoleFilter('all')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'all' ? 'bg-white text-slate-950 shadow-xs' : 'text-slate-600 hover:text-slate-950'
+                roleFilter === 'all' ? 'bg-white text-slate-950 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-950'
               }`}
             >
               Todos
@@ -230,7 +236,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('paciente')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'paciente' ? 'bg-white text-[#1661E1] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
+                roleFilter === 'paciente' ? 'bg-white text-[#1661E1] shadow-xs font-bold' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Pacientes
@@ -238,7 +244,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('medico')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'medico' ? 'bg-white text-[#0F6C7D] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
+                roleFilter === 'medico' ? 'bg-white text-[#0F6C7D] shadow-xs font-bold' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Médicos
@@ -246,7 +252,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('colaborador')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'colaborador' ? 'bg-white text-[#0F6C7D] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
+                roleFilter === 'colaborador' ? 'bg-white text-[#0F6C7D] shadow-xs font-bold' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Colaboradores
@@ -254,7 +260,7 @@ export default function UserManagement({
             <button
               onClick={() => setRoleFilter('admin')}
               className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                roleFilter === 'admin' ? 'bg-white text-[#0141BC] shadow-xs' : 'text-slate-600 hover:text-[#0141BC]'
+                roleFilter === 'admin' ? 'bg-white text-[#0141BC] shadow-xs font-bold' : 'text-slate-600 hover:text-[#0141BC]'
               }`}
             >
               Admin
@@ -274,17 +280,24 @@ export default function UserManagement({
 
       {/* Users Count Status */}
       <div className="text-[11px] text-slate-500 font-medium px-1 flex items-center justify-between">
-        <span>Mostrando {filteredUsers.length} de {users.length} usuarios registrados</span>
+        <span>Mostrando {filteredUsers.length} de {users.length} usuarios registrados (ordenados A-Z)</span>
         <span className="text-slate-400">Toca el estado para activarlo o desactivarlo</span>
       </div>
 
       {/* Grid List - Table Pattern */}
-      <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-white/50 overflow-hidden shadow-xs">
+      <div className="bg-white rounded-2xl border border-slate-250 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/50 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-4 px-6">Usuario</th>
+              <tr className="border-b border-slate-200 bg-slate-100 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
+                <th className="py-4 px-6">
+                  <div className="flex items-center gap-1.5">
+                    <span>Usuario</span>
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-200 px-1.5 py-0.5 rounded tracking-tight normal-case">
+                      A-Z
+                    </span>
+                  </div>
+                </th>
                 <th className="py-4 px-6">Rol</th>
                 <th className="py-4 px-6">Identificación</th>
                 <th className="py-4 px-6">Contacto</th>
@@ -292,7 +305,7 @@ export default function UserManagement({
                 <th className="py-4 px-6 text-right">Acciones</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100/60 text-sm">
+            <tbody className="divide-y divide-slate-150 text-sm">
               {filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-400 text-xs font-medium">
@@ -300,7 +313,8 @@ export default function UserManagement({
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((user) => {
+                filteredUsers.map((user, index) => {
+                  const isEven = index % 2 === 0;
                   const initials = `${user.name.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
                   
                   // Role style config
@@ -327,7 +341,7 @@ export default function UserManagement({
                   }
 
                   return (
-                    <tr key={user.id} className="hover:bg-slate-50/40 transition-colors">
+                    <tr key={user.id} className={`${isEven ? 'bg-white' : 'bg-slate-50/80'} hover:bg-blue-50/50 transition-colors border-b border-slate-100`}>
                       {/* Name & Avatar */}
                       <td className="py-4 px-6">
                         <div className="flex items-center gap-3">

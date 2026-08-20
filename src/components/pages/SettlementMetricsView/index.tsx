@@ -160,18 +160,29 @@ export default function SettlementMetricsView({
     return 'Paciente (Autogestión)';
   };
 
+  const currentUserName = currentUser ? `${currentUser.name} ${currentUser.lastName}`.trim() : '';
+  const effectiveOrders = useMemo(() => {
+    if (currentUser?.role === 'medico') {
+      return orders.filter(o => {
+        const docName = getOrderDoctorName(o);
+        return docName === currentUserName || (currentUser.medicoName && docName === currentUser.medicoName);
+      });
+    }
+    return orders;
+  }, [orders, currentUser, currentUserName]);
+
   // List of distinct doctors from users and orders
   const doctorsList = useMemo(() => {
     const fromUsers = users
       .filter((u) => u.role === 'medico' && u.status === 'Activo')
       .map((u) => `${u.name} ${u.lastName}`.trim());
 
-    const fromOrders = orders
+    const fromOrders = effectiveOrders
       .map((o) => getOrderDoctorName(o))
       .filter((name) => name && name !== 'Sin médico asignado');
 
     return Array.from(new Set([...fromUsers, ...fromOrders])).sort();
-  }, [users, orders]);
+  }, [users, effectiveOrders]);
 
   // List of distinct collaborators from users and orders
   const collaboratorsList = useMemo(() => {
@@ -179,21 +190,21 @@ export default function SettlementMetricsView({
       .filter((u) => u.role === 'colaborador' && u.status === 'Activo')
       .map((u) => `${u.name} ${u.lastName}`.trim());
 
-    const fromOrders = orders
+    const fromOrders = effectiveOrders
       .map((o) => getOrderCollaboratorName(o))
       .filter((name) => name && name !== 'Paciente (Autogestión)');
 
     return Array.from(new Set([...fromUsers, ...fromOrders])).sort();
-  }, [users, orders]);
+  }, [users, effectiveOrders]);
 
   // Unique Obras Sociales in orders
   const obrasSocialesList = useMemo(() => {
-    return Array.from(new Set(orders.map((o) => o.obraSocial).filter(Boolean))).sort();
-  }, [orders]);
+    return Array.from(new Set(effectiveOrders.map((o) => o.obraSocial).filter(Boolean))).sort();
+  }, [effectiveOrders]);
 
   // 1. FILTER ORDERS BY DATE, PROFESSIONAL, STATUS, OBRA SOCIAL & SEARCH QUERY
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    return effectiveOrders.filter((order) => {
       // 1. Date Filter
       if (startDate) {
         const orderDate = order.createdAt ? order.createdAt.split('T')[0] : '';
@@ -260,7 +271,7 @@ export default function SettlementMetricsView({
 
       return true;
     });
-  }, [orders, startDate, endDate, selectedProfessional, selectedStatus, selectedObraSocial, searchQuery]);
+  }, [effectiveOrders, startDate, endDate, selectedProfessional, selectedStatus, selectedObraSocial, searchQuery]);
 
   // 2. AGGREGATED METRICS & KPIS
   const metrics = useMemo(() => {

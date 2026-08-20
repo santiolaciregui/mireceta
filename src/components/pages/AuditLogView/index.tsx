@@ -24,6 +24,11 @@ import {
   XCircle,
   Eye,
   RotateCcw,
+  ArrowLeft,
+  ArrowRight,
+  ChevronRight,
+  Phone,
+  Mail,
 } from 'lucide-react';
 
 interface AuditLogViewProps {
@@ -71,7 +76,11 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
   const [roleFilter, setRoleFilter] = useState<'all' | 'medicos' | 'colaboradores' | 'admin' | 'paciente'>('all');
   const [viewMode, setViewMode] = useState<'by_patient' | 'flat'>('by_patient');
   const [sortBy, setSortBy] = useState<'recent' | 'name' | 'events'>('recent');
-  const [expandedPatients, setExpandedPatients] = useState<Record<string, boolean>>({});
+
+  // Selected Patient for Dedicated History View
+  const [selectedPatientKey, setSelectedPatientKey] = useState<string | null>(null);
+  const [patientDetailSearch, setPatientDetailSearch] = useState('');
+  const [patientDetailRoleFilter, setPatientDetailRoleFilter] = useState<'all' | 'medicos' | 'colaboradores' | 'admin' | 'paciente'>('all');
 
   // Consolidate all audit log entries from all orders into a single list
   const allEnrichedLogs: EnrichedAuditEntry[] = useMemo(() => {
@@ -260,37 +269,30 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
   }, [patientGroups, allEnrichedLogs]);
 
   // Matches log against current role filter
-  const matchesRoleFilter = (log: EnrichedAuditEntry) => {
-    if (roleFilter === 'all') return true;
+  const matchesRoleFilter = (log: EnrichedAuditEntry, filter: string) => {
+    if (filter === 'all') return true;
     const userLower = (log.user || '').toLowerCase();
-    if (roleFilter === 'medicos') {
+    if (filter === 'medicos') {
       return userLower.includes('dr') || userLower.includes('médico') || userLower.includes('medico');
     }
-    if (roleFilter === 'colaboradores') {
+    if (filter === 'colaboradores') {
       return userLower.includes('colaborador') || userLower.includes('operador');
     }
-    if (roleFilter === 'admin') {
+    if (filter === 'admin') {
       return userLower.includes('admin') || userLower.includes('administrador');
     }
-    if (roleFilter === 'paciente') {
+    if (filter === 'paciente') {
       return userLower.includes('paciente') || userLower.includes('autogestión') || userLower.includes('autogestion');
     }
     return true;
-  };
-
-  // Matches log or group against search term
-  const matchesSearch = (text: string) => {
-    if (!searchTerm.trim()) return true;
-    return text.toLowerCase().includes(searchTerm.toLowerCase().trim());
   };
 
   // Filtered Patient Groups
   const filteredPatientGroups = useMemo(() => {
     return patientGroups
       .map((group) => {
-        // Filter this patient's logs based on search and role
         const filteredGroupLogs = group.logs.filter((log) => {
-          const passesRole = matchesRoleFilter(log);
+          const passesRole = matchesRoleFilter(log, roleFilter);
           if (!passesRole) return false;
 
           if (!searchTerm.trim()) return true;
@@ -330,7 +332,6 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
         if (sortBy === 'events') {
           return b.filteredLogs.length - a.filteredLogs.length;
         }
-        // Default 'recent'
         return new Date(b.lastActivityTimestamp).getTime() - new Date(a.lastActivityTimestamp).getTime();
       });
   }, [patientGroups, searchTerm, roleFilter, sortBy]);
@@ -338,7 +339,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
   // Filtered Flat Logs (for Global Chronological mode)
   const filteredFlatLogs = useMemo(() => {
     return allEnrichedLogs.filter((log) => {
-      const passesRole = matchesRoleFilter(log);
+      const passesRole = matchesRoleFilter(log, roleFilter);
       if (!passesRole) return false;
 
       if (!searchTerm.trim()) return true;
@@ -357,37 +358,45 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
     });
   }, [allEnrichedLogs, searchTerm, roleFilter]);
 
-  // Accordion toggle helpers
-  const togglePatientExpand = (patientKey: string) => {
-    setExpandedPatients((prev) => ({
-      ...prev,
-      [patientKey]: prev[patientKey] === undefined ? false : !prev[patientKey],
-    }));
-  };
+  // Active selected patient group for Detail View
+  const selectedPatientGroup = useMemo(() => {
+    if (!selectedPatientKey) return null;
+    return patientGroups.find((g) => g.patientKey === selectedPatientKey) || null;
+  }, [selectedPatientKey, patientGroups]);
 
-  const isPatientExpanded = (patientKey: string) => {
-    // By default all groups start collapsed; user can expand individually or use "Expand All"
-    if (expandedPatients[patientKey] !== undefined) {
-      return expandedPatients[patientKey];
-    }
-    return false; // default collapsed on first load
-  };
+  // Filtered logs for the selected patient detail view
+  const selectedPatientFilteredLogs = useMemo(() => {
+    if (!selectedPatientGroup) return [];
+    return selectedPatientGroup.logs.filter((log) => {
+      const passesRole = matchesRoleFilter(log, patientDetailRoleFilter);
+      if (!passesRole) return false;
 
-  const expandAll = () => {
-    const next: Record<string, boolean> = {};
-    filteredPatientGroups.forEach((g) => {
-      next[g.patientKey] = true;
+      if (!patientDetailSearch.trim()) return true;
+
+      const q = patientDetailSearch.toLowerCase();
+      return (
+        log.user.toLowerCase().includes(q) ||
+        log.action.toLowerCase().includes(q) ||
+        log.orderId.toLowerCase().includes(q) ||
+        (log.notes && log.notes.toLowerCase().includes(q)) ||
+        (log.diagnostic && log.diagnostic.toLowerCase().includes(q))
+      );
     });
-    setExpandedPatients(next);
-  };
+  }, [selectedPatientGroup, patientDetailSearch, patientDetailRoleFilter]);
 
-  const collapseAll = () => {
-    const next: Record<string, boolean> = {};
-    filteredPatientGroups.forEach((g) => {
-      next[g.patientKey] = false;
+  // Medical orders belonging to the selected patient
+  const selectedPatientOrders = useMemo(() => {
+    if (!selectedPatientGroup) return [];
+    return orders.filter((o) => {
+      const cleanDni = (o.patientDni || '').trim().toLowerCase();
+      const cleanName = `${o.patientName || ''} ${o.patientLastName || ''}`.trim().toLowerCase();
+      return (
+        (cleanDni && cleanDni === selectedPatientGroup.patientKey) ||
+        cleanName === selectedPatientGroup.patientKey ||
+        selectedPatientGroup.orderIds.includes(o.id)
+      );
     });
-    setExpandedPatients(next);
-  };
+  }, [orders, selectedPatientGroup]);
 
   // Format date helper
   const formatDate = (isoString: string) => {
@@ -509,6 +518,291 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
     }
   };
 
+  // RENDER DEDICATED PATIENT DETAIL VIEW SCREEN
+  if (selectedPatientGroup) {
+    const initials = selectedPatientGroup.patientFullName
+      .split(' ')
+      .map((n) => n[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'P';
+
+    return (
+      <div className="space-y-6 max-w-7xl mx-auto animate-fadeIn">
+        {/* Back Navigation Bar */}
+        <div className="flex items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+          <button
+            onClick={() => {
+              setSelectedPatientKey(null);
+              setPatientDetailSearch('');
+              setPatientDetailRoleFilter('all');
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0141BC] font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-xs active:scale-98"
+          >
+            <ArrowLeft className="h-4 w-4 text-[#0141BC]" />
+            <span>Volver a la Auditoría de Pacientes</span>
+          </button>
+          
+          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-500 font-semibold">
+            <span>Historial</span>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <span>Pacientes</span>
+            <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+            <span className="text-[#0141BC] font-bold">{selectedPatientGroup.patientFullName}</span>
+          </div>
+        </div>
+
+        {/* Patient Profile Card Banner */}
+        <div className="bg-gradient-to-br from-white via-slate-50 to-blue-50/30 p-6 rounded-3xl border border-slate-250 shadow-sm space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+            {/* Identity */}
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#0141BC] to-[#0F6C7D] text-white font-extrabold text-xl flex items-center justify-center shadow-md shrink-0">
+                {initials}
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h1 className="text-xl sm:text-2xl font-extrabold text-[#0141BC]">
+                    {selectedPatientGroup.patientFullName}
+                  </h1>
+                  <span className="text-xs font-mono font-extrabold text-slate-700 bg-slate-200 px-3 py-1 rounded-full border border-slate-300">
+                    DNI: {selectedPatientGroup.patientDni}
+                  </span>
+                  {selectedPatientGroup.obraSocial && (
+                    <span className="text-xs font-bold text-[#0F6C7D] bg-[#0F6C7D]/10 px-3 py-1 rounded-full border border-[#0F6C7D]/30 flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5" />
+                      {selectedPatientGroup.obraSocial} {selectedPatientGroup.obraSocialNumber ? `(${selectedPatientGroup.obraSocialNumber})` : ''}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 text-xs text-slate-500 font-medium flex-wrap pt-0.5">
+                  {selectedPatientGroup.patientEmail && (
+                    <span className="flex items-center gap-1 text-slate-600">
+                      <Mail className="h-3.5 w-3.5 text-slate-400" />
+                      {selectedPatientGroup.patientEmail}
+                    </span>
+                  )}
+                  {selectedPatientGroup.patientPhone && (
+                    <span className="flex items-center gap-1 text-slate-600">
+                      <Phone className="h-3.5 w-3.5 text-slate-400" />
+                      {selectedPatientGroup.patientPhone}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="grid grid-cols-3 gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 shrink-0">
+              <div className="text-center px-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Solicitudes</p>
+                <p className="text-lg font-extrabold text-[#0141BC] mt-0.5">{selectedPatientGroup.orderIds.length}</p>
+              </div>
+              <div className="text-center px-2 border-x border-slate-100">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Eventos</p>
+                <p className="text-lg font-extrabold text-[#0F6C7D] mt-0.5">{selectedPatientGroup.logs.length}</p>
+              </div>
+              <div className="text-center px-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última Act.</p>
+                <p className="text-xs font-extrabold text-[#0141BC] mt-1.5 flex items-center justify-center gap-1">
+                  <Clock className="h-3 w-3 text-[#0F6C7D]" />
+                  <span>{formatRelativeTime(selectedPatientGroup.lastActivityTimestamp)}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Registered Solicitudes Section */}
+        {selectedPatientOrders.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-extrabold text-[#0141BC] flex items-center gap-2">
+                <FileText className="h-4 w-4 text-[#1661E1]" />
+                <span>Solicitudes Registradas ({selectedPatientOrders.length})</span>
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {selectedPatientOrders.map((ord) => {
+                const medList = ord.medicationItems && ord.medicationItems.length > 0
+                  ? ord.medicationItems.map((m) => m.nombreComercial).join(', ')
+                  : ord.medicationText || 'Trámite de renovación de receta';
+
+                return (
+                  <div
+                    key={ord.id}
+                    className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs space-y-2.5 hover:border-slate-300 transition-all"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-xs font-extrabold text-[#0141BC] bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200">
+                        Solicitud #{ord.id}
+                      </span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${getStatusBadge(ord.status)}`}>
+                        {ord.status}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-xs font-bold text-slate-800 line-clamp-2">
+                        {medList}
+                      </p>
+                      {ord.diagnostic && (
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Diagnóstico: <strong className="text-slate-700">{ord.diagnostic}</strong>
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400 font-medium">
+                      <span>{formatDate(ord.createdAt)}</span>
+                      {ord.obraSocial && (
+                        <span className="font-semibold text-[#0F6C7D]">{ord.obraSocial}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Detailed Timeline Audit Events for this patient */}
+        <div className="space-y-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <h2 className="text-sm font-extrabold text-[#0141BC] flex items-center gap-2">
+              <Activity className="h-4 w-4 text-[#1661E1]" />
+              <span>Historial Cronológico de Auditoría ({selectedPatientFilteredLogs.length} eventos)</span>
+            </h2>
+
+            {/* Local Search & Filter Controls */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <input
+                  type="text"
+                  value={patientDetailSearch}
+                  onChange={(e) => setPatientDetailSearch(e.target.value)}
+                  placeholder="Buscar en eventos..."
+                  className="w-full pl-8 pr-7 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-[#0141BC] placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
+                />
+                {patientDetailSearch && (
+                  <button
+                    onClick={() => setPatientDetailSearch('')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  >
+                    <XCircle className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
+              <select
+                value={patientDetailRoleFilter}
+                onChange={(e) => setPatientDetailRoleFilter(e.target.value as any)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-[#0141BC] focus:outline-none focus:ring-2 focus:ring-[#1661E1]"
+              >
+                <option value="all">Todos los Roles</option>
+                <option value="medicos">Médicos</option>
+                <option value="colaboradores">Colaboradores</option>
+                <option value="admin">Administradores</option>
+                <option value="paciente">Paciente / Autogestión</option>
+              </select>
+            </div>
+          </div>
+
+          {selectedPatientFilteredLogs.length === 0 ? (
+            <div className="bg-white p-10 rounded-3xl border border-slate-200 text-center space-y-2">
+              <ShieldAlert className="h-10 w-10 text-slate-300 mx-auto" />
+              <p className="text-xs font-bold text-slate-500">No se encontraron eventos para este paciente con los filtros actuales.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-xs p-6">
+              <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-2.5 sm:before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-250">
+                {selectedPatientFilteredLogs.map((log, idx) => {
+                  const userRole = getUserRoleBadge(log.user);
+                  const isLogEven = idx % 2 === 0;
+
+                  return (
+                    <div key={idx} className="relative group">
+                      {/* Timeline Node Bullet */}
+                      <div className="absolute -left-[19px] sm:-left-[23px] top-1 h-3.5 w-3.5 rounded-full bg-white border-2 border-[#1661E1] ring-4 ring-slate-100 group-hover:scale-110 transition-transform" />
+
+                      {/* Event Card */}
+                      <div className={`p-4 rounded-2xl border shadow-xs transition-all space-y-2.5 ${
+                        isLogEven 
+                          ? 'bg-white border-slate-250 hover:border-slate-350' 
+                          : 'bg-slate-50 border-slate-250 hover:border-slate-350'
+                      }`}>
+                        {/* Top row: Actor, Action badge, Order ID & Timestamp */}
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {/* Actor User */}
+                            <span className="font-extrabold text-[#0141BC] flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-250">
+                              {userRole.icon}
+                              {log.user}
+                            </span>
+
+                            {/* Action badge */}
+                            <span
+                              className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getActionBadgeColor(
+                                log.action
+                              )}`}
+                            >
+                              {log.action}
+                            </span>
+
+                            {/* Order ID Pill */}
+                            <span className="text-[10px] font-mono font-extrabold text-[#0141BC] bg-slate-200/80 px-2 py-0.5 rounded-md border border-slate-300">
+                              Solicitud #{log.orderId}
+                            </span>
+                          </div>
+
+                          {/* Timestamp */}
+                          <div className="text-[11px] text-slate-500 font-semibold flex items-center gap-1 shrink-0">
+                            <Clock className="h-3 w-3 text-[#0F6C7D]" />
+                            <span>{formatDate(log.timestamp)}</span>
+                          </div>
+                        </div>
+
+                        {/* Event Notes / Details */}
+                        {log.notes && (
+                          <div className="bg-slate-100/70 rounded-xl p-3 border-l-2 border-[#1661E1] text-xs text-slate-800">
+                            <p className="italic font-medium leading-relaxed">
+                              "{log.notes}"
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Context info (Diagnostic / Medication) if available */}
+                        {(log.diagnostic || log.medicationSummary) && (
+                          <div className="pt-1 flex items-center gap-2 text-[10px] text-slate-600 flex-wrap">
+                            {log.diagnostic && (
+                              <span className="bg-slate-200/60 px-2 py-0.5 rounded text-slate-700 border border-slate-300/60">
+                                Diagnóstico: <strong>{log.diagnostic}</strong>
+                              </span>
+                            )}
+                            {log.medicationSummary && (
+                              <span className="bg-slate-200/60 px-2 py-0.5 rounded text-slate-700 border border-slate-300/60">
+                                Medicamentos: <strong>{log.medicationSummary}</strong>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // MAIN PATIENTS AUDIT LIST VIEW
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* 1. KPI Summary Cards */}
@@ -580,9 +874,8 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
             )}
           </div>
 
-          {/* View Mode & Expand/Collapse All Buttons */}
+          {/* View Mode */}
           <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
-            {/* View Mode Selector */}
             <div className="bg-slate-100 p-1 rounded-xl flex items-center gap-1 border border-slate-200/60">
               <button
                 onClick={() => setViewMode('by_patient')}
@@ -607,20 +900,6 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                 <span>Vista Cronológica</span>
               </button>
             </div>
-
-            {/* Collapse All (Only in by_patient mode) */}
-            {viewMode === 'by_patient' && filteredPatientGroups.length > 0 && (
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={collapseAll}
-                  className="px-2.5 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
-                  title="Colapsar todos los historiales"
-                >
-                  <ChevronUp className="h-3 w-3" />
-                  <span>Colapsar Todo</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
 
@@ -730,8 +1009,8 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredPatientGroups.map((patient) => {
-              const expanded = isPatientExpanded(patient.patientKey);
+            {filteredPatientGroups.map((patient, index) => {
+              const isEven = index % 2 === 0;
               const initials = patient.patientFullName
                 .split(' ')
                 .map((n) => n[0])
@@ -742,12 +1021,18 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
               return (
                 <div
                   key={patient.patientKey}
-                  className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden transition-all duration-200 hover:border-slate-300"
+                  onClick={() => setSelectedPatientKey(patient.patientKey)}
+                  className={`rounded-3xl border shadow-xs overflow-hidden transition-all duration-200 cursor-pointer ${
+                    isEven 
+                      ? 'bg-white border-slate-250 hover:border-[#1661E1]/60 hover:shadow-md' 
+                      : 'bg-slate-100/70 border-slate-300 hover:border-[#1661E1]/60 hover:shadow-md'
+                  }`}
                 >
-                  {/* Patient Card Header (Clickable Accordion) */}
+                  {/* Patient Card Header */}
                   <div
-                    onClick={() => togglePatientExpand(patient.patientKey)}
-                    className="p-5 bg-white hover:bg-slate-50/60 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4 select-none transition-colors"
+                    className={`p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 select-none transition-colors ${
+                      isEven ? 'hover:bg-slate-50/90' : 'hover:bg-slate-100/90'
+                    }`}
                   >
                     {/* Patient identity & meta */}
                     <div className="flex items-start sm:items-center gap-3.5">
@@ -756,36 +1041,43 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                         {initials}
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h2 className="text-sm font-extrabold text-[#0141BC]">
                             {patient.patientFullName}
                           </h2>
-                          <span className="text-[11px] font-mono font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200/80">
+                          <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-200/80 px-2.5 py-0.5 rounded-full border border-slate-300">
                             DNI: {patient.patientDni}
                           </span>
                           {patient.obraSocial && (
-                            <span className="text-[10px] font-bold text-[#0F6C7D] bg-[#0F6C7D]/10 px-2 py-0.5 rounded-full border border-[#0F6C7D]/20 flex items-center gap-1">
+                            <span className="text-[10px] font-bold text-[#0F6C7D] bg-[#0F6C7D]/10 px-2 py-0.5 rounded-full border border-[#0F6C7D]/25 flex items-center gap-1">
                               <Building2 className="h-2.5 w-2.5" />
                               {patient.obraSocial} {patient.obraSocialNumber ? `(${patient.obraSocialNumber})` : ''}
                             </span>
                           )}
                         </div>
 
-                        <div className="flex items-center gap-3 text-[11px] text-slate-400 font-medium flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-3 w-3 text-slate-400" />
-                            {patient.orderIds.length} {patient.orderIds.length === 1 ? 'solicitud' : 'solicitudes'} ({patient.orderIds.map(id => `#${id}`).join(', ')})
+                        <div className="flex items-center gap-2.5 text-[11px] text-slate-600 font-medium flex-wrap">
+                          <span className="flex items-center gap-1 font-semibold text-slate-700">
+                            <FileText className="h-3.5 w-3.5 text-slate-500" />
+                            {patient.orderIds.length} {patient.orderIds.length === 1 ? 'solicitud' : 'solicitudes'}:
                           </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-slate-500">
-                            <Activity className="h-3 w-3 text-[#1661E1]" />
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {patient.orderIds.map((id) => (
+                              <span key={id} className="font-mono text-[10px] font-extrabold text-[#0141BC] bg-slate-200/90 px-2 py-0.5 rounded-md border border-slate-300">
+                                #{id}
+                              </span>
+                            ))}
+                          </div>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center gap-1 text-slate-600">
+                            <Activity className="h-3.5 w-3.5 text-[#1661E1]" />
                             <strong className="text-[#0141BC]">{patient.filteredLogs.length}</strong> {patient.filteredLogs.length === 1 ? 'evento' : 'eventos'}
                           </span>
                           {patient.latestStatus && (
                             <>
-                              <span>•</span>
-                              <span className={`px-2 py-0.2 rounded-full text-[10px] font-bold border ${getStatusBadge(patient.latestStatus)}`}>
+                              <span className="text-slate-300">•</span>
+                              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${getStatusBadge(patient.latestStatus)}`}>
                                 {patient.latestStatus}
                               </span>
                             </>
@@ -794,102 +1086,28 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                       </div>
                     </div>
 
-                    {/* Right side stats & expand chevron */}
-                    <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                    {/* Right side stats & Navigate to Patient Detail Button */}
+                    <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-200/60">
                       <div className="text-left md:text-right">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última actividad</p>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Última actividad</p>
                         <p className="text-xs font-bold text-[#0141BC] flex items-center md:justify-end gap-1 mt-0.5">
                           <Clock className="h-3 w-3 text-[#0F6C7D]" />
                           <span>{formatRelativeTime(patient.lastActivityTimestamp)}</span>
                         </p>
                       </div>
 
-                      <div className="h-8 w-8 rounded-xl bg-slate-100 flex items-center justify-center text-slate-500 hover:bg-slate-200 transition-colors">
-                        {expanded ? (
-                          <ChevronUp className="h-4 w-4 text-[#0141BC]" />
-                        ) : (
-                          <ChevronDown className="h-4 w-4 text-[#0141BC]" />
-                        )}
-                      </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedPatientKey(patient.patientKey);
+                        }}
+                        className="px-3.5 py-2 bg-[#1661E1] hover:bg-[#0141BC] text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm active:scale-98 cursor-pointer shrink-0"
+                      >
+                        <span>Ver Historial</span>
+                        <ArrowRight className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   </div>
-
-                  {/* Expanded Content: Chronological Timeline for this patient */}
-                  {expanded && (
-                    <div className="border-t border-slate-100 bg-slate-50/40 p-5 sm:p-6">
-                      <div className="relative pl-6 sm:pl-8 space-y-6 before:absolute before:left-2.5 sm:before:left-3.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                        {patient.filteredLogs.map((log, idx) => {
-                          const userRole = getUserRoleBadge(log.user);
-
-                          return (
-                            <div key={idx} className="relative group">
-                              {/* Timeline Node Bullet */}
-                              <div className="absolute -left-[19px] sm:-left-[23px] top-1 h-3.5 w-3.5 rounded-full bg-white border-2 border-[#1661E1] ring-4 ring-slate-50 group-hover:scale-110 transition-transform" />
-
-                              {/* Event Card */}
-                              <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-300 transition-all space-y-2.5">
-                                {/* Top row: Actor, Action badge, Order ID & Timestamp */}
-                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    {/* Actor User */}
-                                    <span className="font-extrabold text-[#0141BC] flex items-center gap-1.5 bg-slate-50 px-2.5 py-1 rounded-xl border border-slate-200">
-                                      {userRole.icon}
-                                      {log.user}
-                                    </span>
-
-                                    {/* Action badge */}
-                                    <span
-                                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${getActionBadgeColor(
-                                        log.action
-                                      )}`}
-                                    >
-                                      {log.action}
-                                    </span>
-
-                                    {/* Order ID Pill */}
-                                    <span className="text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
-                                      Solicitud #{log.orderId}
-                                    </span>
-                                  </div>
-
-                                  {/* Timestamp */}
-                                  <div className="text-[11px] text-slate-400 font-semibold flex items-center gap-1 shrink-0">
-                                    <Clock className="h-3 w-3 text-[#0F6C7D]" />
-                                    <span>{formatDate(log.timestamp)}</span>
-                                  </div>
-                                </div>
-
-                                {/* Event Notes / Details */}
-                                {log.notes && (
-                                  <div className="bg-slate-50/80 rounded-xl p-3 border-l-2 border-[#1661E1] text-xs text-slate-700">
-                                    <p className="italic font-medium leading-relaxed">
-                                      "{log.notes}"
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* Context info (Diagnostic / Medication) if available */}
-                                {(log.diagnostic || log.medicationSummary) && (
-                                  <div className="pt-1 flex items-center gap-2 text-[10px] text-slate-500 flex-wrap">
-                                    {log.diagnostic && (
-                                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">
-                                        Diagnóstico: <strong>{log.diagnostic}</strong>
-                                      </span>
-                                    )}
-                                    {log.medicationSummary && (
-                                      <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">
-                                        Medicamentos: <strong>{log.medicationSummary}</strong>
-                                      </span>
-                                    )}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
@@ -904,15 +1122,18 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
             <p className="text-xs text-slate-400">Intente modificar los filtros de búsqueda aplicados.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
-            <div className="divide-y divide-slate-100">
+          <div className="bg-white rounded-3xl border border-slate-250 shadow-xs overflow-hidden">
+            <div className="divide-y divide-slate-150">
               {filteredFlatLogs.map((log, index) => {
                 const userRole = getUserRoleBadge(log.user);
+                const isEven = index % 2 === 0;
 
                 return (
                   <div
                     key={index}
-                    className="p-4 hover:bg-slate-50/80 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    className={`p-4 hover:bg-blue-50/40 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs ${
+                      isEven ? 'bg-white' : 'bg-slate-50/80'
+                    }`}
                   >
                     <div className="space-y-1.5 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -932,7 +1153,7 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                         </span>
 
                         {/* Order ID */}
-                        <span className="text-[10px] font-mono text-[#0141BC]/70 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200/50">
+                        <span className="text-[10px] font-mono font-bold text-[#0141BC] bg-slate-200/80 px-2 py-0.5 rounded-md border border-slate-300">
                           ID: #{log.orderId}
                         </span>
                       </div>
@@ -941,9 +1162,9 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
                       <p className="text-slate-600 font-medium flex items-center gap-1.5 flex-wrap">
                         <span>Paciente:</span>
                         <strong className="text-[#0141BC]">{log.patientFullName}</strong>
-                        <span className="text-slate-400 font-mono text-[11px]">(DNI: {log.patientDni})</span>
+                        <span className="text-slate-500 font-mono text-[11px]">(DNI: {log.patientDni})</span>
                         {log.obraSocial && (
-                          <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded text-slate-600">
+                          <span className="text-[10px] bg-slate-200/70 px-2 py-0.5 rounded text-slate-700 border border-slate-300/60 font-semibold">
                             {log.obraSocial}
                           </span>
                         )}
@@ -951,14 +1172,14 @@ export default function AuditLogView({ orders }: AuditLogViewProps) {
 
                       {/* Notes */}
                       {log.notes && (
-                        <p className="text-[11px] text-slate-600 italic bg-slate-50 p-2.5 rounded-xl border border-slate-150 mt-1">
+                        <p className="text-[11px] text-slate-700 italic bg-slate-100/70 p-2.5 rounded-xl border border-slate-200 mt-1">
                           "{log.notes}"
                         </p>
                       )}
                     </div>
 
                     {/* Timestamp */}
-                    <div className="shrink-0 text-left sm:text-right text-[11px] text-slate-400 font-semibold flex items-center gap-1 sm:justify-end">
+                    <div className="shrink-0 text-left sm:text-right text-[11px] text-slate-500 font-semibold flex items-center gap-1 sm:justify-end">
                       <Clock className="h-3.5 w-3.5 text-[#0F6C7D]" />
                       <span>{formatDate(log.timestamp)}</span>
                     </div>

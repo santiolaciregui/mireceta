@@ -505,7 +505,7 @@ export default function App() {
                       />
                     </div>
                   </div>
-                ) : activeSubcategory === 'reportes' ? (
+                ) : activeSubcategory === 'reportes' && activeRole !== 'colaborador' ? (
                   <SettlementMetricsView
                     orders={orders}
                     users={users}

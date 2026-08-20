@@ -819,7 +819,7 @@ export default function DoctorDashboard({
                         </div>
 
                         {hasMessages && (
-                          <div className={`mt-2 flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md ${
+                          <div className={`mt-1 flex items-center gap-1.5 text-[11px] font-bold px-2 py-1 rounded-md ${
                             isFromPatient 
                               ? 'bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30 animate-pulse' 
                               : 'bg-slate-100 text-slate-700 border border-slate-200'
@@ -831,8 +831,8 @@ export default function DoctorDashboard({
                           </div>
                         )}
 
-                        {order.status === 'Pendiente' && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-amber-500" />}
-                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-2 h-2 w-2 rounded-full bg-[#1E6EFB]" />}
+                        {order.status === 'Pendiente' && <span className="inline-block mt-1 h-2 w-2 rounded-full bg-amber-500" />}
+                        {(order.status === 'En revisión' || order.status === 'Solicita más información') && <span className="inline-block mt-1 h-2 w-2 rounded-full bg-[#1E6EFB]" />}
                       </button>
                     );
                   })
