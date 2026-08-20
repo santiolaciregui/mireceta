@@ -5,10 +5,29 @@ import { createServer as createViteServer } from 'vite';
 import { connectDB } from './server/config/db.js';
 import { config } from './server/config/env.js';
 import { errorHandler } from './server/middlewares/error.middleware.js';
+import { errorNotificationService } from './server/services/ErrorNotificationService.js';
 import routes from './server/routes/index.js';
 import { Tenant } from './server/models/Tenant.js';
 import { User } from './server/models/User.js';
 import { Order } from './server/models/Order.js';
+
+// Global Process Error Monitors
+process.on('uncaughtException', (error) => {
+  console.error('[Process] Uncaught Exception:', error);
+  errorNotificationService.notifyProductionError({
+    error,
+    origin: 'UNCAUGHT_EXCEPTION'
+  }).catch((e) => console.error('Error enviando email por Uncaught Exception:', e));
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Process] Unhandled Rejection:', reason);
+  errorNotificationService.notifyProductionError({
+    error: reason instanceof Error ? reason : new Error(String(reason)),
+    origin: 'UNHANDLED_REJECTION'
+  }).catch((e) => console.error('Error enviando email por Unhandled Rejection:', e));
+});
+
 
 async function runTenantMigration() {
   try {
