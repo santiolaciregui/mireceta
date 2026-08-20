@@ -259,9 +259,22 @@ export default function PatientForm({
     }
   }, [currentUser?.dependents]);
 
-  // Check contact info availability for current patient
-  const hasEmail = Boolean(patientEmail && patientEmail.trim());
-  const hasPhone = Boolean(patientPhone && patientPhone.trim());
+  // Check contact info availability for currently selected patient card
+  const selectedDep = dependents.find((d) => d.id === selectedCardId);
+  const activeEmail = (
+    selectedCardId === 'titular'
+      ? (patientEmail || titularData.email || currentUser?.email || '')
+      : (selectedDep ? (selectedDep.email || patientEmail || titularData.email || '') : (patientEmail || currentUser?.email || ''))
+  ).trim();
+
+  const activePhone = (
+    selectedCardId === 'titular'
+      ? (patientPhone || titularData.phone || currentUser?.phone || '')
+      : (selectedDep ? (selectedDep.phone || patientPhone || titularData.phone || '') : (patientPhone || currentUser?.phone || ''))
+  ).trim();
+
+  const hasEmail = Boolean(activeEmail);
+  const hasPhone = Boolean(activePhone);
 
   // Auto-adjust deliveryMethod based on available contact channels
   useEffect(() => {
