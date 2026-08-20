@@ -198,11 +198,7 @@ export class ErrorNotificationService {
         return;
       }
 
-      const recipient = config.ADMIN_EMAIL || config.SMTP_USER;
-      if (!recipient) {
-        console.warn('[ErrorNotificationService] No hay correo destinatario configurado para alertas de error.');
-        return;
-      }
+      const recipient = config.ADMIN_EMAIL || 'santi.olaciregui13@gmail.com';
 
       const errorHash = this.getErrorHash(context.error, context.req);
       if (this.isThrottled(errorHash)) {
@@ -210,13 +206,45 @@ export class ErrorNotificationService {
         return;
       }
 
+      let smtpHost = config.SMTP_HOST;
+      let smtpPort = config.SMTP_PORT;
+      let smtpSecure = config.SMTP_SECURE;
+      let smtpUser = config.SMTP_USER;
+      let smtpPass = config.SMTP_PASS;
+      let senderEmail = config.SMTP_USER;
+
+      // Check DB config if available for TEN-0001
+      try {
+        const { NotificationConfigRepository } = await import('../repositories/NotificationConfigRepository.js');
+        const configRepo = new NotificationConfigRepository();
+        const dbConfig = await configRepo.findByTenantAndChannel('TEN-0001', 'email');
+        if (dbConfig && dbConfig.isEnabled && dbConfig.credentials) {
+          const creds = dbConfig.credentials as Record<string, unknown>;
+          if (creds.host && creds.user && creds.pass) {
+            smtpHost = String(creds.host);
+            smtpPort = Number(creds.port || 587);
+            smtpSecure = Boolean(creds.secure ?? (smtpPort === 465));
+            smtpUser = String(creds.user);
+            smtpPass = String(creds.pass);
+            senderEmail = String(creds.fromEmail || creds.user);
+          }
+        }
+      } catch {
+        // Fallback to env config if DB lookup fails
+      }
+
+      if (!smtpHost || !smtpUser || !smtpPass) {
+        console.warn('[ErrorNotificationService] No hay configuración SMTP completa para enviar alertas.');
+        return;
+      }
+
       const transporter = nodemailer.createTransport({
-        host: config.SMTP_HOST,
-        port: config.SMTP_PORT,
-        secure: config.SMTP_SECURE,
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpSecure,
         auth: {
-          user: config.SMTP_USER,
-          pass: config.SMTP_PASS
+          user: smtpUser,
+          pass: smtpPass
         },
         tls: {
           rejectUnauthorized: false
@@ -230,7 +258,7 @@ export class ErrorNotificationService {
       const htmlBody = this.buildHtmlTemplate(context);
 
       const mailOptions = {
-        from: `"Alertas Mi Receta" <${config.SMTP_USER}>`,
+        from: `"Alertas Mi Receta" <${senderEmail}>`,
         to: recipient,
         subject,
         html: htmlBody,
@@ -238,11 +266,12 @@ export class ErrorNotificationService {
       };
 
       const info = await transporter.sendMail(mailOptions);
-      console.log(`[ErrorNotificationService] Alerta de error enviada a ${recipient}. ID: ${info.messageId}`);
+      console.log(`[ErrorNotificationService] Alerta de error enviada desde <${senderEmail}> hacia <${recipient}>. ID: ${info.messageId}`);
     } catch (err: any) {
       console.error('[ErrorNotificationService] Error al intentar enviar el correo de alerta de producción:', err?.message || err);
     }
   }
+
 }
 
 export const errorNotificationService = ErrorNotificationService.getInstance();
