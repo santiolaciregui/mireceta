@@ -258,7 +258,7 @@ export default function App() {
 
   // 0. Resolving tenant
   if (resolvingTenant) {
-    return <LoadingSpinner message="Cargando plataforma..." />;
+    return <LoadingSpinner message="Cargando..." />;
   }
 
   // 0.5 Password reset token in URL — show reset page regardless of auth state
@@ -383,6 +383,7 @@ export default function App() {
                         orders={orders}
                         currentUser={currentUser}
                         currentTenant={currentTenant}
+                        onUpdateTitular={(updates) => updateUser(currentUser.id, updates)}
                         onAddDependent={addDependent}
                         onUpdateDependent={updateDependent}
                         onRemoveDependent={removeDependent}

@@ -40,7 +40,8 @@ import {
   ShieldCheck,
   Printer,
   Pill,
-  RotateCcw
+  RotateCcw,
+  Loader2
 } from 'lucide-react';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
@@ -60,6 +61,7 @@ interface PatientFormProps {
   users?: any[];
   currentUser?: any;
   isOficio?: boolean;
+  onUpdateTitular?: (updates: any) => Promise<any>;
   onAddDependent?: (dependent: any) => void;
   onUpdateDependent?: (dependent: any) => void;
   onRemoveDependent?: (dependentId: string) => void;
@@ -83,6 +85,7 @@ export default function PatientForm({
   users = [],
   currentUser,
   isOficio = false,
+  onUpdateTitular,
   onAddDependent,
   onUpdateDependent,
   onRemoveDependent,
@@ -247,6 +250,7 @@ export default function PatientForm({
   const [depCity, setDepCity] = useState('');
   const [depProvince, setDepProvince] = useState('');
   const [depFormError, setDepFormError] = useState<string | null>(null);
+  const [isSavingModalPatient, setIsSavingModalPatient] = useState(false);
 
   // Keep dependents synced if currentUser updates
   useEffect(() => {
@@ -255,17 +259,22 @@ export default function PatientForm({
     }
   }, [currentUser?.dependents]);
 
-  // Lock body scroll when modal is open
+  // Check contact info availability for current patient
+  const hasEmail = Boolean(patientEmail && patientEmail.trim());
+  const hasPhone = Boolean(patientPhone && patientPhone.trim());
+
+  // Auto-adjust deliveryMethod based on available contact channels
   useEffect(() => {
-    if (showAddDependentModal) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
+    if (hasEmail && !hasPhone) {
+      if (deliveryMethod !== 'email') {
+        setDeliveryMethod('email');
+      }
+    } else if (hasPhone && !hasEmail) {
+      if (deliveryMethod !== 'whatsapp') {
+        setDeliveryMethod('whatsapp');
+      }
     }
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [showAddDependentModal]);
+  }, [hasEmail, hasPhone, deliveryMethod]);
 
   const handleSelectCard = (cardId: string) => {
     setSelectedCardId(cardId);
@@ -372,7 +381,7 @@ export default function PatientForm({
     setShowAddDependentModal(true);
   };
 
-  const handleSaveModalPatient = (e: React.FormEvent) => {
+  const handleSaveModalPatient = async (e: React.FormEvent) => {
     e.preventDefault();
     setDepFormError(null);
     const errors: typeof depFieldErrors = {};
@@ -427,46 +436,97 @@ export default function PatientForm({
     }
 
     setDepFieldErrors({});
+    setIsSavingModalPatient(true);
 
-    if (editingCardId === 'titular') {
-      const updatedTitular = {
-        ...titularData,
-        name: depName.trim(),
-        lastName: depLastName.trim(),
-        dni: depDni.trim(),
-        birthDate: depBirthDate,
-        obraSocial: finalObraSocial,
-        obraSocialNumber: depObraSocialNumber,
-        email: depEmail,
-        phone: depPhone,
-        city: depCity.trim(),
-        province: depProvince.trim(),
-      };
-      setTitularData(updatedTitular);
+    try {
+      if (editingCardId === 'titular') {
+        const updatedTitular = {
+          ...titularData,
+          name: depName.trim(),
+          lastName: depLastName.trim(),
+          identifier: depDni.trim(),
+          dni: depDni.trim(),
+          birthDate: depBirthDate,
+          obraSocial: finalObraSocial,
+          obraSocialNumber: depObraSocialNumber,
+          email: depEmail.trim(),
+          phone: depPhone.trim(),
+          city: depCity.trim(),
+          province: depProvince.trim(),
+        };
+        setTitularData(updatedTitular);
 
-      if (selectedCardId === 'titular') {
-        setPatientName(updatedTitular.name);
-        setPatientLastName(updatedTitular.lastName);
-        setPatientDni(updatedTitular.dni);
-        setPatientBirthDate(updatedTitular.birthDate);
-        setSelectedObraSocial(updatedTitular.obraSocial);
-        setObraSocialNumber(updatedTitular.obraSocialNumber);
-        setPatientEmail(updatedTitular.email);
-        setPatientPhone(updatedTitular.phone);
-        setPatientCity(updatedTitular.city);
-        setPatientProvince(updatedTitular.province);
+        if (selectedCardId === 'titular') {
+          setPatientName(updatedTitular.name);
+          setPatientLastName(updatedTitular.lastName);
+          setPatientDni(updatedTitular.dni);
+          setPatientBirthDate(updatedTitular.birthDate);
+          setSelectedObraSocial(updatedTitular.obraSocial);
+          setObraSocialNumber(updatedTitular.obraSocialNumber);
+          setPatientEmail(updatedTitular.email);
+          setPatientPhone(updatedTitular.phone);
+          setPatientCity(updatedTitular.city);
+          setPatientProvince(updatedTitular.province);
+        }
+
+        if (onUpdateTitular) {
+          await onUpdateTitular(updatedTitular);
+        }
+
+        setShowAddDependentModal(false);
+        setEditingCardId(null);
+        setNotificationMsg('¡Datos del Titular actualizados con éxito!');
+        setTimeout(() => setNotificationMsg(null), 4000);
+        return;
       }
 
-      setShowAddDependentModal(false);
-      setNotificationMsg('¡Datos del Titular actualizados con éxito!');
-      setTimeout(() => setNotificationMsg(null), 4000);
-      return;
-    }
+      if (editingCardId) {
+        // Editing existing dependent
+        const updatedDep: DependentPatient = {
+          id: editingCardId,
+          name: depName.trim(),
+          lastName: depLastName.trim(),
+          dni: depDni.trim(),
+          birthDate: depBirthDate,
+          relationship: depRelationship,
+          obraSocial: finalObraSocial,
+          obraSocialNumber: depObraSocialNumber,
+          email: depEmail.trim(),
+          phone: depPhone.trim(),
+          city: depCity.trim(),
+          province: depProvince.trim(),
+        };
 
-    if (editingCardId) {
-      // Editing existing dependent
-      const updatedDep: DependentPatient = {
-        id: editingCardId,
+        const updated = dependents.map((d) => (d.id === editingCardId ? updatedDep : d));
+        setDependents(updated);
+
+        if (onUpdateDependent) {
+          await onUpdateDependent(updatedDep);
+        }
+
+        if (selectedCardId === editingCardId) {
+          setPatientName(updatedDep.name);
+          setPatientLastName(updatedDep.lastName);
+          setPatientDni(updatedDep.dni);
+          setPatientBirthDate(updatedDep.birthDate);
+          setSelectedObraSocial(updatedDep.obraSocial || '');
+          setObraSocialNumber(updatedDep.obraSocialNumber || '');
+          setPatientEmail(updatedDep.email || '');
+          setPatientPhone(updatedDep.phone || '');
+          setPatientCity(updatedDep.city || '');
+          setPatientProvince(updatedDep.province || '');
+        }
+
+        setShowAddDependentModal(false);
+        setEditingCardId(null);
+        setNotificationMsg(`¡Datos de "${depName.trim()} ${depLastName.trim()}" actualizados con éxito!`);
+        setTimeout(() => setNotificationMsg(null), 4000);
+        return;
+      }
+
+      // Creating new dependent
+      const newDep: DependentPatient = {
+        id: `dep-${Date.now()}`,
         name: depName.trim(),
         lastName: depLastName.trim(),
         dni: depDni.trim(),
@@ -474,77 +534,42 @@ export default function PatientForm({
         relationship: depRelationship,
         obraSocial: finalObraSocial,
         obraSocialNumber: depObraSocialNumber,
-        email: depEmail,
-        phone: depPhone,
+        email: depEmail.trim() || titularData.email || '',
+        phone: depPhone.trim() || titularData.phone || '',
         city: depCity.trim(),
         province: depProvince.trim(),
       };
 
-      const updated = dependents.map((d) => (d.id === editingCardId ? updatedDep : d));
+      const updated = [...dependents, newDep];
       setDependents(updated);
 
-      if (onUpdateDependent) {
-        onUpdateDependent(updatedDep);
+      if (onAddDependent) {
+        await onAddDependent(newDep);
       }
 
-      if (selectedCardId === editingCardId) {
-        setPatientName(updatedDep.name);
-        setPatientLastName(updatedDep.lastName);
-        setPatientDni(updatedDep.dni);
-        setPatientBirthDate(updatedDep.birthDate);
-        setSelectedObraSocial(updatedDep.obraSocial || '');
-        setObraSocialNumber(updatedDep.obraSocialNumber || '');
-        setPatientEmail(updatedDep.email || '');
-        setPatientPhone(updatedDep.phone || '');
-        setPatientCity(updatedDep.city || '');
-        setPatientProvince(updatedDep.province || '');
-      }
+      // Auto select newly created dependent card
+      setSelectedCardId(newDep.id);
+      setPatientName(newDep.name);
+      setPatientLastName(newDep.lastName);
+      setPatientDni(newDep.dni);
+      setPatientBirthDate(newDep.birthDate);
+      setSelectedObraSocial(newDep.obraSocial || '');
+      setObraSocialNumber(newDep.obraSocialNumber || '');
+      setPatientEmail(newDep.email || titularData.email || '');
+      setPatientPhone(newDep.phone || titularData.phone || '');
+      setPatientCity(newDep.city || '');
+      setPatientProvince(newDep.province || '');
 
       setShowAddDependentModal(false);
-      setNotificationMsg(`¡Datos de "${depName.trim()} ${depLastName.trim()}" actualizados con éxito!`);
-      setTimeout(() => setNotificationMsg(null), 4000);
-      return;
+      setEditingCardId(null);
+      setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
+      setTimeout(() => setNotificationMsg(null), 4500);
+    } catch (err: any) {
+      console.error('Error saving patient:', err);
+      setDepFormError(err.message || 'Error al guardar los datos del paciente.');
+    } finally {
+      setIsSavingModalPatient(false);
     }
-
-    // Creating new dependent
-    const newDep: DependentPatient = {
-      id: `dep-${Date.now()}`,
-      name: depName.trim(),
-      lastName: depLastName.trim(),
-      dni: depDni.trim(),
-      birthDate: depBirthDate,
-      relationship: depRelationship,
-      obraSocial: finalObraSocial,
-      obraSocialNumber: depObraSocialNumber,
-      email: depEmail || titularData.email || '',
-      phone: depPhone || titularData.phone || '',
-      city: depCity.trim(),
-      province: depProvince.trim(),
-    };
-
-    const updated = [...dependents, newDep];
-    setDependents(updated);
-
-    if (onAddDependent) {
-      onAddDependent(newDep);
-    }
-
-    // Auto select newly created dependent card
-    setSelectedCardId(newDep.id);
-    setPatientName(newDep.name);
-    setPatientLastName(newDep.lastName);
-    setPatientDni(newDep.dni);
-    setPatientBirthDate(newDep.birthDate);
-    setSelectedObraSocial(newDep.obraSocial || '');
-    setObraSocialNumber(newDep.obraSocialNumber || '');
-    setPatientEmail(newDep.email || titularData.email || '');
-    setPatientPhone(newDep.phone || titularData.phone || '');
-    setPatientCity(newDep.city || '');
-    setPatientProvince(newDep.province || '');
-
-    setShowAddDependentModal(false);
-    setNotificationMsg(`¡Paciente a cargo "${newDep.name} ${newDep.lastName}" agregado exitosamente!`);
-    setTimeout(() => setNotificationMsg(null), 4500);
   };
 
   const handleRemoveDependentCard = (e: React.MouseEvent, depId: string) => {
@@ -1832,6 +1857,390 @@ export default function PatientForm({
     );
   }
 
+  if (showAddDependentModal || editingCardId !== null) {
+    return (
+      <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-fadeIn`}>
+        {/* Brand Header with Back Action */}
+        <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
+          <div className="relative flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddDependentModal(false);
+                setEditingCardId(null);
+              }}
+              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold shrink-0"
+              title="Volver a la solicitud"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Volver</span>
+            </button>
+            <div>
+              <span className="text-[10px] font-bold uppercase bg-[#1661E1]/40 px-2.5 py-0.5 rounded-full text-white border border-white/20">
+                {editingCardId === 'titular' ? 'Editar Titular' : editingCardId ? 'Editar Paciente' : 'Nuevo Paciente'}
+              </span>
+              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight mt-1 flex items-center gap-2">
+                {editingCardId === 'titular' 
+                  ? 'Editar Datos del Titular' 
+                  : editingCardId 
+                  ? 'Editar Paciente a Cargo' 
+                  : 'Agregar Nuevo Paciente a Cargo'}
+              </h2>
+              <p className="text-xs text-blue-100 font-medium">
+                {editingCardId ? 'Modifique los datos necesarios' : 'Complete la información requerida del familiar'}
+              </p>
+            </div>
+          </div>
+          <HeartHandshake className="h-10 w-10 text-white/80 hidden sm:block stroke-[1.5]" />
+        </div>
+
+        {/* Full View Form Container */}
+        <form onSubmit={handleSaveModalPatient} className="p-4 sm:p-6 lg:p-8 space-y-6 bg-white">
+          {depFormError && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span>{depFormError}</span>
+            </div>
+          )}
+
+          {/* Section 1: Identification & Contact */}
+          <div className="space-y-4 bg-slate-50/50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-200 pb-2 flex items-center gap-1.5">
+              <User className="h-4 w-4 text-[#1661E1]" />
+              1. Datos del Paciente y Contacto
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Nombre/s <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={depName}
+                  onChange={(e) => {
+                    setDepName(e.target.value);
+                    if (depFieldErrors.name) setDepFieldErrors(prev => ({ ...prev, name: undefined }));
+                  }}
+                  placeholder="Ej. Lucas"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.name
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.name && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.name}</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Apellido <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={depLastName}
+                  onChange={(e) => {
+                    setDepLastName(e.target.value);
+                    if (depFieldErrors.lastName) setDepFieldErrors(prev => ({ ...prev, lastName: undefined }));
+                  }}
+                  placeholder="Ej. Olaciregui"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.lastName
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.lastName && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.lastName}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  DNI (Sin puntos) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={depDni}
+                  onChange={(e) => {
+                    setDepDni(e.target.value.replace(/\D/g, ''));
+                    if (depFieldErrors.dni) setDepFieldErrors(prev => ({ ...prev, dni: undefined }));
+                  }}
+                  placeholder="Ej. 42090557"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.dni
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.dni && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.dni}</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Fecha de Nacimiento <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={depBirthDate}
+                  onChange={(e) => {
+                    setDepBirthDate(e.target.value);
+                    if (depFieldErrors.birthDate) setDepFieldErrors(prev => ({ ...prev, birthDate: undefined }));
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden cursor-pointer ${
+                    depFieldErrors.birthDate
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.birthDate && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.birthDate}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {editingCardId !== 'titular' && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Parentesco / Relación <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={depRelationship}
+                  onChange={(e) => setDepRelationship(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] outline-hidden cursor-pointer"
+                >
+                  <option value="Hijo/a">Hijo/a</option>
+                  <option value="Padre/Madre">Padre/Madre mayor</option>
+                  <option value="Cónyuge">Cónyuge / Pareja</option>
+                  <option value="Abuelo/a">Abuelo/a</option>
+                  <option value="Hermano/a">Hermano/a</option>
+                  <option value="Otro">Otro familiar a cargo</option>
+                </select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  WhatsApp / Celular
+                </label>
+                <input
+                  type="tel"
+                  value={depPhone}
+                  onChange={(e) => {
+                    setDepPhone(e.target.value);
+                    if (depFieldErrors.phone) setDepFieldErrors(prev => ({ ...prev, phone: undefined }));
+                  }}
+                  placeholder="Ej. 2926442385"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.phone
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.phone && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.phone}</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Correo Electrónico
+                </label>
+                <input
+                  type="email"
+                  value={depEmail}
+                  onChange={(e) => {
+                    setDepEmail(e.target.value);
+                    if (depFieldErrors.email) setDepFieldErrors(prev => ({ ...prev, email: undefined }));
+                  }}
+                  placeholder="ejemplo@gmail.com"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.email
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.email && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.email}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Ciudad
+                </label>
+                <input
+                  type="text"
+                  value={depCity}
+                  onChange={(e) => setDepCity(e.target.value)}
+                  placeholder="Ej. Coronel Suárez"
+                  className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Provincia
+                </label>
+                <input
+                  type="text"
+                  value={depProvince}
+                  onChange={(e) => setDepProvince(e.target.value)}
+                  placeholder="Ej. Buenos Aires"
+                  className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Coverage */}
+          <div className="space-y-4 bg-slate-50/50 p-4 sm:p-5 rounded-2xl border border-slate-200/80">
+            <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-200 pb-2 flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-[#1661E1]" />
+              2. Cobertura Médica
+            </h4>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Obra Social / Prepaga <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={depObraSocial}
+                  onChange={(e) => {
+                    setDepObraSocial(e.target.value);
+                    if (depFieldErrors.obraSocial) setDepFieldErrors(prev => ({ ...prev, obraSocial: undefined }));
+                    if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs cursor-pointer outline-hidden ${
+                    depFieldErrors.obraSocial
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                >
+                  <option value="">Seleccionar Obra Social</option>
+                  {OBRA_SOCIAL_OPTIONS.map((os) => (
+                    <option key={os.id} value={os.name}>{os.name}</option>
+                  ))}
+                  <option value="Otra Obra Social / Prepaga">Otra Obra Social / Prepaga</option>
+                </select>
+                {depFieldErrors.obraSocial && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.obraSocial}</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  N° de Afiliado / Credencial
+                </label>
+                <input
+                  type="text"
+                  value={depObraSocialNumber}
+                  onChange={(e) => {
+                    setDepObraSocialNumber(e.target.value);
+                    if (depFieldErrors.obraSocialNumber) setDepFieldErrors(prev => ({ ...prev, obraSocialNumber: undefined }));
+                  }}
+                  placeholder="Ej. 210-48912345"
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.obraSocialNumber
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.obraSocialNumber && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.obraSocialNumber}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {depObraSocial === 'Otra Obra Social / Prepaga' && (
+              <div className="animate-fadeIn">
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
+                  Nombre de la Obra Social / Prepaga <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={depCustomObraSocial}
+                  onChange={(e) => {
+                    setDepCustomObraSocial(e.target.value);
+                    if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
+                  }}
+                  placeholder="Escriba el nombre de la obra social o prepaga..."
+                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
+                    depFieldErrors.customObraSocial
+                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500'
+                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
+                  }`}
+                />
+                {depFieldErrors.customObraSocial && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{depFieldErrors.customObraSocial}</span>
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Form Actions */}
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => {
+                setShowAddDependentModal(false);
+                setEditingCardId(null);
+              }}
+              disabled={isSavingModalPatient}
+              className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              Cancelar y Volver
+            </button>
+            <button
+              type="submit"
+              disabled={isSavingModalPatient}
+              className="px-6 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isSavingModalPatient ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="h-4 w-4" />
+              )}
+              <span>{isSavingModalPatient ? 'Guardando...' : editingCardId ? 'Guardar Cambios' : 'Guardar Paciente a Cargo'}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
@@ -2266,9 +2675,15 @@ export default function PatientForm({
                 onChange={(e) => setDeliveryMethod(e.target.value as 'email' | 'whatsapp' | 'both')}
                 className="w-full px-4 py-3 bg-white border border-slate-250 rounded-xl font-semibold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] focus:outline-none text-xs transition-all shadow-2xs hover:border-slate-350"
               >
-                <option value="both">Enviar por Ambos Medios (Email y WhatsApp)</option>
-                <option value="whatsapp">Enviar solo por WhatsApp</option>
-                <option value="email">Enviar solo por Email (Correo Electrónico)</option>
+                {((hasEmail && hasPhone) || (!hasEmail && !hasPhone)) && (
+                  <option value="both">Enviar por Ambos Medios (Email y WhatsApp)</option>
+                )}
+                {(hasPhone || (!hasEmail && !hasPhone)) && (
+                  <option value="whatsapp">Enviar solo por WhatsApp</option>
+                )}
+                {(hasEmail || (!hasEmail && !hasPhone)) && (
+                  <option value="email">Enviar solo por Email (Correo Electrónico)</option>
+                )}
               </select>
             </div>
 
@@ -3249,386 +3664,6 @@ export default function PatientForm({
         )}
 
       </form>
-
-      {/* MODAL AGREGAR / EDITAR PACIENTE */}
-      {showAddDependentModal && (
-        <div 
-          className="fixed inset-0 z-50 bg-[#0141BC]/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 md:p-6 animate-fadeIn"
-          onClick={() => setShowAddDependentModal(false)}
-        >
-          <div 
-            className="bg-white w-full max-w-lg rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden border border-slate-100 animate-scaleUp max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2rem)] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div className="bg-[#0141BC] text-white p-4 sm:p-5 sm:px-6 flex items-center justify-between border-b border-white/10 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-white/15 border border-white/20 text-white flex items-center justify-center shrink-0">
-                  {editingCardId ? <Edit3 className="h-4 w-4 sm:h-5 sm:w-5" /> : <UserPlus className="h-4 w-4 sm:h-5 sm:w-5" />}
-                </div>
-                <div>
-                  <h3 className="font-black text-white text-sm sm:text-base">
-                    {editingCardId === 'titular' 
-                      ? 'Editar Datos del Titular' 
-                      : editingCardId 
-                      ? 'Editar Paciente a Cargo' 
-                      : 'Agregar Nuevo Paciente a Cargo'}
-                  </h3>
-                  <p className="text-[11px] sm:text-xs text-blue-100 font-semibold">
-                    {editingCardId ? 'Modifique los datos necesarios' : 'Complete la información requerida del familiar'}
-                  </p>
-                </div>
-              </div>
-
-              <button 
-                type="button"
-                onClick={() => setShowAddDependentModal(false)}
-                className="text-slate-200 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all cursor-pointer"
-                aria-label="Cerrar"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Modal Body Form */}
-            <form onSubmit={handleSaveModalPatient} className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 min-h-0">
-              {depFormError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl text-xs font-semibold flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                  <span>{depFormError}</span>
-                </div>
-              )}
-
-              {/* Section 1: Identification & Contact */}
-              <div className="space-y-3">
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
-                  <User className="h-4 w-4 text-[#1661E1]" />
-                  1. Datos del Paciente y Contacto
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Nombre/s <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={depName}
-                      onChange={(e) => {
-                        setDepName(e.target.value);
-                        if (depFieldErrors.name) setDepFieldErrors(prev => ({ ...prev, name: undefined }));
-                      }}
-                      placeholder="Ej. Lucas"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.name
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.name && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.name}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Apellido <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={depLastName}
-                      onChange={(e) => {
-                        setDepLastName(e.target.value);
-                        if (depFieldErrors.lastName) setDepFieldErrors(prev => ({ ...prev, lastName: undefined }));
-                      }}
-                      placeholder="Ej. Olaciregui"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.lastName
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.lastName && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.lastName}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      DNI (Sin puntos) <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={depDni}
-                      onChange={(e) => {
-                        setDepDni(e.target.value.replace(/\D/g, ''));
-                        if (depFieldErrors.dni) setDepFieldErrors(prev => ({ ...prev, dni: undefined }));
-                      }}
-                      placeholder="Ej. 48912345"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.dni
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.dni && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.dni}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Fecha de Nacimiento <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={depBirthDate}
-                      onChange={(e) => {
-                        setDepBirthDate(e.target.value);
-                        if (depFieldErrors.birthDate) setDepFieldErrors(prev => ({ ...prev, birthDate: undefined }));
-                      }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden cursor-pointer ${
-                        depFieldErrors.birthDate
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.birthDate && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.birthDate}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {editingCardId !== 'titular' && (
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Parentesco / Relación <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={depRelationship}
-                      onChange={(e) => {
-                        setDepRelationship(e.target.value);
-                        if (depFieldErrors.relationship) setDepFieldErrors(prev => ({ ...prev, relationship: undefined }));
-                      }}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-250 rounded-xl font-bold text-[#0F172A] text-xs focus:ring-2 focus:ring-[#1661E1] focus:bg-white focus:outline-none cursor-pointer"
-                    >
-                      <option value="Hijo/a">Hijo/a</option>
-                      <option value="Padre/Madre">Padre/Madre mayor</option>
-                      <option value="Cónyuge">Cónyuge / Pareja</option>
-                      <option value="Abuelo/a">Abuelo/a</option>
-                      <option value="Hermano/a">Hermano/a</option>
-                      <option value="Otro">Otro familiar a cargo</option>
-                    </select>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      WhatsApp / Celular
-                    </label>
-                    <input
-                      type="tel"
-                      value={depPhone}
-                      onChange={(e) => {
-                        setDepPhone(e.target.value);
-                        if (depFieldErrors.phone) setDepFieldErrors(prev => ({ ...prev, phone: undefined }));
-                      }}
-                      placeholder="Ej. 2926442385"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.phone
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.phone && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.phone}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Correo Electrónico
-                    </label>
-                    <input
-                      type="email"
-                      value={depEmail}
-                      onChange={(e) => {
-                        setDepEmail(e.target.value);
-                        if (depFieldErrors.email) setDepFieldErrors(prev => ({ ...prev, email: undefined }));
-                      }}
-                      placeholder="ejemplo@gmail.com"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.email
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.email && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.email}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Ciudad
-                    </label>
-                    <input
-                      type="text"
-                      value={depCity}
-                      onChange={(e) => setDepCity(e.target.value)}
-                      placeholder="Ej. Coronel Suárez"
-                      className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Provincia
-                    </label>
-                    <input
-                      type="text"
-                      value={depProvince}
-                      onChange={(e) => setDepProvince(e.target.value)}
-                      placeholder="Ej. Buenos Aires"
-                      className="w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section 2: Coverage */}
-              <div className="space-y-3 pt-2">
-                <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-[#0141BC] border-b border-slate-100 pb-1.5 flex items-center gap-1.5">
-                  <ShieldCheck className="h-4 w-4 text-[#1661E1]" />
-                  2. Cobertura Médica
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Obra Social / Prepaga <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={depObraSocial}
-                      onChange={(e) => {
-                        setDepObraSocial(e.target.value);
-                        if (depFieldErrors.obraSocial) setDepFieldErrors(prev => ({ ...prev, obraSocial: undefined }));
-                        if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
-                      }}
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs cursor-pointer outline-hidden ${
-                        depFieldErrors.obraSocial
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    >
-                      <option value="">Seleccionar Obra Social</option>
-                      {OBRA_SOCIAL_OPTIONS.map((os) => (
-                        <option key={os.id} value={os.name}>{os.name}</option>
-                      ))}
-                    </select>
-                    {depFieldErrors.obraSocial && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.obraSocial}</span>
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      N° de Afiliado / Credencial
-                    </label>
-                    <input
-                      type="text"
-                      value={depObraSocialNumber}
-                      onChange={(e) => {
-                        setDepObraSocialNumber(e.target.value);
-                        if (depFieldErrors.obraSocialNumber) setDepFieldErrors(prev => ({ ...prev, obraSocialNumber: undefined }));
-                      }}
-                      placeholder="Ej. 210-48912345"
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-mono font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.obraSocialNumber
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.obraSocialNumber && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.obraSocialNumber}</span>
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {depObraSocial === 'Otra Obra Social / Prepaga' && (
-                  <div className="animate-fadeIn">
-                    <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
-                      Nombre de la Obra Social / Prepaga <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={depCustomObraSocial}
-                      onChange={(e) => {
-                        setDepCustomObraSocial(e.target.value);
-                        if (depFieldErrors.customObraSocial) setDepFieldErrors(prev => ({ ...prev, customObraSocial: undefined }));
-                      }}
-                      placeholder="Escriba el nombre de la obra social o prepaga..."
-                      className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden ${
-                        depFieldErrors.customObraSocial
-                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                          : 'bg-slate-50 border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1] focus:bg-white'
-                      }`}
-                    />
-                    {depFieldErrors.customObraSocial && (
-                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                        <span>{depFieldErrors.customObraSocial}</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddDependentModal(false)}
-                  className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2.5 bg-[#1661E1] hover:bg-[#0141BC] text-white font-extrabold rounded-xl text-xs transition-all shadow-md flex items-center gap-2 cursor-pointer"
-                >
-                  <Check className="h-4 w-4" />
-                  <span>{editingCardId ? 'Guardar Cambios' : 'Guardar Paciente a Cargo'}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

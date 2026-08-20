@@ -381,7 +381,6 @@ export function useMedicalOrders() {
     return data.id;
   };
 
-  // Update user (Admin)
   const updateUser = async (userId: string, updates: Partial<SystemUser>) => {
     const res = await fetch(`/api/users/${userId}`, {
       method: 'PUT',
@@ -393,6 +392,12 @@ export function useMedicalOrders() {
       throw new Error(data.error || 'Error al actualizar usuario');
     }
     setUsers((prev) => prev.map((u) => (u.id === userId ? data : u)));
+    if (currentUser && currentUser.id === userId) {
+      const updatedCurrentUser = { ...currentUser, ...data };
+      setCurrentUser(updatedCurrentUser);
+      localStorage.setItem('mi-receta-user', JSON.stringify(updatedCurrentUser));
+    }
+    return data;
   };
 
   // Delete user (Admin)

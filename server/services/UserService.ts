@@ -138,13 +138,15 @@ export class UserService {
     }
 
     const safeUpdateData = { ...updateData };
+    if (safeUpdateData.dni && !safeUpdateData.identifier) {
+      safeUpdateData.identifier = safeUpdateData.dni;
+    }
     if (!isAdmin && isSelf) {
       // Prevent non-admin users from escalating permissions or altering system fields
       delete safeUpdateData.role;
       delete safeUpdateData.tenantId;
       delete safeUpdateData.status;
       delete safeUpdateData.id;
-      delete safeUpdateData.identifier;
     }
 
     if (safeUpdateData.password) {
