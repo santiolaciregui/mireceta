@@ -209,15 +209,36 @@ export default function App() {
   // Quick stats for the navbar
   const pendingOrdersCount = orders.filter((o) => o.status === 'Pendiente').length;
   const completedOrdersCount = orders.filter((o) => o.status === 'Emitida' || o.status === 'Enviada').length;
-  const chatCount = orders.filter((o) => {
-    if (!o.messages || o.messages.length === 0) return false;
-    const lastMessage = o.messages[o.messages.length - 1];
-    if (activeRole === 'paciente') {
-      return lastMessage.sender !== 'paciente';
-    } else {
-      return lastMessage.sender === 'paciente';
-    }
-  }).length;
+  const chatCount = React.useMemo(() => {
+    const patientLastMessages = new Map<string, { sender: string; timestamp: number }>();
+    
+    orders.forEach((o) => {
+      if (!o.messages || o.messages.length === 0) return;
+      
+      const cleanDni = (o.requestedByTitularDni || o.patientDni || '').replace(/\D/g, '');
+      if (!cleanDni) return;
+      
+      o.messages.forEach(m => {
+        if (!m) return;
+        const ts = new Date(m.timestamp).getTime();
+        const current = patientLastMessages.get(cleanDni);
+        if (!current || ts > current.timestamp) {
+          patientLastMessages.set(cleanDni, { sender: m.sender, timestamp: ts });
+        }
+      });
+    });
+
+    let count = 0;
+    patientLastMessages.forEach((lastMsg) => {
+      if (activeRole === 'paciente') {
+        if (lastMsg.sender !== 'paciente') count++;
+      } else {
+        if (lastMsg.sender === 'paciente') count++;
+      }
+    });
+    
+    return count;
+  }, [orders, activeRole]);
 
   const handleOrderSubmitted = (orderId: string) => {
     setSuccessSubmissionId(orderId);
