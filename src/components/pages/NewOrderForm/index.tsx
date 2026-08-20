@@ -23,7 +23,7 @@ import {
   Calendar,
   Sparkles
 } from 'lucide-react';
-
+import { compressImageAndGetBase64 } from '../../../utils/file';
 interface NewOrderFormProps {
   currentUser?: any;
   orders?: any[];
@@ -31,10 +31,12 @@ interface NewOrderFormProps {
   onSubmitOrder?: (data: any) => Promise<string>;
   onSuccess: () => void;
   onCancel: () => void;
+  currentTenant?: any;
 }
 
 export default function NewOrderForm({
   currentUser,
+  currentTenant,
   orders = [],
   users = [],
   onSubmitOrder,
@@ -91,7 +93,9 @@ export default function NewOrderForm({
 
   // Payment / Registry Details
   const [paymentMethod, setPaymentMethod] = useState<'cash_desk' | 'bonificado' | 'transfer'>('cash_desk');
-  const [paymentAmount, setPaymentAmount] = useState('10000');
+  const [paymentAmount, setPaymentAmount] = useState(
+    currentTenant?.pricePerPrescription ? currentTenant.pricePerPrescription.toString() : '10000'
+  );
 
   // Search existing patient by DNI in system records
   const handleSearchPatient = () => {
@@ -195,13 +199,13 @@ export default function NewOrderForm({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
+      compressImageAndGetBase64(file).then((base64String) => {
         setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
         setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
-      };
-      reader.readAsDataURL(file);
+      }).catch(err => {
+        console.error('Error comprimiendo imagen:', err);
+        setError('Error al procesar la imagen de receta.');
+      });
     }
   };
 

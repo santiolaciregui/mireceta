@@ -27,6 +27,7 @@ import {
   Download
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../../../types';
+import { compressImageAndGetBase64 } from '../../../utils/file';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];
@@ -432,16 +433,14 @@ export default function PatientDoctorChat({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setPreviewImage({
-            url: event.target.result as string,
-            name: file.name
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageAndGetBase64(file).then((base64String) => {
+        setPreviewImage({
+          url: base64String,
+          name: file.name
+        });
+      }).catch(err => {
+        console.error('Error comprimiendo imagen de chat:', err);
+      });
     }
   };
 
@@ -546,16 +545,14 @@ export default function PatientDoctorChat({
     setIsDragOver(false);
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setPreviewImage({
-            url: event.target.result as string,
-            name: file.name
-          });
-        }
-      };
-      reader.readAsDataURL(file);
+      compressImageAndGetBase64(file).then((base64String) => {
+        setPreviewImage({
+          url: base64String,
+          name: file.name
+        });
+      }).catch(err => {
+        console.error('Error comprimiendo imagen arrastrada:', err);
+      });
     }
   };
 

@@ -34,7 +34,8 @@ export class TenantService {
           name: tenant.name,
           subdomain: tenant.subdomain,
           mpPublicKey: tenant.mpPublicKey,
-          mpEnabled: tenant.mpEnabled
+          mpEnabled: tenant.mpEnabled,
+          pricePerPrescription: tenant.pricePerPrescription || 10000
         };
       }
     } catch (err) {
@@ -46,7 +47,8 @@ export class TenantService {
       name: 'Centro Médico Principal',
       subdomain: lowerSub || 'www',
       mpPublicKey: '',
-      mpEnabled: false
+      mpEnabled: false,
+      pricePerPrescription: 10000
     };
   }
 

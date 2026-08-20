@@ -51,3 +51,47 @@ export function validateImageFile(file: File): FileValidationResult {
   }
   return { valid: true };
 }
+
+/**
+ * Comprime una imagen usando un Canvas y devuelve la cadena base64.
+ * Esto es crucial para no exceder los límites de Vercel (4.5MB).
+ */
+export function compressImageAndGetBase64(file: File, maxWidth = 1200, quality = 0.7): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // Si no es imagen (ej. PDF), retornamos el base64 sin comprimir
+    if (!file.type.startsWith('image/')) {
+      return fileToBase64(file).then(resolve).catch(reject);
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          return resolve(e.target?.result as string); // fallback
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convertir a JPEG comprimido
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Error al cargar la imagen para compresión'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Error al leer el archivo'));
+    reader.readAsDataURL(file);
+  });
+}

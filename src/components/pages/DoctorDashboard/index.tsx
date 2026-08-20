@@ -54,7 +54,7 @@ import {
   Image as ImageIcon,
   AppWindow
 } from 'lucide-react';
-
+import { compressImageAndGetBase64 } from '../../../utils/file';
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
   users?: any[];
@@ -85,6 +85,7 @@ interface DoctorDashboardProps {
     medicoId?: string;
     medicoName?: string;
   };
+  currentTenant?: any;
   forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'rechazadas' | 'reportes' | 'nueva';
   onNavigateToChat?: (orderId: string) => void;
   onNavigateToSubview?: (subview: string) => void;
@@ -96,7 +97,8 @@ export default function DoctorDashboard({
   onUpdateStatus, 
   onCreateOrder, 
   onSendRecipeLink,
-  currentUser, 
+  currentUser,
+  currentTenant,
   forcedSubview,
   onNavigateToChat,
   onNavigateToSubview
@@ -261,7 +263,9 @@ export default function DoctorDashboard({
   const [newOrderMedication, setNewOrderMedication] = useState('');
   const [newOrderConsultationTime, setNewOrderConsultationTime] = useState('');
   const [newOrderConsultationDoctor, setNewOrderConsultationDoctor] = useState('');
-  const [newOrderPaymentAmount, setNewOrderPaymentAmount] = useState('10000');
+  const [newOrderPaymentAmount, setNewOrderPaymentAmount] = useState(
+    currentTenant?.pricePerPrescription ? currentTenant.pricePerPrescription.toString() : '10000'
+  );
   const [isSubmittingNewOrder, setIsSubmittingNewOrder] = useState(false);
 
   const handleManualOrderSubmit = async (e: React.FormEvent) => {
@@ -504,21 +508,17 @@ export default function DoctorDashboard({
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result as string;
+    compressImageAndGetBase64(file).then((base64String) => {
       setUploadedRecipe({
         url: base64String,
         name: file.name,
         size: file.size
       });
       showToast(`Archivo "${file.name}" adjuntado correctamente.`);
-    };
-    reader.onerror = () => {
+    }).catch(err => {
       setPdfUploadError('Error al leer el archivo seleccionado.');
       showToast('Error al leer el archivo.');
-    };
-    reader.readAsDataURL(file);
+    });
   };
 
   const handlePdfDragOver = (e: React.DragEvent) => {
@@ -606,7 +606,7 @@ export default function DoctorDashboard({
           paymentReceiptUrl: simulatedReceiptSvg,
           paymentReceiptName: 'carga_manual_efectivo.png',
           paymentMethod: 'cash_desk',
-          paymentAmount: newOrderPaymentAmount || '10000',
+          paymentAmount: newOrderPaymentAmount || currentTenant?.pricePerPrescription?.toString() || '10000',
           paymentDate: new Date().toISOString().split('T')[0],
           lastConsultationTime: newOrderConsultationTime || undefined,
           lastConsultationDoctor: newOrderConsultationDoctor.trim() || undefined,
@@ -672,6 +672,7 @@ export default function DoctorDashboard({
     return (
       <NewOrderForm
         currentUser={currentUser}
+        currentTenant={currentTenant}
         orders={orders}
         users={users}
         onSubmitOrder={onCreateOrder}
@@ -862,7 +863,7 @@ export default function DoctorDashboard({
                           if (pStatus === 'approved') {
                             return (
                               <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30 leading-none">
-                                <Check className="h-3.5 w-3.5 text-[#14BE99]" /> Pagado (${selectedOrder.paymentAmount || '10000'})
+                                <Check className="h-3.5 w-3.5 text-[#14BE99]" /> Pagado (${selectedOrder.paymentAmount || currentTenant?.pricePerPrescription || '10000'})
                               </span>
                             );
                           }

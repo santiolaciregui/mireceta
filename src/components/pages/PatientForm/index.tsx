@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
+import { fileToBase64, compressImageAndGetBase64 } from '../../../utils/file';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import { trackInitiatePrescription, trackCompletePrescription } from '../../../services/metaPixelService';
 
@@ -62,6 +63,7 @@ interface PatientFormProps {
   onAddDependent?: (dependent: any) => void;
   onUpdateDependent?: (dependent: any) => void;
   onRemoveDependent?: (dependentId: string) => void;
+  currentTenant?: any;
 }
 
 const BANK_DETAILS = {
@@ -84,6 +86,7 @@ export default function PatientForm({
   onAddDependent,
   onUpdateDependent,
   onRemoveDependent,
+  currentTenant,
 }: PatientFormProps) {
   const isThirdPartyUser = Boolean(isOficio || (currentUser && currentUser.role !== 'paciente'));
   const userKey = currentUser?.id || currentUser?.identifier || recentDni;
@@ -139,7 +142,7 @@ export default function PatientForm({
       if (payment === 'approved' || payment === 'pending') {
         trackCompletePrescription({
           orderId,
-          value: 10000,
+          value: currentTenant?.pricePerPrescription || 10000,
           currency: 'ARS',
         });
         clearDraft();
@@ -643,7 +646,9 @@ export default function PatientForm({
   const [paymentMethod, setPaymentMethod] = useState<'mp' | 'transfer' | 'cash_desk'>(
     isThirdPartyUser ? 'cash_desk' : 'mp'
   );
-  const [paymentAmount, setPaymentAmount] = useState('10000');
+  const [paymentAmount, setPaymentAmount] = useState(
+    currentTenant?.pricePerPrescription ? currentTenant.pricePerPrescription.toString() : '10000'
+  );
   
   // Transfer Details
   const [paymentReceipt, setPaymentReceipt] = useState<{ url: string; name: string } | null>(null);
@@ -796,9 +801,10 @@ export default function PatientForm({
     const photosCount = medicationPhotos.length;
     const count = (itemsCount + photosCount) > 0 ? (itemsCount + photosCount) : 1;
 
-    const calculated = Math.max(1, Math.ceil(count / 2)) * 10000;
+    const basePrice = currentTenant?.pricePerPrescription || 10000;
+    const calculated = Math.max(1, Math.ceil(count / 2)) * basePrice;
     setPaymentAmount(calculated.toString());
-  }, [selectedObraSocial, medicationItems.length, medicationPhotos.length]);
+  }, [selectedObraSocial, medicationItems.length, medicationPhotos.length, currentTenant]);
 
   // --- Age calculation helper ---
   const calculateAge = (dobString: string): number => {
@@ -981,17 +987,17 @@ export default function PatientForm({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result as string;
+      compressImageAndGetBase64(file).then((base64String) => {
         if (target === 'medication') {
           setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
         } else {
           setPaymentReceipt({ url: base64String, name: file.name });
           setError(null);
         }
-      };
-      reader.readAsDataURL(file);
+      }).catch((err) => {
+        console.error('Error procesando imagen:', err);
+        setError('Error al procesar la imagen. Intente nuevamente.');
+      });
     }
   };
 
@@ -1394,7 +1400,7 @@ export default function PatientForm({
       const orderId = await onSubmitOrder(fullOrderPayload);
       trackCompletePrescription({
         orderId,
-        value: paymentAmount || 10000,
+        value: paymentAmount || currentTenant?.pricePerPrescription || 10000,
         currency: 'ARS',
         obraSocial: selectedObraSocial,
         deliveryMethod,

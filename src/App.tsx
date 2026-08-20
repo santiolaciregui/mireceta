@@ -361,6 +361,7 @@ export default function App() {
                         initialLastName={currentUser.lastName}
                         orders={orders}
                         currentUser={currentUser}
+                        currentTenant={currentTenant}
                         onAddDependent={addDependent}
                         onUpdateDependent={updateDependent}
                         onRemoveDependent={removeDependent}
