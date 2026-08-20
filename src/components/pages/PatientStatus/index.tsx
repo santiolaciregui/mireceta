@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   Check,
   Clock, 
@@ -74,14 +75,16 @@ export default function PatientStatus({
     }, 3500);
   };
 
-  const handleCopyOrderId = (e: React.MouseEvent, id: string) => {
+  const handleCopyOrderId = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    navigator.clipboard.writeText(id);
-    setCopiedOrderId(id);
-    showToast(`Código de trámite ${id} copiado al portapapeles`);
-    setTimeout(() => {
-      setCopiedOrderId(null);
-    }, 2500);
+    const success = await copyToClipboard(id);
+    if (success) {
+      setCopiedOrderId(id);
+      showToast(`Código de trámite ${id} copiado al portapapeles`);
+      setTimeout(() => {
+        setCopiedOrderId(null);
+      }, 2500);
+    }
   };
 
   const handlePrintOrder = (e: React.MouseEvent, order: MedicalOrder) => {

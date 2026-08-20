@@ -6,6 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { MedicationItem, DependentPatient } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
+import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   User, 
   Users,
@@ -1480,11 +1481,13 @@ export default function PatientForm({
     const requestedByTitularName = matchedOrder?.requestedByTitularName || (isForDependent ? `${titularData.name} ${titularData.lastName}`.trim() : undefined);
     const requestedByTitularDni = matchedOrder?.requestedByTitularDni || (isForDependent ? titularData.dni : undefined);
 
-    const handleCopyOrderId = () => {
+    const handleCopyOrderId = async () => {
       if (createdOrderId) {
-        navigator.clipboard.writeText(createdOrderId);
-        setCopiedOrderId(true);
-        setTimeout(() => setCopiedOrderId(false), 2500);
+        const success = await copyToClipboard(createdOrderId);
+        if (success) {
+          setCopiedOrderId(true);
+          setTimeout(() => setCopiedOrderId(false), 2500);
+        }
       }
     };
 

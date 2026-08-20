@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MedicalOrder } from '../../../types';
+import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   Pill, 
   User, 
@@ -59,15 +60,21 @@ export default function FloatingPrescriptionWidget({
     );
   }
 
-  const handleCopy = (text: string | number | undefined | null, fieldId: string) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleCopy = async (text: string | number | undefined | null, fieldId: string) => {
     if (text === undefined || text === null) return;
     const strText = String(text).trim();
     if (!strText || strText === '—') return;
-    navigator.clipboard.writeText(strText);
-    setCopiedField(fieldId);
-    setTimeout(() => {
-      setCopiedField((curr) => (curr === fieldId ? null : curr));
-    }, 1800);
+    
+    const targetDoc = containerRef.current?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const success = await copyToClipboard(strText, targetDoc);
+    if (success) {
+      setCopiedField(fieldId);
+      setTimeout(() => {
+        setCopiedField((curr) => (curr === fieldId ? null : curr));
+      }, 1800);
+    }
   };
 
   const calculateAge = (dateStr?: string) => {
@@ -143,7 +150,7 @@ export default function FloatingPrescriptionWidget({
     return 'Desconocido';
   };
 
-  const handleCopyAllSummary = () => {
+  const handleCopyAllSummary = async () => {
     const lines: string[] = [];
     lines.push(`SOLICITUD ID: ${order.id}`);
     lines.push(`FECHA DE SOLICITUD: ${formatDateTime(order.createdAt)}`);
@@ -212,9 +219,12 @@ export default function FloatingPrescriptionWidget({
       lines.push(`COMENTARIOS PACIENTE: ${order.comments}`);
     }
 
-    navigator.clipboard.writeText(lines.join('\n'));
-    setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2000);
+    const targetDoc = containerRef.current?.ownerDocument || (typeof document !== 'undefined' ? document : null);
+    const success = await copyToClipboard(lines.join('\n'), targetDoc);
+    if (success) {
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    }
   };
 
   const medicationPhotoList = order.medicationPhotos || (order.medicationPhotoUrl ? [{ url: order.medicationPhotoUrl, name: order.medicationPhotoName || 'envase.jpg' }] : []);
@@ -258,7 +268,7 @@ export default function FloatingPrescriptionWidget({
   };
 
   return (
-    <div className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-900 text-xs select-text overflow-hidden font-sans">
+    <div ref={containerRef} className="flex flex-col h-screen max-h-screen bg-slate-50 text-slate-900 text-xs select-text overflow-hidden font-sans">
       {/* Header Bar */}
       <header className="bg-slate-900 text-white px-3.5 py-2.5 flex items-center justify-between shadow-md shrink-0 select-none">
         <div className="flex items-center gap-2 min-w-0">

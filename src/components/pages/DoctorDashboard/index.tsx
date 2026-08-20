@@ -11,6 +11,7 @@ import { MedicalOrder, OrderStatus } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
 import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
+import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   FileText, 
   Clock, 
@@ -149,13 +150,15 @@ export default function DoctorDashboard({
   const [toast, setToast] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
-  const handleCopy = (text: string, fieldId: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(fieldId);
-    showToast(`Copiado: ${label}`);
-    setTimeout(() => {
-      setCopiedField(null);
-    }, 2000);
+  const handleCopy = async (text: string, fieldId: string, label: string) => {
+    const success = await copyToClipboard(text);
+    if (success) {
+      setCopiedField(fieldId);
+      showToast(`Copiado: ${label}`);
+      setTimeout(() => {
+        setCopiedField(null);
+      }, 2000);
+    }
   };
 
   const formatBirthDate = (dateStr?: string) => {
@@ -1894,11 +1897,13 @@ export default function DoctorDashboard({
                   <span>Enlace público del PDF:</span>
                   <button
                     type="button"
-                    onClick={() => {
+                    onClick={async () => {
                       const link = `${window.location.origin}/api/orders/public/${selectedOrder.id}/pdf`;
-                      navigator.clipboard.writeText(link);
-                      setCopiedLink(true);
-                      setTimeout(() => setCopiedLink(false), 2000);
+                      const success = await copyToClipboard(link);
+                      if (success) {
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2000);
+                      }
                     }}
                     className="text-[#1661E1] hover:underline flex items-center gap-1 cursor-pointer"
                   >
