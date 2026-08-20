@@ -4,7 +4,7 @@ import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
 import { connectDB } from './server/config/db.js';
 import { config } from './server/config/env.js';
-import { errorHandler } from './server/middlewares/error.middleware.js';
+import { errorHandler, responseErrorMonitor } from './server/middlewares/error.middleware.js';
 import { errorNotificationService } from './server/services/ErrorNotificationService.js';
 import routes from './server/routes/index.js';
 import { Tenant } from './server/models/Tenant.js';
@@ -27,7 +27,6 @@ process.on('unhandledRejection', (reason) => {
     origin: 'UNHANDLED_REJECTION'
   }).catch((e) => console.error('Error enviando email por Unhandled Rejection:', e));
 });
-
 
 async function runTenantMigration() {
   try {
@@ -79,6 +78,8 @@ async function runTenantMigration() {
 async function startServer() {
   const app = express();
   app.use(express.json({ limit: '50mb' }));
+  app.use(responseErrorMonitor);
+
 
   await connectDB();
   await runTenantMigration();
