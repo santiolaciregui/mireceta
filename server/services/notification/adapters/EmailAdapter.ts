@@ -40,7 +40,7 @@ export class EmailAdapter implements NotificationAdapter {
   private parseConfig(config: Record<string, unknown>): EmailConfig {
     const host = String(config.host || '');
     const port = Number(config.port || 587);
-    const secure = Boolean(config.secure ?? (port === 465));
+    const secure = port === 465 ? true : (port === 587 ? false : Boolean(config.secure ?? false));
     const user = String(config.user || '');
     const pass = String(config.pass || '');
     const fromName = config.fromName ? String(config.fromName) : 'Mi Receta Digital';
