@@ -183,11 +183,22 @@ export class AuthService {
       const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
       const resetUrl = `${baseUrl}?token=${resetToken}`;
 
-      sendPasswordResetEmail({
-        email: user.email,
-        name: user.name,
-        resetUrl
-      }).catch(err => console.error('[AuthService] Error sending reset email:', err));
+      notificationService.sendNotification({
+        tenantId: user.tenantId || 'TEN-0001',
+        channel: 'email',
+        to: user.email,
+        templateCode: 'PASSWORD_RESETEO',
+        body: `Hola ${user.name}, recibimos una solicitud para restablecer tu contraseña en Mi Receta: ${resetUrl}`,
+        variables: {
+          name: user.name,
+          resetUrl
+        }
+      }).then(res => {
+        if (!res.success) {
+          console.warn('[AuthService] NotificationService fallo al enviar email, intentando fallback directo:', res.error);
+          return sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl });
+        }
+      }).catch(err => console.error('[AuthService] Error enviando reset email:', err));
 
       await auditLogService.log({
         tenantId: user.tenantId || 'TEN-0001',
@@ -281,11 +292,22 @@ export class AuthService {
       const baseUrl = process.env.APP_URL || `http://localhost:${config.PORT}`;
       const resetUrl = `${baseUrl}?token=${resetToken}`;
 
-      sendPasswordResetEmail({
-        email: user.email,
-        name: user.name,
-        resetUrl
-      }).catch(err => console.error('[AuthService] Error sending reset email:', err));
+      notificationService.sendNotification({
+        tenantId: user.tenantId || 'TEN-0001',
+        channel: 'email',
+        to: user.email,
+        templateCode: 'PASSWORD_RESETEO',
+        body: `Hola ${user.name}, recibimos una solicitud para restablecer tu contraseña en Mi Receta: ${resetUrl}`,
+        variables: {
+          name: user.name,
+          resetUrl
+        }
+      }).then(res => {
+        if (!res.success) {
+          console.warn('[AuthService] NotificationService fallo al enviar email, intentando fallback directo:', res.error);
+          return sendPasswordResetEmail({ email: user.email, name: user.name, resetUrl });
+        }
+      }).catch(err => console.error('[AuthService] Error enviando reset email:', err));
 
       await auditLogService.log({
         tenantId: user.tenantId || 'TEN-0001',

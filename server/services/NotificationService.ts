@@ -13,7 +13,7 @@ export interface SendDirectNotificationDto {
   channel: NotificationChannel;
   to: string;
   subject?: string;
-  body: string;
+  body?: string;
   templateCode?: string;
   variables?: Record<string, string | number | boolean>;
 }
