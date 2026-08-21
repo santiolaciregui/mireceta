@@ -310,16 +310,16 @@ export class AuthService {
       const resetTokenExp = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
       await this.userRepo.update(user.id, { resetToken, resetTokenExp });
 
-      // Send via WhatsApp using Meta template password_reseteo
+      // Send via WhatsApp using Meta template password_reseteo / PASSWORD_RESETEO_WHATSAPP
       await notificationService.sendNotification({
         tenantId: user.tenantId || 'TEN-0001',
         channel: 'whatsapp',
         to: user.phone,
-        templateCode: 'password_reseteo',
+        templateCode: 'PASSWORD_RESETEO_WHATSAPP',
         variables: {
           code: resetToken
         },
-        body: `${resetToken} es tu código de verificación de Mi Receta.`
+        body: `${resetToken} es tu código de verificación de Mi Receta. (Válido por 15 minutos)`
       });
 
       await auditLogService.log({

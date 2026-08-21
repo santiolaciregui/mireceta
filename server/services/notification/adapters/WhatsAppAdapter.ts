@@ -114,28 +114,52 @@ export class WhatsAppAdapter implements NotificationAdapter {
       const apiVer = waConfig.apiVersion || 'v21.0';
       const url = `https://graph.facebook.com/${apiVer}/${waConfig.phoneNumberId}/messages`;
       const languageCode = waConfig.templateLanguage || (payload.templateCode?.includes('jaspers') ? 'en_US' : 'es_AR');
+      const metaTemplateName = (payload.templateCode || '').toLowerCase().replace(/_whatsapp$/, '');
 
-      const buildTemplatePayload = (lang: string) => ({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: recipientNumber,
-        type: 'template',
-        template: {
-          name: payload.templateCode,
-          language: { code: lang },
-          components: payload.variables
-            ? [
+      const buildTemplatePayload = (lang: string, includeButton: boolean = true) => {
+        const components: any[] = [];
+        if (payload.variables && Object.keys(payload.variables).length > 0) {
+          components.push({
+            type: 'body',
+            parameters: Object.values(payload.variables).map((val) => ({
+              type: 'text',
+              text: String(val)
+            }))
+          });
+
+          // Meta Authentication templates with OTP code button (Copy Code button)
+          const codeVal = payload.variables.code;
+          const isAuthTemplate = metaTemplateName.includes('password') ||
+                                 metaTemplateName.includes('auth') ||
+                                 metaTemplateName.includes('reseteo') ||
+                                 metaTemplateName.includes('otp');
+          if (includeButton && codeVal && isAuthTemplate) {
+            components.push({
+              type: 'button',
+              sub_type: 'url',
+              index: '0',
+              parameters: [
                 {
-                  type: 'body',
-                  parameters: Object.values(payload.variables).map((val) => ({
-                    type: 'text',
-                    text: String(val)
-                  }))
+                  type: 'text',
+                  text: String(codeVal)
                 }
               ]
-            : []
+            });
+          }
         }
-      });
+
+        return {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: recipientNumber,
+          type: 'template',
+          template: {
+            name: metaTemplateName,
+            language: { code: lang },
+            ...(components.length > 0 ? { components } : {})
+          }
+        };
+      };
 
       const buildDirectTextPayload = () => ({
         messaging_product: 'whatsapp',
@@ -146,10 +170,10 @@ export class WhatsAppAdapter implements NotificationAdapter {
       });
 
       let bodyPayload: any = payload.templateCode
-        ? buildTemplatePayload(languageCode)
+        ? buildTemplatePayload(languageCode, true)
         : buildDirectTextPayload();
 
-      console.log(`[WhatsAppAdapter] Despachando WhatsApp a ${recipientNumber} vía Meta Cloud API (${apiVer}, Template: ${payload.templateCode || 'Texto Directo'})...`);
+      console.log(`[WhatsAppAdapter] Despachando WhatsApp a ${recipientNumber} vía Meta Cloud API (${apiVer}, Template: ${metaTemplateName || 'Texto Directo'})...`);
 
       let response = await fetch(url, {
         method: 'POST',
@@ -162,11 +186,26 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
       let responseData = await response.json();
 
+      // If template send failed, try without button parameters first (body only)
+      if (!response.ok && payload.templateCode && bodyPayload?.template?.components?.some((c: any) => c.type === 'button')) {
+        console.warn(`[WhatsAppAdapter] Reintentando plantilla "${metaTemplateName}" sin parámetros de botón...`);
+        bodyPayload = buildTemplatePayload(languageCode, false);
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${waConfig.accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(bodyPayload)
+        });
+        responseData = await response.json();
+      }
+
       // If template send failed with translated language error, try en_US or es fallback
       if (!response.ok && payload.templateCode) {
         const fallbackLang = languageCode === 'en_US' ? 'es_AR' : 'en_US';
-        console.warn(`[WhatsAppAdapter] Reintentando plantilla "${payload.templateCode}" con idioma "${fallbackLang}"...`);
-        bodyPayload = buildTemplatePayload(fallbackLang);
+        console.warn(`[WhatsAppAdapter] Reintentando plantilla "${metaTemplateName}" con idioma "${fallbackLang}"...`);
+        bodyPayload = buildTemplatePayload(fallbackLang, false);
         response = await fetch(url, {
           method: 'POST',
           headers: {
@@ -180,7 +219,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
       // If template send still failed, retry with direct text
       if (!response.ok && payload.templateCode && payload.body) {
-        console.warn(`[WhatsAppAdapter] Plantilla "${payload.templateCode}" falló (${responseData?.error?.message}). Reintentando con texto directo...`);
+        console.warn(`[WhatsAppAdapter] Plantilla "${metaTemplateName}" falló (${responseData?.error?.message}). Reintentando con texto directo...`);
         bodyPayload = buildDirectTextPayload();
 
         response = await fetch(url, {

@@ -248,11 +248,24 @@ export class NotificationService {
     if (!resetTemplate) {
       await this.templateRepo.upsertTemplate(tenantId, {
         code: 'PASSWORD_RESETEO',
-        name: 'Restablecer Contraseña',
-        channel: 'all',
+        name: 'Restablecer Contraseña (Email)',
+        channel: 'email',
         subject: 'Recuperación de Contraseña',
         body: 'Hola {{name}}, recibimos una solicitud para restablecer tu contraseña en Mi Receta. Para continuar, ingresá al siguiente enlace de uso único: {{resetUrl}} (Válido por 1 hora)',
         variables: ['name', 'resetUrl'],
+        isActive: true
+      });
+    }
+
+    const resetWhatsAppTemplate = await this.templateRepo.findByTenantAndCode(tenantId, 'PASSWORD_RESETEO_WHATSAPP');
+    if (!resetWhatsAppTemplate) {
+      await this.templateRepo.upsertTemplate(tenantId, {
+        code: 'PASSWORD_RESETEO_WHATSAPP',
+        name: 'Restablecer Contraseña (WhatsApp OTP)',
+        channel: 'whatsapp',
+        subject: 'Código de Verificación',
+        body: '{{code}} es tu código de verificación de Mi Receta. (Válido por 15 minutos)',
+        variables: ['code'],
         isActive: true
       });
     }
