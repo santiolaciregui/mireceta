@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, AlertCircle, Save, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import FixedQRCodePanel from '../../common/FixedQRCodePanel';
 
 export default function PaymentConfigPanel() {
   const [mpAccessToken, setMpAccessToken] = useState('');
@@ -225,6 +226,11 @@ export default function PaymentConfigPanel() {
           <span>{isSaving ? 'Guardando...' : 'Guardar Configuración'}</span>
         </button>
       </form>
+
+      {/* QR Fijo del Sistema */}
+      <div className="mt-8">
+        <FixedQRCodePanel />
+      </div>
     </div>
   );
 }

@@ -365,7 +365,7 @@ export class OrderService {
 
     // 4. Auto-dispatch notifications & chat message when recipe is issued
     if (updateData.status === 'Emitida' || updateData.status === 'Enviada') {
-      const host = process.env.PUBLIC_URL || 'https://mireceta.com';
+      const host = process.env.PUBLIC_URL || 'https://mireceta.online';
       const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
       const deliveryMethod = order.deliveryMethod || 'whatsapp';
 
@@ -537,7 +537,7 @@ export class OrderService {
       throw new Error('Solo se puede enviar el link de recetas que hayan sido emitidas.');
     }
 
-    const host = process.env.PUBLIC_URL || 'https://mireceta.com';
+    const host = process.env.PUBLIC_URL || 'https://mireceta.online';
     const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
     const tenantId = order.tenantId || 'TEN-0001';
     const operatorName = currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''} (${currentUser.role || 'Usuario'})`.trim() : 'Sistema';

@@ -94,6 +94,16 @@ async function startServer() {
     // Read-only filesystem fallback
   }
 
+  // Fixed QR Code Canonical Redirects (Dynamic QR pattern)
+  app.get(['/r/solicitud', '/r', '/qr'], (_req, res) => {
+    res.redirect('/?action=solicitar');
+  });
+
+  app.get('/r/:tenantId', (req, res) => {
+    const { tenantId } = req.params;
+    res.redirect(`/?tenant=${encodeURIComponent(tenantId)}&action=solicitar`);
+  });
+
   // API Routes
   app.use('/api', routes);
 
