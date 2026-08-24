@@ -61,12 +61,18 @@ export function formatWhatsAppPhone(phone: string | null | undefined, defaultCou
         national = national.replace(/^(\d{2,4})15(\d{6,8})$/, '$1$2');
       }
     }
-    return `54${national}`;
+    return `549${national}`;
   }
 
   // If local starts with 0 (e.g. 02926 414331 -> 2926 414331)
   if (cleaned.startsWith('0')) {
     cleaned = cleaned.substring(1);
+  }
+
+  // If local starts with 9 (e.g. 9 2926 414331)
+  if (cleaned.startsWith('9') && cleaned.length > 9) {
+    cleaned = cleaned.substring(1);
+    if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
   }
 
   // Remove local 15 prefix
@@ -82,7 +88,7 @@ export function formatWhatsAppPhone(phone: string | null | undefined, defaultCou
   }
 
   if (defaultCountryCode === '54') {
-    return `54${cleaned}`;
+    return `549${cleaned}`;
   }
 
   if (!cleaned.startsWith(defaultCountryCode)) {

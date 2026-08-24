@@ -20,13 +20,21 @@ export interface PrescriptionOrderEventParams {
   deliveryMethod?: string;
 }
 
+export const ALLOWED_META_EVENTS = ['PageView', 'ViewContent'] as const;
+export type AllowedMetaEvent = (typeof ALLOWED_META_EVENTS)[number];
+
 /**
- * Safely dispatches a Meta Pixel standard event.
+ * Safely dispatches a Meta Pixel standard event if allowed.
  */
 export function trackMetaStandardEvent(
   eventName: string,
   parameters?: Record<string, unknown>
 ): void {
+  if (!ALLOWED_META_EVENTS.includes(eventName as AllowedMetaEvent)) {
+    console.info(`[Meta Pixel] Evento no permitido ignorado: "${eventName}"`);
+    return;
+  }
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
       if (parameters) {
@@ -41,12 +49,17 @@ export function trackMetaStandardEvent(
 }
 
 /**
- * Safely dispatches a Meta Pixel custom event.
+ * Safely dispatches a Meta Pixel custom event if allowed.
  */
 export function trackMetaCustomEvent(
   eventName: string,
   parameters?: Record<string, unknown>
 ): void {
+  if (!ALLOWED_META_EVENTS.includes(eventName as AllowedMetaEvent)) {
+    console.info(`[Meta Pixel] Evento personalizado no permitido ignorado: "${eventName}"`);
+    return;
+  }
+
   if (typeof window !== 'undefined' && typeof window.fbq === 'function') {
     try {
       if (parameters) {
@@ -68,14 +81,21 @@ export function trackPageView(): void {
 }
 
 /**
- * Event 2: Track Start Prescription Request (Cuando comienzan el proceso de solicitud)
+ * Event: Track View Content
+ */
+export function trackViewContent(contentName?: string): void {
+  trackMetaStandardEvent('ViewContent', contentName ? { content_name: contentName } : undefined);
+}
+
+/**
+ * Event 2: Track Start Prescription Request (Ignorado hacia Meta por políticas de configuración)
  */
 export function trackInitiatePrescription(
   source = 'website',
   estimatedValue = 10000,
   currency = 'ARS'
 ): void {
-  // Standard Meta event: InitiateCheckout
+  // Nota: InitiateCheckout e InicioSolicitud no están en la lista blanca de eventos permitidos hacia Meta.
   trackMetaStandardEvent('InitiateCheckout', {
     content_name: 'Inicio de Solicitud',
     content_category: 'Servicio',
@@ -84,7 +104,6 @@ export function trackInitiatePrescription(
     source,
   });
 
-  // Custom Event for precise attribution
   trackMetaCustomEvent('InicioSolicitud', {
     source,
     value: estimatedValue,
@@ -93,7 +112,7 @@ export function trackInitiatePrescription(
 }
 
 /**
- * Event 3: Track Complete Prescription Request (Cuando finalizan el proceso de solicitud)
+ * Event 3: Track Complete Prescription Request (Ignorado hacia Meta por políticas de configuración)
  */
 export function trackCompletePrescription(params: PrescriptionOrderEventParams): void {
   const numericValue = typeof params.value === 'string'
@@ -102,7 +121,7 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
 
   const currency = params.currency || 'ARS';
 
-  // Standard Meta event: Purchase
+  // Nota: Purchase, CompleteRegistration, FormEnviado y SolicitudCompletada no están en la lista blanca de Meta.
   trackMetaStandardEvent('Purchase', {
     content_name: 'Servicio Digital',
     content_category: 'Servicio',
@@ -114,7 +133,6 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
     delivery_method: params.deliveryMethod || 'email',
   });
 
-  // Standard Meta event: CompleteRegistration
   trackMetaStandardEvent('CompleteRegistration', {
     content_name: 'Registro de Solicitud',
     order_id: params.orderId,
@@ -122,14 +140,12 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
     currency,
   });
 
-  // Custom event: FormEnviado
   trackMetaCustomEvent('FormEnviado', {
     order_id: params.orderId,
     value: numericValue,
     currency,
   });
 
-  // Custom event for exact matching
   trackMetaCustomEvent('SolicitudCompletada', {
     order_id: params.orderId,
     value: numericValue,
@@ -137,3 +153,4 @@ export function trackCompletePrescription(params: PrescriptionOrderEventParams):
     obra_social: params.obraSocial || 'Particular',
   });
 }
+
