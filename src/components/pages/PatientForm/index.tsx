@@ -134,6 +134,31 @@ export default function PatientForm({
   const [searchStatus, setSearchStatus] = useState<{ found: boolean; message: string } | null>(null);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
+  // Reset Mercado Pago loading state on page focus / bfcache restoration (back button navigation)
+  useEffect(() => {
+    const handlePageShow = () => {
+      setMpProcessing(false);
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        setMpProcessing(false);
+      }
+    };
+    const handleFocus = () => {
+      setMpProcessing(false);
+    };
+
+    window.addEventListener('pageshow', handlePageShow);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   // Check URL query parameters for Mercado Pago payment return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -143,6 +168,7 @@ export default function PatientForm({
     const preferenceId = params.get('preference_id');
 
     if (payment && orderId) {
+      setMpProcessing(false);
       if (payment === 'approved' || payment === 'pending') {
         trackCompletePrescription({
           orderId,
@@ -175,8 +201,8 @@ export default function PatientForm({
         .catch(err => {
           console.warn('[Payment Return Sync Warning]:', err);
         });
-      } else if (payment === 'rejected') {
-        setError(`El pago para la receta ${orderId} fue rechazado por Mercado Pago. Puede reintentar el pago o seleccionar otro método.`);
+      } else if (payment === 'rejected' || payment === 'failure' || payment === 'cancelled') {
+        setError(`El pago para la receta ${orderId} fue rechazado o cancelado en Mercado Pago. Puede reintentar el pago o seleccionar otro método.`);
         setStep('payment');
       }
       window.history.replaceState({}, document.title, window.location.pathname);
@@ -700,6 +726,11 @@ export default function PatientForm({
   const [mpPaymentApproved, setMpPaymentApproved] = useState(false);
   const [mpProcessing, setMpProcessing] = useState(false);
   const [mpTransactionId, setMpTransactionId] = useState('');
+
+  // Reset Mercado Pago processing when payment method changes
+  useEffect(() => {
+    setMpProcessing(false);
+  }, [paymentMethod]);
 
   // Synchronize initialName and initialLastName when props update (only if not isThirdPartyUser)
   useEffect(() => {
