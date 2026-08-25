@@ -91,7 +91,7 @@ export default function FixedQRCodePanel({ tenantId, tenantName }: FixedQRCodePa
               className="w-44 h-44 object-contain mx-auto transition-transform group-hover:scale-105 duration-200"
               onError={(e) => {
                 // Fallback to SVG render via Google Chart API if local asset not served yet
-                (e.target as HTMLImageElement).src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(canonicalUrl)}&color=1661E1`;
+                (e.target as HTMLImageElement).src = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(canonicalUrl)}&color=000000`;
               }}
             />
           </div>
