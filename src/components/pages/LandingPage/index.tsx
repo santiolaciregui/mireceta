@@ -677,7 +677,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
                     mireceta.online.arg@gmail.com
                   </a>
                 </p>
-                <p>Tel.: +54 9 2926 111111</p>
+                <p>Tel.: +54 9 2926 493342</p>
               </div>
             </div>
 
