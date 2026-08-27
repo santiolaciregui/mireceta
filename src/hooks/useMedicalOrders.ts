@@ -74,27 +74,33 @@ export function useMedicalOrders() {
       return;
     }
 
-    const headers = fetchHeaders();
+    const loadOrdersAndUsers = () => {
+      if (document.hidden) return;
+      const headers = fetchHeaders();
 
-    // Fetch orders
-    fetch('/api/orders', { headers })
-      .then((res) => {
-        if (res.ok) return res.json();
-        throw new Error('Error al cargar órdenes');
-      })
-      .then((data) => setOrders(data))
-      .catch((err) => console.error(err));
-
-    // Fetch users (if admin, superadmin, medico or colaborador)
-    if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico' || currentUser?.role === 'colaborador') {
-      fetch('/api/users', { headers })
+      fetch('/api/orders', { headers })
         .then((res) => {
           if (res.ok) return res.json();
-          throw new Error('Error al cargar usuarios');
+          throw new Error('Error al cargar órdenes');
         })
-        .then((data) => setUsers(data))
+        .then((data) => setOrders(data))
         .catch((err) => console.error(err));
-    }
+
+      if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico' || currentUser?.role === 'colaborador') {
+        fetch('/api/users', { headers })
+          .then((res) => {
+            if (res.ok) return res.json();
+            throw new Error('Error al cargar usuarios');
+          })
+          .then((data) => setUsers(data))
+          .catch((err) => console.error(err));
+      }
+    };
+
+    loadOrdersAndUsers();
+
+    const intervalId = setInterval(loadOrdersAndUsers, 6000);
+    return () => clearInterval(intervalId);
   }, [token, currentUser?.role]);
 
   // Handle Authentication login

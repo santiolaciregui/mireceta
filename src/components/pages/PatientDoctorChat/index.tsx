@@ -78,6 +78,14 @@ export default function PatientDoctorChat({
 
   useEffect(() => {
     fetchConversations();
+
+    const intervalId = setInterval(() => {
+      if (!document.hidden) {
+        fetchConversations();
+      }
+    }, 4000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Group orders and messages by unique Patient DNI
@@ -424,6 +432,7 @@ export default function PatientDoctorChat({
 
     setReplyingTo(null);
     await onSendMessage(activeConversation.cleanDni, newMessage);
+    fetchConversations();
   };
 
   const handleFileClick = () => {
@@ -476,6 +485,7 @@ export default function PatientDoctorChat({
     setPreviewImage(null);
     setReplyingTo(null);
     await onSendMessage(activeConversation.cleanDni, newMessage);
+    fetchConversations();
   };
 
   const togglePlayAudio = (msgId: string, url: string, durationSecs: number = 8) => {
