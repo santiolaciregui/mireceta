@@ -165,9 +165,11 @@ export class NotificationController {
 
   handleInboundWebhook = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      console.log('[WhatsApp Webhook Inbound POST Received]', JSON.stringify(req.body, null, 2));
       const result = await notificationService.processInboundWhatsAppPayload(req.body);
       res.status(200).json(result);
     } catch (err) {
+      console.error('[WhatsApp Webhook Inbound Error]', err);
       next(err);
     }
   };
