@@ -426,8 +426,6 @@ export class NotificationService {
         to: patientPhone,
         templateCode: templateCode || undefined,
         variables: templateCode ? {
-          patientName,
-          doctorName,
           orderId,
           messagePreview: messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText
         } : undefined,

@@ -201,20 +201,28 @@ export class WhatsAppAdapter implements NotificationAdapter {
         responseData = await response.json();
       }
 
-      // If template send failed with translated language error, try en_US or es fallback
+      // If template send failed with translated language error (#132001), try fallback languages (es_AR, es, en_US)
       if (!response.ok && payload.templateCode) {
-        const fallbackLang = languageCode === 'en_US' ? 'es_AR' : 'en_US';
-        console.warn(`[WhatsAppAdapter] Reintentando plantilla "${metaTemplateName}" con idioma "${fallbackLang}"...`);
-        bodyPayload = buildTemplatePayload(fallbackLang, false);
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${waConfig.accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(bodyPayload)
-        });
-        responseData = await response.json();
+        const candidateLangs = languageCode === 'es_AR'
+          ? ['es', 'en_US']
+          : languageCode === 'es'
+          ? ['es_AR', 'en_US']
+          : ['es_AR', 'es'];
+
+        for (const fallbackLang of candidateLangs) {
+          console.warn(`[WhatsAppAdapter] Reintentando plantilla "${metaTemplateName}" con idioma "${fallbackLang}"...`);
+          bodyPayload = buildTemplatePayload(fallbackLang, false);
+          response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${waConfig.accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(bodyPayload)
+          });
+          responseData = await response.json();
+          if (response.ok) break;
+        }
       }
 
       // If template send still failed, retry with direct text
