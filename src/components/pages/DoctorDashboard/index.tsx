@@ -87,7 +87,7 @@ interface DoctorDashboardProps {
     medicoName?: string;
   };
   currentTenant?: any;
-  forcedSubview?: 'pendientes' | 'revision' | 'completadas' | 'rechazadas' | 'reportes' | 'nueva';
+  forcedSubview?: 'pendientes' | 'pago_pendiente' | 'revision' | 'completadas' | 'rechazadas' | 'reportes' | 'nueva';
   onNavigateToChat?: (orderId: string) => void;
   onNavigateToSubview?: (subview: string) => void;
 }
@@ -107,7 +107,7 @@ export default function DoctorDashboard({
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const skipClearOrderIdRef = useRef<string | null>(null);
   
-  const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'En revisión' | 'Listos' | 'Rechazadas'>('Todos');
+  const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'Pago Pendiente' | 'En revisión' | 'Listos' | 'Rechazadas'>('Todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedOperatorFilter, setSelectedOperatorFilter] = useState<string>('Todos');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'requests' | 'operators'>('requests');
@@ -124,6 +124,9 @@ export default function DoctorDashboard({
     if (forcedSubview) {
       if (forcedSubview === 'pendientes') {
         setFilter('Pendientes');
+        setActiveDashboardTab('requests');
+      } else if (forcedSubview === 'pago_pendiente') {
+        setFilter('Pago Pendiente');
         setActiveDashboardTab('requests');
       } else if (forcedSubview === 'revision') {
         setFilter('En revisión');
@@ -357,7 +360,8 @@ export default function DoctorDashboard({
   // Filters logic
   const filteredOrders = orders.filter(order => {
     // Status Filter
-    if (filter === 'Pendientes' && order.status !== 'Pendiente') return false;
+    if (filter === 'Pendientes' && (order.status !== 'Pendiente' || order.paymentStatus === 'pending')) return false;
+    if (filter === 'Pago Pendiente' && order.paymentStatus !== 'pending') return false;
     if (filter === 'En revisión' && order.status !== 'En revisión' && order.status !== 'Aprobada' && order.status !== 'Solicita más información') return false;
     if (filter === 'Listos' && order.status !== 'Emitida' && order.status !== 'Enviada') return false;
     if (filter === 'Rechazadas' && order.status !== 'Rechazada') return false;
@@ -753,7 +757,8 @@ export default function DoctorDashboard({
                       className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--ink-faint)] rounded-md text-[0.75rem] outline-none"
                     >
                       <option value="Todos">Todos</option>
-                      <option value="Pendientes">Pendientes</option>
+                      <option value="Pendientes">Solicitudes pendientes</option>
+                      <option value="Pago Pendiente">Pago pendiente</option>
                       <option value="En revisión">En revisión</option>
                       <option value="Listos">Emitidas</option>
                       <option value="Rechazadas">Rechazadas</option>

@@ -36,6 +36,7 @@ interface SidebarProps {
   onSelect: (category: string, subcategory: string) => void;
   onLogout: () => void;
   pendingCount: number;
+  pendingPaymentCount?: number;
   inRevisionCount: number;
   completedCount: number;
   rejectedCount?: number;
@@ -51,6 +52,7 @@ export default function Sidebar({
   onSelect,
   onLogout,
   pendingCount,
+  pendingPaymentCount = 0,
   inRevisionCount,
   completedCount,
   rejectedCount = 0,
@@ -144,7 +146,8 @@ export default function Sidebar({
           title: 'Bandeja de Pedidos',
           items: [
             { id: 'nueva', label: 'Cargar Nueva Solicitud', icon: PlusCircle },
-            { id: 'pendientes', label: 'Pedidos Pendientes', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
+            { id: 'pendientes', label: 'Solicitudes Pendientes', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
+            { id: 'pago_pendiente', label: 'Solicitudes con Pago Pendiente', icon: CreditCard, count: pendingPaymentCount, countColor: 'bg-orange-500 text-white' },
             { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#1E6EFB] text-white' },
             { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#14BE99] text-white' },
             { id: 'rechazadas', label: 'Solicitudes Rechazadas', icon: XCircle, count: rejectedCount, countColor: 'bg-rose-600 text-white' },
