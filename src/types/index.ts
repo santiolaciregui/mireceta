@@ -147,6 +147,12 @@ export interface Tenant {
   id: string;
   name: string;
   subdomain: string;
+  mpPublicKey?: string;
+  mpEnabled?: boolean;
+  pricePerPrescription?: number;
+  collaboratorRate?: number;
+  doctorRate?: number;
+  settlementBasis?: 'emitted' | 'all';
 }
 
 export type DeliveryMethod = 'email' | 'whatsapp' | 'both';
@@ -180,6 +186,7 @@ export interface SystemUser {
   medicoId?: string; // If 'colaborador', which doctor account is this operator linked to
   medicoName?: string; // Friendly name of the doctor
   requirePasswordChange?: boolean;
+  rate?: number; // Custom per-user rate ($) per prescription
   phone?: string;
   city?: string;
   province?: string;

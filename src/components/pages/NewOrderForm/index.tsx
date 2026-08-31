@@ -3,9 +3,12 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { MedicationItem } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
+import Toast from '../../common/Toast';
+import { useToast } from '../../../hooks/useToast';
+import { CustomDatePicker } from '../../common/CustomDatePicker';
 import { 
   ArrowLeft, 
   User, 
@@ -97,6 +100,20 @@ export default function NewOrderForm({
     currentTenant?.pricePerPrescription ? currentTenant.pricePerPrescription.toString() : '10000'
   );
 
+  const { toast, showToast } = useToast();
+  const cartSectionRef = useRef<HTMLDivElement>(null);
+
+  const scrollToCart = () => {
+    setTimeout(() => {
+      if (cartSectionRef.current) {
+        cartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        const cartEl = document.getElementById('new-order-medications-panel');
+        cartEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  };
+
   // Search existing patient by DNI in system records
   const handleSearchPatient = () => {
     const queryDni = patientDni.trim();
@@ -173,15 +190,20 @@ export default function NewOrderForm({
       medicationList: undefined
     }));
 
+    const newItem = {
+      nombreComercial: curNombreComercial.trim(),
+      miligramos: curMiligramos.trim(),
+      presentacion: curPresentacion,
+      cantidadCajas: count
+    };
+
     setMedicationItems(prev => [
       ...prev,
-      {
-        nombreComercial: curNombreComercial.trim(),
-        miligramos: curMiligramos.trim(),
-        presentacion: curPresentacion,
-        cantidadCajas: count
-      }
+      newItem
     ]);
+
+    showToast(`¡"${newItem.nombreComercial}" agregado al pedido con éxito!`);
+    scrollToCart();
 
     setCurNombreComercial('');
     setCurMiligramos('');
@@ -190,7 +212,11 @@ export default function NewOrderForm({
   };
 
   const handleRemoveMedication = (index: number) => {
+    const item = medicationItems[index];
     setMedicationItems(prev => prev.filter((_, i) => i !== index));
+    if (item) {
+      showToast(`"${item.nombreComercial}" eliminado del pedido`);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -202,6 +228,8 @@ export default function NewOrderForm({
       compressImageAndGetBase64(file).then((base64String) => {
         setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
         setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
+        showToast(`¡Foto/archivo "${file.name}" adjuntado con éxito!`);
+        scrollToCart();
       }).catch(err => {
         console.error('Error comprimiendo imagen:', err);
         setError('Error al procesar la imagen de receta.');
@@ -494,14 +522,15 @@ export default function NewOrderForm({
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Fecha de Nacimiento</label>
-                <input
-                  type="date"
+                <CustomDatePicker
                   value={patientBirthDate}
-                  onChange={e => {
-                    setPatientBirthDate(e.target.value);
+                  onChange={(val) => {
+                    setPatientBirthDate(val);
                     if (fieldErrors.patientBirthDate) setFieldErrors(prev => ({ ...prev, patientBirthDate: undefined }));
                   }}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
+                  maxDate={new Date().toISOString().split('T')[0]}
+                  error={fieldErrors.patientBirthDate}
+                  placeholder="DD/MM/AAAA"
                 />
               </div>
 
@@ -673,7 +702,11 @@ export default function NewOrderForm({
           </div>
 
           {/* SECTION 2: MEDICACIÓN Y DIAGNÓSTICO */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5">
+          <div 
+            ref={cartSectionRef}
+            id="new-order-medications-panel"
+            className="bg-white border border-slate-200/80 rounded-2xl p-6 shadow-xs space-y-5 scroll-mt-6"
+          >
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2 text-[#0141BC] font-bold text-sm">
                 <div className="h-7 w-7 rounded-lg bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center">
@@ -927,6 +960,9 @@ export default function NewOrderForm({
 
         </form>
       </div>
+
+      {/* Toast Notification */}
+      <Toast message={toast} position="bottom-right" />
     </div>
   );
 }

@@ -26,6 +26,7 @@ import {
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import Logo from '../../Logo';
 import InformationalModal from '../../InformationalModal';
+import { CustomDatePicker } from '../../common/CustomDatePicker';
 
 interface LoginProps {
   onLogin: (identifier: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -774,24 +775,16 @@ export default function Login({ onLogin, isLoading, onRegister, onForgotPassword
                       <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
                         Fecha de Nacimiento <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <div className={`absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none ${regErrors.birthDate ? 'text-rose-500' : 'text-slate-400'}`}>
-                          <Calendar className="h-4 w-4" />
-                        </div>
-                        <input
-                          type="date"
-                          value={regBirthDate}
-                          onChange={(e) => {
-                            setRegBirthDate(e.target.value);
-                            if (regErrors.birthDate) setRegErrors(prev => ({ ...prev, birthDate: undefined }));
-                          }}
-                          className={`w-full pl-10 pr-3 py-2.5 rounded-xl text-sm font-medium transition-all outline-hidden ${
-                            regErrors.birthDate
-                              ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                              : 'bg-slate-50 border border-slate-200 text-[#0F172A] focus:bg-white focus:border-[#1661E1] focus:ring-4 focus:ring-[#1E6EFB]/15'
-                          }`}
-                        />
-                      </div>
+                      <CustomDatePicker
+                        value={regBirthDate}
+                        onChange={(val) => {
+                          setRegBirthDate(val);
+                          if (regErrors.birthDate) setRegErrors(prev => ({ ...prev, birthDate: undefined }));
+                        }}
+                        maxDate={new Date().toISOString().split('T')[0]}
+                        error={regErrors.birthDate}
+                        placeholder="DD/MM/AAAA"
+                      />
                       {regErrors.birthDate && (
                         <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
                           <AlertCircle className="h-3.5 w-3.5 shrink-0" />

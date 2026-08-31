@@ -406,6 +406,24 @@ export function useMedicalOrders() {
     return data;
   };
 
+  const updateTenantTariffs = async (tariffs: {
+    collaboratorRate?: number;
+    doctorRate?: number;
+    settlementBasis?: 'emitted' | 'all';
+    pricePerPrescription?: number;
+  }) => {
+    const res = await fetch('/api/tenants/tariffs', {
+      method: 'PUT',
+      headers: fetchHeaders(),
+      body: JSON.stringify(tariffs),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.error || 'Error al actualizar las tarifas en base de datos');
+    }
+    return data;
+  };
+
   // Delete user (Admin)
   const deleteUser = async (userId: string) => {
     const res = await fetch(`/api/users/${userId}`, {
@@ -596,6 +614,7 @@ export function useMedicalOrders() {
     deleteOrder,
     createUser,
     updateUser,
+    updateTenantTariffs,
     deleteUser,
     resetToBaseline,
     clearAllOrders,

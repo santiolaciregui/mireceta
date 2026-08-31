@@ -47,7 +47,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
     const doctorInquiryTemplateCode = config.doctorInquiryTemplateCode
       ? String(config.doctorInquiryTemplateCode)
-      : process.env.WHATSAPP_DOCTOR_TEMPLATE_CODE;
+      : (process.env.WHATSAPP_DOCTOR_TEMPLATE_CODE || 'primer_mensaje');
 
     const templateLanguage = config.templateLanguage
       ? String(config.templateLanguage)

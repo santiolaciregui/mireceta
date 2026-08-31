@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { MedicalOrder, SystemUser } from '../../../types';
+import { MedicalOrder, SystemUser, Tenant } from '../../../types';
 import {
   TrendingUp,
   Coins,
@@ -33,8 +33,11 @@ import {
   Sliders,
   X,
   Send,
-  Check
+  Check,
+  Save,
+  ShieldCheck
 } from 'lucide-react';
+import { CustomDatePicker } from '../../common/CustomDatePicker';
 
 interface SettlementMetricsViewProps {
   orders: MedicalOrder[];
@@ -48,6 +51,14 @@ interface SettlementMetricsViewProps {
     medicoId?: string;
     medicoName?: string;
   } | null;
+  currentTenant?: Tenant | null;
+  onUpdateTariffs?: (tariffs: {
+    collaboratorRate?: number;
+    doctorRate?: number;
+    settlementBasis?: 'emitted' | 'all';
+    pricePerPrescription?: number;
+  }) => Promise<any>;
+  onUpdateUser?: (userId: string, updates: Partial<SystemUser>) => Promise<any>;
 }
 
 type DatePreset = 'today' | '7days' | 'this_month' | 'last_month' | 'this_year' | 'all' | 'custom';
@@ -56,7 +67,10 @@ type ActiveTab = 'overview' | 'collaborators' | 'doctors' | 'orders';
 export default function SettlementMetricsView({
   orders,
   users = [],
-  currentUser
+  currentUser,
+  currentTenant,
+  onUpdateTariffs,
+  onUpdateUser
 }: SettlementMetricsViewProps) {
   // Navigation tabs
   const [activeTab, setActiveTab] = useState<ActiveTab>('overview');
@@ -83,10 +97,59 @@ export default function SettlementMetricsView({
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Settlement Tariff Settings
-  const [collaboratorRate, setCollaboratorRate] = useState<number>(500); // ARS $500 per issued prescription
-  const [doctorRate, setDoctorRate] = useState<number>(1500); // ARS $1500 per emitted prescription
-  const [settlementBasis, setSettlementBasis] = useState<'emitted' | 'all'>('emitted'); // Basis: only completed prescriptions or all created
+  const [collaboratorRate, setCollaboratorRate] = useState<number>(() => currentTenant?.collaboratorRate ?? 500);
+  const [doctorRate, setDoctorRate] = useState<number>(() => currentTenant?.doctorRate ?? 1500);
+  const [settlementBasis, setSettlementBasis] = useState<'emitted' | 'all'>(() => currentTenant?.settlementBasis ?? 'emitted');
   const [showTariffSettings, setShowTariffSettings] = useState<boolean>(false);
+  const [isSavingTariffs, setIsSavingTariffs] = useState<boolean>(false);
+  const [tariffSaveSuccess, setTariffSaveSuccess] = useState<boolean>(false);
+
+  // Synchronize when currentTenant loads or changes
+  React.useEffect(() => {
+    if (currentTenant) {
+      if (currentTenant.collaboratorRate !== undefined) setCollaboratorRate(currentTenant.collaboratorRate);
+      if (currentTenant.doctorRate !== undefined) setDoctorRate(currentTenant.doctorRate);
+      if (currentTenant.settlementBasis !== undefined) setSettlementBasis(currentTenant.settlementBasis);
+    }
+  }, [currentTenant?.collaboratorRate, currentTenant?.doctorRate, currentTenant?.settlementBasis]);
+
+  const handleSaveTariffs = async () => {
+    setIsSavingTariffs(true);
+    setTariffSaveSuccess(false);
+    try {
+      if (onUpdateTariffs) {
+        await onUpdateTariffs({
+          collaboratorRate,
+          doctorRate,
+          settlementBasis
+        });
+      } else {
+        const token = localStorage.getItem('mi-receta-jwt');
+        const res = await fetch('/api/tenants/tariffs', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            collaboratorRate,
+            doctorRate,
+            settlementBasis
+          })
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || 'Error al guardar tarifas');
+        }
+      }
+      setTariffSaveSuccess(true);
+      setTimeout(() => setTariffSaveSuccess(false), 3500);
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar tarifas');
+    } finally {
+      setIsSavingTariffs(false);
+    }
+  };
 
   // Detail Modal for specific collaborator or doctor
   const [inspectingPerson, setInspectingPerson] = useState<{
@@ -94,7 +157,45 @@ export default function SettlementMetricsView({
     name: string;
     id?: string;
     rate: number;
+    isCustomRate?: boolean;
+    userId?: string;
   } | null>(null);
+  const [inspectingCustomRate, setInspectingCustomRate] = useState<string>('');
+  const [isSavingPersonRate, setIsSavingPersonRate] = useState<boolean>(false);
+  const [personRateSaveSuccess, setPersonRateSaveSuccess] = useState<boolean>(false);
+
+  const handleSaveInspectingPersonRate = async () => {
+    if (!inspectingPerson || !inspectingPerson.userId) return;
+    setIsSavingPersonRate(true);
+    setPersonRateSaveSuccess(false);
+    try {
+      const parsedRate = inspectingCustomRate.trim() === '' ? null : Number(inspectingCustomRate);
+      if (onUpdateUser) {
+        await onUpdateUser(inspectingPerson.userId, { rate: parsedRate as any });
+      } else {
+        const token = localStorage.getItem('mi-receta-jwt');
+        const res = await fetch(`/api/users/${inspectingPerson.userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({ rate: parsedRate })
+        });
+        if (!res.ok) throw new Error('Error al actualizar tarifa del profesional');
+      }
+      const newRate = parsedRate !== null && parsedRate > 0
+        ? parsedRate
+        : (inspectingPerson.type === 'collaborator' ? collaboratorRate : doctorRate);
+      setInspectingPerson(prev => prev ? { ...prev, rate: newRate, isCustomRate: parsedRate !== null && parsedRate > 0 } : null);
+      setPersonRateSaveSuccess(true);
+      setTimeout(() => setPersonRateSaveSuccess(false), 3000);
+    } catch (err: any) {
+      alert(err.message || 'Error al guardar la tarifa individual');
+    } finally {
+      setIsSavingPersonRate(false);
+    }
+  };
 
   // Quick Date Preset handler
   const handlePresetChange = (preset: DatePreset) => {
@@ -303,6 +404,9 @@ export default function SettlementMetricsView({
       string,
       {
         name: string;
+        userId?: string;
+        rate: number;
+        isCustomRate: boolean;
         assignedDoctor?: string;
         totalCreated: number;
         emittedCount: number;
@@ -313,8 +417,16 @@ export default function SettlementMetricsView({
     > = {};
 
     collaboratorsList.forEach((colab) => {
+      const userObj = users.find((u) => u.role === 'colaborador' && `${u.name} ${u.lastName}`.trim().toLowerCase() === colab.toLowerCase());
+      const hasCustom = userObj?.rate !== undefined && userObj?.rate !== null && userObj.rate > 0;
+      const rate = hasCustom ? (userObj!.rate as number) : collaboratorRate;
+
       collaboratorStatsMap[colab] = {
         name: colab,
+        userId: userObj?.id,
+        rate,
+        isCustomRate: hasCustom,
+        assignedDoctor: userObj?.medicoName,
         totalCreated: 0,
         emittedCount: 0,
         inProcessCount: 0,
@@ -329,6 +441,9 @@ export default function SettlementMetricsView({
       string,
       {
         name: string;
+        userId?: string;
+        rate: number;
+        isCustomRate: boolean;
         linkedCollaborators: string[];
         totalEmitted: number;
         inProcessCount: number;
@@ -339,8 +454,21 @@ export default function SettlementMetricsView({
     > = {};
 
     doctorsList.forEach((doc) => {
+      const userObj = users.find(
+        (u) =>
+          u.role === 'medico' &&
+          (`${u.name} ${u.lastName}`.trim().toLowerCase() === doc.toLowerCase() ||
+           u.lastName.trim().toLowerCase() === doc.toLowerCase() ||
+           `Dr. ${u.lastName}`.trim().toLowerCase() === doc.toLowerCase())
+      );
+      const hasCustom = userObj?.rate !== undefined && userObj?.rate !== null && userObj.rate > 0;
+      const rate = hasCustom ? (userObj!.rate as number) : doctorRate;
+
       doctorStatsMap[doc] = {
         name: doc,
+        userId: userObj?.id,
+        rate,
+        isCustomRate: hasCustom,
         linkedCollaborators: [],
         totalEmitted: 0,
         inProcessCount: 0,
@@ -362,8 +490,16 @@ export default function SettlementMetricsView({
       // Collaborator entry
       if (colabName !== 'Paciente (Autogestión)') {
         if (!collaboratorStatsMap[colabName]) {
+          const userObj = users.find((u) => u.role === 'colaborador' && `${u.name} ${u.lastName}`.trim().toLowerCase() === colabName.toLowerCase());
+          const hasCustom = userObj?.rate !== undefined && userObj?.rate !== null && userObj.rate > 0;
+          const rate = hasCustom ? (userObj!.rate as number) : collaboratorRate;
+
           collaboratorStatsMap[colabName] = {
             name: colabName,
+            userId: userObj?.id,
+            rate,
+            isCustomRate: hasCustom,
+            assignedDoctor: userObj?.medicoName,
             totalCreated: 0,
             emittedCount: 0,
             inProcessCount: 0,
@@ -381,8 +517,20 @@ export default function SettlementMetricsView({
       // Doctor entry
       if (docName !== 'Sin médico asignado') {
         if (!doctorStatsMap[docName]) {
+          const userObj = users.find(
+            (u) =>
+              u.role === 'medico' &&
+              (`${u.name} ${u.lastName}`.trim().toLowerCase() === docName.toLowerCase() ||
+               u.lastName.trim().toLowerCase() === docName.toLowerCase())
+          );
+          const hasCustom = userObj?.rate !== undefined && userObj?.rate !== null && userObj.rate > 0;
+          const rate = hasCustom ? (userObj!.rate as number) : doctorRate;
+
           doctorStatsMap[docName] = {
             name: docName,
+            userId: userObj?.id,
+            rate,
+            isCustomRate: hasCustom,
             linkedCollaborators: [],
             totalEmitted: 0,
             inProcessCount: 0,
@@ -402,15 +550,15 @@ export default function SettlementMetricsView({
       }
     });
 
-    // Compute payouts based on tariff configuration
+    // Compute payouts based on exact person rates
     Object.values(collaboratorStatsMap).forEach((c) => {
       const units = settlementBasis === 'emitted' ? c.emittedCount : c.totalCreated;
-      c.payout = units * collaboratorRate;
+      c.payout = units * c.rate;
       totalCollaboratorPayout += c.payout;
     });
 
     Object.values(doctorStatsMap).forEach((d) => {
-      d.payout = d.totalEmitted * doctorRate;
+      d.payout = d.totalEmitted * d.rate;
       totalDoctorPayout += d.payout;
     });
 
@@ -630,6 +778,28 @@ export default function SettlementMetricsView({
               </div>
 
               <button
+                type="button"
+                onClick={handleSaveTariffs}
+                disabled={isSavingTariffs}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                title="Guardar tarifas en base de datos"
+              >
+                {isSavingTariffs ? (
+                  <span>Guardando...</span>
+                ) : tariffSaveSuccess ? (
+                  <>
+                    <Check className="h-4 w-4 text-emerald-300" />
+                    <span>¡Guardado en BD!</span>
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4" />
+                    <span>Guardar Tarifas</span>
+                  </>
+                )}
+              </button>
+
+              <button
                 onClick={() => setShowTariffSettings(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-white/60"
               >
@@ -675,26 +845,30 @@ export default function SettlementMetricsView({
           <div className="flex items-center gap-2 flex-wrap text-xs font-medium text-slate-600">
             <div className="flex items-center gap-1.5">
               <span>Desde:</span>
-              <input
-                type="date"
+              <CustomDatePicker
+                compact
                 value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value);
+                onChange={(val) => {
+                  setStartDate(val);
                   setDatePreset('custom');
                 }}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                maxDate={endDate || undefined}
+                className="w-36"
+                inputClassName="!bg-slate-50 !border-slate-200 !font-bold !text-slate-800"
               />
             </div>
             <div className="flex items-center gap-1.5">
               <span>Hasta:</span>
-              <input
-                type="date"
+              <CustomDatePicker
+                compact
                 value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value);
+                onChange={(val) => {
+                  setEndDate(val);
                   setDatePreset('custom');
                 }}
-                className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                minDate={startDate || undefined}
+                className="w-36"
+                inputClassName="!bg-slate-50 !border-slate-200 !font-bold !text-slate-800"
               />
             </div>
           </div>
@@ -1194,19 +1368,29 @@ export default function SettlementMetricsView({
                               {eff}%
                             </span>
                           </td>
-                          <td className="py-3.5 px-3 text-right text-slate-500 font-mono">${collaboratorRate}</td>
+                          <td className="py-3.5 px-3 text-right font-mono">
+                            <span className="text-slate-800 font-bold">${c.rate}</span>
+                            {c.isCustomRate && (
+                              <span className="block text-[9px] font-sans font-bold text-blue-700 bg-blue-50 px-1 py-0.5 rounded border border-blue-200 mt-0.5">
+                                Personalizada
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3.5 px-4 text-right font-black text-slate-900 text-sm">
                             ${c.payout.toLocaleString('es-AR')}
                           </td>
                           <td className="py-3.5 px-3 text-center">
                             <button
-                              onClick={() =>
+                              onClick={() => {
                                 setInspectingPerson({
                                   type: 'collaborator',
                                   name: c.name,
-                                  rate: collaboratorRate
-                                })
-                              }
+                                  rate: c.rate,
+                                  isCustomRate: c.isCustomRate,
+                                  userId: c.userId
+                                });
+                                setInspectingCustomRate(c.isCustomRate ? String(c.rate) : '');
+                              }}
                               className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                             >
                               Ver Recetas
@@ -1241,7 +1425,7 @@ export default function SettlementMetricsView({
                     <Stethoscope className="h-5 w-5 text-indigo-600" /> Liquidación de Honorarios por Médico Auditor
                   </h3>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Tarifa aplicada: <strong>${doctorRate} ARS</strong> por receta médica emitida / firmada.
+                    Tarifa estándar: <strong>${doctorRate} ARS</strong> por receta médica emitida / firmada.
                   </p>
                 </div>
 
@@ -1292,19 +1476,29 @@ export default function SettlementMetricsView({
                         <td className="py-3.5 px-3 text-right font-semibold text-slate-700 font-mono">
                           ${d.totalCollected.toLocaleString('es-AR')}
                         </td>
-                        <td className="py-3.5 px-3 text-right text-slate-500 font-mono">${doctorRate}</td>
+                        <td className="py-3.5 px-3 text-right font-mono">
+                          <span className="text-slate-800 font-bold">${d.rate}</span>
+                          {d.isCustomRate && (
+                            <span className="block text-[9px] font-sans font-bold text-indigo-700 bg-indigo-50 px-1 py-0.5 rounded border border-indigo-200 mt-0.5">
+                              Personalizada
+                            </span>
+                          )}
+                        </td>
                         <td className="py-3.5 px-4 text-right font-black text-indigo-900 text-sm">
                           ${d.payout.toLocaleString('es-AR')}
                         </td>
                         <td className="py-3.5 px-3 text-center">
                           <button
-                            onClick={() =>
+                            onClick={() => {
                               setInspectingPerson({
                                 type: 'doctor',
                                 name: d.name,
-                                rate: doctorRate
-                              })
-                            }
+                                rate: d.rate,
+                                isCustomRate: d.isCustomRate,
+                                userId: d.userId
+                              });
+                              setInspectingCustomRate(d.isCustomRate ? String(d.rate) : '');
+                            }}
                             className="px-2.5 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
                           >
                             Ver Recetas
@@ -1453,7 +1647,7 @@ export default function SettlementMetricsView({
                   </h3>
                   <p className="text-[11px] sm:text-xs text-slate-300">
                     {inspectingPerson.type === 'collaborator' ? 'Colaborador / Operador' : 'Médico Auditor'} • Tarifa:${' '}
-                    {inspectingPerson.rate} p/receta
+                    {inspectingPerson.rate} p/receta {inspectingPerson.isCustomRate ? '(Personalizada)' : '(Estándar)'}
                   </p>
                 </div>
               </div>
@@ -1464,6 +1658,35 @@ export default function SettlementMetricsView({
                 <X className="h-5 w-5" />
               </button>
             </div>
+
+            {/* Custom rate inline configuration bar in modal */}
+            {inspectingPerson.userId && (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico') && (
+              <div className="px-4 sm:px-6 py-2.5 bg-blue-50/70 border-b border-blue-200/80 flex items-center justify-between flex-wrap gap-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-blue-900">Tarifa personalizada ($):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    placeholder={`Estándar: $${inspectingPerson.type === 'collaborator' ? collaboratorRate : doctorRate}`}
+                    value={inspectingCustomRate}
+                    onChange={(e) => setInspectingCustomRate(e.target.value)}
+                    className="w-28 px-2 py-1 bg-white border border-blue-300 rounded-md text-xs font-bold text-slate-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleSaveInspectingPersonRate}
+                    disabled={isSavingPersonRate}
+                    className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-bold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                  >
+                    {isSavingPersonRate ? 'Guardando...' : personRateSaveSuccess ? '¡Guardado!' : 'Guardar Tarifa'}
+                  </button>
+                </div>
+                <span className="text-[11px] text-blue-700">
+                  {inspectingPerson.isCustomRate ? 'Arancel exclusivo asignado' : 'Usando arancel general del centro'}
+                </span>
+              </div>
+            )}
 
             {/* Summary Bar */}
             <div className="p-3 sm:p-4 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between flex-wrap gap-2 sm:gap-3 text-xs shrink-0">
@@ -1547,6 +1770,201 @@ export default function SettlementMetricsView({
           </div>
         </div>
       )}
+
+      {/* 6. PRINTABLE OFFICIAL SETTLEMENT REPORT (Hidden on screen, rendered exclusively during print/PDF) */}
+      <div id="settlement-report-print-area" className="hidden print:block font-sans text-slate-900 bg-white p-6 max-w-[850px] mx-auto settlement-print-document">
+        {/* Document Header */}
+        <div className="border-b-2 border-slate-900 pb-4 mb-5 flex justify-between items-start">
+          <div>
+            <h1 className="text-xl font-black tracking-tight text-slate-950 uppercase">
+              {currentTenant?.name || 'Mi Receta Online'}
+            </h1>
+            <p className="text-xs font-bold text-slate-600 tracking-wide uppercase mt-0.5">
+              Informe Oficial de Liquidación de Honorarios y Rendimiento Profesional
+            </p>
+            <p className="text-[10px] text-slate-500 mt-1">
+              Plataforma de Prescripción Digital • Conforme a Ley 27.553 y Telemedicina
+            </p>
+          </div>
+          <div className="text-right text-[10px] text-slate-600 font-medium">
+            <p><strong className="text-slate-900">Fecha de Emisión:</strong> {new Date().toLocaleDateString('es-AR')} {new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</p>
+            <p><strong className="text-slate-900">Período Auditado:</strong> {startDate ? new Date(startDate + 'T00:00:00').toLocaleDateString('es-AR') : 'Inicio'} al {endDate ? new Date(endDate + 'T00:00:00').toLocaleDateString('es-AR') : 'Hoy'}</p>
+            <p><strong className="text-slate-900">Auditor / Emisor:</strong> {currentUser ? `${currentUser.name} ${currentUser.lastName} (${currentUser.role})` : 'Administración'}</p>
+          </div>
+        </div>
+
+        {/* Executive Summary Metrics Grid */}
+        <div className="mb-5 grid grid-cols-4 gap-2 text-center text-xs">
+          <div className="border border-slate-300 rounded p-2 bg-slate-50">
+            <span className="text-[9px] uppercase font-bold text-slate-500 block">Total Recetas</span>
+            <span className="text-sm font-black text-slate-900">{metrics.totalGenerated}</span>
+          </div>
+          <div className="border border-slate-300 rounded p-2 bg-slate-50">
+            <span className="text-[9px] uppercase font-bold text-slate-500 block">Emitidas / Firmadas</span>
+            <span className="text-sm font-black text-slate-900">{metrics.emittedCount} ({metrics.effectivenessRate}%)</span>
+          </div>
+          <div className="border border-slate-300 rounded p-2 bg-slate-50">
+            <span className="text-[9px] uppercase font-bold text-slate-500 block">Liq. Colaboradores</span>
+            <span className="text-sm font-black text-slate-900">${metrics.totalCollaboratorPayout.toLocaleString('es-AR')}</span>
+          </div>
+          <div className="border border-slate-300 rounded p-2 bg-slate-50">
+            <span className="text-[9px] uppercase font-bold text-slate-500 block">Liq. Médicos</span>
+            <span className="text-sm font-black text-slate-900">${metrics.totalDoctorPayout.toLocaleString('es-AR')}</span>
+          </div>
+        </div>
+
+        {/* Section 1: Collaborators Settlement Table */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-300">
+            <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+              1. Liquidación a Colaboradores y Operadores
+            </h2>
+            <span className="text-[10px] text-slate-500">
+              Base: {settlementBasis === 'emitted' ? 'Solo recetas emitidas' : 'Todas las creadas'} • Tarifa base: ${collaboratorRate}
+            </span>
+          </div>
+          <table className="w-full text-left text-[10px] border border-slate-300 border-collapse">
+            <thead>
+              <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
+                <th className="py-1 px-2 border-r border-slate-200">Colaborador / Operador</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">Cargadas</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">Emitidas</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">En Trámite</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">Rechazadas</th>
+                <th className="py-1 px-2 text-right border-r border-slate-200">Tarifa Aplicada</th>
+                <th className="py-1 px-2 text-right">Total a Liquidar</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.collaboratorStats.map((c) => (
+                <tr key={c.name} className="border-b border-slate-200">
+                  <td className="py-1 px-2 font-bold text-slate-900 border-r border-slate-200">{c.name}</td>
+                  <td className="py-1 px-2 text-center border-r border-slate-200">{c.totalCreated}</td>
+                  <td className="py-1 px-2 text-center font-bold text-slate-900 border-r border-slate-200">{c.emittedCount}</td>
+                  <td className="py-1 px-2 text-center border-r border-slate-200">{c.inProcessCount}</td>
+                  <td className="py-1 px-2 text-center border-r border-slate-200">{c.rejectedCount}</td>
+                  <td className="py-1 px-2 text-right font-mono border-r border-slate-200">${c.rate} {c.isCustomRate ? '(pers.)' : ''}</td>
+                  <td className="py-1 px-2 text-right font-bold text-slate-900 font-mono">${c.payout.toLocaleString('es-AR')}</td>
+                </tr>
+              ))}
+              {metrics.collaboratorStats.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-2 text-center text-slate-400 italic">No se registraron colaboradores en el período</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-100 font-black border-t-2 border-slate-400 text-slate-900">
+                <td className="py-1.5 px-2 border-r border-slate-300">TOTALES COLABORADORES</td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.collaboratorStats.reduce((acc, c) => acc + c.totalCreated, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.collaboratorStats.reduce((acc, c) => acc + c.emittedCount, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.collaboratorStats.reduce((acc, c) => acc + c.inProcessCount, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.collaboratorStats.reduce((acc, c) => acc + c.rejectedCount, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-right border-r border-slate-300">-</td>
+                <td className="py-1.5 px-2 text-right font-mono">${metrics.totalCollaboratorPayout.toLocaleString('es-AR')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Section 2: Doctors Settlement Table */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-300">
+            <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+              2. Liquidación a Médicos Auditores
+            </h2>
+            <span className="text-[10px] text-slate-500">
+              Tarifa estándar: ${doctorRate} ARS por receta médica emitida / firmada
+            </span>
+          </div>
+          <table className="w-full text-left text-[10px] border border-slate-300 border-collapse">
+            <thead>
+              <tr className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700">
+                <th className="py-1 px-2 border-r border-slate-200">Médico Auditor</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">Emitidas / Firmadas</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">En Revisión</th>
+                <th className="py-1 px-2 text-center border-r border-slate-200">Rechazadas</th>
+                <th className="py-1 px-2 text-right border-r border-slate-200">Recaudación Generada</th>
+                <th className="py-1 px-2 text-right border-r border-slate-200">Arancel Médico</th>
+                <th className="py-1 px-2 text-right">Total Honorarios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {metrics.doctorStats.map((d) => (
+                <tr key={d.name} className="border-b border-slate-200">
+                  <td className="py-1 px-2 font-bold text-slate-900 border-r border-slate-200">Dr/a. {d.name}</td>
+                  <td className="py-1 px-2 text-center font-bold text-slate-900 border-r border-slate-200">{d.totalEmitted}</td>
+                  <td className="py-1 px-2 text-center border-r border-slate-200">{d.inProcessCount}</td>
+                  <td className="py-1 px-2 text-center border-r border-slate-200">{d.rejectedCount}</td>
+                  <td className="py-1 px-2 text-right font-mono border-r border-slate-200">${d.totalCollected.toLocaleString('es-AR')}</td>
+                  <td className="py-1 px-2 text-right font-mono border-r border-slate-200">${d.rate} {d.isCustomRate ? '(pers.)' : ''}</td>
+                  <td className="py-1 px-2 text-right font-bold text-slate-900 font-mono">${d.payout.toLocaleString('es-AR')}</td>
+                </tr>
+              ))}
+              {metrics.doctorStats.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-2 text-center text-slate-400 italic">No se registraron médicos en el período</td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr className="bg-slate-100 font-black border-t-2 border-slate-400 text-slate-900">
+                <td className="py-1.5 px-2 border-r border-slate-300">TOTALES MÉDICOS</td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.doctorStats.reduce((acc, d) => acc + d.totalEmitted, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.doctorStats.reduce((acc, d) => acc + d.inProcessCount, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-center border-r border-slate-300">
+                  {metrics.doctorStats.reduce((acc, d) => acc + d.rejectedCount, 0)}
+                </td>
+                <td className="py-1.5 px-2 text-right font-mono border-r border-slate-300">
+                  ${metrics.doctorStats.reduce((acc, d) => acc + d.totalCollected, 0).toLocaleString('es-AR')}
+                </td>
+                <td className="py-1.5 px-2 text-right border-r border-slate-300">-</td>
+                <td className="py-1.5 px-2 text-right font-mono">${metrics.totalDoctorPayout.toLocaleString('es-AR')}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+
+        {/* Section 3: Summary Totals and Signatures */}
+        <div className="mt-8 pt-4 border-t-2 border-slate-900">
+          <div className="flex justify-between items-end mb-12">
+            <div>
+              <p className="text-xs font-bold text-slate-900">
+                Gran Total Liquidaciones del Período: <strong className="text-sm font-black">${(metrics.totalCollaboratorPayout + metrics.totalDoctorPayout).toLocaleString('es-AR')} ARS</strong>
+              </p>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                (Colaboradores: ${metrics.totalCollaboratorPayout.toLocaleString('es-AR')} + Médicos: ${metrics.totalDoctorPayout.toLocaleString('es-AR')})
+              </p>
+            </div>
+            <div className="text-right text-[10px] text-slate-500 italic">
+              Documento generado por el sistema de auditoría médica.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-12 text-center pt-8 text-[11px]">
+            <div className="border-t border-slate-400 pt-2">
+              <p className="font-bold text-slate-900">Firma y Aclaración</p>
+              <p className="text-[10px] text-slate-500">Responsable Administrativo / Tesorería</p>
+            </div>
+            <div className="border-t border-slate-400 pt-2">
+              <p className="font-bold text-slate-900">Firma y Matrícula</p>
+              <p className="text-[10px] text-slate-500">Dirección Médica / Auditoría</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

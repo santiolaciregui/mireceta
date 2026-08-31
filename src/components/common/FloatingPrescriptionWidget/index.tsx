@@ -340,7 +340,7 @@ export default function FloatingPrescriptionWidget({
             }`}
           >
             <User className="h-3 w-3 text-[#1661E1]" />
-            <span>Paciente & Solicitud</span>
+            <span>Paciente</span>
           </button>
 
           <button
@@ -524,34 +524,10 @@ export default function FloatingPrescriptionWidget({
           </div>
         )}
 
-        {/* TAB 2: PACIENTE Y SOLICITUD */}
+        {/* TAB 2: INFORMACIÓN DEL PACIENTE */}
         {activeTab === 'patient' && (
           <div className="space-y-3">
-            {/* 1. Datos de la Solicitud */}
-            <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-              <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-[#1661E1]" />
-                <h4 className="font-extrabold text-slate-700 text-[11px] uppercase tracking-wider">Datos de la Solicitud</h4>
-              </div>
-              <div className="divide-y divide-slate-100">
-                <WidgetRow label="ID Solicitud" value={order.id} fieldId="sol-id" />
-                <WidgetRow label="Fecha de Solicitud" value={formatDateTime(order.createdAt)} fieldId="sol-created" />
-                <WidgetRow label="Estado" value={order.status} fieldId="sol-status" />
-                <WidgetRow 
-                  label="Canal de Entrega" 
-                  value={order.deliveryMethod === 'both' ? 'Email y WhatsApp' : order.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
-                  fieldId="sol-delivery" 
-                />
-                {order.lastConsultationTime && (
-                  <WidgetRow label="Última Consulta" value={order.lastConsultationTime} fieldId="sol-last-time" />
-                )}
-                {order.lastConsultationDoctor && (
-                  <WidgetRow label="Médico de Última Consulta" value={order.lastConsultationDoctor} fieldId="sol-last-doc" />
-                )}
-              </div>
-            </div>
-
-            {/* 2. Información del Paciente */}
+            {/* 1. Información del Paciente */}
             <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
               <div className="bg-slate-100/90 px-3 py-1.5 border-b border-slate-200 flex items-center gap-1.5">
                 <User className="h-3.5 w-3.5 text-[#1661E1]" />

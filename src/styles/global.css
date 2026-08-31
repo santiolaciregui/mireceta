@@ -318,7 +318,8 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
     max-width: 100% !important;
   }
 
-  #official-receipt-print-area {
+  #official-receipt-print-area,
+  #settlement-report-print-area {
     display: block !important;
     width: 100% !important;
     margin: 0 !important;
@@ -326,12 +327,32 @@ button, [role="button"], [type="button"], [type="submit"], [type="reset"] {
     background: #ffffff !important;
   }
 
-  .receipt-document {
+  .receipt-document,
+  .settlement-print-document {
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
     max-width: 100% !important;
     width: 100% !important;
+  }
+
+  .settlement-print-document {
+    font-size: 9pt;
+    color: #0f172a !important;
+  }
+
+  .settlement-print-document table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .settlement-print-document th,
+  .settlement-print-document td {
+    padding: 5px 6px !important;
+  }
+
+  .settlement-print-document tr {
+    page-break-inside: avoid;
   }
 }
 

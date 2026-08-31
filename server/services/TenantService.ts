@@ -1,5 +1,6 @@
 import { TenantRepository } from '../repositories/TenantRepository.js';
 import { generateTenantId } from '../utils/idGenerator.js';
+import { auditLogService } from './AuditLogService.js';
 
 export class TenantService {
   private tenantRepo: TenantRepository;
@@ -35,7 +36,10 @@ export class TenantService {
           subdomain: tenant.subdomain,
           mpPublicKey: tenant.mpPublicKey,
           mpEnabled: tenant.mpEnabled,
-          pricePerPrescription: tenant.pricePerPrescription || 10000
+          pricePerPrescription: tenant.pricePerPrescription || 10000,
+          collaboratorRate: tenant.collaboratorRate ?? 500,
+          doctorRate: tenant.doctorRate ?? 1500,
+          settlementBasis: tenant.settlementBasis ?? 'emitted'
         };
       }
     } catch (err) {
@@ -48,7 +52,10 @@ export class TenantService {
       subdomain: lowerSub || 'www',
       mpPublicKey: '',
       mpEnabled: false,
-      pricePerPrescription: 10000
+      pricePerPrescription: 10000,
+      collaboratorRate: 500,
+      doctorRate: 1500,
+      settlementBasis: 'emitted'
     };
   }
 
@@ -91,6 +98,46 @@ export class TenantService {
       mpPublicKey: updated?.mpPublicKey,
       mpEnabled: updated?.mpEnabled,
       pricePerPrescription: updated?.pricePerPrescription
+    };
+  }
+
+  async getTariffs(tenantId: string) {
+    const tenant = await this.tenantRepo.findById(tenantId);
+    if (!tenant) throw new Error('Centro médico no encontrado');
+    return {
+      pricePerPrescription: tenant.pricePerPrescription ?? 10000,
+      collaboratorRate: tenant.collaboratorRate ?? 500,
+      doctorRate: tenant.doctorRate ?? 1500,
+      settlementBasis: tenant.settlementBasis ?? 'emitted'
+    };
+  }
+
+  async updateTariffs(tenantId: string, data: any, currentUser: any) {
+    if (currentUser.role !== 'admin' && currentUser.role !== 'superadmin' && currentUser.role !== 'medico') {
+      throw new Error('Acceso denegado. No tiene permisos para configurar tarifas.');
+    }
+    const updateData: any = {};
+    if (data.pricePerPrescription !== undefined) updateData.pricePerPrescription = Number(data.pricePerPrescription);
+    if (data.collaboratorRate !== undefined) updateData.collaboratorRate = Number(data.collaboratorRate);
+    if (data.doctorRate !== undefined) updateData.doctorRate = Number(data.doctorRate);
+    if (data.settlementBasis !== undefined) updateData.settlementBasis = data.settlementBasis;
+
+    const updated = await this.tenantRepo.update(tenantId, updateData);
+
+    await auditLogService.log({
+      tenantId: tenantId || 'TEN-0001',
+      currentUser,
+      action: 'SETTINGS_CHANGE',
+      entity: 'Tenant',
+      entityId: tenantId,
+      details: `Tarifas de liquidación actualizadas: Colaborador=$${updated?.collaboratorRate}, Médico=$${updated?.doctorRate}, Base=${updated?.settlementBasis}`
+    });
+
+    return {
+      pricePerPrescription: updated?.pricePerPrescription ?? 10000,
+      collaboratorRate: updated?.collaboratorRate ?? 500,
+      doctorRate: updated?.doctorRate ?? 1500,
+      settlementBasis: updated?.settlementBasis ?? 'emitted'
     };
   }
 }

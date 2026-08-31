@@ -124,6 +124,13 @@ export default function Sidebar({
     } else if (role === 'admin' || role === 'superadmin') {
       return [
         {
+          id: 'padron',
+          title: 'Padrón de Pacientes',
+          items: [
+            { id: 'pacientes', label: 'Listado de Pacientes', icon: Users },
+          ]
+        },
+        {
           id: 'mensajeria',
           title: 'Centro de Mensajería',
           items: [
@@ -151,6 +158,13 @@ export default function Sidebar({
             { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#1E6EFB] text-white' },
             { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#14BE99] text-white' },
             { id: 'rechazadas', label: 'Solicitudes Rechazadas', icon: XCircle, count: rejectedCount, countColor: 'bg-rose-600 text-white' },
+          ]
+        },
+        {
+          id: 'padron',
+          title: 'Padrón de Pacientes',
+          items: [
+            { id: 'pacientes', label: 'Listado de Pacientes', icon: Users },
           ]
         },
         {

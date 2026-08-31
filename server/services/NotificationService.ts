@@ -418,17 +418,16 @@ export class NotificationService {
       }
 
       const waConfig = await this.getConfig(tenantId, 'whatsapp');
-      const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode) as string | undefined;
+      const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode || 'primer_mensaje') as string;
 
       return await this.sendNotification({
         tenantId,
         channel: 'whatsapp',
         to: patientPhone,
-        templateCode: templateCode || undefined,
-        variables: templateCode ? {
-          orderId,
+        templateCode,
+        variables: {
           messagePreview: messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText
-        } : undefined,
+        },
         body: `Receta #${orderId}\n${messageText}`
       });
     } catch (err: any) {

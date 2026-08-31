@@ -51,4 +51,24 @@ export class TenantController {
       res.status(403).json({ error: err.message });
     }
   };
+
+  getTariffs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = getTenantId(req);
+      const result = await tenantService.getTariffs(tenantId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  };
+
+  updateTariffs = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const tenantId = getTenantId(req);
+      const result = await tenantService.updateTariffs(tenantId, req.body, getCurrentUser(req));
+      res.json(result);
+    } catch (err: any) {
+      res.status(403).json({ error: err.message });
+    }
+  };
 }
