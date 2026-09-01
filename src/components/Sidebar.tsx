@@ -200,25 +200,25 @@ export default function Sidebar({
 
   const SidebarContent = () => (
     <aside className="relative bg-[#0141BC] text-white flex flex-col justify-between h-full border-r border-white/10 shadow-lg overflow-hidden">
-      <div className="p-6 pb-4 overflow-y-auto flex-1 min-h-0">
+      <div className="px-3.5 py-5 pb-4 overflow-y-auto flex-1 min-h-0">
         {/* Brand Header */}
-        <div className="flex items-center gap-3 mb-8 pt-2">
+        <div className="flex items-center gap-3 mb-6 pt-1 px-1.5">
           <Logo variant="full" size="md" theme="dark" />
         </div>
         
         {/* Mobile Close Button */}
         <button 
-          className="lg:hidden absolute top-6 right-6 p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
+          className="lg:hidden absolute top-5 right-5 p-2 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
           onClick={() => setIsOpen(false)}
           aria-label="Cerrar menú lateral"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <nav className="-mx-2">
+        <nav className="space-y-3">
           {menu.map((category) => (
-            <div key={category.id} className="mb-3">
-              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#14BE99] px-3 py-1.5 block mt-4 mb-1 font-[700]">
+            <div key={category.id} className="mb-2">
+              <span className="font-mono text-[0.65rem] uppercase tracking-[0.1em] text-[#14BE99] px-2.5 py-1 block mt-3 mb-1 font-[700]">
                 {category.title}
               </span>
               <div className="space-y-1">
@@ -230,20 +230,20 @@ export default function Sidebar({
                     <button
                       key={item.id}
                       onClick={() => handleItemClick(category.id, item.id)}
-                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-[0.85rem] font-[600] cursor-pointer transition-all ${
+                      className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-[0.82rem] font-[600] cursor-pointer transition-all ${
                         isActive
                           ? 'bg-[#1661E1] border border-[#1E6EFB] text-white font-bold shadow-xs'
                           : 'text-slate-200 hover:bg-white/10 hover:text-white border border-transparent'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <Icon className={`h-4.5 w-4.5 ${isActive ? 'text-white' : 'text-slate-300'}`} />
-                        <span>{item.label}</span>
+                      <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
+                        <Icon className={`h-4.5 w-4.5 shrink-0 ${isActive ? 'text-white' : 'text-slate-300'}`} />
+                        <span className="whitespace-nowrap truncate">{item.label}</span>
                       </div>
                       
                       {/* Badge Counter */}
                       {item.count !== undefined && item.count > 0 && (
-                        <span className={`text-[0.65rem] px-2 py-0.5 rounded-full font-[700] ${item.countColor || 'bg-[#1E6EFB] text-white'}`}>
+                        <span className={`text-[0.68rem] min-w-[1.25rem] h-5 px-1.5 flex items-center justify-center rounded-full font-[700] shrink-0 ml-auto shadow-xs ${item.countColor || 'bg-[#1E6EFB] text-white'}`}>
                           {item.count}
                         </span>
                       )}
@@ -257,24 +257,24 @@ export default function Sidebar({
       </div>
 
       {/* Bottom section: Configuración collapsible above User Profile */}
-      <div className="p-5 pt-3 border-t border-white/10 bg-[#081B4B] shrink-0">
+      <div className="p-4 pt-3 border-t border-white/10 bg-[#081B4B] shrink-0">
         {/* Configuración Dropdown for Admin & Superadmin */}
         {(role === 'admin' || role === 'superadmin') && (
           <div className="mb-3">
             <button
               onClick={() => setIsConfigExpanded(prev => !prev)}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[0.82rem] font-[600] cursor-pointer transition-all ${
+              className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl text-[0.82rem] font-[600] cursor-pointer transition-all ${
                 isConfigActive
                   ? 'bg-[#1661E1] border border-[#1E6EFB] text-white font-bold shadow-xs'
                   : 'text-slate-200 hover:bg-white/10 hover:text-white border border-transparent'
               }`}
             >
-              <div className="flex items-center gap-2.5">
-                <Settings className={`h-4.5 w-4.5 transition-transform duration-300 ${isConfigActive ? 'text-white' : 'text-slate-300'} ${isConfigExpanded ? 'rotate-45' : ''}`} />
-                <span>Configuración</span>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Settings className={`h-4.5 w-4.5 shrink-0 transition-transform duration-300 ${isConfigActive ? 'text-white' : 'text-slate-300'} ${isConfigExpanded ? 'rotate-45' : ''}`} />
+                <span className="whitespace-nowrap">Configuración</span>
               </div>
               
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                 <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-white/15 text-white font-bold">
                   3
                 </span>
@@ -292,17 +292,17 @@ export default function Sidebar({
                     <button
                       key={item.id}
                       onClick={() => handleConfigSubItemClick(item.id)}
-                      className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-[0.78rem] font-[600] cursor-pointer transition-all ${
+                      className={`w-full flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg text-[0.78rem] font-[600] cursor-pointer transition-all ${
                         isActive
                           ? 'bg-[#1661E1] text-white font-bold shadow-xs'
                           : 'text-slate-200 hover:bg-white/10 hover:text-white'
                       }`}
                     >
-                      <div className="flex items-center gap-2 truncate">
+                      <div className="flex items-center gap-2 min-w-0 overflow-hidden">
                         <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-300'}`} />
-                        <span className="truncate">{item.label}</span>
+                        <span className="whitespace-nowrap truncate">{item.label}</span>
                       </div>
-                      {isActive && <Check className="h-3.5 w-3.5 shrink-0 text-white ml-1" />}
+                      {isActive && <Check className="h-3.5 w-3.5 shrink-0 text-white ml-auto" />}
                     </button>
                   );
                 })}
@@ -356,7 +356,7 @@ export default function Sidebar({
       </div>
 
       {/* Desktop Sidebar: Always Visible */}
-      <aside className="hidden lg:block w-64 h-screen shrink-0 sticky top-0 z-30">
+      <aside className="hidden lg:block w-full h-screen shrink-0 sticky top-0 z-30">
         <SidebarContent />
       </aside>
 
@@ -368,7 +368,7 @@ export default function Sidebar({
         >
           {/* Mobile Sidebar Content */}
           <div 
-            className="w-72 max-w-[85vw] h-full shadow-2xl animate-slideRight flex flex-col"
+            className="w-80 max-w-[88vw] h-full shadow-2xl animate-slideRight flex flex-col"
             onClick={(e) => e.stopPropagation()} // Prevent closing on clicking sidebar
           >
             <SidebarContent />

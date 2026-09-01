@@ -313,7 +313,7 @@ export default function App() {
 
   // 3. Logged In -> Sidebar-driven layout with role-based workspace views
   return (
-    <div className="h-screen h-[100dvh] w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden flex flex-col lg:grid lg:grid-cols-[260px_1fr]">
+    <div className="h-screen h-[100dvh] w-full bg-[var(--bg)] text-[var(--ink)] font-sans overflow-hidden flex flex-col lg:grid lg:grid-cols-[285px_1fr]">
       {currentUser.requirePasswordChange && (currentUser.role === 'medico' || currentUser.role === 'colaborador') && (
         <ForcePasswordChange 
           token={localStorage.getItem('mi-receta-jwt') || localStorage.getItem('token') || ''} 

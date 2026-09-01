@@ -892,27 +892,27 @@ export default function PatientDoctorChat({
                           : 'border-transparent hover:bg-slate-50'
                       }`}
                     >
-                      {/* Order Icon / Avatar */}
-                      <div className="relative shrink-0">
-                        <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-emerald-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-emerald-200 shadow-xs">
-                          <FileText className="h-5 w-5 text-[#075E54]" />
+                      {/* Order Icon / Avatar & Order ID */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <div className="relative">
+                          <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-emerald-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-emerald-200 shadow-xs">
+                            <FileText className="h-5 w-5 text-[#075E54]" />
+                          </div>
+                          {item.hasPatientReplied && (
+                            <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                          )}
                         </div>
-                        {item.hasPatientReplied && (
-                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
-                        )}
+                        <span className="font-bold font-mono text-emerald-800 text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-center leading-tight">
+                          {item.orderId}
+                        </span>
                       </div>
 
                       {/* Solicitud Snippet */}
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline gap-1">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="font-bold font-mono text-emerald-800 text-xs bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
-                              {item.orderId}
-                            </span>
-                            <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
-                              {item.patientName} {item.patientLastName}
-                            </h4>
-                          </div>
+                          <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                            {item.patientName} {item.patientLastName}
+                          </h4>
                           <span className="text-[10px] text-slate-400 font-mono shrink-0">
                             {formatChatDateTime24h(item.timestamp)}
                           </span>
