@@ -169,10 +169,14 @@ export default function SettlementMetricsView({
     setIsSavingPersonRate(true);
     setPersonRateSaveSuccess(false);
     try {
-      const parsedRate = inspectingCustomRate.trim() === '' ? null : Number(inspectingCustomRate);
-      if (onUpdateUser) {
-        await onUpdateUser(inspectingPerson.userId, { rate: parsedRate as any });
-      } else {
+const rawRate = inspectingCustomRate.trim();
+const parsedRate = rawRate === '' ? null : Number(rawRate);
+if (parsedRate !== null && (!Number.isFinite(parsedRate) || parsedRate < 0)) {
+  throw new Error('Tarifa inválida');
+}
+if (onUpdateUser) {
+  await onUpdateUser(inspectingPerson.userId, { rate: parsedRate as any });
+} else {
         const token = localStorage.getItem('mi-receta-jwt');
         const res = await fetch(`/api/users/${inspectingPerson.userId}`, {
           method: 'PUT',
