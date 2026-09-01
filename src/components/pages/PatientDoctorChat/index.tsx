@@ -378,7 +378,7 @@ export default function PatientDoctorChat({
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [activeConversation?.messages, selectedPatientDni]);
 
   // Audio recording timer
