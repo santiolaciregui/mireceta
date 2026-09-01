@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { MedicalOrder } from '../../../types';
 import { 
   User, 
@@ -183,15 +184,22 @@ export default function PatientDetailModal({
   }) => {
     const isCopied = copiedField === fieldId;
     const textToCopy = copyValue !== undefined ? copyValue : (typeof value === 'string' ? value : '');
+    const stringValue = typeof value === 'string' ? value : undefined;
 
     return (
-      <div className="flex items-center justify-between py-2 px-3 hover:bg-slate-50/80 rounded-xl transition-colors border-b border-slate-100 last:border-0 gap-3">
-        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 shrink-0">
-          {Icon && <Icon className="h-3.5 w-3.5 text-slate-400" />}
-          <span>{label}</span>
+      <div className="flex items-center justify-between py-2 px-2.5 hover:bg-slate-50/80 rounded-xl transition-colors border-b border-slate-100 last:border-0 gap-2.5 min-w-0">
+        <span 
+          className="text-xs font-semibold text-slate-500 flex items-center gap-1.5 shrink-0 max-w-[48%] truncate"
+          title={label}
+        >
+          {Icon && <Icon className="h-3.5 w-3.5 text-slate-400 shrink-0" />}
+          <span className="truncate">{label}</span>
         </span>
-        <div className="flex items-center gap-1.5 min-w-0 justify-end">
-          <span className={`text-xs font-bold text-slate-800 break-words text-right ${isMono ? 'font-mono' : ''}`}>
+        <div className="flex items-center gap-1.5 min-w-0 justify-end flex-1">
+          <span 
+            className={`text-xs font-bold text-slate-800 truncate text-right ${isMono ? 'font-mono' : ''}`}
+            title={stringValue || textToCopy}
+          >
             {value || '—'}
           </span>
           {textToCopy && textToCopy !== '—' && (
@@ -209,8 +217,11 @@ export default function PatientDetailModal({
     );
   };
 
-  return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 z-50 animate-fadeIn">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 md:p-6 z-50 animate-fadeIn"
+      onClick={onClose}
+    >
       <div 
         className="bg-white rounded-3xl max-w-5xl w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col max-h-[94vh] animate-scaleUp"
         onClick={(e) => e.stopPropagation()}
@@ -366,7 +377,7 @@ export default function PatientDetailModal({
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      DNI: <span className="font-mono font-bold text-slate-700">{patient.dni}</span> • ID Sistema: <span className="font-mono text-slate-500">{patient.id}</span>
+                      DNI: <span className="font-mono font-bold text-slate-700">{patient.dni}</span>
                     </p>
                   </div>
                 </div>
@@ -395,7 +406,6 @@ export default function PatientDetailModal({
                     <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
                       <User className="h-3.5 w-3.5 text-[#1661E1]" /> Datos Personales
                     </span>
-                    <span className="text-[10px] font-bold text-slate-400 font-mono">{patient.id}</span>
                   </div>
                   <div className="space-y-0.5">
                     <DetailRow label="Nombre Completo" value={`${patient.name} ${patient.lastName}`} fieldId="t_name" />
@@ -406,8 +416,8 @@ export default function PatientDetailModal({
                       copyValue={formatBirthDate(patient.birthDate)}
                       fieldId="t_birth" 
                     />
-                    <DetailRow label="Estado Cuenta" value={patient.status} fieldId="t_status" />
-                    <DetailRow label="Familiares a Cargo" value={`${dependentsList.length} registrados`} fieldId="t_deps" />
+                    <DetailRow label="Estado" value={patient.status} fieldId="t_status" />
+                    <DetailRow label="Familiares" value={`${dependentsList.length} registrados`} fieldId="t_deps" />
                   </div>
                 </div>
 
@@ -420,9 +430,9 @@ export default function PatientDetailModal({
                     <span className="text-[10px] font-bold text-emerald-600">Verificado</span>
                   </div>
                   <div className="space-y-0.5">
-                    <DetailRow label="Teléfono / Celular" value={patient.phone || '—'} copyValue={patient.phone} fieldId="t_phone" />
-                    <DetailRow label="Correo Electrónico" value={patient.email || '—'} copyValue={patient.email} fieldId="t_email" />
-                    <DetailRow label="Ciudad / Localidad" value={patient.city || '—'} fieldId="t_city" />
+                    <DetailRow label="Teléfono" value={patient.phone || '—'} copyValue={patient.phone} fieldId="t_phone" />
+                    <DetailRow label="Email" value={patient.email || '—'} copyValue={patient.email} fieldId="t_email" />
+                    <DetailRow label="Localidad" value={patient.city || '—'} fieldId="t_city" />
                     <DetailRow label="Provincia" value={patient.province || 'Buenos Aires'} fieldId="t_province" />
                   </div>
                 </div>
@@ -436,9 +446,9 @@ export default function PatientDetailModal({
                     <span className="text-[10px] font-bold text-blue-600">Titular</span>
                   </div>
                   <div className="space-y-0.5">
-                    <DetailRow label="Obra Social / Prepaga" value={patient.obraSocial || 'Particular'} fieldId="t_os" />
+                    <DetailRow label="Obra Social" value={patient.obraSocial || 'Particular'} fieldId="t_os" />
                     <DetailRow 
-                      label="Nº Afiliado / Credencial" 
+                      label="Nº Afiliado" 
                       value={patient.obraSocialNumber || '—'} 
                       copyValue={patient.obraSocialNumber}
                       fieldId="t_osNum" 
@@ -446,7 +456,7 @@ export default function PatientDetailModal({
                     />
                     <DetailRow label="Condición" value="Titular de Cobertura" fieldId="t_cond" />
                     <DetailRow 
-                      label="Total Solicitudes" 
+                      label="Solicitudes" 
                       value={`${patient.orders.length} (${completedCount} emitidas, ${pendingCount} pend.)`} 
                       fieldId="t_orders_tot" 
                     />
@@ -536,15 +546,15 @@ export default function PatientDetailModal({
                         <div className="space-y-1 bg-purple-50/30 p-2.5 rounded-xl border border-purple-100/70 text-xs">
                           
                           {/* DNI */}
-                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50">
-                            <span className="text-slate-500 font-semibold">Documento (DNI):</span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono font-bold text-slate-800">{dep.dni || '—'}</span>
+                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50 gap-2 min-w-0">
+                            <span className="text-slate-500 font-semibold shrink-0">DNI:</span>
+                            <div className="flex items-center gap-1 min-w-0 justify-end">
+                              <span className="font-mono font-bold text-slate-800 truncate">{dep.dni || '—'}</span>
                               {dep.dni && (
                                 <button
                                   type="button"
                                   onClick={() => handleCopy(dep.dni, `dep_${index}_dni`)}
-                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
                                   title="Copiar DNI"
                                 >
                                   {copiedField === `dep_${index}_dni` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
@@ -554,33 +564,33 @@ export default function PatientDetailModal({
                           </div>
 
                           {/* BirthDate & Age */}
-                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50">
-                            <span className="text-slate-500 font-semibold">Fecha de Nacimiento:</span>
-                            <span className="font-bold text-slate-800">
+                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50 gap-2 min-w-0">
+                            <span className="text-slate-500 font-semibold shrink-0">Nacimiento:</span>
+                            <span className="font-bold text-slate-800 truncate text-right">
                               {formatBirthDate(dep.birthDate)} {depAge !== null ? `(${depAge} años)` : ''}
                             </span>
                           </div>
 
                           {/* Health Insurance */}
-                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50">
-                            <span className="text-slate-500 font-semibold">Obra Social / Prepaga:</span>
-                            <span className="font-bold text-purple-900">
+                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50 gap-2 min-w-0">
+                            <span className="text-slate-500 font-semibold shrink-0">Obra Social:</span>
+                            <span className="font-bold text-purple-900 truncate text-right">
                               {dep.obraSocial || patient.obraSocial || 'Particular'}
                             </span>
                           </div>
 
                           {/* Health Insurance Card Number */}
-                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50">
-                            <span className="text-slate-500 font-semibold">Nº Afiliado / Credencial:</span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono font-bold text-slate-800">
+                          <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50 gap-2 min-w-0">
+                            <span className="text-slate-500 font-semibold shrink-0">Nº Afiliado:</span>
+                            <div className="flex items-center gap-1 min-w-0 justify-end">
+                              <span className="font-mono font-bold text-slate-800 truncate">
                                 {dep.obraSocialNumber || patient.obraSocialNumber || '—'}
                               </span>
                               {(dep.obraSocialNumber || patient.obraSocialNumber) && (
                                 <button
                                   type="button"
                                   onClick={() => handleCopy(dep.obraSocialNumber || patient.obraSocialNumber || '', `dep_${index}_osNum`)}
-                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer"
+                                  className="p-1 text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
                                   title="Copiar Credencial"
                                 >
                                   {copiedField === `dep_${index}_osNum` ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
@@ -591,9 +601,9 @@ export default function PatientDetailModal({
 
                           {/* Contact if available */}
                           {(dep.phone || dep.email) && (
-                            <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50">
-                              <span className="text-slate-500 font-semibold">Contacto Propio:</span>
-                              <span className="font-bold text-slate-800 truncate max-w-[170px]">
+                            <div className="flex items-center justify-between py-1 px-1.5 border-b border-purple-100/50 gap-2 min-w-0">
+                              <span className="text-slate-500 font-semibold shrink-0">Contacto:</span>
+                              <span className="font-bold text-slate-800 truncate text-right" title={dep.phone || dep.email}>
                                 {dep.phone || dep.email}
                               </span>
                             </div>
@@ -601,9 +611,9 @@ export default function PatientDetailModal({
 
                           {/* Residencia if available */}
                           {(dep.city || dep.province) && (
-                            <div className="flex items-center justify-between py-1 px-1.5">
-                              <span className="text-slate-500 font-semibold">Ubicación:</span>
-                              <span className="font-bold text-slate-800">
+                            <div className="flex items-center justify-between py-1 px-1.5 gap-2 min-w-0">
+                              <span className="text-slate-500 font-semibold shrink-0">Ubicación:</span>
+                              <span className="font-bold text-slate-800 truncate text-right">
                                 {dep.city ? `${dep.city}${dep.province ? `, ${dep.province}` : ''}` : dep.province}
                               </span>
                             </div>
@@ -1019,4 +1029,9 @@ export default function PatientDetailModal({
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }

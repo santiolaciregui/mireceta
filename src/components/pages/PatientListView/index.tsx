@@ -11,6 +11,8 @@ import {
   Search, 
   Filter, 
   ArrowUpDown, 
+  ArrowUp,
+  ArrowDown,
   FileText, 
   Clock, 
   CheckCircle2, 
@@ -59,9 +61,20 @@ export default function PatientListView({
   const [selectedActivityFilter, setSelectedActivityFilter] = useState<'all' | 'with_pending' | 'with_completed' | 'no_orders'>('all');
   
   // Sorting state
-  const [sortBy, setSortBy] = useState<
-    'name_asc' | 'name_desc' | 'dni_asc' | 'dni_desc' | 'latest_order' | 'orders_count' | 'obra_social'
-  >('latest_order');
+  type SortField = 'name' | 'dni' | 'obraSocial' | 'orders_count' | 'latest_order';
+  type SortDirection = 'asc' | 'desc';
+
+  const [sortField, setSortField] = useState<SortField>('latest_order');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortField(field);
+      setSortDirection(field === 'latest_order' || field === 'orders_count' ? 'desc' : 'asc');
+    }
+  };
 
   // Selected patient for modal view
   const [selectedPatient, setSelectedPatient] = useState<PatientRecord | null>(null);
@@ -247,44 +260,38 @@ export default function PatientListView({
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'name_asc') {
+        if (sortField === 'name') {
           const nameA = `${a.lastName} ${a.name}`.trim();
           const nameB = `${b.lastName} ${b.name}`.trim();
-          return nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
+          const cmp = nameA.localeCompare(nameB, 'es', { sensitivity: 'base' });
+          return sortDirection === 'asc' ? cmp : -cmp;
         }
-        if (sortBy === 'name_desc') {
-          const nameA = `${a.lastName} ${a.name}`.trim();
-          const nameB = `${b.lastName} ${b.name}`.trim();
-          return nameB.localeCompare(nameA, 'es', { sensitivity: 'base' });
-        }
-        if (sortBy === 'dni_asc') {
+        if (sortField === 'dni') {
           const dniA = parseInt(a.dni.replace(/\D/g, ''), 10) || 0;
           const dniB = parseInt(b.dni.replace(/\D/g, ''), 10) || 0;
-          return dniA - dniB;
+          return sortDirection === 'asc' ? dniA - dniB : dniB - dniA;
         }
-        if (sortBy === 'dni_desc') {
-          const dniA = parseInt(a.dni.replace(/\D/g, ''), 10) || 0;
-          const dniB = parseInt(b.dni.replace(/\D/g, ''), 10) || 0;
-          return dniB - dniA;
-        }
-        if (sortBy === 'orders_count') {
-          return b.orders.length - a.orders.length;
-        }
-        if (sortBy === 'obra_social') {
+        if (sortField === 'obraSocial') {
           const osA = a.obraSocial || 'ZZZ';
           const osB = b.obraSocial || 'ZZZ';
-          return osA.localeCompare(osB, 'es', { sensitivity: 'base' });
+          const cmp = osA.localeCompare(osB, 'es', { sensitivity: 'base' });
+          return sortDirection === 'asc' ? cmp : -cmp;
         }
-        // Default: 'latest_order' (most recent activity first)
-        const latestTimeA = a.orders[0] ? new Date(a.orders[0].createdAt).getTime() : 0;
-        const latestTimeB = b.orders[0] ? new Date(b.orders[0].createdAt).getTime() : 0;
-        if (latestTimeB !== latestTimeA) {
-          return latestTimeB - latestTimeA;
+        if (sortField === 'orders_count') {
+          const diff = a.orders.length - b.orders.length;
+          return sortDirection === 'asc' ? diff : -diff;
         }
-        // Fallback to alphabetical if both have no orders
-        return `${a.lastName} ${a.name}`.localeCompare(`${b.lastName} ${b.name}`, 'es');
+        if (sortField === 'latest_order') {
+          const latestTimeA = a.orders[0] ? new Date(a.orders[0].createdAt).getTime() : 0;
+          const latestTimeB = b.orders[0] ? new Date(b.orders[0].createdAt).getTime() : 0;
+          if (latestTimeA !== latestTimeB) {
+            return sortDirection === 'asc' ? latestTimeA - latestTimeB : latestTimeB - latestTimeA;
+          }
+          return `${a.lastName} ${a.name}`.localeCompare(`${b.lastName} ${b.name}`, 'es');
+        }
+        return 0;
       });
-  }, [allPatients, searchTerm, selectedObraSocialFilter, selectedStatusFilter, selectedActivityFilter, sortBy]);
+  }, [allPatients, searchTerm, selectedObraSocialFilter, selectedStatusFilter, selectedActivityFilter, sortField, sortDirection]);
 
   const handleOpenPatientDetail = (patient: PatientRecord) => {
     setSelectedPatient(patient);
@@ -317,6 +324,19 @@ export default function PatientListView({
     } catch {
       return null;
     }
+  };
+
+  const renderSortIndicator = (field: SortField) => {
+    if (sortField !== field) {
+      return (
+        <ArrowUpDown className="h-3 w-3 text-slate-400 opacity-40 group-hover/col:opacity-100 group-hover/col:text-slate-600 transition-all ml-1 shrink-0" />
+      );
+    }
+    return sortDirection === 'asc' ? (
+      <ArrowUp className="h-3.5 w-3.5 text-[#1661E1] ml-1 shrink-0" />
+    ) : (
+      <ArrowDown className="h-3.5 w-3.5 text-[#1661E1] ml-1 shrink-0" />
+    );
   };
 
   return (
@@ -395,7 +415,7 @@ export default function PatientListView({
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             
             {/* Search Input */}
-            <div className="relative flex-1 min-w-[280px]">
+            <div className="relative flex-1">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4.5 w-4.5 text-slate-400" />
               <input
                 type="text"
@@ -407,31 +427,11 @@ export default function PatientListView({
               {searchTerm && (
                 <button
                   onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
-            </div>
-
-            {/* Sort Options Select */}
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-xs font-bold text-slate-500 hidden sm:inline-flex items-center gap-1">
-                <ArrowUpDown className="h-3.5 w-3.5" /> Ordenar por:
-              </span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1661E1] cursor-pointer"
-              >
-                <option value="latest_order">Última solicitud realizada</option>
-                <option value="orders_count">Mayor cantidad de solicitudes</option>
-                <option value="name_asc">Apellido y Nombre (A - Z)</option>
-                <option value="name_desc">Apellido y Nombre (Z - A)</option>
-                <option value="dni_asc">DNI (Menor a Mayor)</option>
-                <option value="dni_desc">DNI (Mayor a Menor)</option>
-                <option value="obra_social">Obra Social (A - Z)</option>
-              </select>
             </div>
 
           </div>
@@ -492,7 +492,7 @@ export default function PatientListView({
         {/* Results Counter Status */}
         <div className="text-[11px] text-slate-500 font-semibold px-1 flex items-center justify-between">
           <span>Mostrando <strong>{processedPatients.length}</strong> de <strong>{allPatients.length}</strong> pacientes</span>
-          <span className="text-slate-400 hidden sm:inline">Hacé clic en cualquier paciente para ver su ficha y todas sus solicitudes</span>
+          <span className="text-slate-400 hidden sm:inline">Hacé clic en cualquier paciente para ver su ficha o en los encabezados para ordenar</span>
         </div>
 
         {/* Patients Table */}
@@ -501,12 +501,57 @@ export default function PatientListView({
             <table className="w-full min-w-[800px] text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-100/90 text-[11px] font-extrabold text-slate-700 uppercase tracking-wider">
-                  <th className="py-3.5 px-5">Paciente</th>
-                  <th className="py-3.5 px-4">DNI / Nacimiento</th>
-                  <th className="py-3.5 px-4">Cobertura Médica</th>
+                  <th
+                    onClick={() => handleSort('name')}
+                    className="py-3.5 px-5 cursor-pointer select-none hover:bg-slate-200/70 transition-colors group/col"
+                    title="Ordenar por Paciente (Apellido y Nombre)"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={sortField === 'name' ? 'text-[#1661E1]' : ''}>Paciente</span>
+                      {renderSortIndicator('name')}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('dni')}
+                    className="py-3.5 px-4 cursor-pointer select-none hover:bg-slate-200/70 transition-colors group/col"
+                    title="Ordenar por DNI"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={sortField === 'dni' ? 'text-[#1661E1]' : ''}>DNI / Nacimiento</span>
+                      {renderSortIndicator('dni')}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('obraSocial')}
+                    className="py-3.5 px-4 cursor-pointer select-none hover:bg-slate-200/70 transition-colors group/col"
+                    title="Ordenar por Cobertura Médica"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={sortField === 'obraSocial' ? 'text-[#1661E1]' : ''}>Cobertura Médica</span>
+                      {renderSortIndicator('obraSocial')}
+                    </div>
+                  </th>
                   <th className="py-3.5 px-4">Contacto</th>
-                  <th className="py-3.5 px-4 text-center">Solicitudes</th>
-                  <th className="py-3.5 px-4">Última Actividad</th>
+                  <th
+                    onClick={() => handleSort('orders_count')}
+                    className="py-3.5 px-4 text-center cursor-pointer select-none hover:bg-slate-200/70 transition-colors group/col"
+                    title="Ordenar por Cantidad de Solicitudes"
+                  >
+                    <div className="flex items-center justify-center gap-1.5">
+                      <span className={sortField === 'orders_count' ? 'text-[#1661E1]' : ''}>Solicitudes</span>
+                      {renderSortIndicator('orders_count')}
+                    </div>
+                  </th>
+                  <th
+                    onClick={() => handleSort('latest_order')}
+                    className="py-3.5 px-4 cursor-pointer select-none hover:bg-slate-200/70 transition-colors group/col"
+                    title="Ordenar por Fecha de Última Actividad"
+                  >
+                    <div className="flex items-center gap-1.5">
+                      <span className={sortField === 'latest_order' ? 'text-[#1661E1]' : ''}>Última Actividad</span>
+                      {renderSortIndicator('latest_order')}
+                    </div>
+                  </th>
                   <th className="py-3.5 px-5 text-right">Acción</th>
                 </tr>
               </thead>
@@ -542,16 +587,13 @@ export default function PatientListView({
                               <p className="font-bold text-slate-900 group-hover:text-[#1661E1] transition-colors leading-tight">
                                 {patient.lastName}, {patient.name}
                               </p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[10px] text-slate-400 font-mono">
-                                  {patient.id}
-                                </span>
-                                {patient.dependents && patient.dependents.length > 0 && (
+                              {patient.dependents && patient.dependents.length > 0 && (
+                                <div className="mt-0.5">
                                   <span className="text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-purple-50 text-purple-700 border border-purple-200" title={`${patient.dependents.length} familiares a cargo`}>
                                     +{patient.dependents.length} adherentes
                                   </span>
-                                )}
-                              </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

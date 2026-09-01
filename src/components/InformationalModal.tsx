@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { ShieldCheck, Lock, FileText, CheckCircle } from 'lucide-react';
 import Logo from './Logo';
 
@@ -13,9 +14,9 @@ interface ModalProps {
 export default function InformationalModal({ isOpen, onClose, title, type, onGoToRegister }: ModalProps) {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn">
-      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[calc(100dvh-2rem)]">
+  const modalContent = (
+    <div className="fixed inset-0 z-50 bg-[#0141BC]/40 backdrop-blur-sm flex items-center justify-center p-3 sm:p-6 animate-fadeIn" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden border border-slate-200 flex flex-col max-h-[calc(100dvh-2rem)]" onClick={(e) => e.stopPropagation()}>
         
         {/* Header */}
         <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex justify-between items-center border-b border-white/10 shrink-0">
@@ -251,8 +252,12 @@ export default function InformationalModal({ isOpen, onClose, title, type, onGoT
             Entendido
           </button>
         </div>
-
       </div>
     </div>
   );
+
+  if (typeof document !== 'undefined') {
+    return createPortal(modalContent, document.body);
+  }
+  return modalContent;
 }
