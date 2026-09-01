@@ -34,6 +34,7 @@ export class UserService {
       obraSocial: user.obraSocial,
       obraSocialNumber: user.obraSocialNumber,
       requirePasswordChange: user.requirePasswordChange,
+      rate: user.rate,
       dependents: user.dependents || [],
     };
 
@@ -147,6 +148,10 @@ export class UserService {
       delete safeUpdateData.tenantId;
       delete safeUpdateData.status;
       delete safeUpdateData.id;
+    }
+
+    if (safeUpdateData.rate !== undefined) {
+      safeUpdateData.rate = safeUpdateData.rate === '' || safeUpdateData.rate === null ? undefined : Number(safeUpdateData.rate);
     }
 
     if (safeUpdateData.password) {

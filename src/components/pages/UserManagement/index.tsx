@@ -57,6 +57,7 @@ export default function UserManagement({
   const [status, setStatus] = useState<'Activo' | 'Inactivo'>('Activo');
   const [medicoId, setMedicoId] = useState('');
   const [medicoName, setMedicoName] = useState('');
+  const [customRate, setCustomRate] = useState<string>('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -82,6 +83,7 @@ export default function UserManagement({
     setStatus('Activo');
     setMedicoId('');
     setMedicoName('');
+    setCustomRate('');
     setPassword('');
     setShowPassword(false);
     setErrorMess('');
@@ -99,6 +101,7 @@ export default function UserManagement({
     setStatus(user.status);
     setMedicoId(user.medicoId || '');
     setMedicoName(user.medicoName || '');
+    setCustomRate(user.rate !== undefined && user.rate !== null ? String(user.rate) : '');
     setPassword('');
     setShowPassword(false);
     setErrorMess('');
@@ -158,7 +161,10 @@ export default function UserManagement({
       ...(password.trim() ? { password: password.trim() } : {}),
       ...( (role === 'colaborador') && medicoId 
             ? { medicoId, medicoName } 
-            : {} )
+            : {} ),
+      ...( (role === 'colaborador' || role === 'medico') && customRate.trim()
+            ? { rate: Number(customRate) }
+            : editingUserId ? { rate: null } : {} )
     };
 
     setIsSaving(true);
@@ -366,6 +372,11 @@ export default function UserManagement({
                           {user.role === 'colaborador' && user.medicoName && (
                             <span className="text-[10px] text-slate-500 font-medium">
                               {user.medicoName}
+                            </span>
+                          )}
+                          {user.rate !== undefined && user.rate !== null && user.rate > 0 && (
+                            <span className="inline-flex items-center text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 mt-0.5">
+                              ${user.rate}/receta
                             </span>
                           )}
                         </div>
@@ -634,6 +645,27 @@ export default function UserManagement({
                       <span>{fieldErrors.medicoId}</span>
                     </p>
                   )}
+                </div>
+              )}
+
+              {/* Custom rate for doctor or collaborator */}
+              {(role === 'colaborador' || role === 'medico') && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Tarifa personalizada ($/receta)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="50"
+                    value={customRate}
+                    onChange={(e) => setCustomRate(e.target.value)}
+                    placeholder="Ej: 800 (dejar vacío para arancel estándar)"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-xs font-medium focus:ring-1 focus:ring-[#1661E1] outline-hidden"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Opcional. Si se deja vacío se aplica la tarifa general de liquidación del centro.
+                  </p>
                 </div>
               )}
 

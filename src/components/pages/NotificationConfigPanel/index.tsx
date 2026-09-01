@@ -125,7 +125,7 @@ export default function NotificationConfigPanel() {
           setWaPhoneNumberId(waConf.credentials.phoneNumberId || '');
           setWaAccessToken(waConf.credentials.accessToken || '');
           setWaCountryCode(waConf.credentials.defaultCountryCode || '54');
-          setWaDoctorInquiryTemplateCode(waConf.credentials.doctorInquiryTemplateCode || '');
+          setWaDoctorInquiryTemplateCode(waConf.credentials.doctorInquiryTemplateCode || 'primer_mensaje');
         }
       }
 
@@ -746,11 +746,11 @@ export default function NotificationConfigPanel() {
                       type="text"
                       value={waDoctorInquiryTemplateCode}
                       onChange={(e) => setWaDoctorInquiryTemplateCode(e.target.value)}
-                      placeholder="doctor_consultation_inquiry"
+                      placeholder="primer_mensaje"
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 font-mono focus:ring-2 focus:ring-emerald-500"
                     />
                     <span className="text-[10px] text-slate-400 font-medium mt-1 block">
-                      Código de plantilla aprobada en Meta para iniciar conversación fuera de la ventana de 24hs.
+                      Código de plantilla aprobada en Meta para iniciar conversación fuera de la ventana de 24hs (Plantilla por defecto: primer_mensaje, 1 parámetro).
                     </span>
                   </div>
                 </form>

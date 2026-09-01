@@ -239,12 +239,87 @@ export default function PatientDoctorChat({
     return result;
   }, [orders, serverConversations, isPatient, currentUser.identifier]);
 
+  const formatChatDateTime24h = (timestampStr?: string | Date | null): string => {
+    if (!timestampStr) return '';
+    const d = timestampStr instanceof Date ? timestampStr : new Date(timestampStr);
+    if (isNaN(d.getTime())) return String(timestampStr);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+    return `${day}/${month}/${year} ${hours}:${mins}`;
+  };
+
+  const [viewMode, setViewMode] = useState<'conversacion' | 'solicitud'>('conversacion');
   const [selectedPatientDni, setSelectedPatientDni] = useState<string | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [inboxSearchQuery, setInboxSearchQuery] = useState('');
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [showQuickTemplates, setShowQuickTemplates] = useState(false);
+
+  // Grouped list for Solicitudes (Order mode)
+  const solicitudItems = useMemo(() => {
+    const list: {
+      id: string;
+      orderId: string;
+      cleanDni: string;
+      patientName: string;
+      patientLastName: string;
+      patientDni: string;
+      phone: string;
+      obraSocial: string;
+      medicationText: string;
+      status: string;
+      timestamp: string;
+      lastMessage: ChatMessage | null;
+      hasPatientReplied: boolean;
+      order: MedicalOrder;
+    }[] = [];
+
+    const seen = new Set<string>();
+    const sourceOrders = isPatient 
+      ? orders.filter(o => {
+          const ordDni = cleanDni(o.patientDni);
+          const titularDni = cleanDni(currentUser.identifier);
+          const depDnis = (currentUser.dependents || []).map((d: any) => cleanDni(d.dni || d.identifier)).filter(Boolean);
+          const requestedBy = cleanDni(o.requestedByTitularDni);
+          return ordDni === titularDni || depDnis.includes(ordDni) || requestedBy === titularDni;
+        })
+      : orders;
+
+    for (const ord of sourceOrders) {
+      if (!ord.id || seen.has(ord.id)) continue;
+      seen.add(ord.id);
+
+      const clean = cleanDni(ord.requestedByTitularDni || ord.patientDni);
+      const msgs = Array.isArray(ord.messages) ? ord.messages : [];
+      const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
+      const ts = lastMsg?.timestamp || ord.createdAt || new Date().toISOString();
+
+      list.push({
+        id: ord.id,
+        orderId: ord.id,
+        cleanDni: clean,
+        patientName: ord.requestedByTitularName || ord.patientName,
+        patientLastName: ord.requestedByTitularName ? '' : ord.patientLastName,
+        patientDni: ord.requestedByTitularDni || ord.patientDni,
+        phone: ord.patientPhone || '',
+        obraSocial: ord.obraSocial || '',
+        medicationText: ord.medicationText || '',
+        status: ord.status || 'Pendiente',
+        timestamp: ts,
+        lastMessage: lastMsg,
+        hasPatientReplied: lastMsg?.sender === 'paciente',
+        order: ord
+      });
+    }
+
+    list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return list;
+  }, [orders, isPatient, currentUser, cleanDni]);
 
   // Replying state
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
@@ -579,6 +654,20 @@ export default function PatientDoctorChat({
     );
   });
 
+  // Filter solicitudes list by search query
+  const filteredSolicitudes = solicitudItems.filter(item => {
+    const term = inboxSearchQuery.toLowerCase();
+    return (
+      item.orderId.toLowerCase().includes(term) ||
+      item.patientName.toLowerCase().includes(term) ||
+      item.patientLastName.toLowerCase().includes(term) ||
+      item.patientDni.includes(term) ||
+      item.medicationText.toLowerCase().includes(term) ||
+      item.status.toLowerCase().includes(term) ||
+      item.phone.includes(term)
+    );
+  });
+
   // Filter messages in active conversation by search query
   const displayedMessages = (activeConversation?.messages || []).filter(msg => {
     if (!chatSearchQuery.trim()) return true;
@@ -653,13 +742,41 @@ export default function PatientDoctorChat({
             </div>
           </div>
 
+          {/* Order / Group Switch Control */}
+          <div className="p-2 bg-[#f6f6f6] border-b border-slate-200 shrink-0">
+            <div className="bg-slate-200/80 p-0.5 rounded-lg flex items-center shadow-inner">
+              <button
+                type="button"
+                onClick={() => setViewMode('conversacion')}
+                className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-extrabold transition-all cursor-pointer text-center ${
+                  viewMode === 'conversacion'
+                    ? 'bg-white text-[#075E54] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Por conversación
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('solicitud')}
+                className={`flex-1 py-1.5 px-2 rounded-md text-[11px] font-extrabold transition-all cursor-pointer text-center ${
+                  viewMode === 'solicitud'
+                    ? 'bg-white text-[#075E54] shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Por solicitud
+              </button>
+            </div>
+          </div>
+
           {/* Search bar container */}
           <div className="p-2.5 bg-[#f6f6f6] border-b border-slate-200 shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Buscar paciente, DNI, teléfono..."
+                placeholder={viewMode === 'conversacion' ? "Buscar paciente, DNI, teléfono..." : "Buscar por #receta, paciente, medicación..."}
                 value={inboxSearchQuery}
                 onChange={(e) => setInboxSearchQuery(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-lg py-1.5 pl-9 pr-4 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] placeholder:text-slate-400 text-slate-800 shadow-xs"
@@ -669,81 +786,169 @@ export default function PatientDoctorChat({
 
           {/* Conversations scrollable inbox */}
           <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
-            {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-slate-400">
-                <MessageSquare className="h-8 w-8 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-bold text-slate-600">No se encontraron pacientes</p>
-                <p className="text-[11px] mt-0.5">Modifique los términos de búsqueda</p>
-              </div>
-            ) : (
-              filteredConversations.map((conv) => {
-                const isSelected = selectedPatientDni === conv.cleanDni;
-                const lastMsg = conv.lastMessage;
+            {viewMode === 'conversacion' ? (
+              filteredConversations.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <MessageSquare className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">No se encontraron pacientes</p>
+                  <p className="text-[11px] mt-0.5">Modifique los términos de búsqueda</p>
+                </div>
+              ) : (
+                filteredConversations.map((conv) => {
+                  const isSelected = selectedPatientDni === conv.cleanDni && !selectedOrderId;
+                  const lastMsg = conv.lastMessage;
 
-                return (
-                  <button
-                    key={conv.cleanDni}
-                    onClick={() => setSelectedPatientDni(conv.cleanDni)}
-                    className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
-                      isSelected 
-                        ? 'bg-[#f0f2f5] border-[#00a884]' 
-                        : 'border-transparent hover:bg-slate-50'
-                    }`}
-                  >
-                    {/* User Avatar */}
-                    <div className="relative shrink-0">
-                      <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-teal-200 shadow-xs">
-                        {conv.name.charAt(0)}{conv.lastName.charAt(0)}
-                      </div>
-                      {conv.hasPatientReplied && (
-                        <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
-                      )}
-                    </div>
-
-                    {/* Patient summary snippet */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between items-baseline gap-1">
-                        <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
-                          {conv.name} {conv.lastName}
-                        </h4>
-                        <span className="text-[10px] text-slate-400 font-mono shrink-0">
-                          {lastMsg ? new Date(lastMsg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                      </div>
-
-                      <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
-                        DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial || 'Particular'}
-                      </p>
-
-                      {/* Show actual patient name if request is for a dependent */}
-                      {conv.isForDependent && conv.actualPatientName && (
-                        <p className="text-[10px] text-violet-700 font-semibold truncate mt-0.5 flex items-center gap-1">
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
-                          Paciente: {conv.actualPatientName} {conv.actualPatientLastName}
-                          {conv.dependentRelationship && <span className="text-violet-500 font-normal">({conv.dependentRelationship})</span>}
-                        </p>
-                      )}
-
-                      <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
-                        {lastMsg ? (
-                          <>
-                            {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
-                              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
-                            ) : null}
-                            <span className={`truncate ${conv.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
-                              {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
-                            </span>
-                          </>
-                        ) : (
-                          <span className="text-slate-400 italic text-[11px]">
-                            {conv.ordersCount > 0 ? `${conv.ordersCount} trámite(s) (${conv.latestOrderId})` : 'Conversación iniciada'}
-                          </span>
+                  return (
+                    <button
+                      key={conv.cleanDni}
+                      onClick={() => {
+                        setSelectedPatientDni(conv.cleanDni);
+                        setSelectedOrderId(null);
+                      }}
+                      className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
+                        isSelected 
+                          ? 'bg-[#f0f2f5] border-[#00a884]' 
+                          : 'border-transparent hover:bg-slate-50'
+                      }`}
+                    >
+                      {/* User Avatar */}
+                      <div className="relative shrink-0">
+                        <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-teal-200 shadow-xs">
+                          {conv.name.charAt(0)}{conv.lastName.charAt(0)}
+                        </div>
+                        {conv.hasPatientReplied && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                         )}
                       </div>
-                    </div>
-                  </button>
-                );
-              })
+
+                      {/* Patient summary snippet */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline gap-1">
+                          <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                            {conv.name} {conv.lastName}
+                          </h4>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            {formatChatDateTime24h(lastMsg ? lastMsg.timestamp : conv.lastTimestamp)}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                          DNI: {conv.dni} {conv.phone ? `• Cel: ${conv.phone}` : ''} • {conv.obraSocial || 'Particular'}
+                        </p>
+
+                        {/* Show actual patient name if request is for a dependent */}
+                        {conv.isForDependent && conv.actualPatientName && (
+                          <p className="text-[10px] text-violet-700 font-semibold truncate mt-0.5 flex items-center gap-1">
+                            <span className="inline-block h-1.5 w-1.5 rounded-full bg-violet-400 shrink-0" />
+                            Paciente: {conv.actualPatientName} {conv.actualPatientLastName}
+                            {conv.dependentRelationship && <span className="text-violet-500 font-normal">({conv.dependentRelationship})</span>}
+                          </p>
+                        )}
+
+                        <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
+                          {lastMsg ? (
+                            <>
+                              {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
+                              ) : null}
+                              <span className={`truncate ${conv.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
+                                {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">
+                              {conv.ordersCount > 0 ? `${conv.ordersCount} trámite(s) (${conv.latestOrderId})` : 'Conversación iniciada'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )
+            ) : (
+              /* SOLICITUDES MODE (Por solicitud) */
+              filteredSolicitudes.length === 0 ? (
+                <div className="p-8 text-center text-slate-400">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-slate-300" />
+                  <p className="text-xs font-bold text-slate-600">No se encontraron solicitudes</p>
+                  <p className="text-[11px] mt-0.5">Modifique los términos de búsqueda</p>
+                </div>
+              ) : (
+                filteredSolicitudes.map((item) => {
+                  const isSelected = selectedOrderId === item.orderId || (selectedPatientDni === item.cleanDni && !selectedOrderId);
+                  const lastMsg = item.lastMessage;
+
+                  return (
+                    <button
+                      key={item.orderId}
+                      onClick={() => {
+                        setSelectedPatientDni(item.cleanDni);
+                        setSelectedOrderId(item.orderId);
+                      }}
+                      className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
+                        isSelected 
+                          ? 'bg-[#f0f2f5] border-[#00a884]' 
+                          : 'border-transparent hover:bg-slate-50'
+                      }`}
+                    >
+                      {/* Order Icon / Avatar */}
+                      <div className="relative shrink-0">
+                        <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-emerald-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-emerald-200 shadow-xs">
+                          <FileText className="h-5 w-5 text-[#075E54]" />
+                        </div>
+                        {item.hasPatientReplied && (
+                          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                        )}
+                      </div>
+
+                      {/* Solicitud Snippet */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="font-bold font-mono text-emerald-800 text-xs bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
+                              {item.orderId}
+                            </span>
+                            <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                              {item.patientName} {item.patientLastName}
+                            </h4>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                            {formatChatDateTime24h(item.timestamp)}
+                          </span>
+                        </div>
+
+                        <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                          DNI: {item.patientDni} • Status: <span className="font-bold text-slate-700">{item.status}</span>
+                        </p>
+
+                        {item.medicationText && (
+                          <p className="text-[11px] text-slate-600 font-semibold truncate mt-0.5">
+                            {item.medicationText}
+                          </p>
+                        )}
+
+                        <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
+                          {lastMsg ? (
+                            <>
+                              {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
+                                <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
+                              ) : null}
+                              <span className={`truncate ${item.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
+                                {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">
+                              Solicitud creada ({formatChatDateTime24h(item.timestamp)})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )
             )}
           </div>
         </div>
@@ -928,7 +1133,7 @@ export default function PatientDoctorChat({
                   )}
                 </div>
                 <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-full uppercase shrink-0 bg-emerald-100 text-emerald-800 font-mono">
-                  {activeConversation.latestOrderId || 'Paciente Registrado'}
+                  {selectedOrderId ? `#${selectedOrderId}` : (activeConversation.latestOrderId || 'Paciente Registrado')}
                 </span>
               </div>
             )}
@@ -1112,7 +1317,7 @@ export default function PatientDoctorChat({
                         {/* TIMESTAMP & STATUS INDICATOR */}
                         <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-slate-400 float-right">
                           <span>
-                            {new Date(msg.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                            {formatChatDateTime24h(msg.timestamp)}
                           </span>
                           {isOwn && (
                             <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />

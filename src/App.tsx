@@ -21,6 +21,7 @@ import AuditLogView from './components/pages/AuditLogView';
 import PaymentConfigPanel from './components/pages/PaymentConfigPanel';
 import NotificationConfigPanel from './components/pages/NotificationConfigPanel';
 import SettlementMetricsView from './components/pages/SettlementMetricsView';
+import PatientListView from './components/pages/PatientListView';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ResetPassword from './components/pages/ResetPassword';
 
@@ -110,6 +111,7 @@ export default function App() {
     deleteOrder,
     createUser,
     updateUser,
+    updateTenantTariffs,
     deleteUser,
     resetToBaseline,
     sendChatMessage,
@@ -508,11 +510,40 @@ export default function App() {
                       />
                     </div>
                   </div>
+                ) : activeSubcategory === 'pacientes' ? (
+                  <PatientListView
+                    orders={orders}
+                    users={users}
+                    currentUser={currentUser}
+                    onSelectOrder={(orderId) => {
+                      const ord = orders.find(o => o.id === orderId);
+                      setActiveCategory('solicitudes');
+                      if (ord?.status === 'Pendiente') {
+                        setActiveSubcategory('pendientes');
+                      } else if (ord?.status === 'En revisión' || ord?.status === 'Aprobada' || ord?.status === 'Solicita más información') {
+                        setActiveSubcategory('revision');
+                      } else if (ord?.status === 'Emitida' || ord?.status === 'Enviada') {
+                        setActiveSubcategory('completadas');
+                      } else if (ord?.status === 'Rechazada') {
+                        setActiveSubcategory('rechazadas');
+                      } else {
+                        setActiveSubcategory('pendientes');
+                      }
+                    }}
+                    onNavigateToChat={(orderIdOrDni) => {
+                      setActiveCategory('mensajeria');
+                      setActiveSubcategory('chat');
+                      setChatSelectedOrderId(orderIdOrDni);
+                    }}
+                  />
                 ) : activeSubcategory === 'reportes' && activeRole !== 'colaborador' ? (
                   <SettlementMetricsView
                     orders={orders}
                     users={users}
                     currentUser={currentUser}
+                    currentTenant={currentTenant}
+                    onUpdateTariffs={updateTenantTariffs}
+                    onUpdateUser={updateUser}
                   />
                 ) : activeSubcategory === 'usuarios' && (activeRole === 'admin' || activeRole === 'superadmin') ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
@@ -604,8 +635,13 @@ export default function App() {
                       setChatSelectedOrderId(orderId);
                     }}
                     onNavigateToSubview={(subview) => {
-                      setActiveCategory('solicitudes');
-                      setActiveSubcategory(subview);
+                      if (subview === 'pacientes') {
+                        setActiveCategory('padron');
+                        setActiveSubcategory('pacientes');
+                      } else {
+                        setActiveCategory('solicitudes');
+                        setActiveSubcategory(subview);
+                      }
                     }}
                   />
                 )}

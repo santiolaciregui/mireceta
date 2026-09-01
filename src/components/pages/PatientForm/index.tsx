@@ -3,10 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MedicationItem, DependentPatient } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { copyToClipboard } from '../../../utils/clipboard';
+import Toast from '../../common/Toast';
+import { useToast } from '../../../hooks/useToast';
+import { CustomDatePicker } from '../../common/CustomDatePicker';
 import { 
   User, 
   Users,
@@ -133,6 +136,19 @@ export default function PatientForm({
   const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
   const [searchStatus, setSearchStatus] = useState<{ found: boolean; message: string } | null>(null);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const { toast, showToast } = useToast();
+  const cartSectionRef = useRef<HTMLDivElement>(null);
+
+  const scrollToCart = () => {
+    setTimeout(() => {
+      if (cartSectionRef.current) {
+        cartSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else {
+        const cartEl = document.getElementById('cart-container');
+        cartEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 60);
+  };
 
   // Reset Mercado Pago loading state on page focus / bfcache restoration (back button navigation)
   useEffect(() => {
@@ -835,6 +851,8 @@ export default function PatientForm({
     setLastConsultationDoctor(lastOrder.lastConsultationDoctor || '');
     
     setNotificationMsg('¡Se copiaron con éxito todos los medicamentos, el diagnóstico que dio origen al tratamiento y los comentarios adicionales de su última solicitud al Carrito!');
+    showToast('¡Medicamentos de la última solicitud agregados al carrito!');
+    scrollToCart();
     setTimeout(() => {
       setNotificationMsg(null);
     }, 6000);
@@ -860,6 +878,8 @@ export default function PatientForm({
     setLastConsultationDoctor(order.lastConsultationDoctor || '');
     
     setNotificationMsg(`¡Se copiaron con éxito todos los medicamentos, el diagnóstico que dio origen al tratamiento y los comentarios adicionales de la solicitud del ${new Date(order.createdAt).toLocaleDateString('es-AR')} al Carrito!`);
+    showToast(`¡Medicamentos de la solicitud previa agregados al carrito!`);
+    scrollToCart();
     setTimeout(() => {
       setNotificationMsg(null);
     }, 6000);
@@ -1060,9 +1080,12 @@ export default function PatientForm({
       compressImageAndGetBase64(file).then((base64String) => {
         if (target === 'medication') {
           setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
+          showToast(`¡Foto/receta "${file.name}" adjuntada al carrito con éxito!`);
+          scrollToCart();
         } else {
           setPaymentReceipt({ url: base64String, name: file.name });
           setError(null);
+          showToast('Comprobante de pago adjuntado correctamente');
         }
       }).catch((err) => {
         console.error('Error procesando imagen:', err);
@@ -1189,10 +1212,17 @@ export default function PatientForm({
     setCurCantidadCajas('1');
     setCurDiagnostic('');
     setCurComments('');
+
+    showToast(`¡"${newItem.nombreComercial}" agregado al carrito con éxito!`);
+    scrollToCart();
   };
 
   const removeMedicationItem = (index: number) => {
+    const item = medicationItems[index];
     setMedicationItems(prev => prev.filter((_, i) => i !== index));
+    if (item) {
+      showToast(`"${item.nombreComercial}" eliminado del carrito`);
+    }
   };
 
   const validateStep2 = (): boolean => {
@@ -2040,18 +2070,16 @@ export default function PatientForm({
                 <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">
                   Fecha de Nacimiento <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="date"
+                <CustomDatePicker
                   value={depBirthDate}
-                  onChange={(e) => {
-                    setDepBirthDate(e.target.value);
+                  onChange={(val) => {
+                    setDepBirthDate(val);
                     if (depFieldErrors.birthDate) setDepFieldErrors(prev => ({ ...prev, birthDate: undefined }));
                   }}
-                  className={`w-full px-3.5 py-2.5 rounded-xl font-bold text-xs transition-all outline-hidden cursor-pointer ${
-                    depFieldErrors.birthDate
-                      ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                      : 'bg-white border border-slate-250 text-[#0F172A] focus:ring-2 focus:ring-[#1661E1]'
-                  }`}
+                  maxDate={new Date().toISOString().split('T')[0]}
+                  error={depFieldErrors.birthDate}
+                  placeholder="DD/MM/AAAA"
+                  inputClassName="!font-bold !text-xs"
                 />
                 {depFieldErrors.birthDate && (
                   <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
@@ -2770,11 +2798,15 @@ export default function PatientForm({
             )}
 
             {/* 🛒 CARRITO DE LA SOLICITUD (PLACED ABOVE MÉTODO DE CARGA) */}
-            <div className={`p-4.5 rounded-2xl border space-y-3 transition-all ${
-              fieldErrors.medicationList 
-                ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
-                : 'bg-emerald-50/30 border-[#14BE99]/30 shadow-xs'
-            }`}>
+            <div 
+              ref={cartSectionRef}
+              id="cart-container"
+              className={`p-4.5 rounded-2xl border space-y-3 transition-all scroll-mt-6 ${
+                fieldErrors.medicationList 
+                  ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
+                  : 'bg-emerald-50/30 border-[#14BE99]/30 shadow-xs'
+              }`}
+            >
               <div className="flex items-center justify-between">
                 <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
                   <span>🛒 Carrito de la Solicitud</span>
@@ -2785,7 +2817,11 @@ export default function PatientForm({
                 {(medicationItems.length > 0 || medicationPhotos.length > 0) && (
                   <button
                     type="button"
-                    onClick={() => { setMedicationItems([]); setMedicationPhotos([]); }}
+                    onClick={() => { 
+                      setMedicationItems([]); 
+                      setMedicationPhotos([]); 
+                      showToast('El carrito ha sido vaciado');
+                    }}
                     className="text-[10px] text-red-500 hover:text-red-700 font-bold hover:underline cursor-pointer"
                   >
                     Vaciar Todo
@@ -2928,42 +2964,63 @@ export default function PatientForm({
                   id="btn-method-past-orders"
                   type="button"
                   onClick={() => setMedicationMethod('past_orders')}
-                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
+                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'past_orders'
-                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
-                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      ? 'border-indigo-500 bg-indigo-50/90 text-indigo-950 ring-2 ring-indigo-500/25 shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-indigo-900 hover:border-indigo-200 hover:bg-indigo-50/30'
                   }`}
                 >
-                  <Clock className="h-5 w-5" />
-                  <span>Últimas Solicitudes</span>
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    medicationMethod === 'past_orders'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
+                  }`}>
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[12px]">Últimas Solicitudes</span>
+                  <span className="text-[10px] font-medium text-slate-500">Repetir pedido previo</span>
                 </button>
 
                 <button
                   id="btn-method-new-manual"
                   type="button"
                   onClick={() => setMedicationMethod('new_manual')}
-                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
+                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'new_manual'
-                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
-                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 ring-2 ring-emerald-500/25 shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-emerald-900 hover:border-emerald-200 hover:bg-emerald-50/30'
                   }`}
                 >
-                  <ClipboardCheck className="h-5 w-5" />
-                  <span>Nueva Carga Manual</span>
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    medicationMethod === 'new_manual'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'
+                  }`}>
+                    <ClipboardCheck className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[12px]">Nueva Carga Manual</span>
+                  <span className="text-[10px] font-medium text-slate-500">Escribir medicamentos</span>
                 </button>
 
                 <button
                   id="btn-method-upload-photo"
                   type="button"
                   onClick={() => setMedicationMethod('upload_photo')}
-                  className={`py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer ${
+                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'upload_photo'
-                      ? 'border-blue-600 bg-blue-50/60 text-blue-800 ring-2 ring-blue-500/20'
-                      : 'border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                      ? 'border-[#1661E1] bg-blue-50/90 text-[#0141BC] ring-2 ring-[#1661E1]/25 shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-[#0141BC] hover:border-blue-200 hover:bg-blue-50/30'
                   }`}
                 >
-                  <Camera className="h-5 w-5" />
-                  <span>Adjuntar foto de receta anterior o de la medicación</span>
+                  <div className={`p-2 rounded-xl transition-colors ${
+                    medicationMethod === 'upload_photo'
+                      ? 'bg-[#1661E1] text-white shadow-xs'
+                      : 'bg-blue-50 text-[#1661E1] group-hover:bg-blue-100'
+                  }`}>
+                    <Camera className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[12px]">Adjuntar Foto / Receta</span>
+                  <span className="text-[10px] font-medium text-slate-500">Foto de envase o receta</span>
                 </button>
               </div>
             </div>
@@ -3710,6 +3767,9 @@ export default function PatientForm({
         )}
 
       </form>
+
+      {/* Toast Notification */}
+      <Toast message={toast} position="bottom-right" />
     </div>
   );
 }

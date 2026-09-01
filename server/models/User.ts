@@ -20,6 +20,7 @@ export interface IUser extends Document {
   obraSocialNumber?: string;
   dependents?: any[];
   requirePasswordChange?: boolean;
+  rate?: number; // Custom rate per prescription for this professional
   // Password reset flow
   resetToken?: string;
   resetTokenExp?: Date;
@@ -47,6 +48,7 @@ const userSchema = new Schema<IUser>({
   obraSocialNumber: { type: String },
   dependents: { type: Schema.Types.Mixed, default: [] },
   requirePasswordChange: { type: Boolean, default: false },
+  rate: { type: Number },
   resetToken: { type: String },
   resetTokenExp: { type: Date }
 }, {
