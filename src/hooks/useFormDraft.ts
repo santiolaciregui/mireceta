@@ -4,7 +4,7 @@
  */
 
 import { useCallback } from 'react';
-import { MedicationItem } from '../types';
+import { MedicationItem, MedicationPhoto } from '../types';
 
 export interface PatientFormDraft {
   step: 'info' | 'identification' | 'medication' | 'payment';
@@ -25,7 +25,7 @@ export interface PatientFormDraft {
   medicationMethod: 'new_manual' | 'upload_photo' | 'past_orders';
   selectedPastOrderId?: string;
   medicationItems: MedicationItem[];
-  medicationPhotos: { url: string; name: string }[];
+  medicationPhotos: MedicationPhoto[];
   diagnostic: string;
   comments: string;
   lastConsultationTime: string;

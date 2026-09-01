@@ -99,18 +99,24 @@ export default function PatientListView({
     // 2. Aggregate orders and create patient entries if they were submitted by guest/operator
     orders.forEach(order => {
       const cleanOrderDni = (order.patientDni || '').replace(/\D/g, '');
-      if (!cleanOrderDni) return;
+      const cleanTitularDni = (order.requestedByTitularDni || '').replace(/\D/g, '');
+      
+      // Determine primary titular DNI for this order
+      const primaryDni = (order.isForDependent && cleanTitularDni) ? cleanTitularDni : cleanOrderDni;
+      if (!primaryDni) return;
 
-      let patient = map.get(cleanOrderDni);
+      let patient = map.get(primaryDni);
       if (!patient) {
+        // If not registered as user, create patient record
+        const isDep = order.isForDependent && cleanTitularDni;
         patient = {
-          id: `PAT-${cleanOrderDni}`,
-          dni: order.patientDni,
-          name: order.patientName,
-          lastName: order.patientLastName,
-          email: order.patientEmail,
-          phone: order.patientPhone,
-          birthDate: order.patientBirthDate,
+          id: `PAT-${primaryDni}`,
+          dni: isDep ? (order.requestedByTitularDni || primaryDni) : order.patientDni,
+          name: isDep ? (order.requestedByTitularName?.split(' ')[0] || order.patientName) : order.patientName,
+          lastName: isDep ? (order.requestedByTitularName?.split(' ').slice(1).join(' ') || order.patientLastName) : order.patientLastName,
+          email: isDep ? order.requestedByTitularEmail : order.patientEmail,
+          phone: isDep ? order.requestedByTitularPhone : order.patientPhone,
+          birthDate: isDep ? undefined : order.patientBirthDate,
           city: order.patientCity,
           province: order.patientProvince,
           obraSocial: order.obraSocial,
@@ -119,19 +125,48 @@ export default function PatientListView({
           dependents: [],
           orders: [],
         };
-        map.set(cleanOrderDni, patient);
+        map.set(primaryDni, patient);
       } else {
-        // Complement empty fields from most recent orders
-        if (!patient.phone && order.patientPhone) patient.phone = order.patientPhone;
-        if (!patient.email && order.patientEmail) patient.email = order.patientEmail;
+        // Complement empty fields from orders if missing on user profile
+        if (!patient.phone && (order.requestedByTitularPhone || order.patientPhone)) {
+          patient.phone = order.requestedByTitularPhone || order.patientPhone;
+        }
+        if (!patient.email && (order.requestedByTitularEmail || order.patientEmail)) {
+          patient.email = order.requestedByTitularEmail || order.patientEmail;
+        }
         if (!patient.obraSocial && order.obraSocial) patient.obraSocial = order.obraSocial;
         if (!patient.obraSocialNumber && order.obraSocialNumber) patient.obraSocialNumber = order.obraSocialNumber;
-        if (!patient.birthDate && order.patientBirthDate) patient.birthDate = order.patientBirthDate;
+        if (!patient.birthDate && !order.isForDependent && order.patientBirthDate) patient.birthDate = order.patientBirthDate;
         if (!patient.city && order.patientCity) patient.city = order.patientCity;
         if (!patient.province && order.patientProvince) patient.province = order.patientProvince;
       }
 
-      patient.orders.push(order);
+      // If order is for a dependent, also make sure the dependent exists in patient.dependents
+      if (order.isForDependent && cleanOrderDni && cleanOrderDni !== primaryDni) {
+        const depExists = patient.dependents?.some(d => (d.dni || '').replace(/\D/g, '') === cleanOrderDni);
+        if (!depExists) {
+          patient.dependents = patient.dependents || [];
+          patient.dependents.push({
+            id: `DEP-${cleanOrderDni}`,
+            dni: order.patientDni,
+            name: order.patientName,
+            lastName: order.patientLastName,
+            birthDate: order.patientBirthDate,
+            relationship: order.dependentRelationship || 'Familiar a cargo',
+            obraSocial: order.obraSocial,
+            obraSocialNumber: order.obraSocialNumber,
+            phone: order.patientPhone,
+            email: order.patientEmail,
+            city: order.patientCity,
+            province: order.patientProvince,
+          });
+        }
+      }
+
+      // Add order to patient's orders list if not already present
+      if (!patient.orders.some(o => o.id === order.id)) {
+        patient.orders.push(order);
+      }
     });
 
     // Sort each patient's orders chronologically (newest first)

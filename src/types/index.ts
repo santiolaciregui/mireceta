@@ -26,6 +26,13 @@ export interface MedicationItem {
   photoUrl?: string;
 }
 
+export interface MedicationPhoto {
+  url: string;
+  name: string;
+  cantidadCajas?: number;
+  unidadesPorCaja?: number;
+}
+
 export interface AuditLogEntry {
   action: string;      // e.g., 'Creada', 'Inició revisión', 'Solicitó más información', 'Aprobada', 'Rechazada', 'Emitida', 'Enviada', 'Devolución de pago'
   user: string;        // e.g., 'Operador Juan Perez', 'Dr. Gómez', 'Paciente (Autogestión)'
@@ -65,7 +72,7 @@ export interface MedicalOrder {
   comments?: string;        // Optional Comments
   
   // Base64 or object-urls for mock files
-  medicationPhotos?: { url: string; name: string }[];
+  medicationPhotos?: MedicationPhoto[];
   medicationPhotoUrl: string | null;
   medicationPhotoName: string | null;
   

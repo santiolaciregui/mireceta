@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { MedicationItem } from '../types';
+import { MedicationItem, MedicationPhoto } from '../types';
 import { QrCode } from 'lucide-react';
 
 export interface OfficialOrderReceiptProps {
@@ -20,7 +20,7 @@ export interface OfficialOrderReceiptProps {
   obraSocialNumber?: string;
   deliveryMethod?: 'email' | 'whatsapp' | 'both' | string;
   medicationItems?: MedicationItem[];
-  medicationPhotos?: { url: string; name: string }[];
+  medicationPhotos?: MedicationPhoto[];
   medicationText?: string;
   diagnostic?: string;
   comments?: string;
@@ -251,10 +251,14 @@ export default function OfficialOrderReceipt({
         {medicationPhotos && medicationPhotos.length > 0 && (
           <div className="border border-slate-300 p-3 rounded bg-slate-50 text-xs mb-4">
             <p className="font-bold text-slate-800 mb-2">Archivos / Fotografías de envases o recetas previas adjuntas:</p>
-            <ul className="list-disc list-inside space-y-1 text-slate-650 font-mono">
+            <ul className="list-disc list-inside space-y-1 text-slate-700">
               {medicationPhotos.map((photo, i) => (
                 <li key={i} className="truncate">
-                  {photo.name || `archivo_adjunto_${i + 1}`}
+                  <span className="font-semibold text-slate-900">{photo.name || `archivo_adjunto_${i + 1}`}</span>
+                  <span className="text-slate-600 font-medium ml-2">
+                    — {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'Caja' : 'Cajas'}
+                    {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp./u.` : ''}
+                  </span>
                 </li>
               ))}
             </ul>

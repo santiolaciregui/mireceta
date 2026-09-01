@@ -810,28 +810,32 @@ export default function PatientStatus({
                             </span>
                             <div className="flex flex-wrap gap-2">
                               {order.medicationPhotos.map((photo, idx) => (
-                                <button
-                                  key={idx}
-                                  type="button"
-                                  onClick={() => {
-                                    if (photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf')) {
-                                      window.open(photo.url, '_blank');
-                                    } else {
-                                      setPreviewPhotoUrl(photo.url);
-                                    }
-                                  }}
-                                  className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 hover:border-blue-500 relative group cursor-pointer flex items-center justify-center bg-slate-50 shrink-0"
-                                  title={photo.name || "Ver adjunto"}
-                                >
-                                  {photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf') ? (
-                                    <FileText className="h-6 w-6 text-rose-500" />
-                                  ) : (
-                                    <img src={photo.url} alt="Adjunto" className="h-full w-full object-cover" />
-                                  )}
-                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
-                                    <Eye className="h-4 w-4" />
-                                  </div>
-                                </button>
+                                <div key={idx} className="flex flex-col items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf')) {
+                                        window.open(photo.url, '_blank');
+                                      } else {
+                                        setPreviewPhotoUrl(photo.url);
+                                      }
+                                    }}
+                                    className="h-12 w-12 rounded-xl overflow-hidden border border-slate-200 hover:border-blue-500 relative group cursor-pointer flex items-center justify-center bg-slate-50 shrink-0"
+                                    title={`${photo.name || 'Adjunto'} (${photo.cantidadCajas || 1} cajas)`}
+                                  >
+                                    {photo.url.startsWith('data:application/pdf') || photo.name?.toLowerCase().endsWith('.pdf') ? (
+                                      <FileText className="h-6 w-6 text-rose-500" />
+                                    ) : (
+                                      <img src={photo.url} alt="Adjunto" className="h-full w-full object-cover" />
+                                    )}
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-white">
+                                      <Eye className="h-4 w-4" />
+                                    </div>
+                                  </button>
+                                  <span className="text-[9px] font-bold text-slate-600 text-center max-w-[60px] truncate">
+                                    {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
+                                  </span>
+                                </div>
                               ))}
                             </div>
                           </div>

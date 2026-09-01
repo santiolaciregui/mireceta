@@ -107,7 +107,7 @@ export class OrderService {
           try {
             const fileName = photo.name || `medica_${newId}_${i}.jpg`;
             const savedUrl = await storageService.saveRecipePdf(fileName, photo.url);
-            savedPhotos.push({ url: savedUrl, name: photo.name });
+            savedPhotos.push({ ...photo, url: savedUrl, name: photo.name });
           } catch (storageErr) {
             console.error('[OrderService] Error guardando foto en almacenamiento, utilizando URL directa:', storageErr);
             savedPhotos.push(photo);

@@ -155,7 +155,15 @@ export default function DoctorDashboard({
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const DEFAULT_COLLAPSED_SECTIONS: Record<string, boolean> = {
+    patient: true,
+    dependent: true,
+    obraSocial: true,
+    medication: true,
+    payment: true,
+  };
+
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(DEFAULT_COLLAPSED_SECTIONS);
 
   const toggleSection = (sectionKey: string) => {
     setCollapsedSections(prev => ({
@@ -166,6 +174,7 @@ export default function DoctorDashboard({
 
   const isAllCollapsed = Boolean(
     collapsedSections.patient &&
+    collapsedSections.dependent &&
     collapsedSections.obraSocial &&
     collapsedSections.medication &&
     collapsedSections.payment
@@ -175,13 +184,7 @@ export default function DoctorDashboard({
     if (isAllCollapsed) {
       setCollapsedSections({});
     } else {
-      setCollapsedSections({
-        patient: true,
-        dependent: true,
-        obraSocial: true,
-        medication: true,
-        payment: true,
-      });
+      setCollapsedSections(DEFAULT_COLLAPSED_SECTIONS);
     }
   };
 
@@ -430,13 +433,6 @@ export default function DoctorDashboard({
   // Compute selected order reference (strictly scoped to currently filtered list)
   const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
 
-  // Latest 4 orders for the quick access summary
-  const latest4Orders = React.useMemo(() => {
-    return [...orders]
-      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .slice(0, 4);
-  }, [orders]);
-
   // Floating Prescription Assistant (Document PiP / Popup window)
   const {
     isOpen: isFloatingWindowOpen,
@@ -453,6 +449,11 @@ export default function DoctorDashboard({
 
   const [extractedTextCache, setExtractedTextCache] = useState<Record<string, string>>({});
   const [isExtractingCache, setIsExtractingCache] = useState<Record<string, boolean>>({});
+
+  // Reset collapsed sections whenever a new order is opened
+  React.useEffect(() => {
+    setCollapsedSections(DEFAULT_COLLAPSED_SECTIONS);
+  }, [selectedOrderId]);
 
   // Sync notes and recipe fields once an order is selected
   React.useEffect(() => {
@@ -777,88 +778,28 @@ export default function DoctorDashboard({
 
       {activeDashboardTab === 'requests' || (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') ? (
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* 4 Últimas Solicitudes & Botón Ver más pacientes */}
-          {latest4Orders.length > 0 && (
-            <div className="bg-white border-b border-slate-200/90 px-4 py-3 sm:px-6 sm:py-3 shrink-0">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2.5">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <h3 className="text-xs font-black uppercase tracking-wider text-slate-700">
-                    4 Últimas Solicitudes Recientes
-                  </h3>
-                </div>
-
-                {onNavigateToSubview && (
-                  <button
-                    type="button"
-                    onClick={() => onNavigateToSubview('pacientes')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-[#1661E1] text-[#1661E1] hover:text-white rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer border border-blue-200/70 hover:border-transparent self-start sm:self-auto group"
-                    title="Explorar el padrón completo de pacientes y sus historiales clínicos"
-                  >
-                    <Users className="h-3.5 w-3.5" />
-                    <span>Ver más pacientes</span>
-                    <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-                  </button>
-                )}
-              </div>
-
-              {/* 4 Cards Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-                {latest4Orders.map((ord) => {
-                  const isSelected = selectedOrderId === ord.id;
-                  const isCompleted = ord.status === 'Emitida' || ord.status === 'Enviada';
-                  const isPending = ord.status === 'Pendiente' || ord.status === 'En revisión' || ord.status === 'Solicita más información';
-
-                  return (
-                    <button
-                      key={ord.id}
-                      type="button"
-                      onClick={() => setSelectedOrderId(ord.id)}
-                      className={`text-left p-2.5 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-1.5 ${
-                        isSelected 
-                          ? 'bg-blue-50/90 border-[#1661E1] ring-2 ring-[#1661E1]/15 shadow-xs' 
-                          : 'bg-slate-50/70 hover:bg-white border-slate-200 hover:border-slate-300 hover:shadow-2xs'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between gap-1">
-                        <span className="text-[10px] font-mono font-bold text-slate-400 truncate">
-                          {ord.id.split('-')[0]}-{ord.id.substring(ord.id.length - 4)}
-                        </span>
-                        <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-full ${
-                          isCompleted ? 'bg-emerald-100 text-emerald-800' : isPending ? 'bg-amber-100 text-amber-800' : 'bg-rose-100 text-rose-800'
-                        }`}>
-                          {ord.status}
-                        </span>
-                      </div>
-
-                      <div>
-                        <p className="text-xs font-bold text-slate-900 truncate leading-tight">
-                          {ord.patientLastName}, {ord.patientName}
-                        </p>
-                        <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                          {ord.obraSocial} • DNI: {ord.patientDni}
-                        </p>
-                      </div>
-
-                      <div className="flex items-center justify-between text-[9px] text-slate-400 font-medium pt-1 border-t border-slate-200/60">
-                        <span className="truncate max-w-[110px]">
-                          {ord.medicationItems && ord.medicationItems.length > 0 
-                            ? ord.medicationItems[0].nombreComercial 
-                            : ord.medicationText || 'Medicación'}
-                        </span>
-                        <span>{new Date(ord.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' })}</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
           <section className="workspace flex-1">
             {/* List Pane */}
             <div className={`list-pane ${selectedOrderId ? 'hidden lg:flex' : 'flex'}`}>
-              <div className="search-bar shrink-0 space-y-3">
+              <div className="search-bar shrink-0 space-y-2.5">
+                {onNavigateToSubview && (
+                  <div className="flex items-center justify-between pb-1">
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                      Bandeja de Pedidos
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onNavigateToSubview('pacientes')}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-[#1661E1] text-[#1661E1] hover:text-white rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer border border-blue-200/70 hover:border-transparent group"
+                      title="Explorar el padrón completo de pacientes y sus historiales clínicos"
+                    >
+                      <Users className="h-3.5 w-3.5" />
+                      <span>Ver más pacientes</span>
+                      <ChevronRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="relative">
                   <input
                     type="text"
@@ -1428,32 +1369,15 @@ export default function DoctorDashboard({
                                         </div>
                                       </a>
                                     )}
-                                    <div className="p-2 text-[10px] truncate bg-slate-50 font-mono text-slate-600 border-t border-slate-100">
-                                      {photo.name}
+                                    <div className="p-2 text-[10px] bg-slate-50 border-t border-slate-100 space-y-0.5">
+                                      <p className="font-mono text-slate-700 font-bold truncate">{photo.name}</p>
+                                      <p className="text-[9px] font-bold text-[#1661E1]">
+                                        {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'Caja' : 'Cajas'}
+                                        {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp.` : ''}
+                                      </p>
                                     </div>
                                   </div>
                                 ))}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Análisis automático de envase con IA */}
-                          {((selectedOrder.medicationPhotos && selectedOrder.medicationPhotos.length > 0) || selectedOrder.medicationPhotoUrl) && (
-                            <div className="p-4 border-t border-slate-100 bg-[#0F6C7D]/5 text-[#0F6C7D]">
-                              <div className="flex gap-3 items-start text-xs">
-                                <Sparkles className="h-5 w-5 text-[#0F6C7D] shrink-0 mt-0.5" />
-                                <div className="flex-1">
-                                  <strong className="block text-[#0141BC] font-bold mb-1">Análisis Automático de Envase (IA):</strong>
-                                  {isExtractingCache[selectedOrder.id] ? (
-                                    <span className="text-[#0F6C7D] italic">Analizando imagen de envase...</span>
-                                  ) : extractedTextCache[selectedOrder.id] ? (
-                                    <div className="font-mono text-[11px] whitespace-pre-wrap bg-white/90 p-2.5 rounded-xl border border-[#0F6C7D]/20 mt-1 text-[#0141BC]">
-                                      {extractedTextCache[selectedOrder.id]}
-                                    </div>
-                                  ) : (
-                                    <span className="text-[#0F6C7D]">No se extrajo texto adicional. Verifique la imagen adjunta.</span>
-                                  )}
-                                </div>
                               </div>
                             </div>
                           )}

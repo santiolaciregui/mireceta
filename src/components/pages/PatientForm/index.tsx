@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MedicationItem, DependentPatient } from '../../../types';
+import { MedicationItem, DependentPatient, MedicationPhoto } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { copyToClipboard } from '../../../utils/clipboard';
 import Toast from '../../common/Toast';
@@ -705,7 +705,7 @@ export default function PatientForm({
   const [curComments, setCurComments] = useState('');
 
   // B. Photo Carga
-  const [medicationPhotos, setMedicationPhotos] = useState<{ url: string; name: string }[]>([]);
+  const [medicationPhotos, setMedicationPhotos] = useState<MedicationPhoto[]>([]);
   
   // Mandatory Diagnosis
   const [diagnostic, setDiagnostic] = useState('');
@@ -1079,8 +1079,14 @@ export default function PatientForm({
       const file = files[i];
       compressImageAndGetBase64(file).then((base64String) => {
         if (target === 'medication') {
-          setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
-          showToast(`¡Foto/receta "${file.name}" adjuntada al carrito con éxito!`);
+          const newPhoto: MedicationPhoto = {
+            url: base64String,
+            name: file.name,
+            cantidadCajas: 1,
+            unidadesPorCaja: 30,
+          };
+          setMedicationPhotos(prev => [...prev, newPhoto]);
+          showToast(`¡Foto/receta "${file.name}" agregada al carrito con éxito!`);
           scrollToCart();
         } else {
           setPaymentReceipt({ url: base64String, name: file.name });
@@ -1092,6 +1098,12 @@ export default function PatientForm({
         setError('Error al procesar la imagen. Intente nuevamente.');
       });
     }
+    // Reset file input value so selecting the same file triggers onChange again
+    e.target.value = '';
+  };
+
+  const handleUpdatePhotoField = (index: number, field: keyof MedicationPhoto, value: any) => {
+    setMedicationPhotos(prev => prev.map((photo, i) => i === index ? { ...photo, [field]: value } : photo));
   };
 
   // --- Action Handlers ---
@@ -1295,10 +1307,15 @@ export default function PatientForm({
           `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}${item.unidadesPorCaja ? `, ${item.unidadesPorCaja} u/caja` : ''} x ${item.cantidadCajas} cajas`
         ).join('\n');
         if (medicationPhotos.length > 0) {
-          summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
+          summaryText += '\n' + medicationPhotos.map((p, idx) => 
+            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+          ).join('\n');
         }
       } else {
-        summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos). Medicamentos visibles en el archivo adjunto.`;
+        const photoSummaries = medicationPhotos.map((p, idx) => 
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+        ).join('\n');
+        summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos):\n${photoSummaries}`;
       }
 
       const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
@@ -1419,10 +1436,15 @@ export default function PatientForm({
         `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}${item.unidadesPorCaja ? `, ${item.unidadesPorCaja} u/caja` : ''} x ${item.cantidadCajas} cajas`
       ).join('\n');
       if (medicationPhotos.length > 0) {
-        summaryText += `\n- Fotos de envases adjuntas: ${medicationPhotos.length} archivos.`;
+        summaryText += '\n' + medicationPhotos.map((p, idx) => 
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+        ).join('\n');
       }
     } else {
-      summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos). Medicamentos visibles en el archivo adjunto.`;
+      const photoSummaries = medicationPhotos.map((p, idx) => 
+        `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+      ).join('\n');
+      summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos):\n${photoSummaries}`;
     }
 
     const simulatedCashReceipt = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23ecfdf5"/><rect x="30" y="15" width="240" height="170" rx="8" fill="%23ffffff" stroke="%2310b981" stroke-width="2"/><circle cx="150" cy="60" r="22" fill="%23d1fae5"/><path d="M142,60 L148,66 L158,54" fill="none" stroke="%2310b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="110" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23065f46" text-anchor="middle">MARCADA COMO COBRADA</text><text x="150" y="135" font-family="sans-serif" font-size="14" font-weight="bold" fill="%2310b981" text-anchor="middle">EFECTIVO / CAJA</text><text x="150" y="160" font-family="sans-serif" font-size="9" fill="%2364748b" text-anchor="middle">Registrado en mesa de entrada / profesional</text></svg>`;
@@ -2910,18 +2932,18 @@ export default function PatientForm({
                   {medicationPhotos.map((photo, index) => (
                     <div 
                       key={`photo-${index}`} 
-                      className="bg-white p-3.5 rounded-2xl border border-blue-200 text-xs shadow-xs space-y-2"
+                      className="bg-white p-4 rounded-2xl border border-blue-200 text-xs shadow-xs space-y-3"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-3">
-                          <div className="h-12 w-14 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="h-12 w-14 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center overflow-hidden shrink-0 shadow-2xs">
                             {photo.url.startsWith('data:application/pdf') ? (
                               <span className="text-[10px] font-black text-slate-600">PDF</span>
                             ) : (
                               <img src={photo.url} alt="Receta" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                             )}
                           </div>
-                          <div>
+                          <div className="min-w-0">
                             <span className="text-[9px] font-black text-[#14BE99] bg-[#14BE99]/10 border border-[#14BE99]/30 px-2 py-0.5 rounded-md uppercase tracking-wider">
                               Adjunto #{index + 1}
                             </span>
@@ -2933,7 +2955,10 @@ export default function PatientForm({
                         <button
                           id={`btn-remove-photo-${index}`}
                           type="button"
-                          onClick={() => setMedicationPhotos(prev => prev.filter((_, i) => i !== index))}
+                          onClick={() => {
+                            setMedicationPhotos(prev => prev.filter((_, i) => i !== index));
+                            showToast(`"${photo.name}" eliminada del carrito`);
+                          }}
                           className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
                           title="Quitar adjunto"
                         >
@@ -2941,10 +2966,39 @@ export default function PatientForm({
                         </button>
                       </div>
 
-                      <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-slate-400">Tipo de Documento:</span>
-                          <span className="font-bold text-emerald-700">Foto de Receta / Envase</span>
+                      {/* Especificación de Cajas y Comprimidos asociada a la Imagen */}
+                      <div className="pt-2.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs bg-slate-50/70 p-2.5 rounded-xl">
+                        <div>
+                          <label htmlFor={`photo-cajas-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                            Cantidad de Cajas <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            id={`photo-cajas-${index}`}
+                            value={photo.cantidadCajas || 1}
+                            onChange={(e) => handleUpdatePhotoField(index, 'cantidadCajas', parseInt(e.target.value) || 1)}
+                            className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                          >
+                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                              <option key={num} value={num}>
+                                {num} {num === 1 ? 'Caja' : 'Cajas'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label htmlFor={`photo-unidades-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                            Cantidad de Comprimidos
+                          </label>
+                          <input
+                            id={`photo-unidades-${index}`}
+                            type="number"
+                            min="1"
+                            value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
+                            onChange={(e) => handleUpdatePhotoField(index, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
+                            placeholder="Ej: 30, 60"
+                            className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                          />
                         </div>
                       </div>
                     </div>
@@ -3231,6 +3285,89 @@ export default function PatientForm({
                       className="hidden"
                     />
                   </label>
+
+                  {/* Listado de Fotos Subidas con Cantidad de Cajas y Comprimidos */}
+                  {medicationPhotos.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#0141BC] flex items-center gap-1.5">
+                          <CheckCircle2 className="h-4 w-4 text-[#14BE99]" />
+                          <span>Imágenes adjuntadas ({medicationPhotos.length}) - Especifique cantidades:</span>
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {medicationPhotos.map((photo, index) => (
+                          <div 
+                            key={`sec-photo-${index}`}
+                            className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-3"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="h-10 w-12 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+                                  {photo.url.startsWith('data:application/pdf') ? (
+                                    <span className="text-[9px] font-black text-slate-600">PDF</span>
+                                  ) : (
+                                    <img src={photo.url} alt="Receta" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                                  )}
+                                </div>
+                                <div className="min-w-0">
+                                  <span className="text-[9px] font-bold text-[#14BE99] uppercase">Foto #{index + 1}</span>
+                                  <p className="font-extrabold text-xs text-slate-800 truncate max-w-[180px] sm:max-w-xs">{photo.name}</p>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMedicationPhotos(prev => prev.filter((_, i) => i !== index));
+                                  showToast(`"${photo.name}" eliminada del carrito`);
+                                }}
+                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors shrink-0"
+                                title="Quitar adjunto"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-100">
+                              <div>
+                                <label htmlFor={`sec-photo-cajas-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  Cantidad de Cajas <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                  id={`sec-photo-cajas-${index}`}
+                                  value={photo.cantidadCajas || 1}
+                                  onChange={(e) => handleUpdatePhotoField(index, 'cantidadCajas', parseInt(e.target.value) || 1)}
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                                >
+                                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                    <option key={num} value={num}>
+                                      {num} {num === 1 ? 'Caja' : 'Cajas'}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              <div>
+                                <label htmlFor={`sec-photo-unidades-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  Cantidad de Comprimidos
+                                </label>
+                                <input
+                                  id={`sec-photo-unidades-${index}`}
+                                  type="number"
+                                  min="1"
+                                  value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
+                                  onChange={(e) => handleUpdatePhotoField(index, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
+                                  placeholder="Ej: 30, 60"
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

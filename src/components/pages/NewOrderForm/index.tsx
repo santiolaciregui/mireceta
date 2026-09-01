@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef } from 'react';
-import { MedicationItem } from '../../../types';
+import { MedicationItem, MedicationPhoto } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import Toast from '../../common/Toast';
 import { useToast } from '../../../hooks/useToast';
@@ -86,7 +86,7 @@ export default function NewOrderForm({
   const [curCantidadCajas, setCurCantidadCajas] = useState('1');
 
   // Photo uploads
-  const [medicationPhotos, setMedicationPhotos] = useState<{ url: string; name: string }[]>([]);
+  const [medicationPhotos, setMedicationPhotos] = useState<MedicationPhoto[]>([]);
 
   // Clinical & Admin Notes
   const [diagnostic, setDiagnostic] = useState('');
@@ -226,15 +226,27 @@ export default function NewOrderForm({
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       compressImageAndGetBase64(file).then((base64String) => {
-        setMedicationPhotos(prev => [...prev, { url: base64String, name: file.name }]);
+        const newPhoto: MedicationPhoto = {
+          url: base64String,
+          name: file.name,
+          cantidadCajas: 1,
+          unidadesPorCaja: 30,
+        };
+        setMedicationPhotos(prev => [...prev, newPhoto]);
         setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
-        showToast(`¡Foto/archivo "${file.name}" adjuntado con éxito!`);
+        showToast(`¡Foto "${file.name}" agregada con éxito!`);
         scrollToCart();
       }).catch(err => {
         console.error('Error comprimiendo imagen:', err);
         setError('Error al procesar la imagen de receta.');
       });
     }
+    // Reset file input so selecting same file works
+    e.target.value = '';
+  };
+
+  const handleUpdatePhotoField = (index: number, field: keyof MedicationPhoto, value: any) => {
+    setMedicationPhotos(prev => prev.map((p, i) => i === index ? { ...p, [field]: value } : p));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -317,10 +329,15 @@ export default function NewOrderForm({
           `- ${item.nombreComercial} (${item.miligramos || 'dosis habitual'}), Pres: ${item.presentacion} x ${item.cantidadCajas} caja(s)`
         ).join('\n');
         if (medicationPhotos.length > 0) {
-          summaryText += `\n- Fotos/archivos adjuntos: ${medicationPhotos.length} archivo(s).`;
+          summaryText += '\n' + medicationPhotos.map((p, idx) => 
+            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+          ).join('\n');
         }
       } else {
-        summaryText = `Carga por Adjunto/Foto (${medicationPhotos.length} archivo(s)). Medicación visible en adjunto.`;
+        const photoSummaries = medicationPhotos.map((p, idx) => 
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+        ).join('\n');
+        summaryText = `Carga por Adjunto/Foto (${medicationPhotos.length} archivo(s)):\n${photoSummaries}`;
       }
 
       const simulatedReceiptSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23eff6ff"/><rect x="30" y="15" width="240" height="170" rx="8" fill="%23ffffff" stroke="%232563eb" stroke-width="2"/><circle cx="150" cy="60" r="22" fill="%23dbeafe"/><path d="M142,60 L148,66 L158,54" fill="none" stroke="%232563eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="110" font-family="sans-serif" font-size="14" font-weight="bold" fill="%231e3a8a" text-anchor="middle">CARGA MANUAL DE OFICIO</text><text x="150" y="135" font-family="sans-serif" font-size="16" font-weight="bold" fill="%232563eb" text-anchor="middle">${paymentMethod === 'bonificado' ? 'EXENTO / BONIFICADO' : 'MESA DE ENTRADA'}</text><text x="150" y="160" font-family="sans-serif" font-size="9" fill="%2364748b" text-anchor="middle">Registrado por Personal Sanitario</text></svg>`;
@@ -838,7 +855,7 @@ export default function NewOrderForm({
             )}
 
             {/* Optional Photo Attachment */}
-            <div>
+            <div className="space-y-3">
               <label className="block text-xs font-bold text-slate-700 mb-1.5">Adjuntar Fotos/Escaneo de Receta Anterior o Envase (Opcional)</label>
               <input
                 type="file"
@@ -847,10 +864,61 @@ export default function NewOrderForm({
                 onChange={handleFileUpload}
                 className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1661E1]/10 file:text-[#1661E1] hover:file:bg-[#1661E1]/20 cursor-pointer"
               />
+              
               {medicationPhotos.length > 0 && (
-                <div className="mt-2 text-xs text-[#0F6C7D] font-semibold flex items-center gap-1.5 bg-[#0F6C7D]/5 p-2 rounded-lg border border-[#0F6C7D]/20">
-                  <CheckCircle className="h-4 w-4 text-[#14BE99]" />
-                  <span>{medicationPhotos.length} archivo(s) adjuntado(s) correctamente</span>
+                <div className="space-y-2.5 pt-1">
+                  <span className="text-xs font-bold text-slate-700 block">Fotos/Archivos Adjuntos ({medicationPhotos.length}):</span>
+                  <div className="space-y-2">
+                    {medicationPhotos.map((photo, idx) => (
+                      <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <CheckCircle className="h-4 w-4 text-[#14BE99] shrink-0" />
+                            <span className="font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">{photo.name}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMedicationPhotos(prev => prev.filter((_, i) => i !== idx));
+                              showToast(`"${photo.name}" eliminada del pedido`);
+                            }}
+                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
+                            title="Quitar"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Cajas</label>
+                            <select
+                              value={photo.cantidadCajas || 1}
+                              onChange={e => handleUpdatePhotoField(idx, 'cantidadCajas', parseInt(e.target.value) || 1)}
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                            >
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                                <option key={num} value={num}>
+                                  {num} {num === 1 ? 'caja' : 'cajas'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Comprimidos</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
+                              onChange={e => handleUpdatePhotoField(idx, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
+                              placeholder="30"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

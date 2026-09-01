@@ -683,8 +683,12 @@ export default function FloatingPrescriptionWidget({
                       </div>
                     </a>
                   )}
-                  <div className="p-2 text-[9px] font-mono text-slate-500 truncate bg-slate-50 border-t border-slate-100">
-                    Envase/Receta: {photo.name}
+                  <div className="p-2 text-[9px] bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <span className="font-mono text-slate-700 font-bold truncate">Envase/Receta: {photo.name}</span>
+                    <span className="text-[9px] font-black text-[#1661E1] shrink-0 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                      {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
+                      {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} u.` : ''}
+                    </span>
                   </div>
                 </div>
               ))}
