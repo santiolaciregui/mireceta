@@ -56,6 +56,7 @@ export default function PatientDoctorChat({
   const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
 
   const [serverConversations, setServerConversations] = useState<any[]>([]);
+  const serverConversationsRef = useRef<any[]>([]);
 
   const fetchConversations = async () => {
     try {
@@ -68,7 +69,22 @@ export default function PatientDoctorChat({
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
-          setServerConversations(data);
+          // Compare signature to prevent unnecessary state update and re-renders
+          const prevSig = JSON.stringify(serverConversationsRef.current.map(c => ({
+            id: c.cleanDni || c.dni,
+            ts: c.lastMessageAt || c.lastTimestamp,
+            cnt: c.messages?.length || c.messagesCount || 0
+          })));
+          const nextSig = JSON.stringify(data.map(c => ({
+            id: c.cleanDni || c.dni,
+            ts: c.lastMessageAt || c.lastTimestamp,
+            cnt: c.messages?.length || c.messagesCount || 0
+          })));
+
+          if (prevSig !== nextSig) {
+            serverConversationsRef.current = data;
+            setServerConversations(data);
+          }
         }
       }
     } catch {
@@ -440,6 +456,20 @@ export default function PatientDoctorChat({
   const audioElementsRef = useRef<Record<string, HTMLAudioElement>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const prevConvoKeyRef = useRef<string | null>(null);
+  const prevMessageCountRef = useRef<number>(0);
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior
+      });
+    } else if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior });
+    }
+  };
 
   // Active selected conversation
   const activeConversation = isPatient 
@@ -471,10 +501,40 @@ export default function PatientDoctorChat({
     }
   }, [patientConversations, selectedPatientDni, isPatient]);
 
-  // Scroll to bottom when messages change
+  // Intelligent auto-scroll: smooth scroll ONLY if conversation changes or new messages arrive while user is near bottom
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-  }, [activeConversation?.messages, selectedPatientDni]);
+    const convoKey = `${selectedPatientDni || ''}_${selectedOrderId || ''}`;
+    const messages = activeConversation?.messages || [];
+    const currentMessageCount = messages.length;
+    const isConvoSwitch = prevConvoKeyRef.current !== convoKey;
+    const hasNewMessages = currentMessageCount > prevMessageCountRef.current;
+
+    if (isConvoSwitch) {
+      prevConvoKeyRef.current = convoKey;
+      prevMessageCountRef.current = currentMessageCount;
+      requestAnimationFrame(() => {
+        scrollToBottom('auto');
+      });
+      return;
+    }
+
+    if (hasNewMessages) {
+      prevMessageCountRef.current = currentMessageCount;
+      const container = messagesContainerRef.current;
+      if (container) {
+        const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 150;
+        if (isNearBottom) {
+          requestAnimationFrame(() => {
+            scrollToBottom('smooth');
+          });
+        }
+      } else {
+        requestAnimationFrame(() => {
+          scrollToBottom('smooth');
+        });
+      }
+    }
+  }, [activeConversation?.messages, selectedPatientDni, selectedOrderId]);
 
   // Mark active chat / order as read on select or when new messages arrive while viewing
   useEffect(() => {
@@ -1267,7 +1327,10 @@ export default function PatientDoctorChat({
             )}
 
             {/* MESSAGES SCROLL CANVAS */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 py-4 space-y-3">
+            <div 
+              ref={messagesContainerRef}
+              className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-6 py-4 space-y-3"
+            >
               
               {/* WhatsApp Encryption baseline notice */}
               <div className="text-center my-2">
