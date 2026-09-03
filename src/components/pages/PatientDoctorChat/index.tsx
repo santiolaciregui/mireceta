@@ -243,11 +243,22 @@ export default function PatientDoctorChat({
     if (!timestampStr) return '';
     const d = timestampStr instanceof Date ? timestampStr : new Date(timestampStr);
     if (isNaN(d.getTime())) return String(timestampStr);
+    const now = new Date();
+    const isToday = 
+      d.getDate() === now.getDate() &&
+      d.getMonth() === now.getMonth() &&
+      d.getFullYear() === now.getFullYear();
+
+    const hours = String(d.getHours()).padStart(2, '0');
+    const mins = String(d.getMinutes()).padStart(2, '0');
+
+    if (isToday) {
+      return `${hours}:${mins}`;
+    }
+
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     const year = d.getFullYear();
-    const hours = String(d.getHours()).padStart(2, '0');
-    const mins = String(d.getMinutes()).padStart(2, '0');
     return `${day}/${month}/${year} ${hours}:${mins}`;
   };
 
@@ -259,6 +270,90 @@ export default function PatientDoctorChat({
   const [chatSearchQuery, setChatSearchQuery] = useState('');
   const [showChatSearch, setShowChatSearch] = useState(false);
   const [showQuickTemplates, setShowQuickTemplates] = useState(false);
+
+  // Read status tracking per conversation or order
+  const [readTimestamps, setReadTimestamps] = useState<Record<string, number>>(() => {
+    try {
+      const saved = localStorage.getItem('chat_read_timestamps');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const markAsRead = (key: string) => {
+    if (!key) return;
+    const now = Date.now();
+    setReadTimestamps(prev => {
+      const updated = { ...prev, [key]: now };
+      try {
+        localStorage.setItem('chat_read_timestamps', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  const getConversationUnreadCount = (conv: any): number => {
+    if (selectedPatientDni === conv.cleanDni) return 0;
+
+    const readTimestamp = readTimestamps[conv.cleanDni];
+    const messages = conv.messages || [];
+
+    if (readTimestamp) {
+      return messages.filter((m: any) => {
+        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
+        return isIncoming && new Date(m.timestamp).getTime() > readTimestamp;
+      }).length;
+    }
+
+    if (messages.length > 0) {
+      let unread = 0;
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
+        if (isIncoming) {
+          unread++;
+        } else {
+          break;
+        }
+      }
+      return unread;
+    }
+
+    return conv.hasPatientReplied ? 1 : 0;
+  };
+
+  const getSolicitudUnreadCount = (item: any): number => {
+    const isSelected = selectedOrderId === item.orderId || (selectedPatientDni === item.cleanDni && !selectedOrderId);
+    if (isSelected) return 0;
+
+    const key = item.orderId || item.cleanDni;
+    const readTimestamp = readTimestamps[key] || readTimestamps[item.cleanDni];
+    const msgs = item.order?.messages || (item.lastMessage ? [item.lastMessage] : []);
+
+    if (readTimestamp) {
+      return msgs.filter((m: any) => {
+        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
+        return isIncoming && new Date(m.timestamp).getTime() > readTimestamp;
+      }).length;
+    }
+
+    if (msgs.length > 0) {
+      let unread = 0;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        const m = msgs[i];
+        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
+        if (isIncoming) {
+          unread++;
+        } else {
+          break;
+        }
+      }
+      return unread;
+    }
+
+    return item.hasPatientReplied ? 1 : 0;
+  };
 
   // Grouped list for Solicitudes (Order mode)
   const solicitudItems = useMemo(() => {
@@ -380,6 +475,16 @@ export default function PatientDoctorChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
   }, [activeConversation?.messages, selectedPatientDni]);
+
+  // Mark active chat / order as read on select or when new messages arrive while viewing
+  useEffect(() => {
+    if (selectedPatientDni) {
+      markAsRead(selectedPatientDni);
+    }
+    if (selectedOrderId) {
+      markAsRead(selectedOrderId);
+    }
+  }, [selectedPatientDni, selectedOrderId, activeConversation?.messages?.length]);
 
   // Audio recording timer
   useEffect(() => {
@@ -797,6 +902,8 @@ export default function PatientDoctorChat({
                 filteredConversations.map((conv) => {
                   const isSelected = selectedPatientDni === conv.cleanDni && !selectedOrderId;
                   const lastMsg = conv.lastMessage;
+                  const unreadCount = getConversationUnreadCount(conv);
+                  const hasUnread = unreadCount > 0;
 
                   return (
                     <button
@@ -804,6 +911,7 @@ export default function PatientDoctorChat({
                       onClick={() => {
                         setSelectedPatientDni(conv.cleanDni);
                         setSelectedOrderId(null);
+                        markAsRead(conv.cleanDni);
                       }}
                       className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
                         isSelected 
@@ -816,7 +924,7 @@ export default function PatientDoctorChat({
                         <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-teal-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-teal-200 shadow-xs">
                           {conv.name.charAt(0)}{conv.lastName.charAt(0)}
                         </div>
-                        {conv.hasPatientReplied && (
+                        {hasUnread && (
                           <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                         )}
                       </div>
@@ -824,10 +932,10 @@ export default function PatientDoctorChat({
                       {/* Patient summary snippet */}
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline gap-1">
-                          <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                          <h4 className={`text-xs sm:text-sm truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-bold text-slate-800'}`}>
                             {conv.name} {conv.lastName}
                           </h4>
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                          <span className={`text-[10px] font-mono shrink-0 ${hasUnread ? 'text-[#25D366] font-bold' : 'text-slate-400'}`}>
                             {formatChatDateTime24h(lastMsg ? lastMsg.timestamp : conv.lastTimestamp)}
                           </span>
                         </div>
@@ -845,19 +953,27 @@ export default function PatientDoctorChat({
                           </p>
                         )}
 
-                        <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
-                          {lastMsg ? (
-                            <>
-                              {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
-                                <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
-                              ) : null}
-                              <span className={`truncate ${conv.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
-                                {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                        <div className="mt-1 flex items-center justify-between gap-1">
+                          <div className="text-xs truncate flex items-center gap-1 text-slate-600 min-w-0">
+                            {lastMsg ? (
+                              <>
+                                {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
+                                  <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
+                                ) : null}
+                                <span className={`truncate ${hasUnread ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
+                                  {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">
+                                {conv.ordersCount > 0 ? `${conv.ordersCount} trámite(s) (${conv.latestOrderId})` : 'Conversación iniciada'}
                               </span>
-                            </>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">
-                              {conv.ordersCount > 0 ? `${conv.ordersCount} trámite(s) (${conv.latestOrderId})` : 'Conversación iniciada'}
+                            )}
+                          </div>
+
+                          {hasUnread && unreadCount > 0 && (
+                            <span className="shrink-0 bg-[#25D366] text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center shadow-xs">
+                              {unreadCount}
                             </span>
                           )}
                         </div>
@@ -878,6 +994,8 @@ export default function PatientDoctorChat({
                 filteredSolicitudes.map((item) => {
                   const isSelected = selectedOrderId === item.orderId || (selectedPatientDni === item.cleanDni && !selectedOrderId);
                   const lastMsg = item.lastMessage;
+                  const unreadCount = getSolicitudUnreadCount(item);
+                  const hasUnread = unreadCount > 0;
 
                   return (
                     <button
@@ -885,6 +1003,8 @@ export default function PatientDoctorChat({
                       onClick={() => {
                         setSelectedPatientDni(item.cleanDni);
                         setSelectedOrderId(item.orderId);
+                        markAsRead(item.orderId);
+                        markAsRead(item.cleanDni);
                       }}
                       className={`w-full text-left p-3 sm:p-3.5 transition-colors flex items-start gap-3 cursor-pointer border-l-4 ${
                         isSelected 
@@ -898,7 +1018,7 @@ export default function PatientDoctorChat({
                           <div className="h-10 w-10 sm:h-11 sm:w-11 rounded-full bg-emerald-100 text-[#075E54] flex items-center justify-center font-bold text-xs sm:text-sm border border-emerald-200 shadow-xs">
                             <FileText className="h-5 w-5 text-[#075E54]" />
                           </div>
-                          {item.hasPatientReplied && (
+                          {hasUnread && (
                             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                           )}
                         </div>
@@ -910,10 +1030,10 @@ export default function PatientDoctorChat({
                       {/* Solicitud Snippet */}
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-baseline gap-1">
-                          <h4 className="font-bold text-slate-800 text-xs sm:text-sm truncate">
+                          <h4 className={`text-xs sm:text-sm truncate ${hasUnread ? 'font-bold text-slate-900' : 'font-bold text-slate-800'}`}>
                             {item.patientName} {item.patientLastName}
                           </h4>
-                          <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                          <span className={`text-[10px] font-mono shrink-0 ${hasUnread ? 'text-[#25D366] font-bold' : 'text-slate-400'}`}>
                             {formatChatDateTime24h(item.timestamp)}
                           </span>
                         </div>
@@ -928,19 +1048,27 @@ export default function PatientDoctorChat({
                           </p>
                         )}
 
-                        <div className="mt-1 text-xs truncate flex items-center gap-1 text-slate-600">
-                          {lastMsg ? (
-                            <>
-                              {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
-                                <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
-                              ) : null}
-                              <span className={`truncate ${item.hasPatientReplied ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
-                                {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                        <div className="mt-1 flex items-center justify-between gap-1">
+                          <div className="text-xs truncate flex items-center gap-1 text-slate-600 min-w-0">
+                            {lastMsg ? (
+                              <>
+                                {lastMsg.sender === 'medico' || lastMsg.sender === 'colaborador' ? (
+                                  <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb] shrink-0" />
+                                ) : null}
+                                <span className={`truncate ${hasUnread ? 'font-bold text-slate-900' : 'text-slate-600 font-normal'}`}>
+                                  {lastMsg.text || (lastMsg.fileType === 'image' ? '📷 Foto adjunta' : '🎙️ Nota de voz')}
+                                </span>
+                              </>
+                            ) : (
+                              <span className="text-slate-400 italic text-[11px]">
+                                Solicitud creada ({formatChatDateTime24h(item.timestamp)})
                               </span>
-                            </>
-                          ) : (
-                            <span className="text-slate-400 italic text-[11px]">
-                              Solicitud creada ({formatChatDateTime24h(item.timestamp)})
+                            )}
+                          </div>
+
+                          {hasUnread && unreadCount > 0 && (
+                            <span className="shrink-0 bg-[#25D366] text-white text-[10px] font-bold h-4 min-w-[16px] px-1 rounded-full flex items-center justify-center shadow-xs">
+                              {unreadCount}
                             </span>
                           )}
                         </div>
