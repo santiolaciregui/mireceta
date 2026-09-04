@@ -215,6 +215,18 @@ export default function FloatingPrescriptionWidget({
     } else if (order.medicationText) {
       lines.push(order.medicationText);
     }
+
+    if (order.medicationPhotos && order.medicationPhotos.length > 0) {
+      lines.push('');
+      lines.push('FOTOS / RECETAS ADJUNTAS:');
+      order.medicationPhotos.forEach((photo, idx) => {
+        lines.push(`[Foto #${idx + 1}] ${photo.name}`);
+        lines.push(`  - Cantidad: ${photo.cantidadCajas || 1} ${(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp./u.` : ''}`);
+        if (photo.diagnostic) lines.push(`  - Diagnóstico: ${photo.diagnostic}`);
+        if (photo.comments) lines.push(`  - Comentarios: ${photo.comments}`);
+      });
+    }
+
     if (order.comments) {
       lines.push(`COMENTARIOS PACIENTE: ${order.comments}`);
     }
@@ -683,12 +695,24 @@ export default function FloatingPrescriptionWidget({
                       </div>
                     </a>
                   )}
-                  <div className="p-2 text-[9px] bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-2">
-                    <span className="font-mono text-slate-700 font-bold truncate">Envase/Receta: {photo.name}</span>
-                    <span className="text-[9px] font-black text-[#1661E1] shrink-0 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                      {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
-                      {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} u.` : ''}
-                    </span>
+                  <div className="p-2 text-[9px] bg-slate-50 border-t border-slate-100 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono text-slate-700 font-bold truncate">Envase/Receta: {photo.name}</span>
+                      <span className="text-[9px] font-black text-[#1661E1] shrink-0 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+                        {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
+                        {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} u.` : ''}
+                      </span>
+                    </div>
+                    {photo.diagnostic && (
+                      <div className="text-[9px] font-bold text-indigo-700 truncate" title={photo.diagnostic}>
+                        Diag: {photo.diagnostic}
+                      </div>
+                    )}
+                    {photo.comments && (
+                      <div className="text-[9px] text-slate-600 italic truncate" title={photo.comments}>
+                        Obs: {photo.comments}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

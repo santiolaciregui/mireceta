@@ -1375,6 +1375,16 @@ export default function DoctorDashboard({
                                         {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'Caja' : 'Cajas'}
                                         {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp.` : ''}
                                       </p>
+                                      {photo.diagnostic && (
+                                        <p className="text-[9px] text-indigo-700 font-semibold truncate" title={photo.diagnostic}>
+                                          Diag: {photo.diagnostic}
+                                        </p>
+                                      )}
+                                      {photo.comments && (
+                                        <p className="text-[9px] text-slate-600 italic truncate" title={photo.comments}>
+                                          Obs: {photo.comments}
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                 ))}

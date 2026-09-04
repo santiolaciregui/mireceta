@@ -231,6 +231,8 @@ export default function NewOrderForm({
           name: file.name,
           cantidadCajas: 1,
           unidadesPorCaja: 30,
+          diagnostic: '',
+          comments: '',
         };
         setMedicationPhotos(prev => [...prev, newPhoto]);
         setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
@@ -330,12 +332,12 @@ export default function NewOrderForm({
         ).join('\n');
         if (medicationPhotos.length > 0) {
           summaryText += '\n' + medicationPhotos.map((p, idx) => 
-            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
           ).join('\n');
         }
       } else {
         const photoSummaries = medicationPhotos.map((p, idx) => 
-          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
         ).join('\n');
         summaryText = `Carga por Adjunto/Foto (${medicationPhotos.length} archivo(s)):\n${photoSummaries}`;
       }
@@ -912,6 +914,29 @@ export default function NewOrderForm({
                               value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
                               onChange={e => handleUpdatePhotoField(idx, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
                               placeholder="30"
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Diagnóstico o Motivo</label>
+                            <input
+                              type="text"
+                              value={photo.diagnostic || ''}
+                              onChange={e => handleUpdatePhotoField(idx, 'diagnostic', e.target.value)}
+                              placeholder="Ej. Hipertensión arterial..."
+                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Comentarios / Aclaraciones</label>
+                            <input
+                              type="text"
+                              value={photo.comments || ''}
+                              onChange={e => handleUpdatePhotoField(idx, 'comments', e.target.value)}
+                              placeholder="Ej. Tomo 1 por día..."
                               className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
                             />
                           </div>

@@ -1084,6 +1084,8 @@ export default function PatientForm({
             name: file.name,
             cantidadCajas: 1,
             unidadesPorCaja: 30,
+            diagnostic: '',
+            comments: '',
           };
           setMedicationPhotos(prev => [...prev, newPhoto]);
           showToast(`¡Foto/receta "${file.name}" agregada al carrito con éxito!`);
@@ -1308,17 +1310,17 @@ export default function PatientForm({
         ).join('\n');
         if (medicationPhotos.length > 0) {
           summaryText += '\n' + medicationPhotos.map((p, idx) => 
-            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+            `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
           ).join('\n');
         }
       } else {
         const photoSummaries = medicationPhotos.map((p, idx) => 
-          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
         ).join('\n');
         summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos):\n${photoSummaries}`;
       }
 
-      const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
+      const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || medicationPhotos.map(p => p.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
       const isForDependent = !isThirdPartyUser && selectedCardId !== 'titular';
       const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
@@ -1437,19 +1439,19 @@ export default function PatientForm({
       ).join('\n');
       if (medicationPhotos.length > 0) {
         summaryText += '\n' + medicationPhotos.map((p, idx) => 
-          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+          `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
         ).join('\n');
       }
     } else {
       const photoSummaries = medicationPhotos.map((p, idx) => 
-        `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}`
+        `- Foto/Receta #${idx + 1} (${p.name}): ${p.cantidadCajas || 1} ${(p.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${p.unidadesPorCaja ? ` x ${p.unidadesPorCaja} comp./u.` : ''}${p.diagnostic ? ` [Diag: ${p.diagnostic}]` : ''}${p.comments ? ` [Obs: ${p.comments}]` : ''}`
       ).join('\n');
       summaryText = `Carga por Foto (${medicationPhotos.length} adjuntos):\n${photoSummaries}`;
     }
 
     const simulatedCashReceipt = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200" viewBox="0 0 300 200"><rect width="100%" height="100%" fill="%23ecfdf5"/><rect x="30" y="15" width="240" height="170" rx="8" fill="%23ffffff" stroke="%2310b981" stroke-width="2"/><circle cx="150" cy="60" r="22" fill="%23d1fae5"/><path d="M142,60 L148,66 L158,54" fill="none" stroke="%2310b981" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><text x="150" y="110" font-family="sans-serif" font-size="14" font-weight="bold" fill="%23065f46" text-anchor="middle">MARCADA COMO COBRADA</text><text x="150" y="135" font-family="sans-serif" font-size="14" font-weight="bold" fill="%2310b981" text-anchor="middle">EFECTIVO / CAJA</text><text x="150" y="160" font-family="sans-serif" font-size="9" fill="%2364748b" text-anchor="middle">Registrado en mesa de entrada / profesional</text></svg>`;
 
-    const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
+    const aggregatedDiagnostic = diagnostic.trim() || medicationItems.map(i => i.diagnostic).filter(Boolean).join(', ') || medicationPhotos.map(p => p.diagnostic).filter(Boolean).join(', ') || 'Sin especificar';
 
     const isForDependent = !isThirdPartyUser && selectedCardId !== 'titular';
     const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
@@ -1888,10 +1890,20 @@ export default function PatientForm({
                             </div>
                             <div className="truncate text-left flex-1 min-w-0">
                               <p className="font-bold text-slate-800 text-[11px] truncate">{photo.name}</p>
-                              <p className="text-[9px] text-slate-400 font-medium flex items-center gap-1 mt-0.5">
-                                <Camera className="h-3 w-3 text-blue-500" />
-                                <span>Archivo #{i + 1}</span>
+                              <p className="text-[9px] text-slate-500 font-medium flex items-center gap-1 mt-0.5">
+                                <Camera className="h-3 w-3 text-blue-500 shrink-0" />
+                                <span>{photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}{photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp.` : ''}</span>
                               </p>
+                              {photo.diagnostic && (
+                                <p className="text-[9px] text-indigo-600 font-semibold truncate mt-0.5" title={photo.diagnostic}>
+                                  Diag: {photo.diagnostic}
+                                </p>
+                              )}
+                              {photo.comments && (
+                                <p className="text-[9px] text-slate-500 italic truncate mt-0.5" title={photo.comments}>
+                                  Obs: {photo.comments}
+                                </p>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -2966,39 +2978,71 @@ export default function PatientForm({
                         </button>
                       </div>
 
-                      {/* Especificación de Cajas y Comprimidos asociada a la Imagen */}
-                      <div className="pt-2.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs bg-slate-50/70 p-2.5 rounded-xl">
-                        <div>
-                          <label htmlFor={`photo-cajas-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                            Cantidad de Cajas <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                            id={`photo-cajas-${index}`}
-                            value={photo.cantidadCajas || 1}
-                            onChange={(e) => handleUpdatePhotoField(index, 'cantidadCajas', parseInt(e.target.value) || 1)}
-                            className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
-                          >
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                              <option key={num} value={num}>
-                                {num} {num === 1 ? 'Caja' : 'Cajas'}
-                              </option>
-                            ))}
-                          </select>
+                      {/* Especificación de Cajas, Comprimidos, Diagnóstico y Comentarios asociada a la Imagen */}
+                      <div className="pt-2.5 border-t border-slate-100 space-y-2.5 text-xs bg-slate-50/70 p-2.5 rounded-xl">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div>
+                            <label htmlFor={`photo-cajas-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Cantidad de Cajas <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                              id={`photo-cajas-${index}`}
+                              value={photo.cantidadCajas || 1}
+                              onChange={(e) => handleUpdatePhotoField(index, 'cantidadCajas', parseInt(e.target.value) || 1)}
+                              className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 cursor-pointer focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                            >
+                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                <option key={num} value={num}>
+                                  {num} {num === 1 ? 'Caja' : 'Cajas'}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label htmlFor={`photo-unidades-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Cantidad de Comprimidos
+                            </label>
+                            <input
+                              id={`photo-unidades-${index}`}
+                              type="number"
+                              min="1"
+                              value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
+                              onChange={(e) => handleUpdatePhotoField(index, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
+                              placeholder="Ej: 30, 60"
+                              className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                            />
+                          </div>
                         </div>
 
-                        <div>
-                          <label htmlFor={`photo-unidades-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
-                            Cantidad de Comprimidos
-                          </label>
-                          <input
-                            id={`photo-unidades-${index}`}
-                            type="number"
-                            min="1"
-                            value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
-                            onChange={(e) => handleUpdatePhotoField(index, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
-                            placeholder="Ej: 30, 60"
-                            className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
-                          />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2 border-t border-slate-200/60">
+                          <div>
+                            <label htmlFor={`photo-diagnostic-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Diagnóstico o Motivo
+                            </label>
+                            <input
+                              id={`photo-diagnostic-${index}`}
+                              type="text"
+                              value={photo.diagnostic || ''}
+                              onChange={(e) => handleUpdatePhotoField(index, 'diagnostic', e.target.value)}
+                              placeholder="Ej. Hipertensión arterial..."
+                              className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                            />
+                          </div>
+
+                          <div>
+                            <label htmlFor={`photo-comments-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                              Comentarios / Aclaraciones
+                            </label>
+                            <input
+                              id={`photo-comments-${index}`}
+                              type="text"
+                              value={photo.comments || ''}
+                              onChange={(e) => handleUpdatePhotoField(index, 'comments', e.target.value)}
+                              placeholder="Ej. Tomo 1 por día..."
+                              className="w-full px-3 py-1.5 bg-white border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] shadow-2xs"
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -3359,6 +3403,36 @@ export default function PatientForm({
                                   value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
                                   onChange={(e) => handleUpdatePhotoField(index, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
                                   placeholder="Ej: 30, 60"
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                              <div>
+                                <label htmlFor={`sec-photo-diagnostic-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  Diagnóstico o Motivo de prescripción
+                                </label>
+                                <input
+                                  id={`sec-photo-diagnostic-${index}`}
+                                  type="text"
+                                  value={photo.diagnostic || ''}
+                                  onChange={(e) => handleUpdatePhotoField(index, 'diagnostic', e.target.value)}
+                                  placeholder="Ej. Hipertensión arterial, Diabetes tipo 2, Hipotiroidismo..."
+                                  className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
+                                />
+                              </div>
+
+                              <div>
+                                <label htmlFor={`sec-photo-comments-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                                  Comentarios / Aclaraciones Adicionales <span className="text-slate-400 font-normal">(Opcional)</span>
+                                </label>
+                                <input
+                                  id={`sec-photo-comments-${index}`}
+                                  type="text"
+                                  value={photo.comments || ''}
+                                  onChange={(e) => handleUpdatePhotoField(index, 'comments', e.target.value)}
+                                  placeholder="Ej. Tomo 1 comprimido diario por la mañana. Marca habitual: Lotrial."
                                   className="w-full px-3 py-2 bg-slate-50 border border-slate-250 rounded-lg text-xs font-bold text-slate-800 focus:ring-2 focus:ring-[#1661E1] focus:bg-white"
                                 />
                               </div>

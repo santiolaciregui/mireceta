@@ -31,6 +31,9 @@ export interface MedicationPhoto {
   name: string;
   cantidadCajas?: number;
   unidadesPorCaja?: number;
+  diagnostic?: string;
+  diagnostico?: string;
+  comments?: string;
 }
 
 export interface AuditLogEntry {

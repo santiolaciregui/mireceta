@@ -258,6 +258,8 @@ export default function OfficialOrderReceipt({
                   <span className="text-slate-600 font-medium ml-2">
                     — {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'Caja' : 'Cajas'}
                     {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp./u.` : ''}
+                    {photo.diagnostic ? ` [Diag: ${photo.diagnostic}]` : ''}
+                    {photo.comments ? ` [Obs: ${photo.comments}]` : ''}
                   </span>
                 </li>
               ))}

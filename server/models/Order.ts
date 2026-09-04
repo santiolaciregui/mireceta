@@ -53,6 +53,8 @@ export interface IMedicalOrder extends Document {
     name: string;
     cantidadCajas?: number;
     unidadesPorCaja?: number;
+    diagnostic?: string;
+    comments?: string;
   }[];
   medicationPhotoUrl: string | null;
   medicationPhotoName: string | null;
@@ -175,7 +177,9 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
     url: { type: String },
     name: { type: String },
     cantidadCajas: { type: Number, default: 1 },
-    unidadesPorCaja: { type: Number }
+    unidadesPorCaja: { type: Number },
+    diagnostic: { type: String },
+    comments: { type: String }
   }],
   medicationPhotoUrl: { type: String },
   medicationPhotoName: { type: String },
