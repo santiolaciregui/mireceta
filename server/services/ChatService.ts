@@ -87,7 +87,8 @@ export class ChatService {
         latestOrderId: '',
         latestMedicationText: '',
         messages: Array.isArray(p.messages) ? [...p.messages] : [],
-        lastPatientWhatsAppInteractionAt: p.lastPatientWhatsAppInteractionAt || ''
+        lastPatientWhatsAppInteractionAt: p.lastPatientWhatsAppInteractionAt || '',
+        createdAt: p.createdAt ? new Date(p.createdAt).toISOString() : null
       });
     }
 
@@ -112,7 +113,8 @@ export class ChatService {
           latestOrderId: o.id,
           latestMedicationText: o.medicationText || '',
           messages: [],
-          lastPatientWhatsAppInteractionAt: o.lastPatientWhatsAppInteractionAt || ''
+          lastPatientWhatsAppInteractionAt: o.lastPatientWhatsAppInteractionAt || '',
+          createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : null
         };
         patientMap.set(clean, entry);
       }
@@ -150,17 +152,51 @@ export class ChatService {
       const lastMsg = dedupedMessages.length > 0 ? dedupedMessages[dedupedMessages.length - 1] : null;
       const isFromPatient = lastMsg?.sender === 'paciente';
 
+      let latestOrderAt: string | null = null;
+      if (conv.orders && conv.orders.length > 0) {
+        const sortedOrders = [...conv.orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        if (sortedOrders[0]?.createdAt) {
+          latestOrderAt = new Date(sortedOrders[0].createdAt).toISOString();
+        }
+      }
+
+      const lastMessageAt = lastMsg?.timestamp || conv.lastPatientWhatsAppInteractionAt || latestOrderAt || conv.createdAt || null;
+
       return {
         ...conv,
         messages: dedupedMessages,
         messagesCount: dedupedMessages.length,
         lastMessage: lastMsg,
         hasPatientReplied: isFromPatient,
-        lastMessageAt: lastMsg?.timestamp || conv.lastPatientWhatsAppInteractionAt || conv.orders?.[0]?.createdAt || new Date().toISOString()
+        lastMessageAt
       };
     });
 
-    conversations.sort((a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime());
+    conversations.sort((a, b) => {
+      const aTime = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
+      const bTime = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+
+      // 1. Conversations with actual messages always on top, newest message first
+      if (aTime && bTime) {
+        return bTime - aTime;
+      }
+      if (aTime && !bTime) return -1;
+      if (!aTime && bTime) return 1;
+
+      // 2. Conversations without messages: sort by latest order or registration date
+      const aFallback = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
+      const bFallback = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
+      if (aFallback && bFallback && aFallback !== bFallback) {
+        return bFallback - aFallback;
+      }
+      if (aFallback && !bFallback) return -1;
+      if (!aFallback && bFallback) return 1;
+
+      // 3. Fallback: alphabetical by last name, name
+      const aName = `${a.patientLastName || ''} ${a.patientName || ''}`.trim();
+      const bName = `${b.patientLastName || ''} ${b.patientName || ''}`.trim();
+      return aName.localeCompare(bName, 'es-AR');
+    });
     return conversations;
   }
 

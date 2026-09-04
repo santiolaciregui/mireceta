@@ -36,10 +36,11 @@ import {
 import { MedicalOrder, DependentPatient } from '../../../types';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
+import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
-  onCancelOrder: (id: string) => void;
+  onCancelOrder: (id: string) => Promise<boolean | void> | void;
   recentDni?: string;
   onSetDni?: (dni: string) => void;
   currentUser?: any;
@@ -67,12 +68,28 @@ export default function PatientStatus({
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null);
   const [orderToPrint, setOrderToPrint] = useState<MedicalOrder | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [orderToCancel, setOrderToCancel] = useState<MedicalOrder | null>(null);
+  const [isCancellingOrder, setIsCancellingOrder] = useState(false);
 
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => {
       setToast(null);
     }, 3500);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!orderToCancel) return;
+    setIsCancellingOrder(true);
+    try {
+      await onCancelOrder(orderToCancel.id);
+      showToast('Solicitud cancelada y eliminada correctamente');
+      setOrderToCancel(null);
+    } catch (err: any) {
+      showToast(err.message || 'Error al cancelar la solicitud');
+    } finally {
+      setIsCancellingOrder(false);
+    }
   };
 
   const handleCopyOrderId = async (e: React.MouseEvent, id: string) => {
@@ -914,12 +931,7 @@ export default function PatientStatus({
                         {isPending && (
                           <button
                             type="button"
-                            onClick={() => {
-                              if (window.confirm('¿Está seguro que desea cancelar esta solicitud?')) {
-                                onCancelOrder(order.id);
-                                showToast('Solicitud cancelada correctamente');
-                              }
-                            }}
+                            onClick={() => setOrderToCancel(order)}
                             className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
                             <X className="h-3.5 w-3.5" />
@@ -976,6 +988,27 @@ export default function PatientStatus({
           />
         </div>
       )}
+
+      {/* Confirmation Modal for Patient Order Cancellation */}
+      <ConfirmDeleteModal
+        isOpen={!!orderToCancel}
+        onClose={() => {
+          if (!isCancellingOrder) setOrderToCancel(null);
+        }}
+        onConfirm={handleCancelConfirm}
+        isLoading={isCancellingOrder}
+        title="¿Cancelar Solicitud de Receta?"
+        description="Si cancelás tu solicitud, será eliminada permanentemente del sistema. Si ya realizaste un pago, el mismo será procesado según las políticas de reembolso."
+        itemSummary={orderToCancel ? {
+          id: orderToCancel.id,
+          title: `${orderToCancel.patientLastName}, ${orderToCancel.patientName}`,
+          subtitle: `Obra Social: ${orderToCancel.obraSocial}`,
+          tag: 'Pendiente',
+          extra: `Fecha: ${new Date(orderToCancel.createdAt).toLocaleDateString('es-AR')}`
+        } : undefined}
+        confirmLabel="Sí, cancelar y eliminar"
+        cancelLabel="Volver"
+      />
 
     </div>
   );

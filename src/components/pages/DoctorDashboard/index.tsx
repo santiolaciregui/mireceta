@@ -11,6 +11,7 @@ import { MedicalOrder, OrderStatus } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
 import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
+import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   FileText, 
@@ -69,6 +70,7 @@ interface DoctorDashboardProps {
     recipePdfUrl?: string, 
     recipePdfName?: string
   ) => void;
+  onDeleteOrder?: (id: string) => Promise<boolean | void> | void;
   onCreateOrder?: (data: any) => Promise<string>;
   onSendRecipeLink?: (
     orderId: string,
@@ -99,6 +101,7 @@ export default function DoctorDashboard({
   orders, 
   users = [],
   onUpdateStatus, 
+  onDeleteOrder,
   onCreateOrder, 
   onSendRecipeLink,
   currentUser,
@@ -325,6 +328,27 @@ export default function DoctorDashboard({
     setTimeout(() => {
       setToast(null);
     }, 4500);
+  };
+
+  // Delete Order States & Handler
+  const [orderToDelete, setOrderToDelete] = useState<MedicalOrder | null>(null);
+  const [isDeletingOrder, setIsDeletingOrder] = useState(false);
+
+  const handleDeleteConfirm = async () => {
+    if (!orderToDelete || !onDeleteOrder) return;
+    setIsDeletingOrder(true);
+    try {
+      await onDeleteOrder(orderToDelete.id);
+      if (selectedOrderId === orderToDelete.id) {
+        setSelectedOrderId(null);
+      }
+      showToast('Solicitud eliminada correctamente');
+      setOrderToDelete(null);
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar la solicitud');
+    } finally {
+      setIsDeletingOrder(false);
+    }
   };
 
   // Send Recipe Link Modal States
@@ -859,11 +883,33 @@ export default function DoctorDashboard({
                       <button
                         key={order.id}
                         onClick={() => setSelectedOrderId(order.id)}
-                        className={`order-card ${isActive ? 'selected' : ''}`}
+                        className={`order-card group relative ${isActive ? 'selected' : ''}`}
                       >
-                        <div className="order-meta">
+                        <div className="order-meta items-center">
                           <span>{order.id.split('-')[0]}-{order.id.substring(order.id.length-4)}</span>
-                          <span>{new Date(order.createdAt).toLocaleDateString('es-AR')}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span>{new Date(order.createdAt).toLocaleDateString('es-AR')}</span>
+                            {onDeleteOrder && (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setOrderToDelete(order);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' || e.key === ' ') {
+                                    e.stopPropagation();
+                                    setOrderToDelete(order);
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-rose-600 transition-all cursor-pointer inline-flex items-center"
+                                title="Eliminar solicitud"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p className="order-name">
                           {order.patientLastName}, {order.patientName}
@@ -989,6 +1035,18 @@ export default function DoctorDashboard({
                           >
                             <MessageSquare className="h-4 w-4 text-emerald-600" />
                             <span>Chatear con Paciente</span>
+                          </button>
+                        )}
+
+                        {onDeleteOrder && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderToDelete(selectedOrder)}
+                            className="bg-white hover:bg-rose-50 text-rose-600 border border-rose-200/90 hover:border-rose-300 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+                            title="Eliminar esta solicitud"
+                          >
+                            <Trash2 className="h-4 w-4 text-rose-600" />
+                            <span>Eliminar</span>
                           </button>
                         )}
                       </div>
@@ -1744,6 +1802,17 @@ export default function DoctorDashboard({
                               >
                                 RECHAZAR SOLICITUD
                               </button>
+                              {onDeleteOrder && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOrderToDelete(selectedOrder)}
+                                  className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-5 py-3.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-xs"
+                                  title="Eliminar permanentemente esta solicitud"
+                                >
+                                  <Trash2 className="h-4 w-4 text-rose-600" />
+                                  <span>ELIMINAR SOLICITUD</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -1793,10 +1862,25 @@ export default function DoctorDashboard({
                         )}
 
                         {selectedOrder.status === 'Rechazada' && (
-                          <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center">
-                            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto mb-2" />
-                            <h4 className="font-bold text-rose-900 text-base">Solicitud Rechazada</h4>
-                            <p className="text-xs text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue desestimada tras evaluación clínica.'}</p>
+                          <div className="bg-rose-50 border border-rose-200 p-6 rounded-2xl text-center space-y-3">
+                            <AlertCircle className="h-8 w-8 text-rose-600 mx-auto" />
+                            <div>
+                              <h4 className="font-bold text-rose-900 text-base">Solicitud Rechazada</h4>
+                              <p className="text-xs text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue desestimada tras evaluación clínica.'}</p>
+                            </div>
+                            {onDeleteOrder && (
+                              <div className="pt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setOrderToDelete(selectedOrder)}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-rose-100 border border-rose-300 text-rose-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+                                  title="Eliminar permanentemente esta solicitud rechazada"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  <span>Eliminar Solicitud Rechazada</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </>
@@ -2184,6 +2268,27 @@ export default function DoctorDashboard({
         />,
         pipContainer
       )}
+
+      {/* Confirmation Modal for Order Deletion */}
+      <ConfirmDeleteModal
+        isOpen={!!orderToDelete}
+        onClose={() => {
+          if (!isDeletingOrder) setOrderToDelete(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        isLoading={isDeletingOrder}
+        title="¿Eliminar Solicitud Médica?"
+        description="Esta acción eliminará de forma permanente la solicitud médica seleccionada, sus comprobantes y su historial. Esta acción no se puede deshacer."
+        itemSummary={orderToDelete ? {
+          id: orderToDelete.id,
+          title: `${orderToDelete.patientLastName}, ${orderToDelete.patientName}`,
+          subtitle: `DNI: ${orderToDelete.patientDni} • ${orderToDelete.obraSocial}`,
+          tag: orderToDelete.status,
+          extra: `Fecha: ${new Date(orderToDelete.createdAt).toLocaleDateString('es-AR')}`
+        } : undefined}
+        confirmLabel="Sí, eliminar solicitud"
+        cancelLabel="Cancelar"
+      />
     </div>
   );
 }

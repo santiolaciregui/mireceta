@@ -358,7 +358,7 @@ export function useMedicalOrders() {
   };
 
   // Delete/Cancel medical order
-  const deleteOrder = async (orderId: string) => {
+  const deleteOrder = async (orderId: string): Promise<boolean> => {
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'DELETE',
@@ -366,9 +366,13 @@ export function useMedicalOrders() {
       });
       if (res.ok) {
         setOrders((prev) => prev.filter((o) => o.id !== orderId));
+        return true;
       }
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Error al eliminar la solicitud');
     } catch (err) {
-      console.error(err);
+      console.error('deleteOrder error:', err);
+      throw err;
     }
   };
 

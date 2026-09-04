@@ -625,6 +625,7 @@ export default function App() {
                     orders={orders}
                     users={users}
                     onUpdateStatus={updateOrderStatus}
+                    onDeleteOrder={deleteOrder}
                     onSendRecipeLink={sendRecipeLink}
                     onCreateOrder={createOrder}
                     currentUser={currentUser}
