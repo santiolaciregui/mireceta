@@ -31,7 +31,8 @@ import {
   Search,
   Filter,
   Printer,
-  RotateCcw
+  RotateCcw,
+  Trash2
 } from 'lucide-react';
 import { MedicalOrder, DependentPatient } from '../../../types';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
@@ -549,6 +550,22 @@ export default function PatientStatus({
 
                   {/* Actions & Chevron Right */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {/* Direct Delete Button if pending */}
+                    {isPending && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOrderToCancel(order);
+                        }}
+                        className="bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200/80 hover:border-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
+                        title="Eliminar solicitud pendiente"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    )}
+
                     {/* Direct Download Button if emitted */}
                     {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                       <a
@@ -927,15 +944,15 @@ export default function PatientStatus({
                           </button>
                         )}
 
-                        {/* Cancel order button if pending */}
+                        {/* Cancel/Delete order button if pending */}
                         {isPending && (
                           <button
                             type="button"
                             onClick={() => setOrderToCancel(order)}
                             className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
-                            <X className="h-3.5 w-3.5" />
-                            <span>Cancelar Pedido</span>
+                            <Trash2 className="h-3.5 w-3.5 text-rose-600" />
+                            <span>Eliminar Solicitud</span>
                           </button>
                         )}
                       </div>
@@ -989,7 +1006,7 @@ export default function PatientStatus({
         </div>
       )}
 
-      {/* Confirmation Modal for Patient Order Cancellation */}
+      {/* Confirmation Modal for Patient Order Cancellation / Deletion */}
       <ConfirmDeleteModal
         isOpen={!!orderToCancel}
         onClose={() => {
@@ -997,8 +1014,8 @@ export default function PatientStatus({
         }}
         onConfirm={handleCancelConfirm}
         isLoading={isCancellingOrder}
-        title="¿Cancelar Solicitud de Receta?"
-        description="Si cancelás tu solicitud, será eliminada permanentemente del sistema. Si ya realizaste un pago, el mismo será procesado según las políticas de reembolso."
+        title="¿Eliminar Solicitud Pendiente?"
+        description="Esta acción eliminará de forma permanente tu solicitud pendiente del sistema. Si ya realizaste un pago, el mismo será procesado según las políticas de reembolso."
         itemSummary={orderToCancel ? {
           id: orderToCancel.id,
           title: `${orderToCancel.patientLastName}, ${orderToCancel.patientName}`,
@@ -1006,8 +1023,8 @@ export default function PatientStatus({
           tag: 'Pendiente',
           extra: `Fecha: ${new Date(orderToCancel.createdAt).toLocaleDateString('es-AR')}`
         } : undefined}
-        confirmLabel="Sí, cancelar y eliminar"
-        cancelLabel="Volver"
+        confirmLabel="Sí, eliminar solicitud"
+        cancelLabel="Cancelar"
       />
 
     </div>

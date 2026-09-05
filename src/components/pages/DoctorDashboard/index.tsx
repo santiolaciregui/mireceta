@@ -903,10 +903,10 @@ export default function DoctorDashboard({
                                     setOrderToDelete(order);
                                   }
                                 }}
-                                className="opacity-0 group-hover:opacity-100 hover:opacity-100 p-0.5 rounded text-slate-400 hover:text-rose-600 transition-all cursor-pointer inline-flex items-center"
+                                className="opacity-70 hover:opacity-100 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer inline-flex items-center"
                                 title="Eliminar solicitud"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Trash2 className="h-3.5 w-3.5" />
                               </span>
                             )}
                           </div>
@@ -1593,8 +1593,19 @@ export default function DoctorDashboard({
                   {/* Doctor Actions & Prescribing Workflow */}
                   <div className="mt-6 pt-6 border-t border-slate-200/80">
                     {currentUser?.role === 'admin' ? (
-                      <div className="bg-slate-100 border border-slate-200 p-4 rounded-xl text-center text-slate-600 text-xs font-medium">
-                        Modo solo lectura (Administrador). Los administradores pueden visualizar solicitudes pero no crearlas ni modificar su estado.
+                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-600 text-xs font-medium">
+                        <span>Modo solo lectura (Administrador). Los administradores pueden visualizar solicitudes y gestionar su eliminación.</span>
+                        {onDeleteOrder && (
+                          <button
+                            type="button"
+                            onClick={() => setOrderToDelete(selectedOrder)}
+                            className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-xs shrink-0"
+                            title="Eliminar esta solicitud"
+                          >
+                            <Trash2 className="h-4 w-4 text-rose-600" />
+                            <span>Eliminar Solicitud</span>
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <>
@@ -1604,7 +1615,7 @@ export default function DoctorDashboard({
                               <h4 className="font-bold text-amber-900 text-sm">Solicitud Pendiente de Revisión Médica</h4>
                               <p className="text-xs text-amber-700 mt-0.5">Al iniciar la revisión médica, el paciente será notificado y la solicitud pasará al estado activo.</p>
                             </div>
-                            <div className="flex items-center gap-3 w-full sm:w-auto shrink-0">
+                            <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto shrink-0">
                               <button
                                 onClick={() => handleMarkInProcess(selectedOrder.id)}
                                 className="flex-1 sm:flex-initial bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white px-6 py-3 rounded-xl text-xs font-bold cursor-pointer transition-all shadow-md"
@@ -1620,6 +1631,17 @@ export default function DoctorDashboard({
                               >
                                 Rechazar
                               </button>
+                              {onDeleteOrder && (
+                                <button
+                                  type="button"
+                                  onClick={() => setOrderToDelete(selectedOrder)}
+                                  className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-4 py-3 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                                  title="Eliminar permanentemente esta solicitud pendiente"
+                                >
+                                  <Trash2 className="h-4 w-4 text-rose-600" />
+                                  <span>Eliminar Solicitud</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -2277,8 +2299,12 @@ export default function DoctorDashboard({
         }}
         onConfirm={handleDeleteConfirm}
         isLoading={isDeletingOrder}
-        title="¿Eliminar Solicitud Médica?"
-        description="Esta acción eliminará de forma permanente la solicitud médica seleccionada, sus comprobantes y su historial. Esta acción no se puede deshacer."
+        title={orderToDelete?.status === 'Pendiente' ? "¿Eliminar Solicitud Pendiente?" : "¿Eliminar Solicitud Médica?"}
+        description={
+          orderToDelete?.status === 'Pendiente'
+            ? "Esta acción eliminará de forma permanente esta solicitud pendiente, sus datos cargados y su historial. Esta acción no se puede deshacer."
+            : "Esta acción eliminará de forma permanente la solicitud médica seleccionada, sus comprobantes y su historial. Esta acción no se puede deshacer."
+        }
         itemSummary={orderToDelete ? {
           id: orderToDelete.id,
           title: `${orderToDelete.patientLastName}, ${orderToDelete.patientName}`,
