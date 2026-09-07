@@ -51,7 +51,6 @@ export class OrderService {
     }
 
     const newId = generateOrderId();
-    const finalPaymentId = orderData.paymentId || `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
 
     const tenantIdToUse = currentUser?.tenantId || orderData.tenantId || 'TEN-0001';
     let basePricePerPrescription = 10000;
@@ -77,6 +76,23 @@ export class OrderService {
 
     const isExempt = pricing.isExempt;
     const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
+
+    // Payment method & ID resolution
+    let finalPaymentMethod = orderData.paymentMethod || 'mp';
+    let finalPaymentId = orderData.paymentId;
+
+    if (isExempt) {
+      finalPaymentMethod = 'bonificado';
+      finalPaymentId = orderData.paymentId && !orderData.paymentId.startsWith('MP-') ? orderData.paymentId : 'EXENTO';
+    } else if (!finalPaymentId) {
+      if (finalPaymentMethod === 'cash_desk') {
+        finalPaymentId = `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`;
+      } else if (finalPaymentMethod === 'transfer') {
+        finalPaymentId = `TRANS-${Math.floor(100000 + Math.random() * 900000)}`;
+      } else {
+        finalPaymentId = `MP-${Math.floor(10000000 + Math.random() * 90000000)}`;
+      }
+    }
 
     const isForDependent = Boolean(orderData.isForDependent);
     const dependentRelationship = orderData.dependentRelationship;
@@ -133,6 +149,7 @@ export class OrderService {
       requestedByTitularDni,
       requestedByTitularEmail,
       requestedByTitularPhone,
+      paymentMethod: finalPaymentMethod,
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
       paymentAmount: pricing.amountFormatted,

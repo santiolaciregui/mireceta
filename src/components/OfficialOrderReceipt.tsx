@@ -73,6 +73,9 @@ export default function OfficialOrderReceipt({
   };
 
   const getPaymentMethodLabel = () => {
+    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || obraSocial === 'PAMI (Inssjp)' || paymentMethod === 'bonificado') {
+      return 'Bonificado / Exento';
+    }
     if (paymentMethod === 'mp') return 'Mercado Pago (Online)';
     if (paymentMethod === 'cash_desk') return 'Cobro en Ventanilla / Efectivo';
     if (paymentMethod === 'transfer') return 'Transferencia Bancaria';

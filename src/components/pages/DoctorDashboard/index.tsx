@@ -218,15 +218,15 @@ export default function DoctorDashboard({
   };
 
   const getOrderPaymentMethod = (order: MedicalOrder) => {
+    if (order.paymentStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado') {
+      return 'bonificado';
+    }
     if (order.paymentMethod) return order.paymentMethod;
     const paymentId = order.paymentId || '';
     const receiptName = order.paymentReceiptName || '';
     const receiptUrl = order.paymentReceiptUrl || '';
     if (paymentId.startsWith('EFECTIVO-') || receiptName === 'cobrado_ventanilla.png' || receiptName === 'carga_manual_efectivo.png' || receiptName === 'registro_oficio.png') {
       return 'cash_desk';
-    }
-    if (order.paymentStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0') {
-      return 'bonificado';
     }
     if (receiptUrl && !receiptUrl.startsWith('data:image/svg+xml') && receiptName !== 'cobrado_ventanilla.png' && receiptName !== 'carga_manual_efectivo.png' && receiptName !== 'registro_oficio.png') {
       return 'transfer';
@@ -1494,9 +1494,16 @@ export default function DoctorDashboard({
                               })()} 
                               fieldId="paymentMethodDisplay" 
                             />
-                            {selectedOrder.paymentId && (
-                              <CopyableFieldRow label="ID de Transacción / Pago" value={selectedOrder.paymentId} fieldId="paymentId" />
-                            )}
+                            {(() => {
+                              const isExempt = selectedOrder.paymentStatus === 'exempt' || getOrderPaymentMethod(selectedOrder) === 'bonificado';
+                              const displayId = isExempt
+                                ? (selectedOrder.paymentId && !selectedOrder.paymentId.startsWith('MP-') ? selectedOrder.paymentId : 'Exento de arancel')
+                                : selectedOrder.paymentId;
+                              if (!displayId) return null;
+                              return (
+                                <CopyableFieldRow label="ID de Transacción / Pago" value={displayId} fieldId="paymentId" />
+                              );
+                            })()}
                             <CopyableFieldRow label="Monto" value={`$${selectedOrder.paymentAmount || '0'}`} fieldId="paymentAmount" />
                             <CopyableFieldRow 
                               label="Estado del Pago" 

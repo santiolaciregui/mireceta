@@ -887,6 +887,11 @@ export default function PatientForm({
 
   // Calculate costs based on medications count
   useEffect(() => {
+    const isPami = selectedObraSocial?.trim() === 'PAMI (Inssjp)';
+    if (isPami) {
+      setPaymentAmount('0');
+      return;
+    }
     const itemsCount = medicationItems.length;
     const photosCount = medicationPhotos.length;
     const count = (itemsCount + photosCount) > 0 ? (itemsCount + photosCount) : 1;
@@ -1411,8 +1416,10 @@ export default function PatientForm({
     e.preventDefault();
     setError(null);
 
+    const isExempt = selectedObraSocial?.trim() === 'PAMI (Inssjp)' || paymentAmount === '0';
+
     // Final payment checks
-    if (paymentMethod !== 'cash_desk') {
+    if (!isExempt && paymentMethod !== 'cash_desk') {
       if (paymentMethod === 'mp' && !mpPaymentApproved) {
         // Direct execution of Mercado Pago payment redirect
         processMercadoPagoPayment();
@@ -1488,21 +1495,27 @@ export default function PatientForm({
       medicationPhotos,
       medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
-      paymentMethod,
+      paymentMethod: isExempt ? 'bonificado' : paymentMethod,
       
       // Payment details
-      paymentReceiptUrl: paymentMethod === 'cash_desk'
-        ? simulatedCashReceipt
-        : (paymentReceipt ? paymentReceipt.url : null),
-      paymentReceiptName: paymentMethod === 'cash_desk'
-        ? 'cobrado_ventanilla.png'
-        : (paymentReceipt ? paymentReceipt.name : null),
-      paymentAmount,
+      paymentReceiptUrl: isExempt
+        ? null
+        : (paymentMethod === 'cash_desk'
+            ? simulatedCashReceipt
+            : (paymentReceipt ? paymentReceipt.url : null)),
+      paymentReceiptName: isExempt
+        ? null
+        : (paymentMethod === 'cash_desk'
+            ? 'cobrado_ventanilla.png'
+            : (paymentReceipt ? paymentReceipt.name : null)),
+      paymentAmount: isExempt ? '0' : paymentAmount,
       paymentDate: new Date().toISOString(),
-      paymentId: paymentMethod === 'cash_desk'
-        ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
-        : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`),
-      paymentStatus: paymentAmount === '0' ? 'exempt' : 'approved',
+      paymentId: isExempt
+        ? 'EXENTO'
+        : (paymentMethod === 'cash_desk'
+            ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
+            : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`)),
+      paymentStatus: isExempt ? 'exempt' : 'approved',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
@@ -3530,7 +3543,9 @@ export default function PatientForm({
         )}
 
         {/* STEP 3: PAYMENT */}
-        {step === 'payment' && (
+        {step === 'payment' && (() => {
+          const isExemptOrder = selectedObraSocial?.trim() === 'PAMI (Inssjp)' || paymentAmount === '0';
+          return (
           <div className="space-y-4 animate-fadeIn">
             
             {/* Elegant calculation card */}
@@ -3548,8 +3563,17 @@ export default function PatientForm({
 
                 <div className="text-right">
                   <div>
-                    <span className="text-2xl font-black text-blue-400">${paymentAmount}</span>
-                    <span className="text-xs text-slate-400 font-bold"> ARS</span>
+                    {isExemptOrder ? (
+                      <>
+                        <span className="text-2xl font-black text-emerald-400">$0</span>
+                        <span className="text-xs text-slate-400 font-bold"> ARS (Exento)</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-black text-blue-400">${paymentAmount}</span>
+                        <span className="text-xs text-slate-400 font-bold"> ARS</span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -3559,7 +3583,7 @@ export default function PatientForm({
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-slate-200">Medicamentos Solicitados ({medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length}):</p>
                   <span className="text-[11px] text-blue-300 font-mono font-bold">
-                    $10.000 c/ 2 medicamentos
+                    {isExemptOrder ? 'Arancel 100% Bonificado / Exento' : '$10.000 c/ 2 medicamentos'}
                   </span>
                 </div>
                 
@@ -3597,8 +3621,20 @@ export default function PatientForm({
 
             {/* Checkout form */}
             <div className="space-y-4">
-              {/* Payment method selector */}
-              <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
+              {isExemptOrder ? (
+                <div className="bg-emerald-50/90 border border-emerald-200 p-5 rounded-3xl space-y-2.5 animate-fadeIn shadow-xs">
+                  <div className="flex items-center gap-2.5 text-emerald-950 font-extrabold text-sm">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <span>Cobertura con Arancel 100% Bonificado ({selectedObraSocial || 'Exento'})</span>
+                  </div>
+                  <p className="text-xs text-emerald-900 leading-relaxed font-medium">
+                    Tu solicitud no requiere abonar arancel administrativo ($0 ARS). No es necesario ingresar tarjetas ni adjuntar comprobantes de pago. Al confirmar, tu pedido será recibido inmediatamente por los médicos auditores.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Payment method selector */}
+                  <div className={`grid ${isThirdPartyUser ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2'} gap-3.5`}>
                   {isThirdPartyUser && (
                     <button
                       id="btn-pay-cash-desk"
@@ -3789,6 +3825,8 @@ export default function PatientForm({
                     </div>
                   </div>
                 )}
+              </>
+            )}
             </div>
 
             {/* Step 4 Inline Warning/Error Banner */}
@@ -3819,14 +3857,16 @@ export default function PatientForm({
               <button
                 id="btn-submit-order"
                 type="submit"
-                disabled={submitting || mpProcessing}
+                disabled={submitting || (!isExemptOrder && mpProcessing)}
                 className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
-                  paymentMethod === 'mp' && !mpPaymentApproved
-                    ? 'bg-[#009EE3] hover:bg-[#0081b8]'
-                    : 'bg-blue-600 hover:bg-blue-700'
+                  isExemptOrder
+                    ? 'bg-emerald-600 hover:bg-emerald-700'
+                    : paymentMethod === 'mp' && !mpPaymentApproved
+                      ? 'bg-[#009EE3] hover:bg-[#0081b8]'
+                      : 'bg-blue-600 hover:bg-blue-700'
                 } disabled:opacity-50`}
               >
-                {submitting || mpProcessing ? (
+                {submitting || (!isExemptOrder && mpProcessing) ? (
                   <>
                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -3836,7 +3876,12 @@ export default function PatientForm({
                   </>
                 ) : (
                   <>
-                    {paymentMethod === 'mp' && !mpPaymentApproved ? (
+                    {isExemptOrder ? (
+                      <>
+                        <Check className="h-5 w-5" />
+                        <span>Confirmar y Enviar Solicitud</span>
+                      </>
+                    ) : paymentMethod === 'mp' && !mpPaymentApproved ? (
                       <>
                         <MercadoPagoIcon className="h-5 w-5" />
                         <span>Pagar con Mercado Pago y Enviar</span>
@@ -3862,7 +3907,8 @@ export default function PatientForm({
               </button>
             </div>
           </div>
-        )}
+          );
+        })()}
 
       </form>
 

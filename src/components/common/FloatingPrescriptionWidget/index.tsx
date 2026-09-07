@@ -121,6 +121,9 @@ export default function FloatingPrescriptionWidget({
   };
 
   const getPaymentMethodLabel = (ord: MedicalOrder) => {
+    if (ord.paymentStatus === 'exempt' || ord.obraSocial === 'PAMI (Inssjp)' || String(ord.paymentAmount) === '0' || ord.paymentMethod === 'bonificado') {
+      return 'Bonificado / Exento';
+    }
     if (ord.paymentMethod === 'mp') return 'Mercado Pago (Online)';
     if (ord.paymentMethod === 'transfer') return 'Transferencia Bancaria';
     if (ord.paymentMethod === 'cash_desk') return 'Mesa de Entrada / Efectivo';
@@ -131,9 +134,6 @@ export default function FloatingPrescriptionWidget({
     const receiptUrl = ord.paymentReceiptUrl || '';
     if (paymentId.startsWith('EFECTIVO-') || receiptName === 'cobrado_ventanilla.png' || receiptName === 'carga_manual_efectivo.png' || receiptName === 'registro_oficio.png') {
       return 'Mesa de Entrada / Efectivo';
-    }
-    if (ord.paymentStatus === 'exempt' || ord.obraSocial === 'PAMI (Inssjp)' || String(ord.paymentAmount) === '0') {
-      return 'Bonificado / Exento';
     }
     if (receiptUrl && !receiptUrl.startsWith('data:image/svg+xml') && receiptName !== 'cobrado_ventanilla.png' && receiptName !== 'carga_manual_efectivo.png' && receiptName !== 'registro_oficio.png') {
       return 'Transferencia Bancaria';
@@ -614,9 +614,16 @@ export default function FloatingPrescriptionWidget({
                 <WidgetRow label="Método de Pago" value={getPaymentMethodLabel(order)} fieldId="pay-method" />
                 <WidgetRow label="Monto Solicitado" value={`$${order.paymentAmount || '0'}`} fieldId="pay-amount" />
                 <WidgetRow label="Estado del Pago" value={getPaymentStatusLabel(order.paymentStatus)} fieldId="pay-status" />
-                {order.paymentId && (
-                  <WidgetRow label="ID de Transacción / Pago" value={order.paymentId} fieldId="pay-id" />
-                )}
+                {(() => {
+                  const isExempt = order.paymentStatus === 'exempt' || getPaymentMethodLabel(order) === 'Bonificado / Exento';
+                  const displayId = isExempt
+                    ? (order.paymentId && !order.paymentId.startsWith('MP-') ? order.paymentId : 'Exento de arancel')
+                    : order.paymentId;
+                  if (!displayId) return null;
+                  return (
+                    <WidgetRow label="ID de Transacción / Pago" value={displayId} fieldId="pay-id" />
+                  );
+                })()}
                 {order.paymentDate && (
                   <WidgetRow label="Fecha de Pago" value={formatDateTime(order.paymentDate)} fieldId="pay-date" />
                 )}
