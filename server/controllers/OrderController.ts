@@ -52,6 +52,11 @@ export class OrderController {
 
       const pdfUrl = order.recipePdfUrl;
 
+      // Prevent caching so modified/replaced files are immediately reflected through the same URL
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+
       if (pdfUrl.startsWith('data:')) {
         const match = pdfUrl.match(/^data:([^;]+);base64,/);
         const mimeType = match ? match[1] : 'application/pdf';

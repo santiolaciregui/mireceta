@@ -569,7 +569,7 @@ export default function PatientStatus({
                     {/* Direct Download Button if emitted */}
                     {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                       <a
-                        href={order.recipePdfUrl}
+                        href={order.recipePdfUrl.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
                         download={order.recipePdfName || `receta-${order.id}.pdf`}
                         onClick={(e) => e.stopPropagation()}
                         className="bg-[#14BE99] hover:bg-[#0fa685] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -960,7 +960,7 @@ export default function PatientStatus({
                       {/* PDF Download Button */}
                       {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                         <a
-                          href={order.recipePdfUrl}
+                          href={order.recipePdfUrl.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
                           download={order.recipePdfName || `receta-${order.id}.pdf`}
                           className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer ml-auto"
                         >

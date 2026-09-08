@@ -983,7 +983,7 @@ export default function PatientDetailModal({
 
                                 {order.recipePdfUrl && (
                                   <a
-                                    href={order.recipePdfUrl}
+                                    href={order.recipePdfUrl.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     className="px-3.5 py-1.5 bg-[#14BE99] hover:bg-[#109e7f] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-3xs"

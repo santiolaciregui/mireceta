@@ -272,8 +272,11 @@ export function useMedicalOrders() {
     
     const newOrder = await res.json();
     
-    // Update state locally and trigger bg refresh
-    setOrders((prev) => [newOrder, ...prev]);
+    // Update state locally and trigger bg refresh (deduplicating by id)
+    setOrders((prev) => {
+      if (prev.some((o) => o.id === newOrder.id)) return prev;
+      return [newOrder, ...prev];
+    });
     return newOrder.id;
   };
 
@@ -322,6 +325,35 @@ export function useMedicalOrders() {
       }
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Update/Replace recipe file of an order while preserving everything else and keeping the link identical
+  const updateOrderRecipeFile = async (
+    orderId: string,
+    recipePdfUrl: string,
+    recipePdfName: string,
+    notifyPatient: boolean = false
+  ): Promise<{ success: boolean; error?: string; order?: MedicalOrder }> => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: fetchHeaders(),
+        body: JSON.stringify({
+          recipePdfUrl,
+          recipePdfName,
+          notifyPatient,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar el archivo');
+      }
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? data : o)));
+      return { success: true, order: data };
+    } catch (err: any) {
+      console.error('Error actualizando archivo de receta:', err);
+      return { success: false, error: err.message || 'Error al actualizar el archivo' };
     }
   };
 
@@ -614,6 +646,7 @@ export function useMedicalOrders() {
     createOrder,
     updateOrderPhotos,
     updateOrderStatus,
+    updateOrderRecipeFile,
     sendRecipeLink,
     deleteOrder,
     createUser,

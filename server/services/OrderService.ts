@@ -77,6 +77,25 @@ export class OrderService {
     const isExempt = pricing.isExempt;
     const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
 
+    // Guard against rapid duplicate submissions (within 15s) from same patient with identical medication text or arancel
+    if (currentUser?.role === 'paciente') {
+      const patientDniClean = cleanDni(orderData.patientDni || currentUser.identifier);
+      const recentThreshold = new Date(Date.now() - 15 * 1000).toISOString();
+      const existingRecentOrders = await this.orderRepo.findByTenant(tenantIdToUse);
+      const duplicate = existingRecentOrders.find((o: any) => {
+        return (
+          cleanDni(o.patientDni) === patientDniClean &&
+          o.status === 'Pendiente' &&
+          o.createdAt && o.createdAt >= recentThreshold &&
+          (o.medicationText === (orderData.medicationText || '') || o.paymentAmount === pricing.amountFormatted)
+        );
+      });
+      if (duplicate) {
+        console.log(`[OrderService] Prevented duplicate order creation for DNI ${patientDniClean}. Returning existing order ${duplicate.id}`);
+        return duplicate;
+      }
+    }
+
     // Payment method & ID resolution
     let finalPaymentMethod = orderData.paymentMethod || 'mp';
     let finalPaymentId = orderData.paymentId;
@@ -310,6 +329,8 @@ export class OrderService {
 
     // 3. Medic & Collaborator modifications
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
+    const wasAlreadyIssued = order.status === 'Emitida' || order.status === 'Enviada';
+    const isFileUpdated = Boolean(updateData.recipePdfUrl && updateData.recipePdfUrl !== order.recipePdfUrl);
 
     if (updateData.status && updateData.status !== order.status) {
       const isBeingRejected = updateData.status === 'Rechazada';
@@ -353,12 +374,16 @@ export class OrderService {
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;
     if (updateData.recipePdfUrl) {
+      const oldPdfUrl = order.recipePdfUrl;
       // If the PDF is sent as Base64 from the client, persist it to storage
       if (updateData.recipePdfUrl.startsWith('data:') || updateData.recipePdfUrl.length > 500) {
         try {
           const fileName = updateData.recipePdfName || `receta_${order.id}.pdf`;
           const savedUrl = await storageService.saveRecipePdf(fileName, updateData.recipePdfUrl);
           order.recipePdfUrl = savedUrl;
+          if (oldPdfUrl && oldPdfUrl.startsWith('/uploads/recipes/') && oldPdfUrl !== savedUrl) {
+            await storageService.deleteRecipeFile(oldPdfUrl).catch(() => {});
+          }
         } catch (storageErr) {
           console.error('[OrderService] Error guardando PDF en almacenamiento, utilizando URL directa:', storageErr);
           order.recipePdfUrl = updateData.recipePdfUrl;
@@ -367,25 +392,33 @@ export class OrderService {
         order.recipePdfUrl = updateData.recipePdfUrl;
       }
       
-      order.recipePdfName = updateData.recipePdfName;
-      addAuditLogEntry(order, 'Receta adjuntada', operatorName, `Se adjuntó el documento: ${updateData.recipePdfName}`);
+      order.recipePdfName = updateData.recipePdfName || order.recipePdfName;
+      const logAction = wasAlreadyIssued ? 'Receta modificada' : 'Receta adjuntada';
+      const logDetails = wasAlreadyIssued
+        ? `Se modificó el archivo adjunto: ${order.recipePdfName}. El enlace público se mantiene idéntico.`
+        : `Se adjuntó el documento: ${order.recipePdfName}`;
+
+      addAuditLogEntry(order, logAction, operatorName, logDetails);
 
       await auditLogService.log({
         tenantId: order.tenantId || 'TEN-0001',
         currentUser,
-        action: 'ORDER_PDF_ATTACH',
+        action: wasAlreadyIssued ? 'ORDER_PDF_UPDATE' : 'ORDER_PDF_ATTACH',
         entity: 'Order',
         entityId: id,
-        details: `Adjuntado PDF de receta: ${updateData.recipePdfName}`
+        details: `${logAction}: ${order.recipePdfName}`
       });
     }
 
-    // 4. Auto-dispatch notifications & chat message when recipe is issued
-    if (updateData.status === 'Emitida' || updateData.status === 'Enviada') {
-      const host = process.env.PUBLIC_URL || 'https://mireceta.online';
-      const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
-      const deliveryMethod = order.deliveryMethod || 'whatsapp';
+    // 4. Auto-dispatch notifications & chat message when recipe is first issued
+    const host = process.env.PUBLIC_URL || 'https://mireceta.online';
+    const recipeLink = `${host}/api/orders/public/${order.id}/pdf`;
+    const deliveryMethod = order.deliveryMethod || 'whatsapp';
 
+    const isFirstTimeEmission = !wasAlreadyIssued && (updateData.status === 'Emitida' || updateData.status === 'Enviada');
+    const shouldNotifyUpdatedFile = wasAlreadyIssued && isFileUpdated && Boolean(updateData.notifyPatient);
+
+    if (isFirstTimeEmission || shouldNotifyUpdatedFile) {
       if ((deliveryMethod === 'whatsapp' || deliveryMethod === 'both' || !order.patientEmail) && order.patientPhone) {
         notificationService.sendRecipeIssuedWhatsApp({
           tenantId: order.tenantId || 'TEN-0001',
@@ -397,7 +430,7 @@ export class OrderService {
           recipePdfUrl: order.recipePdfUrl,
           obraSocial: order.obraSocial,
           obraSocialNumber: order.obraSocialNumber
-        }).catch((err) => console.error('Error enviando WhatsApp de receta emitida:', err));
+        }).catch((err) => console.error('Error enviando WhatsApp de receta:', err));
       }
 
       if ((deliveryMethod === 'email' || deliveryMethod === 'both' || !order.patientPhone) && order.patientEmail) {
@@ -410,7 +443,7 @@ export class OrderService {
           recipePdfUrl: order.recipePdfUrl,
           obraSocial: order.obraSocial,
           obraSocialNumber: order.obraSocialNumber
-        }).catch((err) => console.error('Error enviando Email de receta emitida:', err));
+        }).catch((err) => console.error('Error enviando Email de receta:', err));
       }
 
       // Persist recipe link message in patient conversation
@@ -419,9 +452,14 @@ export class OrderService {
         : 'Equipo Médico';
 
       const isElectronic = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
-      const chatText = isElectronic
-        ? `¡Hola ${order.patientName}! Tu solicitud #${order.id} ha sido aprobada por el profesional médico.\n\nSu receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
-        : `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`;
+      let chatText = '';
+      if (shouldNotifyUpdatedFile) {
+        chatText = `¡Hola ${order.patientName}! Tu profesional médico ha actualizado el archivo de tu receta digital #${order.id}.\n\nPuedes acceder y descargar la versión actualizada en el mismo enlace:\n${recipeLink}`;
+      } else {
+        chatText = isElectronic
+          ? `¡Hola ${order.patientName}! Tu solicitud #${order.id} ha sido aprobada por el profesional médico.\n\nSu receta ya ha sido emitida y transmitida a la red de farmacias.\nPodrá retirarla con su DNI o Carnet de obra social que lo acredite.`
+          : `¡Hola ${order.patientName}! Tu receta digital #${order.id} ha sido emitida y aprobada por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`;
+      }
 
       const emissionChatMessage: any = {
         id: generateMessageId(),

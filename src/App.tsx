@@ -107,6 +107,7 @@ export default function App() {
     currentPatientDni,
     createOrder,
     updateOrderStatus,
+    updateOrderRecipeFile,
     sendRecipeLink,
     deleteOrder,
     createUser,
@@ -625,6 +626,7 @@ export default function App() {
                     orders={orders}
                     users={users}
                     onUpdateStatus={updateOrderStatus}
+                    onUpdateRecipeFile={updateOrderRecipeFile}
                     onDeleteOrder={deleteOrder}
                     onSendRecipeLink={sendRecipeLink}
                     onCreateOrder={createOrder}

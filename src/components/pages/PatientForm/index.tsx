@@ -138,6 +138,7 @@ export default function PatientForm({
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const cartSectionRef = useRef<HTMLDivElement>(null);
+  const isSubmittingRef = useRef(false);
 
   const scrollToCart = () => {
     setTimeout(() => {
@@ -154,14 +155,17 @@ export default function PatientForm({
   useEffect(() => {
     const handlePageShow = () => {
       setMpProcessing(false);
+      isSubmittingRef.current = false;
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         setMpProcessing(false);
+        isSubmittingRef.current = false;
       }
     };
     const handleFocus = () => {
       setMpProcessing(false);
+      isSubmittingRef.current = false;
     };
 
     window.addEventListener('pageshow', handlePageShow);
@@ -1301,6 +1305,8 @@ export default function PatientForm({
   };
 
   const processMercadoPagoPayment = async () => {
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setError(null);
 
     setMpProcessing(true);
@@ -1335,52 +1341,56 @@ export default function PatientForm({
       const requestedByTitularEmail = isForDependent ? titularData.email : undefined;
       const requestedByTitularPhone = isForDependent ? titularData.phone : undefined;
 
-      // 1. Create order in database with pending payment status
-      const fullOrderPayload = {
-        patientName: patientName.trim(),
-        patientLastName: patientLastName.trim(),
-        patientDni: patientDni.trim(),
-        patientBirthDate,
-        patientEmail: patientEmail.trim(),
-        patientPhone: patientPhone.trim(),
-        patientCity: patientCity.trim() || undefined,
-        patientProvince: patientProvince.trim() || undefined,
-        deliveryMethod,
-        obraSocial: selectedObraSocial,
-        obraSocialNumber: obraSocialNumber.trim() || undefined,
-        isForDependent,
-        dependentRelationship,
-        requestedByTitularName,
-        requestedByTitularDni,
-        requestedByTitularEmail,
-        requestedByTitularPhone,
-        medicationMethod: mappedMedicationMethod,
-        medicationText: summaryText,
-        medicationItems,
-        diagnostic: aggregatedDiagnostic,
-        comments: comments.trim() || undefined,
-        medicationPhotos,
-        medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
-        medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
-        paymentMethod: 'mp',
-        paymentAmount,
-        paymentDate: new Date().toISOString(),
-        paymentStatus: 'pending',
-        status: 'Pendiente',
-        createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
-        lastConsultationTime: lastConsultationTime || undefined,
-        lastConsultationDoctor: lastConsultationDoctor || undefined,
-        consentsAccepted: {
-          isOfAge: consentAge,
-          termsAccepted: consentTerms,
-          informedConsentAccepted: consentInformed,
-          swornStatementAccepted: consentSworn,
-          acceptedAt: new Date().toISOString(),
-          termsVersion: TERMS_VERSION
-        }
-      };
+      // 1. Create order in database with pending payment status (or reuse existing if retrying)
+      let orderId = createdOrderId;
+      if (!orderId) {
+        const fullOrderPayload = {
+          patientName: patientName.trim(),
+          patientLastName: patientLastName.trim(),
+          patientDni: patientDni.trim(),
+          patientBirthDate,
+          patientEmail: patientEmail.trim(),
+          patientPhone: patientPhone.trim(),
+          patientCity: patientCity.trim() || undefined,
+          patientProvince: patientProvince.trim() || undefined,
+          deliveryMethod,
+          obraSocial: selectedObraSocial,
+          obraSocialNumber: obraSocialNumber.trim() || undefined,
+          isForDependent,
+          dependentRelationship,
+          requestedByTitularName,
+          requestedByTitularDni,
+          requestedByTitularEmail,
+          requestedByTitularPhone,
+          medicationMethod: mappedMedicationMethod,
+          medicationText: summaryText,
+          medicationItems,
+          diagnostic: aggregatedDiagnostic,
+          comments: comments.trim() || undefined,
+          medicationPhotos,
+          medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
+          medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
+          paymentMethod: 'mp',
+          paymentAmount,
+          paymentDate: new Date().toISOString(),
+          paymentStatus: 'pending',
+          status: 'Pendiente',
+          createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
+          lastConsultationTime: lastConsultationTime || undefined,
+          lastConsultationDoctor: lastConsultationDoctor || undefined,
+          consentsAccepted: {
+            isOfAge: consentAge,
+            termsAccepted: consentTerms,
+            informedConsentAccepted: consentInformed,
+            swornStatementAccepted: consentSworn,
+            acceptedAt: new Date().toISOString(),
+            termsVersion: TERMS_VERSION
+          }
+        };
 
-      const orderId = await onSubmitOrder(fullOrderPayload);
+        orderId = await onSubmitOrder(fullOrderPayload);
+        setCreatedOrderId(orderId);
+      }
 
       // 2. Create Mercado Pago checkout preference using generated orderId
       const res = await fetch('/api/payments/create-preference', {
@@ -1409,11 +1419,15 @@ export default function PatientForm({
     } catch (err: any) {
       setError(err.message || 'Error al comunicarse con Mercado Pago');
       setMpProcessing(false);
+      isSubmittingRef.current = false;
     }
   };
 
   const handleSubmitAll = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || submitting || mpProcessing) return;
+    if (step !== 'payment') return;
+
     setError(null);
 
     const isExempt = selectedObraSocial?.trim() === 'PAMI (Inssjp)' || paymentAmount === '0';
@@ -1435,6 +1449,7 @@ export default function PatientForm({
       }
     }
 
+    isSubmittingRef.current = true;
     setSubmitting(true);
 
     // Build human readable medication summary
@@ -1550,6 +1565,7 @@ export default function PatientForm({
       setError(err.message || 'Error al procesar la solicitud en el servidor.');
     } finally {
       setSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 

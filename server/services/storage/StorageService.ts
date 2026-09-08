@@ -203,6 +203,12 @@ export class StorageService {
   async getRecipeFile(fileUrl: string) {
     return this.provider.getFile(fileUrl);
   }
+
+  async deleteRecipeFile(fileUrl: string) {
+    if (this.provider.deleteFile) {
+      await this.provider.deleteFile(fileUrl);
+    }
+  }
 }
 
 export const storageService = new StorageService();

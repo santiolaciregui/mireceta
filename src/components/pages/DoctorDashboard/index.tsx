@@ -57,7 +57,8 @@ import {
   AppWindow,
   ChevronDown,
   ChevronUp,
-  ChevronsUpDown
+  ChevronsUpDown,
+  FileEdit
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 interface DoctorDashboardProps {
@@ -70,6 +71,12 @@ interface DoctorDashboardProps {
     recipePdfUrl?: string, 
     recipePdfName?: string
   ) => void;
+  onUpdateRecipeFile?: (
+    orderId: string,
+    recipePdfUrl: string,
+    recipePdfName: string,
+    notifyPatient?: boolean
+  ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }>;
   onDeleteOrder?: (id: string) => Promise<boolean | void> | void;
   onCreateOrder?: (data: any) => Promise<string>;
   onSendRecipeLink?: (
@@ -101,6 +108,7 @@ export default function DoctorDashboard({
   orders, 
   users = [],
   onUpdateStatus, 
+  onUpdateRecipeFile,
   onDeleteOrder,
   onCreateOrder, 
   onSendRecipeLink,
@@ -118,6 +126,15 @@ export default function DoctorDashboard({
   const [selectedOperatorFilter, setSelectedOperatorFilter] = useState<string>('Todos');
   const [activeDashboardTab, setActiveDashboardTab] = useState<'requests' | 'operators'>('requests');
   const [activeDetailTab, setActiveDetailTab] = useState<'rx' | 'patient' | 'payment'>('rx');
+
+  // Modify Recipe File Modal states
+  const [showModifyFileModal, setShowModifyFileModal] = useState(false);
+  const [newModifyFile, setNewModifyFile] = useState<{ url: string; name: string; size?: number } | null>(null);
+  const [isDraggingModifyFile, setIsDraggingModifyFile] = useState(false);
+  const [modifyFileError, setModifyFileError] = useState<string | null>(null);
+  const [notifyPatientOnUpdate, setNotifyPatientOnUpdate] = useState(false);
+  const [isSubmittingFileUpdate, setIsSubmittingFileUpdate] = useState(false);
+  const modifyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync with forcedSubview from sidebar
   React.useEffect(() => {
@@ -479,10 +496,25 @@ export default function DoctorDashboard({
     setCollapsedSections(DEFAULT_COLLAPSED_SECTIONS);
   }, [selectedOrderId]);
 
+  const currentLoadedOrderIdRef = useRef<string | null>(null);
+
   // Sync notes and recipe fields once an order is selected
   React.useEffect(() => {
-    setActiveDetailTab('rx');
-    if (selectedOrder) {
+    if (!selectedOrderId) {
+      currentLoadedOrderIdRef.current = null;
+      setDoctorNotes('');
+      setPrescriptionType('RCTA');
+      setUploadedRecipe(null);
+      setPdfUploadError(null);
+      setShowModifyFileModal(false);
+      setNewModifyFile(null);
+      return;
+    }
+
+    // Protect against background polling (every 6s) wiping out uploadedRecipe, notes, or active tab
+    if (selectedOrder && currentLoadedOrderIdRef.current !== selectedOrderId) {
+      currentLoadedOrderIdRef.current = selectedOrderId;
+      setActiveDetailTab('rx');
       setDoctorNotes(selectedOrder.doctorNotes || '');
       if (selectedOrder.recipePdfUrl) {
         if (selectedOrder.recipePdfUrl === 'PAMI' || selectedOrder.recipePdfUrl === 'IOMA') {
@@ -499,6 +531,9 @@ export default function DoctorDashboard({
         setPrescriptionType('RCTA');
         setUploadedRecipe(null);
       }
+      setPdfUploadError(null);
+      setShowModifyFileModal(false);
+      setNewModifyFile(null);
 
       // Handle automatic text extraction from prescription images
       const images = [];
@@ -538,10 +573,6 @@ export default function DoctorDashboard({
            setIsExtractingCache(prev => ({ ...prev, [selectedOrder.id]: false }));
         });
       }
-    } else {
-      setDoctorNotes('');
-      setPrescriptionType('RCTA');
-      setUploadedRecipe(null);
     }
   }, [selectedOrderId, selectedOrder]);
 
@@ -625,6 +656,124 @@ export default function DoctorDashboard({
     const file = e.target.files?.[0];
     if (file) {
       processPdfFile(file);
+    }
+  };
+
+  // Helper to validate and process modified recipe files for emitted orders
+  const processModifyFile = (file: File) => {
+    setModifyFileError(null);
+
+    const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
+    const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
+    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+
+    const isValid = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension);
+    if (!isValid) {
+      setModifyFileError('Formato no válido. Se admiten archivos PDF o imágenes (PNG, JPG, JPEG, WEBP).');
+      showToast('Error: Formato no soportado. Use PDF o imágenes.');
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setModifyFileError('El archivo excede el tamaño máximo permitido (15 MB).');
+      showToast('Error: El archivo no puede superar los 15 MB.');
+      return;
+    }
+
+    compressImageAndGetBase64(file).then((base64String) => {
+      setNewModifyFile({
+        url: base64String,
+        name: file.name,
+        size: file.size
+      });
+      showToast(`Nuevo archivo "${file.name}" seleccionado.`);
+    }).catch(err => {
+      console.error(err);
+      setModifyFileError('Error al procesar el archivo seleccionado.');
+      showToast('Error al leer el archivo.');
+    });
+  };
+
+  const handleModifyFileDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingModifyFile(true);
+  };
+
+  const handleModifyFileDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingModifyFile(false);
+  };
+
+  const handleModifyFileDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingModifyFile(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processModifyFile(file);
+    }
+  };
+
+  const handleModifyFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processModifyFile(file);
+    }
+  };
+
+  const handleConfirmModifyFile = async () => {
+    if (!selectedOrder || !newModifyFile) return;
+    setIsSubmittingFileUpdate(true);
+    setModifyFileError(null);
+
+    try {
+      if (onUpdateRecipeFile) {
+        const res = await onUpdateRecipeFile(
+          selectedOrder.id,
+          newModifyFile.url,
+          newModifyFile.name,
+          notifyPatientOnUpdate
+        );
+        if (res && !res.success) {
+          throw new Error(res.error || 'Error al actualizar el archivo');
+        }
+      } else {
+        const res = await fetch(`/api/orders/${selectedOrder.id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(localStorage.getItem('token') ? { 'Authorization': `Bearer ${localStorage.getItem('token')}` } : {})
+          },
+          body: JSON.stringify({
+            recipePdfUrl: newModifyFile.url,
+            recipePdfName: newModifyFile.name,
+            notifyPatient: notifyPatientOnUpdate
+          })
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Error al actualizar el archivo');
+        }
+      }
+
+      setUploadedRecipe({
+        url: newModifyFile.url,
+        name: newModifyFile.name,
+        size: newModifyFile.size
+      });
+
+      showToast('¡Archivo modificado con éxito! El enlace público permanente se mantiene idéntico.');
+      setShowModifyFileModal(false);
+      setNewModifyFile(null);
+    } catch (err: any) {
+      console.error(err);
+      setModifyFileError(err.message || 'Error al actualizar el archivo.');
+      showToast('Error al actualizar el archivo.');
+    } finally {
+      setIsSubmittingFileUpdate(false);
     }
   };
 
@@ -1869,6 +2018,20 @@ export default function DoctorDashboard({
                               <button
                                 type="button"
                                 onClick={() => {
+                                  setShowModifyFileModal(true);
+                                  setNewModifyFile(null);
+                                  setModifyFileError(null);
+                                  setNotifyPatientOnUpdate(false);
+                                }}
+                                className="inline-flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 hover:border-slate-400 text-slate-700 hover:text-slate-900 active:scale-[0.99] rounded-xl text-xs font-bold cursor-pointer transition-all shadow-xs"
+                                title="Modificar o reemplazar el archivo adjunto conservando el mismo enlace"
+                              >
+                                <FileEdit className="h-4 w-4 text-[#1661E1]" />
+                                <span>Modificar / Cambiar Archivo</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
                                   if (selectedOrder.patientPhone && selectedOrder.patientEmail) {
                                     setSendChannel('both');
                                   } else if (selectedOrder.patientPhone) {
@@ -2278,6 +2441,237 @@ export default function DoctorDashboard({
                   <>
                     <Send className="h-4 w-4" />
                     <span>Enviar link</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modify Recipe File Modal */}
+      {showModifyFileModal && selectedOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-[#1661E1]/10 text-[#1661E1] flex items-center justify-center shrink-0">
+                  <FileEdit className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-extrabold text-slate-900">
+                    Modificar Archivo de Solicitud #{selectedOrder.id}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Reemplace el documento conservando el mismo link permanente para el paciente
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isSubmittingFileUpdate) {
+                    setShowModifyFileModal(false);
+                    setNewModifyFile(null);
+                    setModifyFileError(null);
+                  }
+                }}
+                disabled={isSubmittingFileUpdate}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer disabled:opacity-50"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-4">
+              {/* Current File Info */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Archivo actual adjunto:</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="h-4 w-4 text-slate-500 shrink-0" />
+                    <span className="text-xs font-semibold text-slate-800 truncate">
+                      {selectedOrder.recipePdfName || `receta_${selectedOrder.id}.pdf`}
+                    </span>
+                  </div>
+                  {selectedOrder.recipePdfUrl && selectedOrder.recipePdfUrl !== 'PAMI' && selectedOrder.recipePdfUrl !== 'IOMA' && (
+                    <a
+                      href={`/api/orders/public/${selectedOrder.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-bold text-[#1661E1] hover:underline shrink-0 flex items-center gap-1"
+                    >
+                      <span>Ver actual</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload Dropzone / New File Preview */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                  <span>Nuevo archivo de receta *</span>
+                  <span className="text-[11px] text-slate-400 font-normal">PDF o imágenes (.png, .jpg, .webp)</span>
+                </label>
+
+                {newModifyFile ? (
+                  <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
+                    <div className="flex items-center gap-3 min-w-0">
+                      {newModifyFile.name.toLowerCase().match(/\.(png|jpg|jpeg|webp)$/) ? (
+                        <img src={newModifyFile.url} className="h-10 w-10 object-cover rounded-lg shrink-0 border border-slate-200" alt="Vista previa" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
+                          <FileText className="h-5 w-5" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="font-bold text-slate-900 text-xs truncate">{newModifyFile.name}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
+                            <Check className="h-3 w-3" /> Listo para actualizar
+                          </span>
+                          {newModifyFile.size && (
+                            <span className="text-[10px] text-slate-400 font-mono">
+                              ({(newModifyFile.size / 1024).toFixed(0)} KB)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => modifyFileInputRef.current?.click()}
+                        className="text-xs font-bold text-[#1661E1] hover:text-[#1E6EFB] bg-[#1661E1]/10 hover:bg-[#1661E1]/20 px-3 py-1.5 rounded-lg border border-[#1661E1]/20 transition-colors cursor-pointer"
+                      >
+                        Cambiar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setNewModifyFile(null);
+                          setModifyFileError(null);
+                        }}
+                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
+                        title="Quitar archivo"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={handleModifyFileDragOver}
+                    onDragLeave={handleModifyFileDragLeave}
+                    onDrop={handleModifyFileDrop}
+                    onClick={() => modifyFileInputRef.current?.click()}
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
+                      modifyFileError
+                        ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
+                        : isDraggingModifyFile
+                        ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
+                        : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
+                    }`}
+                  >
+                    <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
+                      modifyFileError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
+                    }`}>
+                      <FileUp className="h-5 w-5" />
+                    </div>
+                    <p className={`text-xs font-bold ${modifyFileError ? 'text-rose-900' : 'text-slate-800'}`}>
+                      {isDraggingModifyFile ? 'Suelte el nuevo archivo aquí' : 'Haga clic o arrastre el nuevo archivo aquí *'}
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      PDF o imágenes PNG, JPG, JPEG, WEBP (hasta 15 MB)
+                    </p>
+                  </div>
+                )}
+
+                <input
+                  ref={modifyFileInputRef}
+                  type="file"
+                  accept="application/pdf,.pdf,image/png,.png,image/jpeg,.jpeg,image/jpg,.jpg,image/webp,.webp"
+                  onChange={handleModifyFileInputChange}
+                  className="hidden"
+                />
+
+                {modifyFileError && (
+                  <p className="text-[11px] text-rose-600 font-semibold mt-2 flex items-center gap-1 animate-fadeIn">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{modifyFileError}</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Permanent Link Info Banner */}
+              <div className="bg-blue-50/80 border border-blue-200/80 rounded-xl p-3 sm:p-3.5 text-xs text-blue-950 space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-blue-900">
+                  <Sparkles className="h-4 w-4 text-[#1661E1] shrink-0" />
+                  <span>El link público se mantendrá idéntico:</span>
+                </div>
+                <p className="font-mono text-[11px] bg-white text-blue-800 p-2 rounded-lg border border-blue-200/60 break-all select-all">
+                  {`${window.location.origin}/api/orders/public/${selectedOrder.id}/pdf`}
+                </p>
+                <p className="text-[11px] text-blue-800/80">
+                  El paciente o la farmacia que tenga este link accederá directamente a la nueva versión sin necesidad de generar una nueva solicitud.
+                </p>
+              </div>
+
+              {/* Notify Patient Option */}
+              {(selectedOrder.patientPhone || selectedOrder.patientEmail) && (
+                <label className="flex items-start gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50/80 hover:bg-slate-50 cursor-pointer select-none transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={notifyPatientOnUpdate}
+                    onChange={(e) => setNotifyPatientOnUpdate(e.target.checked)}
+                    disabled={isSubmittingFileUpdate}
+                    className="rounded border-slate-300 text-[#1661E1] focus:ring-[#1661E1] h-4 w-4 mt-0.5 cursor-pointer disabled:opacity-50"
+                  />
+                  <div className="text-xs">
+                    <p className="font-bold text-slate-800">
+                      Reenviar notificación al paciente ({selectedOrder.patientPhone ? 'WhatsApp' : ''}{selectedOrder.patientPhone && selectedOrder.patientEmail ? ' / ' : ''}{selectedOrder.patientEmail ? 'Email' : ''})
+                    </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Envía un aviso informándole que su receta ha sido actualizada, con el link correspondiente.
+                    </p>
+                  </div>
+                </label>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="p-3.5 sm:p-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-end gap-2 sm:gap-3 shrink-0">
+              <button
+                type="button"
+                disabled={isSubmittingFileUpdate}
+                onClick={() => {
+                  setShowModifyFileModal(false);
+                  setNewModifyFile(null);
+                  setModifyFileError(null);
+                }}
+                className="px-3.5 sm:px-4 py-2 sm:py-2.5 text-xs font-bold text-slate-600 hover:text-slate-800 hover:bg-slate-200/60 rounded-xl cursor-pointer transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!newModifyFile || isSubmittingFileUpdate}
+                onClick={handleConfirmModifyFile}
+                className="px-4 sm:px-5 py-2 sm:py-2.5 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingFileUpdate ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Guardando...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Guardar y Actualizar Archivo</span>
                   </>
                 )}
               </button>
