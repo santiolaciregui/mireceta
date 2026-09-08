@@ -354,7 +354,7 @@ export default function App() {
             {activeRole === 'paciente' && (
               <>
                 {activeSubcategory === 'solicitar' && (
-                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
+                  <div className="flex flex-col flex-1 h-full overflow-hidden bg-[#F3F8FE]">
                     <header className="px-4 py-4 sm:px-8 sm:py-6 bg-white border-b border-[var(--ink-faint)] flex justify-between items-end shrink-0">
                       <div className="space-y-1">
                         <div className="flex items-center">
@@ -364,7 +364,7 @@ export default function App() {
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
+                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-white via-[#F7FBFF] to-[#EDF6FF]">
                       {/* Notification alert of successful submission */}
                       {successSubmissionId && (
                         <div className="max-w-6xl mx-auto bg-[#14BE99] text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">

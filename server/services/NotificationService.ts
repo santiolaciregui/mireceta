@@ -7,6 +7,12 @@ import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { generatePatientId, generateMessageId } from '../utils/idGenerator.js';
+import {
+  getPendingOrderAlertTransition,
+  normalizePendingOrderAlertSettings,
+  PENDING_ORDER_ALERT_TEMPLATE_CODE,
+  PENDING_ORDER_ALERT_TEMPLATE_LANGUAGE
+} from './notification/PendingOrderAlert.js';
 
 export interface SendDirectNotificationDto {
   tenantId: string;
@@ -15,6 +21,8 @@ export interface SendDirectNotificationDto {
   subject?: string;
   body?: string;
   templateCode?: string;
+  templateLanguage?: string;
+  strictTemplate?: boolean;
   variables?: Record<string, string | number | boolean>;
 }
 
@@ -130,6 +138,8 @@ export class NotificationService {
         subject: finalSubject,
         body: finalBody,
         templateCode,
+        templateLanguage: dto.templateLanguage,
+        strictTemplate: dto.strictTemplate,
         variables
       },
       credentials
@@ -217,7 +227,74 @@ export class NotificationService {
       }
     }
 
-    return this.configRepo.upsertConfig(tenantId, channel, isEnabled, credentials, settings);
+    let normalizedSettings = settings;
+    if (channel === 'whatsapp' && settings) {
+      const defaultCountryCode = String(credentials.defaultCountryCode || existing?.credentials.defaultCountryCode || '54');
+      const parsed = normalizePendingOrderAlertSettings(settings, defaultCountryCode);
+      const previousSettings = (existing?.settings || {}) as Record<string, unknown>;
+      const sameConfiguration =
+        JSON.stringify(parsed.administrativePhoneNumbers) === JSON.stringify(previousSettings.administrativePhoneNumbers || []) &&
+        parsed.pendingOrderLimit === (previousSettings.pendingOrderLimit ?? null);
+
+      normalizedSettings = {
+        ...settings,
+        administrativePhoneNumbers: parsed.administrativePhoneNumbers,
+        pendingOrderLimit: parsed.pendingOrderLimit,
+        pendingOrderAlertActive:
+          sameConfiguration && parsed.pendingOrderLimit !== null
+            ? Boolean(previousSettings.pendingOrderAlertActive)
+            : false
+      };
+    }
+
+    const saved = await this.configRepo.upsertConfig(tenantId, channel, isEnabled, credentials, normalizedSettings);
+
+    if (channel === 'whatsapp') {
+      await this.evaluatePendingOrderLimitAlert(tenantId);
+    }
+
+    return saved;
+  }
+
+  public async evaluatePendingOrderLimitAlert(tenantId: string): Promise<void> {
+    const config = await this.configRepo.findByTenantAndChannel(tenantId, 'whatsapp');
+    if (!config || !config.isEnabled) return;
+
+    const defaultCountryCode = String(config.credentials.defaultCountryCode || '54');
+    const alertSettings = normalizePendingOrderAlertSettings(
+      (config.settings || {}) as Record<string, unknown>,
+      defaultCountryCode
+    );
+    const pendingOrderCount = await this.orderRepo.countActionablePendingByTenant(tenantId);
+    const transition = getPendingOrderAlertTransition(pendingOrderCount, alertSettings);
+
+    if (transition === 'none') return;
+
+    if (transition === 'reset') {
+      await this.configRepo.resetPendingOrderAlert(tenantId);
+      return;
+    }
+
+    const claimedConfig = await this.configRepo.claimPendingOrderAlert(tenantId);
+    if (!claimedConfig) return;
+
+    const fallbackBody = `Se supero el limite configurado de solicitudes pendientes. Pendientes: ${pendingOrderCount}. Limite: ${alertSettings.pendingOrderLimit}.`;
+
+    await Promise.all(alertSettings.administrativePhoneNumbers.map(async (phone) => {
+      try {
+        await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: phone,
+          body: fallbackBody,
+          templateCode: PENDING_ORDER_ALERT_TEMPLATE_CODE,
+          templateLanguage: PENDING_ORDER_ALERT_TEMPLATE_LANGUAGE,
+          strictTemplate: true
+        });
+      } catch (error) {
+        console.error('[NotificationService] Pending order limit alert failed:', error);
+      }
+    }));
   }
 
   public async ensureDefaultTemplates(tenantId: string) {
@@ -708,4 +785,3 @@ export class NotificationService {
 }
 
 export const notificationService = new NotificationService();
-

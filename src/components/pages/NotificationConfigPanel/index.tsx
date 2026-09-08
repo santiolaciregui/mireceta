@@ -63,6 +63,8 @@ export default function NotificationConfigPanel() {
   const [waAccessToken, setWaAccessToken] = useState('');
   const [waCountryCode, setWaCountryCode] = useState('54');
   const [waDoctorInquiryTemplateCode, setWaDoctorInquiryTemplateCode] = useState('');
+  const [waAdministrativePhoneNumbers, setWaAdministrativePhoneNumbers] = useState('');
+  const [waPendingOrderLimit, setWaPendingOrderLimit] = useState('');
   const [showWaToken, setShowWaToken] = useState(false);
 
   // Templates State
@@ -126,6 +128,15 @@ export default function NotificationConfigPanel() {
           setWaAccessToken(waConf.credentials.accessToken || '');
           setWaCountryCode(waConf.credentials.defaultCountryCode || '54');
           setWaDoctorInquiryTemplateCode(waConf.credentials.doctorInquiryTemplateCode || 'primer_mensaje');
+          const administrativePhoneNumbers = Array.isArray(waConf.settings?.administrativePhoneNumbers)
+            ? waConf.settings.administrativePhoneNumbers
+            : [];
+          setWaAdministrativePhoneNumbers(administrativePhoneNumbers.join('\n'));
+          setWaPendingOrderLimit(
+            waConf.settings?.pendingOrderLimit === null || waConf.settings?.pendingOrderLimit === undefined
+              ? ''
+              : String(waConf.settings.pendingOrderLimit)
+          );
         }
       }
 
@@ -209,6 +220,28 @@ export default function NotificationConfigPanel() {
       if (!waAccessToken.trim()) errors.waAccessToken = 'El Access Token permanente es obligatorio.';
     }
 
+    const administrativePhones = waAdministrativePhoneNumbers
+      .split(/[\n,;]+/)
+      .map((phone) => phone.trim())
+      .filter(Boolean);
+    const hasPendingLimit = waPendingOrderLimit.trim() !== '';
+
+    if ((administrativePhones.length > 0) !== hasPendingLimit) {
+      errors.waPendingOrderAlert = 'Los teléfonos administrativos y el límite deben configurarse juntos.';
+    }
+
+    if (hasPendingLimit && (!Number.isInteger(Number(waPendingOrderLimit)) || Number(waPendingOrderLimit) <= 0)) {
+      errors.waPendingOrderLimit = 'El límite debe ser un número entero mayor a cero.';
+    }
+
+    const invalidPhone = administrativePhones.find((phone) => {
+      const digits = phone.replace(/\D/g, '');
+      return digits.length < 8 || digits.length > 15;
+    });
+    if (invalidPhone) {
+      errors.waAdministrativePhoneNumbers = `El número ${invalidPhone} no tiene un formato válido.`;
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       setFeedback({ type: 'error', message: 'Por favor complete los campos obligatorios de la API de WhatsApp.' });
@@ -229,6 +262,10 @@ export default function NotificationConfigPanel() {
             accessToken: waAccessToken.trim(),
             defaultCountryCode: waCountryCode.trim(),
             doctorInquiryTemplateCode: waDoctorInquiryTemplateCode.trim()
+          },
+          settings: {
+            administrativePhoneNumbers: administrativePhones,
+            pendingOrderLimit: hasPendingLimit ? Number(waPendingOrderLimit) : null
           }
         })
       });
@@ -752,6 +789,76 @@ export default function NotificationConfigPanel() {
                     <span className="text-[10px] text-slate-400 font-medium mt-1 block">
                       Código de plantilla aprobada en Meta para iniciar conversación fuera de la ventana de 24hs (Plantilla por defecto: primer_mensaje, 1 parámetro).
                     </span>
+                  </div>
+
+                  <div className="pt-3 mt-3 border-t border-slate-200 space-y-3">
+                    <div>
+                      <h4 className="font-extrabold text-xs text-[#0141BC]">Alerta por solicitudes pendientes</h4>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        Envía la plantilla <code className="font-mono">limite_solicitudes</code> en español (Argentina) una sola vez al superar el límite.
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Teléfonos administrativos
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={waAdministrativePhoneNumbers}
+                        onChange={(e) => {
+                          setWaAdministrativePhoneNumbers(e.target.value);
+                          if (fieldErrors.waAdministrativePhoneNumbers || fieldErrors.waPendingOrderAlert) {
+                            setFieldErrors(prev => ({ ...prev, waAdministrativePhoneNumbers: '', waPendingOrderAlert: '' }));
+                          }
+                        }}
+                        placeholder={"+54 9 11 2345-6789\n+54 9 11 9876-5432"}
+                        className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.waAdministrativePhoneNumbers || fieldErrors.waPendingOrderAlert
+                            ? 'border-2 border-rose-400 bg-rose-50/40 focus:bg-white focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-emerald-500'
+                        }`}
+                      />
+                      <span className="text-[10px] text-slate-400 font-medium mt-1 block">
+                        Ingrese teléfonos de administradores o colaboradores, uno por línea o separados por comas. Los duplicados se eliminan al guardar.
+                      </span>
+                      {(fieldErrors.waAdministrativePhoneNumbers || fieldErrors.waPendingOrderAlert) && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>{fieldErrors.waAdministrativePhoneNumbers || fieldErrors.waPendingOrderAlert}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                        Límite de solicitudes pendientes
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={waPendingOrderLimit}
+                        onChange={(e) => {
+                          setWaPendingOrderLimit(e.target.value);
+                          if (fieldErrors.waPendingOrderLimit || fieldErrors.waPendingOrderAlert) {
+                            setFieldErrors(prev => ({ ...prev, waPendingOrderLimit: '', waPendingOrderAlert: '' }));
+                          }
+                        }}
+                        placeholder="10"
+                        className={`w-full px-3 py-2 rounded-xl text-xs text-slate-800 font-mono transition-all outline-hidden ${
+                          fieldErrors.waPendingOrderLimit || fieldErrors.waPendingOrderAlert
+                            ? 'border-2 border-rose-400 bg-rose-50/40 focus:bg-white focus:ring-4 focus:ring-rose-500/15'
+                            : 'bg-white border border-slate-200 focus:ring-2 focus:ring-emerald-500'
+                        }`}
+                      />
+                      {fieldErrors.waPendingOrderLimit && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-1 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 shrink-0" />
+                          <span>{fieldErrors.waPendingOrderLimit}</span>
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </form>
               </div>

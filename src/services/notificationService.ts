@@ -51,6 +51,8 @@ export interface WhatsappConfigData {
   accessToken: string;
   defaultCountryCode: string;
   doctorInquiryTemplateCode: string;
+  administrativePhoneNumbers: string[];
+  pendingOrderLimit: number | null;
 }
 
 export interface TestNotificationData {
@@ -110,6 +112,10 @@ export async function saveWhatsappConfig(data: WhatsappConfigData): Promise<void
         accessToken: data.accessToken,
         defaultCountryCode: data.defaultCountryCode,
         doctorInquiryTemplateCode: data.doctorInquiryTemplateCode,
+      },
+      settings: {
+        administrativePhoneNumbers: data.administrativePhoneNumbers,
+        pendingOrderLimit: data.pendingOrderLimit,
       },
     }),
   });

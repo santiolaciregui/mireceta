@@ -21,6 +21,14 @@ export class OrderService {
     this.tenantRepo = new TenantRepository();
   }
 
+  private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
+    try {
+      await notificationService.evaluatePendingOrderLimitAlert(tenantId);
+    } catch (error) {
+      console.error('[OrderService] Pending order limit evaluation failed:', error);
+    }
+  }
+
   async getOrdersForUser(currentUser: any) {
     const tenantId = currentUser?.tenantId || 'TEN-0001';
     const allOrders = await this.orderRepo.findByTenant(tenantId);
@@ -240,6 +248,8 @@ export class OrderService {
       details: `Creada receta ${newId} para paciente ${newOrder.patientName} ${newOrder.patientLastName}`
     });
 
+    await this.refreshPendingOrderLimitAlert(newOrder.tenantId);
+
     return createdOrder;
   }
 
@@ -281,7 +291,9 @@ export class OrderService {
           details: `Cancelada solicitud ${id} por el paciente`
         });
 
-        return this.orderRepo.update(id, order);
+        const updatedOrder = await this.orderRepo.update(id, order);
+        await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
+        return updatedOrder;
       } else if (updateData.messages) {
         order.messages = updateData.messages;
         order.lastPatientWhatsAppInteractionAt = new Date().toISOString();
@@ -520,7 +532,9 @@ export class OrderService {
       }
     }
 
-    return this.orderRepo.update(id, order);
+    const updatedOrder = await this.orderRepo.update(id, order);
+    await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
+    return updatedOrder;
   }
 
   /**
@@ -570,6 +584,10 @@ export class OrderService {
       entityId: id,
       details: `Eliminó la orden ${id} del paciente ${order.patientName || ''} ${order.patientLastName || ''} (DNI: ${order.patientDni || ''})`
     });
+
+    if (result) {
+      await this.refreshPendingOrderLimitAlert(order.tenantId || currentUser?.tenantId || 'TEN-0001');
+    }
 
     return { success: result, id };
   }
@@ -727,4 +745,3 @@ export class OrderService {
     };
   }
 }
-

@@ -10,6 +10,25 @@ export class NotificationConfigRepository {
     return NotificationConfig.find({ tenantId });
   }
 
+  async claimPendingOrderAlert(tenantId: string): Promise<INotificationConfig | null> {
+    return NotificationConfig.findOneAndUpdate(
+      {
+        tenantId,
+        channel: 'whatsapp',
+        'settings.pendingOrderAlertActive': { $ne: true }
+      },
+      { $set: { 'settings.pendingOrderAlertActive': true } },
+      { new: true }
+    );
+  }
+
+  async resetPendingOrderAlert(tenantId: string): Promise<void> {
+    await NotificationConfig.updateOne(
+      { tenantId, channel: 'whatsapp' },
+      { $set: { 'settings.pendingOrderAlertActive': false } }
+    );
+  }
+
   async upsertConfig(
     tenantId: string,
     channel: NotificationChannel,

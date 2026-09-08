@@ -4,6 +4,7 @@ import { TenantRepository } from '../repositories/TenantRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { generateOrderId } from '../utils/idGenerator.js';
+import { notificationService } from './NotificationService.js';
 
 function verifyWebhookSignature(
   xSignature: string | undefined,
@@ -45,6 +46,14 @@ export class PaymentService {
   constructor() {
     this.tenantRepo = new TenantRepository();
     this.orderRepo = new OrderRepository();
+  }
+
+  private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
+    try {
+      await notificationService.evaluatePendingOrderLimitAlert(tenantId);
+    } catch (error) {
+      console.error('[PaymentService] Pending order limit evaluation failed:', error);
+    }
   }
 
   async createPreference(tenantId: string, orderData: any) {
@@ -212,6 +221,7 @@ export class PaymentService {
                 `Se acreditó un importe de $${paidAmount}, inferior al arancel oficial de $${expectedAmount}. Operación #${paymentId} retenida.`
               );
               await this.orderRepo.update(orderId, order);
+              await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
               return { received: true, error: 'Monto insuficiente abonado' };
             }
 
@@ -240,6 +250,7 @@ export class PaymentService {
           );
 
           await this.orderRepo.update(orderId, order);
+          await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
           console.log(`[MercadoPago Webhook] Order ${orderId} updated: paymentStatus=${updatedPaymentStatus}, status=${recipeStatus}`);
         }
       }
@@ -317,6 +328,7 @@ export class PaymentService {
             );
 
             await this.orderRepo.update(orderId, order);
+            await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
           }
         }
       } catch (err: any) {
@@ -446,6 +458,7 @@ export class PaymentService {
     }
 
     await this.orderRepo.update(orderId, order);
+    await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
 
     return {
       orderId: order.id,

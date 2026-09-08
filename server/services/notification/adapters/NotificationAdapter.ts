@@ -5,6 +5,8 @@ export interface SendNotificationPayload {
   subject?: string;
   body: string;
   templateCode?: string;
+  templateLanguage?: string;
+  strictTemplate?: boolean;
   variables?: Record<string, string | number | boolean>;
   metadata?: Record<string, unknown>;
 }

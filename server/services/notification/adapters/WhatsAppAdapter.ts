@@ -113,7 +113,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       // Meta Cloud API URL
       const apiVer = waConfig.apiVersion || 'v21.0';
       const url = `https://graph.facebook.com/${apiVer}/${waConfig.phoneNumberId}/messages`;
-      const languageCode = waConfig.templateLanguage || (payload.templateCode?.includes('jaspers') ? 'en_US' : 'es_AR');
+      const languageCode = payload.templateLanguage || waConfig.templateLanguage || (payload.templateCode?.includes('jaspers') ? 'en_US' : 'es_AR');
       const metaTemplateName = (payload.templateCode || '').toLowerCase().replace(/_whatsapp$/, '');
 
       const buildTemplatePayload = (lang: string, includeButton: boolean = true) => {
@@ -202,7 +202,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       }
 
       // If template send failed with translated language error (#132001), try fallback languages (es_AR, es, en_US)
-      if (!response.ok && payload.templateCode) {
+      if (!response.ok && payload.templateCode && !payload.strictTemplate) {
         const candidateLangs = languageCode === 'es_AR'
           ? ['es', 'en_US']
           : languageCode === 'es'
@@ -226,7 +226,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       }
 
       // If template send still failed, retry with direct text
-      if (!response.ok && payload.templateCode && payload.body) {
+      if (!response.ok && payload.templateCode && payload.body && !payload.strictTemplate) {
         console.warn(`[WhatsAppAdapter] Plantilla "${metaTemplateName}" falló (${responseData?.error?.message}). Reintentando con texto directo...`);
         bodyPayload = buildDirectTextPayload();
 

@@ -1,11 +1,17 @@
 import { Request, Response, NextFunction } from 'express';
 import { notificationService } from '../services/NotificationService.js';
 import { NotificationChannel } from '../services/notification/adapters/NotificationAdapter.js';
-import { getTenantId } from '../utils/httpHelpers.js';
+import { getCurrentUser, getTenantId } from '../utils/httpHelpers.js';
 
 export class NotificationController {
   getConfigs = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const currentUser = getCurrentUser(req);
+      if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
+        res.status(403).json({ error: 'Acceso denegado. Solo administradores pueden consultar las notificaciones.' });
+        return;
+      }
+
       const tenantId = getTenantId(req);
       const configs = await notificationService.getConfigs(tenantId);
       res.json(configs);
@@ -16,6 +22,12 @@ export class NotificationController {
 
   saveConfig = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      const currentUser = getCurrentUser(req);
+      if (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin') {
+        res.status(403).json({ error: 'Acceso denegado. Solo administradores pueden modificar las notificaciones.' });
+        return;
+      }
+
       const tenantId = getTenantId(req);
       const channel = req.params.channel as NotificationChannel;
       const { isEnabled, credentials, settings } = req.body;

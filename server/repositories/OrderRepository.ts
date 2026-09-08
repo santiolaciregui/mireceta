@@ -38,6 +38,14 @@ export class OrderRepository {
     return Order.countDocuments();
   }
 
+  async countActionablePendingByTenant(tenantId: string): Promise<number> {
+    return Order.countDocuments({
+      tenantId,
+      status: 'Pendiente',
+      paymentStatus: { $ne: 'pending' }
+    });
+  }
+
   async create(orderData: Partial<IMedicalOrder>): Promise<IMedicalOrder> {
     const newOrder = new Order(orderData);
     return newOrder.save();

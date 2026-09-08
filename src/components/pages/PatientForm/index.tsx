@@ -2379,7 +2379,7 @@ export default function PatientForm({
   }
 
   return (
-    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-white' : 'max-w-6xl mx-auto bg-white rounded-none sm:rounded-3xl shadow-none border-0 sm:border border-slate-150 sm:border-slate-100'} overflow-hidden animate-scaleUp`}>
+    <div className={`w-full ${isThirdPartyUser ? 'max-w-none shadow-none border-0 rounded-none bg-[#F4F9FF]' : 'max-w-6xl mx-auto bg-white/80 rounded-none sm:rounded-3xl shadow-[0_12px_36px_rgba(22,97,225,0.08)] border-0 sm:border sm:border-blue-100'} overflow-hidden animate-scaleUp`}>
       {/* Brand Header */}
       <div className="bg-[#0141BC] text-white p-4 sm:p-6 flex items-center justify-between relative overflow-hidden">
         <div className="relative">
@@ -2397,7 +2397,7 @@ export default function PatientForm({
       </div>
 
       {/* Progress Indicators */}
-      <div className="grid grid-cols-4 border-b border-slate-200 bg-slate-50/50 py-2.5 sm:py-3 text-center text-[10px] sm:text-[11px] font-bold">
+      <div className="grid grid-cols-4 border-b border-blue-100 bg-white/75 py-2.5 sm:py-3 text-center text-[10px] sm:text-[11px] font-bold">
         <div 
           onClick={() => setStep('info')}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${
@@ -2867,7 +2867,7 @@ export default function PatientForm({
               className={`p-4.5 rounded-2xl border space-y-3 transition-all scroll-mt-6 ${
                 fieldErrors.medicationList 
                   ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
-                  : 'bg-emerald-50/30 border-[#14BE99]/30 shadow-xs'
+                  : 'bg-white/90 border-blue-100 shadow-[0_8px_24px_rgba(22,97,225,0.08)]'
               }`}
             >
               <div className="flex items-center justify-between">
@@ -3008,7 +3008,7 @@ export default function PatientForm({
                       </div>
 
                       {/* Especificación de Cajas, Comprimidos, Diagnóstico y Comentarios asociada a la Imagen */}
-                      <div className="pt-2.5 border-t border-slate-100 space-y-2.5 text-xs bg-slate-50/70 p-2.5 rounded-xl">
+                      <div className="pt-2.5 border border-[#C5D9F2] space-y-2.5 text-xs bg-[#EAF3FF] p-2.5 rounded-xl">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                           <div>
                             <label htmlFor={`photo-cajas-${index}`} className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
@@ -3093,19 +3093,19 @@ export default function PatientForm({
                   onClick={() => setMedicationMethod('past_orders')}
                   className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'past_orders'
-                      ? 'border-indigo-500 bg-indigo-50/90 text-indigo-950 ring-2 ring-indigo-500/25 shadow-xs'
+                      ? 'border-indigo-600 bg-indigo-600 text-white ring-2 ring-indigo-500/20 shadow-[0_8px_20px_rgba(79,70,229,0.24)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-indigo-900 hover:border-indigo-200 hover:bg-indigo-50/30'
                   }`}
                 >
                   <div className={`p-2 rounded-xl transition-colors ${
                     medicationMethod === 'past_orders'
-                      ? 'bg-indigo-600 text-white shadow-xs'
+                      ? 'bg-indigo-800 text-white shadow-xs'
                       : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
                   }`}>
                     <Clock className="h-5 w-5" />
                   </div>
                   <span className="font-extrabold text-[12px]">Últimas Solicitudes</span>
-                  <span className="text-[10px] font-medium text-slate-500">Repetir pedido previo</span>
+                  <span className={`text-[10px] font-medium ${medicationMethod === 'past_orders' ? 'text-indigo-100' : 'text-slate-500'}`}>Repetir pedido previo</span>
                 </button>
 
                 <button
@@ -3114,19 +3114,19 @@ export default function PatientForm({
                   onClick={() => setMedicationMethod('new_manual')}
                   className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'new_manual'
-                      ? 'border-emerald-500 bg-emerald-50/90 text-emerald-950 ring-2 ring-emerald-500/25 shadow-xs'
+                      ? 'border-emerald-600 bg-emerald-600 text-white ring-2 ring-emerald-500/20 shadow-[0_8px_20px_rgba(5,150,105,0.22)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-emerald-900 hover:border-emerald-200 hover:bg-emerald-50/30'
                   }`}
                 >
                   <div className={`p-2 rounded-xl transition-colors ${
                     medicationMethod === 'new_manual'
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-emerald-800 text-white shadow-xs'
                       : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'
                   }`}>
                     <ClipboardCheck className="h-5 w-5" />
                   </div>
                   <span className="font-extrabold text-[12px]">Nueva Carga Manual</span>
-                  <span className="text-[10px] font-medium text-slate-500">Escribir medicamentos</span>
+                  <span className={`text-[10px] font-medium ${medicationMethod === 'new_manual' ? 'text-emerald-100' : 'text-slate-500'}`}>Escribir medicamentos</span>
                 </button>
 
                 <button
@@ -3135,19 +3135,19 @@ export default function PatientForm({
                   onClick={() => setMedicationMethod('upload_photo')}
                   className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'upload_photo'
-                      ? 'border-[#1661E1] bg-blue-50/90 text-[#0141BC] ring-2 ring-[#1661E1]/25 shadow-xs'
+                      ? 'border-[#1661E1] bg-[#1661E1] text-white ring-2 ring-[#1661E1]/20 shadow-[0_8px_20px_rgba(22,97,225,0.24)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-[#0141BC] hover:border-blue-200 hover:bg-blue-50/30'
                   }`}
                 >
                   <div className={`p-2 rounded-xl transition-colors ${
                     medicationMethod === 'upload_photo'
-                      ? 'bg-[#1661E1] text-white shadow-xs'
+                      ? 'bg-[#0141BC] text-white shadow-xs'
                       : 'bg-blue-50 text-[#1661E1] group-hover:bg-blue-100'
                   }`}>
                     <Camera className="h-5 w-5" />
                   </div>
                   <span className="font-extrabold text-[12px]">Adjuntar Foto / Receta</span>
-                  <span className="text-[10px] font-medium text-slate-500">Foto de envase o receta</span>
+                  <span className={`text-[10px] font-medium ${medicationMethod === 'upload_photo' ? 'text-blue-100' : 'text-slate-500'}`}>Foto de envase o receta</span>
                 </button>
               </div>
             </div>
@@ -3333,7 +3333,7 @@ export default function PatientForm({
             {/* SECTION B: ADJUNTAR FOTO DE RECETA O MEDICACIÓN */}
             {medicationMethod === 'upload_photo' && (
               <div className="space-y-4 animate-fadeIn">
-                <div className="bg-slate-50/75 p-5 rounded-2xl border border-slate-200 space-y-4">
+                <div className="bg-white/80 p-5 rounded-2xl border border-blue-100 space-y-4 shadow-xs">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                       <Camera className="h-4 w-4 text-blue-600" />
@@ -3494,7 +3494,7 @@ export default function PatientForm({
             )}
 
             {/* CONTROL PREGUNTAS (OPCIONALES) */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div className="bg-white/80 p-4 rounded-2xl border border-blue-100 space-y-3 shadow-xs">
               <p className="text-[10px] font-bold text-blue-900 flex items-center gap-1 uppercase tracking-wider">
                 <span className="flex h-2 w-2 rounded-full bg-blue-500" />
                 Información de Control Clínico (Opcional)
@@ -3539,7 +3539,7 @@ export default function PatientForm({
                 id="btn-back-1"
                 type="button"
                 onClick={() => setStep('identification')}
-                className="w-1/3 bg-slate-100 hover:bg-slate-200 border border-slate-250 text-slate-800 font-bold py-4 px-3 rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer text-xs"
+                className="w-1/3 bg-white/75 hover:bg-white border border-slate-500 text-slate-800 font-bold py-4 px-3 rounded-2xl transition-all flex items-center justify-center gap-1 cursor-pointer text-xs"
               >
                 <ArrowLeft className="h-4 w-4" />
                 <span>Volver</span>
@@ -3549,7 +3549,7 @@ export default function PatientForm({
                 id="btn-next-step-payment"
                 type="button"
                 onClick={goToPayment}
-                className="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-2xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
+                className="w-2/3 bg-[#1661E1] hover:bg-[#0141BC] text-white font-bold py-4 px-4 rounded-2xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer text-xs"
               >
                 <span>Siguiente</span>
                 <ArrowRight className="h-4 w-4" />
