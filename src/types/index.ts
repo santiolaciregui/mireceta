@@ -138,9 +138,10 @@ export interface ChatMessage {
   sender: 'paciente' | 'medico' | 'colaborador' | 'sistema';
   senderName: string;
   text?: string;
-  fileUrl?: string; // for image or audio
+  fileUrl?: string;
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'text' | 'pdf';
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  mimeType?: string;
   timestamp: string;
   status?: 'sent' | 'delivered' | 'read';
   replyTo?: {

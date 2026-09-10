@@ -140,7 +140,8 @@ const chatMessageSchema = new Schema({
   text: { type: String },
   fileUrl: { type: String },
   fileName: { type: String },
-  fileType: { type: String, enum: ['image', 'audio', 'text', 'pdf'] },
+  fileType: { type: String, enum: ['image', 'audio', 'video', 'document', 'pdf', 'sticker'] },
+  mimeType: { type: String },
   timestamp: { type: String, required: true },
   status: { type: String, enum: ['sent', 'delivered', 'read'], default: 'sent' },
   replyTo: {

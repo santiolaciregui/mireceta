@@ -15,7 +15,8 @@ export interface ChatMessageDto {
   text?: string;
   fileUrl?: string;
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'text' | 'pdf';
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  mimeType?: string;
   audioDuration?: number;
   timestamp?: string;
   status?: 'sent' | 'delivered' | 'read';
@@ -313,6 +314,7 @@ export class ChatService {
       ...(messageData.fileUrl ? { fileUrl: messageData.fileUrl } : {}),
       ...(messageData.fileName ? { fileName: messageData.fileName } : {}),
       ...(messageData.fileType ? { fileType: messageData.fileType } : (messageData.fileUrl?.startsWith('data:audio') || messageData.fileUrl?.includes('AUDIO_NOTE') ? { fileType: 'audio' } : (messageData.fileUrl ? { fileType: 'image' } : {}))),
+      ...(messageData.mimeType ? { mimeType: messageData.mimeType } : {}),
       ...(messageData.audioDuration ? { audioDuration: messageData.audioDuration } : {}),
       ...(messageData.replyTo ? { replyTo: messageData.replyTo } : {})
     };
@@ -361,6 +363,12 @@ export class ChatService {
           doctorName: `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim(),
           orderId: orderRef,
           messageText,
+          media: messageData.fileUrl ? {
+            dataUrl: messageData.fileUrl,
+            fileName: messageData.fileName,
+            fileType: newMessage.fileType,
+            mimeType: messageData.mimeType
+          } : undefined,
           interactionRecord: patientDoc || patientOrders[0]
         });
 

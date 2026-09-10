@@ -27,7 +27,7 @@ import {
   Download
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../../../types';
-import { compressImageAndGetBase64 } from '../../../utils/file';
+import { compressImageAndGetBase64, fileToBase64 } from '../../../utils/file';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];
@@ -44,6 +44,17 @@ const QUICK_TEMPLATES = [
   'Recordá que para la renovación de recetas crónicas debes tener una consulta registrada en los últimos 6 meses.',
   'El médico auditor requiere aclarar la dosis indicada en tu solicitud anterior.'
 ];
+
+const CHAT_EMOJIS = ['😊', '👍', '❤️', '🙏', '✅', '👋', '😂', '😷', '📎', '🎉'];
+const MAX_CHAT_FILE_BYTES = 8 * 1024 * 1024;
+type ChatAttachmentType = 'image' | 'audio' | 'video' | 'document' | 'sticker';
+
+function getChatAttachmentType(file: File): ChatAttachmentType {
+  if (file.type.startsWith('image/')) return 'image';
+  if (file.type.startsWith('audio/')) return 'audio';
+  if (file.type.startsWith('video/')) return 'video';
+  return 'document';
+}
 
 export default function PatientDoctorChat({ 
   orders, 
@@ -490,7 +501,9 @@ export default function PatientDoctorChat({
   const recordInterval = useRef<NodeJS.Timeout | null>(null);
 
   // File Upload State
-  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
+  const [attachment, setAttachment] = useState<{ url: string; name: string; type: ChatAttachmentType; mimeType: string } | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [filePickerMode, setFilePickerMode] = useState<'attachment' | 'sticker'>('attachment');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Audio Playback progress tracking
@@ -720,21 +733,32 @@ export default function PatientDoctorChat({
   };
 
   const handleFileClick = () => {
+    setFilePickerMode('attachment');
+    fileInputRef.current?.click();
+  };
+
+  const handleStickerClick = () => {
+    setFilePickerMode('sticker');
     fileInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      compressImageAndGetBase64(file).then((base64String) => {
-        setPreviewImage({
-          url: base64String,
-          name: file.name
-        });
-      }).catch(err => {
-        console.error('Error comprimiendo imagen de chat:', err);
-      });
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_CHAT_FILE_BYTES) {
+      window.alert('El archivo no puede superar los 8 MB.');
+      return;
     }
+    const type = filePickerMode === 'sticker' && file.type.startsWith('image/') ? 'sticker' : getChatAttachmentType(file);
+    setFilePickerMode('attachment');
+    const reader = type === 'image' ? compressImageAndGetBase64(file) : fileToBase64(file);
+    reader.then((dataUrl) => {
+      setAttachment({ url: dataUrl, name: file.name, type, mimeType: file.type || 'application/octet-stream' });
+    }).catch(err => {
+      console.error('Error preparando adjunto de chat:', err);
+      window.alert('No se pudo preparar el archivo para enviarlo.');
+    });
   };
 
   const formatTime = (secs: number) => {
@@ -746,7 +770,7 @@ export default function PatientDoctorChat({
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!activeConversation) return;
-    if (!inputText.trim() && !previewImage) return;
+    if (!inputText.trim() && !attachment) return;
 
     const messageId = `msg-${Date.now()}`;
     const newMessage: ChatMessage = {
@@ -756,17 +780,18 @@ export default function PatientDoctorChat({
       timestamp: new Date().toISOString(),
       status: 'sent',
       ...(inputText.trim() ? { text: inputText.trim() } : {}),
-      ...(previewImage ? { 
-        fileUrl: previewImage.url, 
-        fileName: previewImage.name, 
-        fileType: 'image' 
+      ...(attachment ? {
+        fileUrl: attachment.url,
+        fileName: attachment.name,
+        fileType: attachment.type,
+        mimeType: attachment.mimeType
       } : {}),
       ...(replyingTo ? { replyTo: { id: replyingTo.id, senderName: (currentUser.role === 'paciente' && replyingTo.sender !== 'paciente') ? 'mireceta.online' : replyingTo.senderName, text: replyingTo.text || replyingTo.fileName } } : {})
     };
 
     playSynthBeep('send');
     setInputText('');
-    setPreviewImage(null);
+    setAttachment(null);
     setReplyingTo(null);
     await onSendMessage(activeConversation.cleanDni, newMessage);
     fetchConversations();
@@ -838,16 +863,17 @@ export default function PatientDoctorChat({
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      compressImageAndGetBase64(file).then((base64String) => {
-        setPreviewImage({
-          url: base64String,
-          name: file.name
-        });
-      }).catch(err => {
-        console.error('Error comprimiendo imagen arrastrada:', err);
-      });
+    if (!file) return;
+    if (file.size > MAX_CHAT_FILE_BYTES) {
+      window.alert('El archivo no puede superar los 8 MB.');
+      return;
     }
+    const type = getChatAttachmentType(file);
+    (type === 'image' ? compressImageAndGetBase64(file) : fileToBase64(file)).then((dataUrl) => {
+      setAttachment({ url: dataUrl, name: file.name, type, mimeType: file.type || 'application/octet-stream' });
+    }).catch(err => {
+      console.error('Error preparando archivo arrastrado:', err);
+    });
   };
 
   // Filter conversations list by patient search
@@ -1457,8 +1483,8 @@ export default function PatientDoctorChat({
                           </div>
                         )}
 
-                        {/* 2. PDF ATTACHMENT CARD */}
-                        {msg.fileType === 'pdf' && msg.fileUrl && (
+                        {/* DOCUMENT ATTACHMENT CARD */}
+                        {(msg.fileType === 'pdf' || msg.fileType === 'document') && msg.fileUrl && (
                           <div className="mt-2.5 p-3 bg-white/95 rounded-xl border border-slate-200/90 shadow-xs flex items-center justify-between gap-3 max-w-full">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <div className="h-9 w-9 rounded-lg bg-rose-50 border border-rose-100 flex items-center justify-center text-rose-600 shrink-0">
@@ -1466,7 +1492,7 @@ export default function PatientDoctorChat({
                               </div>
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-slate-800 truncate">{msg.fileName || 'Receta_Digital.pdf'}</p>
-                                <span className="text-[10px] text-slate-500 font-mono">Receta Oficial (PDF)</span>
+                                <span className="text-[10px] text-slate-500 font-mono">Documento adjunto</span>
                               </div>
                             </div>
                             <a
@@ -1477,7 +1503,7 @@ export default function PatientDoctorChat({
                               className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#00a884] hover:bg-[#075E54] text-white rounded-lg text-xs font-bold shrink-0 transition-colors shadow-xs"
                             >
                               <Download className="h-3.5 w-3.5" />
-                              <span>PDF</span>
+                              <span>Descargar</span>
                             </a>
                           </div>
                         )}
@@ -1496,6 +1522,19 @@ export default function PatientDoctorChat({
                               <Maximize2 className="h-6 w-6" />
                             </div>
                           </div>
+                        )}
+
+                        {msg.fileType === 'sticker' && msg.fileUrl && (
+                          <img
+                            src={msg.fileUrl}
+                            alt={msg.fileName || 'Sticker'}
+                            className="mt-1 max-h-40 max-w-[180px] object-contain"
+                            referrerPolicy="no-referrer"
+                          />
+                        )}
+
+                        {msg.fileType === 'video' && msg.fileUrl && (
+                          <video controls className="mt-1 max-h-64 max-w-full rounded-lg" src={msg.fileUrl} />
                         )}
 
                         {/* 3. AUDIO VOICE NOTE CONTENT */}
@@ -1585,23 +1624,18 @@ export default function PatientDoctorChat({
               </div>
             )}
 
-            {/* PREVIEW UPLOADED IMAGE BANNER */}
-            {previewImage && (
+            {/* ATTACHMENT PREVIEW BANNER */}
+            {attachment && (
               <div className="px-3 sm:px-4 py-2 sm:py-3 bg-white border-t border-slate-200 flex items-center justify-between gap-3 animate-scaleUp z-10 shrink-0">
                 <div className="flex items-center gap-2.5 bg-slate-50 p-1.5 sm:p-2 rounded-lg border border-slate-200 max-w-xs min-w-0 flex-1">
-                  <img 
-                    src={previewImage.url} 
-                    alt="Preview" 
-                    className="h-9 w-9 sm:h-10 sm:w-10 object-cover rounded shrink-0"
-                    referrerPolicy="no-referrer"
-                  />
+                  {attachment.type === 'image' ? <img src={attachment.url} alt="Vista previa" className="h-9 w-9 sm:h-10 sm:w-10 object-cover rounded shrink-0" referrerPolicy="no-referrer" /> : <FileText className="h-8 w-8 text-[#075E54] shrink-0" />}
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold text-slate-800 truncate">{previewImage.name}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">Imagen lista para enviar</p>
+                    <p className="text-xs font-bold text-slate-800 truncate">{attachment.name}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{attachment.type === 'image' ? 'Imagen' : attachment.type === 'audio' ? 'Audio' : attachment.type === 'video' ? 'Video' : 'Documento'} listo para enviar</p>
                   </div>
                 </div>
                 <button 
-                  onClick={() => setPreviewImage(null)}
+                  onClick={() => setAttachment(null)}
                   className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-700 cursor-pointer shrink-0"
                 >
                   <X className="h-5 w-5" />
@@ -1647,16 +1681,25 @@ export default function PatientDoctorChat({
                     type="file"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/*"
+                    accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.zip"
                     className="hidden"
                   />
                   <button
                     type="button"
                     onClick={handleFileClick}
-                    title="Adjuntar Imagen"
+                    title="Adjuntar archivo"
                     className="p-2 sm:p-2.5 hover:bg-slate-200 rounded-full text-slate-600 transition-colors shrink-0 cursor-pointer"
                   >
                     <Paperclip className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleStickerClick}
+                    title="Enviar sticker"
+                    className="p-2 sm:p-2.5 hover:bg-slate-200 rounded-full text-slate-600 transition-colors shrink-0 cursor-pointer"
+                  >
+                    <Zap className="h-4.5 w-4.5 sm:h-5 sm:w-5" />
                   </button>
 
                   {/* Voice mic recorder trigger */}
@@ -1671,19 +1714,32 @@ export default function PatientDoctorChat({
 
                   {/* Input text box */}
                   <div className="flex-1 min-w-0 relative">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker((open) => !open)}
+                      title="Agregar emoji"
+                      className="absolute left-1 top-1/2 -translate-y-1/2 z-10 p-1 text-slate-500 hover:text-[#075E54]"
+                    >
+                      <span aria-hidden="true">😊</span>
+                    </button>
+                    {showEmojiPicker && (
+                      <div className="absolute bottom-full left-0 mb-2 z-20 rounded-lg border border-slate-200 bg-white p-2 shadow-lg flex gap-1">
+                        {CHAT_EMOJIS.map((emoji) => <button key={emoji} type="button" className="p-1 hover:bg-slate-100 rounded" onClick={() => { setInputText((text) => `${text}${emoji}`); setShowEmojiPicker(false); }}>{emoji}</button>)}
+                      </div>
+                    )}
                     <input
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       placeholder="Escribí un mensaje de WhatsApp..."
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
+                      className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 sm:pr-4 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
                     />
                   </div>
 
                   {/* Submit button */}
                   <button
                     type="submit"
-                    disabled={!inputText.trim() && !previewImage}
+                    disabled={!inputText.trim() && !attachment}
                     className="h-9 w-9 sm:h-10 sm:w-10 bg-[#00a884] hover:bg-[#075E54] disabled:opacity-50 text-white rounded-full transition-all flex items-center justify-center shrink-0 cursor-pointer shadow-xs"
                     title="Enviar mensaje"
                   >

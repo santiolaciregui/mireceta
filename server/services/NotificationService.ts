@@ -7,6 +7,7 @@ import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { generatePatientId, generateMessageId } from '../utils/idGenerator.js';
+import { formatWhatsAppPhone } from '../utils/formatters.js';
 import {
   getPendingOrderAlertTransition,
   normalizePendingOrderAlertSettings,
@@ -25,6 +26,15 @@ export interface SendDirectNotificationDto {
   strictTemplate?: boolean;
   variables?: Record<string, string | number | boolean>;
 }
+
+export interface ChatMediaPayload {
+  dataUrl: string;
+  fileName?: string;
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  mimeType?: string;
+}
+
+const MAX_PERSISTED_CHAT_MEDIA_BYTES = 8 * 1024 * 1024;
 
 export class NotificationService {
   private configRepo: NotificationConfigRepository;
@@ -383,7 +393,10 @@ export class NotificationService {
             if (!senderPhone) continue;
 
             const contactName = contacts.find((c: any) => c.wa_id === senderPhone)?.profile?.name || 'Paciente WhatsApp';
-            const textContent = msg.text?.body || (msg.type === 'image' ? '[Imagen recibida por WhatsApp]' : (msg.type === 'audio' || msg.type === 'voice' ? '[Nota de voz por WhatsApp]' : (msg.type === 'document' ? `[Documento: ${msg.document?.filename || 'PDF'}]` : '[Mensaje de WhatsApp]')));
+            const mediaType = this.getInboundMediaType(msg.type);
+            const media = mediaType ? msg[msg.type] : undefined;
+            const mediaData = media?.id ? await this.downloadInboundWhatsAppMedia(media.id, 'TEN-0001') : null;
+            const textContent = msg.text?.body || media?.caption || this.getInboundMediaLabel(mediaType, media?.filename);
 
             console.log(`[WhatsApp Webhook Inbound] Mensaje recibido de ${senderPhone} (${contactName}): "${textContent}"`);
 
@@ -393,6 +406,12 @@ export class NotificationService {
               senderName: contactName,
               senderRole: 'paciente',
               text: textContent,
+              ...(mediaData ? {
+                fileUrl: mediaData.dataUrl,
+                fileName: media?.filename || mediaData.fileName || this.defaultMediaFileName(mediaType, mediaData.mimeType),
+                fileType: mediaType,
+                mimeType: mediaData.mimeType
+              } : {}),
               timestamp: nowIso,
               status: 'delivered'
             };
@@ -475,9 +494,10 @@ export class NotificationService {
     doctorName: string;
     orderId: string;
     messageText: string;
+    media?: ChatMediaPayload;
     interactionRecord?: { lastPatientWhatsAppInteractionAt?: string };
   }): Promise<SendNotificationResult> {
-    const { tenantId, patientPhone, patientName, doctorName, orderId, messageText, interactionRecord } = params;
+    const { tenantId, patientPhone, patientName, doctorName, orderId, messageText, interactionRecord, media } = params;
     if (!patientPhone) {
       return { success: false, error: 'Número de teléfono no disponible para este paciente.' };
     }
@@ -486,6 +506,9 @@ export class NotificationService {
       const isWithin24h = this.isWithinWhatsApp24hWindow(interactionRecord);
 
       if (isWithin24h) {
+        if (media) {
+          return await this.sendWhatsAppMedia(tenantId, patientPhone, media, messageText);
+        }
         return await this.sendNotification({
           tenantId,
           channel: 'whatsapp',
@@ -511,6 +534,91 @@ export class NotificationService {
       console.error('Error al despachar notificación de consulta médica WhatsApp:', err);
       return { success: false, error: err.message || 'Error al despachar WhatsApp' };
     }
+  }
+
+  private getInboundMediaType(type: string): ChatMediaPayload['fileType'] | null {
+    if (type === 'image' || type === 'audio' || type === 'video' || type === 'document' || type === 'sticker') return type;
+    return null;
+  }
+
+  private getInboundMediaLabel(type: ChatMediaPayload['fileType'] | null, fileName?: string): string {
+    if (type === 'image') return '[Imagen recibida por WhatsApp]';
+    if (type === 'audio') return '[Nota de voz recibida por WhatsApp]';
+    if (type === 'video') return '[Video recibido por WhatsApp]';
+    if (type === 'sticker') return '[Sticker recibido por WhatsApp]';
+    if (type === 'document') return `[Documento: ${fileName || 'archivo adjunto'}]`;
+    return '[Mensaje de WhatsApp]';
+  }
+
+  private defaultMediaFileName(type: ChatMediaPayload['fileType'] | null, mimeType: string): string {
+    const extension = mimeType.split('/')[1]?.split(';')[0] || 'bin';
+    return `${type || 'archivo'}-${Date.now()}.${extension}`;
+  }
+
+  private async getWhatsAppAccessToken(tenantId: string): Promise<string> {
+    const config = await this.getWhatsAppConfig(tenantId);
+    return String(config?.credentials?.accessToken || process.env.WHATSAPP_ACCESS_TOKEN || process.env.META_ACCESS_TOKEN || '').trim();
+  }
+
+  private async getWhatsAppConfig(tenantId: string) {
+    return (await this.getConfig(tenantId, 'whatsapp')) ||
+      (tenantId !== 'TEN-0001' ? await this.getConfig('TEN-0001', 'whatsapp') : null);
+  }
+
+  private async downloadInboundWhatsAppMedia(mediaId: string, tenantId: string): Promise<{ dataUrl: string; mimeType: string; fileName?: string } | null> {
+    try {
+      const accessToken = await this.getWhatsAppAccessToken(tenantId);
+      if (!accessToken) return null;
+      const apiVersion = process.env.WHATSAPP_API_VERSION || 'v21.0';
+      const metadataResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${encodeURIComponent(mediaId)}`, {
+        headers: { Authorization: `Bearer ${accessToken}` }
+      });
+      if (!metadataResponse.ok) return null;
+      const metadata = await metadataResponse.json() as { url?: string; mime_type?: string; file_size?: number };
+      if (!metadata.url || (metadata.file_size && metadata.file_size > MAX_PERSISTED_CHAT_MEDIA_BYTES)) return null;
+      const fileResponse = await fetch(metadata.url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!fileResponse.ok) return null;
+      const buffer = Buffer.from(await fileResponse.arrayBuffer());
+      if (buffer.byteLength > MAX_PERSISTED_CHAT_MEDIA_BYTES) return null;
+      const mimeType = metadata.mime_type || fileResponse.headers.get('content-type') || 'application/octet-stream';
+      return { dataUrl: `data:${mimeType};base64,${buffer.toString('base64')}`, mimeType };
+    } catch (error) {
+      console.warn('[NotificationService] Unable to download inbound WhatsApp media:', error);
+      return null;
+    }
+  }
+
+  private async sendWhatsAppMedia(tenantId: string, patientPhone: string, media: ChatMediaPayload, caption: string): Promise<SendNotificationResult> {
+    const accessToken = await this.getWhatsAppAccessToken(tenantId);
+    const config = await this.getWhatsAppConfig(tenantId);
+    const phoneNumberId = String(config?.credentials?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || '').trim();
+    if (!accessToken || !phoneNumberId) return { success: false, error: 'WhatsApp no configurado para enviar archivos.' };
+    const match = media.dataUrl.match(/^data:([^;,]+);base64,(.+)$/s);
+    if (!match) return { success: false, error: 'El archivo adjunto no tiene un formato válido.' };
+    const mimeType = media.mimeType || match[1];
+    const buffer = Buffer.from(match[2], 'base64');
+    if (buffer.byteLength > MAX_PERSISTED_CHAT_MEDIA_BYTES) return { success: false, error: 'El archivo excede el límite de 8 MB.' };
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v21.0';
+    const uploadBody = new FormData();
+    uploadBody.set('messaging_product', 'whatsapp');
+    uploadBody.set('file', new Blob([buffer], { type: mimeType }), media.fileName || 'adjunto');
+    const uploadResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/media`, {
+      method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: uploadBody
+    });
+    const upload = await uploadResponse.json() as { id?: string; error?: { message?: string } };
+    if (!uploadResponse.ok || !upload.id) return { success: false, error: upload.error?.message || 'No se pudo cargar el archivo en WhatsApp.' };
+    const type = media.fileType === 'pdf' ? 'document' : media.fileType;
+    const recipient = formatWhatsAppPhone(patientPhone, String(config?.credentials?.defaultCountryCode || process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54'));
+    if (!recipient) return { success: false, error: 'Número de teléfono de destino inválido.' };
+    const payload: any = { messaging_product: 'whatsapp', recipient_type: 'individual', to: recipient, type };
+    payload[type || 'document'] = { id: upload.id };
+    if (type === 'document' && media.fileName) payload.document.filename = media.fileName;
+    if (caption && (type === 'image' || type === 'video' || type === 'document')) payload[type].caption = caption;
+    const sendResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {
+      method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    });
+    const sent = await sendResponse.json() as { messages?: Array<{ id?: string }>; error?: { message?: string } };
+    return sendResponse.ok ? { success: true, messageId: sent.messages?.[0]?.id } : { success: false, error: sent.error?.message || 'WhatsApp rechazó el archivo.' };
   }
 
   /**
