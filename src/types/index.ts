@@ -53,6 +53,7 @@ export interface NotificationEntry {
 
 export interface MedicalOrder {
   id: string;
+  clientRequestId?: string;
   tenantId?: string;
   patientName: string;
   patientLastName: string;

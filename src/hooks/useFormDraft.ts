@@ -40,6 +40,7 @@ export interface PatientFormDraft {
   // Step 4: Payment
   paymentMethod: 'mp' | 'transfer' | 'cash_desk';
   paymentAmount: string;
+  clientRequestId?: string;
 
   // Metadata
   savedAt: string;

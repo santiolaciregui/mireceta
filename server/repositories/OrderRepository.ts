@@ -6,6 +6,10 @@ export class OrderRepository {
     return Order.findOne({ id });
   }
 
+  async findByClientRequestId(clientRequestId: string): Promise<IMedicalOrder | null> {
+    return Order.findOne({ clientRequestId });
+  }
+
   async findByTenant(tenantId: string): Promise<IMedicalOrder[]> {
     return Order.find({ tenantId }).sort({ createdAt: -1 });
   }
@@ -41,8 +45,8 @@ export class OrderRepository {
   async countActionablePendingByTenant(tenantId: string): Promise<number> {
     return Order.countDocuments({
       tenantId,
-      status: 'Pendiente',
-      paymentStatus: { $ne: 'pending' }
+      status: { $in: ['Pendiente', 'En revisión'] },
+      paymentStatus: { $nin: ['pending', 'rejected', 'refunded'] }
     });
   }
 

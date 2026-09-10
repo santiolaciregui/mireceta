@@ -61,6 +61,19 @@ export class OrderService {
     const newId = generateOrderId();
 
     const tenantIdToUse = currentUser?.tenantId || orderData.tenantId || 'TEN-0001';
+    const clientRequestId = typeof orderData.clientRequestId === 'string'
+      ? orderData.clientRequestId.trim()
+      : '';
+
+    if (clientRequestId) {
+      const existingOrder = await this.orderRepo.findByClientRequestId(clientRequestId);
+      if (existingOrder) {
+        if (existingOrder.tenantId !== tenantIdToUse) {
+          throw new Error('La solicitud no pertenece al centro médico actual.');
+        }
+        return existingOrder;
+      }
+    }
     let basePricePerPrescription = 10000;
     try {
       const tenant = await this.tenantRepo.findById(tenantIdToUse);
@@ -165,6 +178,7 @@ export class OrderService {
     const newOrder: any = {
       ...orderData,
       id: newId,
+      clientRequestId: clientRequestId || undefined,
       patientName: orderData.patientName || currentUser?.name || 'Paciente',
       patientLastName: orderData.patientLastName || currentUser?.lastName || '',
       patientDni: orderData.patientDni || currentUser?.identifier || '',
@@ -237,7 +251,16 @@ export class OrderService {
       );
     }
 
-    const createdOrder = await this.orderRepo.create(newOrder);
+    let createdOrder;
+    try {
+      createdOrder = await this.orderRepo.create(newOrder);
+    } catch (error: any) {
+      if (error?.code === 11000 && clientRequestId) {
+        const existingOrder = await this.orderRepo.findByClientRequestId(clientRequestId);
+        if (existingOrder) return existingOrder;
+      }
+      throw error;
+    }
 
     await auditLogService.log({
       tenantId: newOrder.tenantId,

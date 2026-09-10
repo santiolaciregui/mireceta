@@ -227,7 +227,7 @@ export class PaymentService {
 
             updatedPaymentStatus = 'approved';
             if (recipeStatus === 'Pendiente de Pago' || recipeStatus === 'Pendiente') {
-              recipeStatus = 'Pendiente';
+              recipeStatus = 'En revisión';
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
@@ -304,7 +304,7 @@ export class PaymentService {
               recipeStatus = 'Rechazada';
             } else {
               updatedPaymentStatus = 'approved';
-              recipeStatus = 'Pendiente';
+              recipeStatus = 'En revisión';
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
@@ -406,7 +406,7 @@ export class PaymentService {
               order.paymentId = String(paymentInfo.id);
               order.paymentDate = new Date().toISOString();
               if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
-                order.status = 'Pendiente';
+                order.status = 'En revisión';
               }
               addAuditLogEntry(
                 order,
@@ -439,7 +439,7 @@ export class PaymentService {
       }
       order.paymentDate = new Date().toISOString();
       if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
-        order.status = 'Pendiente';
+        order.status = 'En revisión';
       }
       addAuditLogEntry(
         order,

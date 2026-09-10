@@ -28,6 +28,7 @@ export interface INotificationEntry {
 
 export interface IMedicalOrder extends Document {
   id: string;
+  clientRequestId?: string;
   tenantId?: string;
   patientName: string;
   patientLastName: string;
@@ -154,6 +155,7 @@ const chatMessageSchema = new Schema({
 
 const medicalOrderSchema = new Schema<IMedicalOrder>({
   id: { type: String, required: true, unique: true },
+  clientRequestId: { type: String, unique: true, sparse: true },
   tenantId: { type: String },
   patientName: { type: String, required: true },
   patientLastName: { type: String, required: true },

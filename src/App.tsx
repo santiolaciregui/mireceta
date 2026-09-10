@@ -210,8 +210,7 @@ export default function App() {
   }, [activeRole]);
 
   // Quick stats for the navbar
-  const pendingOrdersCount = orders.filter((o) => o.status === 'Pendiente' && o.paymentStatus !== 'pending').length;
-  const pendingPaymentOrdersCount = orders.filter((o) => o.paymentStatus === 'pending').length;
+  const pendingOrdersCount = orders.filter((o) => o.paymentStatus === 'pending').length;
   const completedOrdersCount = orders.filter((o) => o.status === 'Emitida' || o.status === 'Enviada').length;
   const chatCount = React.useMemo(() => {
     const patientLastMessages = new Map<string, { sender: string; timestamp: number }>();
@@ -338,7 +337,6 @@ export default function App() {
         }}
         onLogout={logout}
         pendingCount={pendingOrdersCount}
-        pendingPaymentCount={pendingPaymentOrdersCount}
         inRevisionCount={orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length}
         completedCount={orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length}
         rejectedCount={orders.filter(o => o.status === 'Rechazada').length}

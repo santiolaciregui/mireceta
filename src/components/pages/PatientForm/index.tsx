@@ -72,6 +72,13 @@ interface PatientFormProps {
   currentTenant?: any;
 }
 
+const createClientRequestId = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `request-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+};
+
 const BANK_DETAILS = {
   cbu: '0000003100087922246734',
   alias: 'mireceta.online',
@@ -131,6 +138,7 @@ export default function PatientForm({
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [returnedOrder, setReturnedOrder] = useState<any>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
@@ -962,6 +970,7 @@ export default function PatientForm({
 
       if (draft.paymentMethod) setPaymentMethod(draft.paymentMethod);
       if (draft.paymentAmount) setPaymentAmount(draft.paymentAmount);
+      if (draft.clientRequestId) setClientRequestId(draft.clientRequestId);
 
       setDraftRestored(true);
     }
@@ -1007,6 +1016,7 @@ export default function PatientForm({
         consentSworn,
         paymentMethod,
         paymentAmount,
+        clientRequestId,
       });
     }
   }, [
@@ -1038,12 +1048,14 @@ export default function PatientForm({
     consentSworn,
     paymentMethod,
     paymentAmount,
+    clientRequestId,
     saveDraft,
   ]);
 
   // 3. Reset form and discard draft
   const handleResetForm = () => {
     clearDraft();
+    setClientRequestId(createClientRequestId());
     setDraftRestored(false);
     setStep('info');
     if (!isThirdPartyUser) {
@@ -1371,6 +1383,7 @@ export default function PatientForm({
           medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
           medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
           paymentMethod: 'mp',
+          clientRequestId,
           paymentAmount,
           paymentDate: new Date().toISOString(),
           paymentStatus: 'pending',
@@ -1511,6 +1524,7 @@ export default function PatientForm({
       medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
       paymentMethod: isExempt ? 'bonificado' : paymentMethod,
+      clientRequestId,
       
       // Payment details
       paymentReceiptUrl: isExempt
@@ -1531,6 +1545,7 @@ export default function PatientForm({
             ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
             : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`)),
       paymentStatus: isExempt ? 'exempt' : 'approved',
+      status: 'En revisión',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
