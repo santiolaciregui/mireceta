@@ -56,6 +56,71 @@ export class PaymentService {
     }
   }
 
+  async refundApprovedCheckoutPayment(order: any): Promise<{
+    refunded: boolean;
+    refundId?: string;
+    reason?: string;
+  }> {
+    if (order.paymentStatus !== 'approved') {
+      return { refunded: false, reason: 'La solicitud no tiene un pago aprobado para reintegrar.' };
+    }
+
+    if (order.paymentMethod !== 'mp') {
+      return { refunded: false, reason: 'El pago no fue realizado mediante Mercado Pago Checkout.' };
+    }
+
+    const paymentId = String(order.paymentId || '');
+    if (!/^\d+$/.test(paymentId)) {
+      return { refunded: false, reason: 'La solicitud no tiene un identificador oficial de pago de Mercado Pago.' };
+    }
+
+    const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
+    const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) {
+      return { refunded: false, reason: 'Mercado Pago no está configurado para realizar el reintegro.' };
+    }
+
+    try {
+      const client = new MercadoPagoConfig({ accessToken });
+      const paymentApi = new Payment(client);
+      const paymentInfo: any = await paymentApi.get({ id: paymentId });
+      const expectedAmount = Number(order.paymentAmount) || 0;
+
+      if (paymentInfo?.status !== 'approved') {
+        return { refunded: false, reason: 'Mercado Pago no confirma un pago aprobado para esta solicitud.' };
+      }
+      if (String(paymentInfo?.external_reference || '') !== String(order.id)) {
+        return { refunded: false, reason: 'El pago de Mercado Pago no pertenece a esta solicitud.' };
+      }
+      if (expectedAmount > 0 && Number(paymentInfo?.transaction_amount) < expectedAmount) {
+        return { refunded: false, reason: 'El importe acreditado es menor al arancel registrado.' };
+      }
+
+      const idempotencyKey = crypto
+        .createHash('sha256')
+        .update(`refund:${order.id}:${paymentId}`)
+        .digest('hex');
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(paymentId)}/refunds`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'X-Idempotency-Key': idempotencyKey,
+        },
+      });
+      const payload: any = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        console.error(`[PaymentService] Mercado Pago refund failed for order ${order.id}:`, payload);
+        return { refunded: false, reason: payload?.message || 'Mercado Pago no pudo procesar el reintegro.' };
+      }
+
+      return { refunded: true, refundId: String(payload?.id || '') || undefined };
+    } catch (error: any) {
+      console.error(`[PaymentService] Mercado Pago refund failed for order ${order.id}:`, error?.message || error);
+      return { refunded: false, reason: 'No se pudo verificar o reintegrar el pago con Mercado Pago.' };
+    }
+  }
+
   async createPreference(tenantId: string, orderData: any) {
     const orderId = orderData.orderId;
     if (!orderId) {
@@ -276,7 +341,7 @@ export class PaymentService {
         const paymentApi = new Payment(client);
 
         let fetchedPayment: any = null;
-        if (order.paymentId && !order.paymentId.startsWith('REC-')) {
+        if (order.paymentId && /^\d+$/.test(order.paymentId)) {
           fetchedPayment = await paymentApi.get({ id: order.paymentId });
         } else {
           const searchResult = await paymentApi.search({
@@ -304,7 +369,9 @@ export class PaymentService {
               recipeStatus = 'Rechazada';
             } else {
               updatedPaymentStatus = 'approved';
-              recipeStatus = 'En revisión';
+              if (recipeStatus === 'Pendiente' || recipeStatus === 'Pendiente de Pago') {
+                recipeStatus = 'En revisión';
+              }
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';

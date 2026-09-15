@@ -66,6 +66,7 @@ export interface IMedicalOrder extends Document {
   paymentAmount: string;
   paymentDate: string;
   paymentId?: string;
+  paymentRefundId?: string;
   paymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' | 'exempt';
   
   status: 'Pendiente' | 'En revisión' | 'Solicita más información' | 'Aprobada' | 'Rechazada' | 'Emitida' | 'Enviada' | 'Cancelada';
@@ -193,6 +194,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   paymentAmount: { type: String, required: false, default: '10000' },
   paymentDate: { type: String, required: false, default: () => new Date().toISOString() },
   paymentId: { type: String },
+  paymentRefundId: { type: String },
   paymentStatus: { type: String, enum: ['approved', 'pending', 'rejected', 'refunded', 'exempt'], required: false, default: 'pending' },
   
   status: { 

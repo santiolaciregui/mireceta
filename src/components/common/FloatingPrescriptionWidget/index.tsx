@@ -3,9 +3,10 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { MedicalOrder } from '../../../types';
 import { copyToClipboard } from '../../../utils/clipboard';
+import PrescriptionImageViewer from './PrescriptionImageViewer';
 import { 
   Pill, 
   User, 
@@ -47,6 +48,12 @@ export default function FloatingPrescriptionWidget({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
   const [activeTab, setActiveTab] = useState<'meds' | 'patient' | 'payment' | 'photos'>('meds');
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string; orderId: string } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPreviewImage(null);
+  }, [order?.id]);
 
   if (!order) {
     return (
@@ -59,8 +66,6 @@ export default function FloatingPrescriptionWidget({
       </div>
     );
   }
-
-  const containerRef = useRef<HTMLDivElement>(null);
 
   const handleCopy = async (text: string | number | undefined | null, fieldId: string) => {
     if (text === undefined || text === null) return;
@@ -239,10 +244,61 @@ export default function FloatingPrescriptionWidget({
     }
   };
 
-  const medicationPhotoList = order.medicationPhotos || (order.medicationPhotoUrl ? [{ url: order.medicationPhotoUrl, name: order.medicationPhotoName || 'envase.jpg' }] : []);
+  const medicationPhotoList = order.medicationPhotos?.length ? order.medicationPhotos : (order.medicationPhotoUrl ? [{ url: order.medicationPhotoUrl, name: order.medicationPhotoName || 'envase.jpg' }] : []);
   const hasMedicationPhotos = medicationPhotoList.length > 0;
   const hasPaymentReceipt = !!order.paymentReceiptUrl;
   const totalPhotosCount = medicationPhotoList.length + (hasPaymentReceipt ? 1 : 0);
+
+  const renderMedicationPhotos = (fullWidth = false) => medicationPhotoList.map((photo, i) => (
+    <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+      {photo.url.startsWith('data:application/pdf') || /\.pdf(?:[?#]|$)/i.test(photo.name) || /\.pdf(?:[?#]|$)/i.test(photo.url) ? (
+        <div className="p-4 bg-slate-50 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-6 w-6 text-rose-500 shrink-0" />
+            <span className="text-[11px] font-bold text-slate-700 truncate">{photo.name}</span>
+          </div>
+          <a
+            href={photo.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1 bg-[#1661E1] text-white rounded font-bold text-[10px] flex items-center gap-1 shrink-0"
+          >
+            <ExternalLink className="h-3 w-3" /> Abrir PDF
+          </a>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPreviewImage({ url: photo.url, name: photo.name, orderId: order.id })}
+          className="block w-full relative group cursor-zoom-in"
+        >
+          <img src={photo.url} alt={`Foto de la solicitud ${i + 1}: ${photo.name}`} className={`block w-full object-contain bg-slate-100 ${fullWidth ? 'h-auto' : 'max-h-48'}`} />
+          <div className="p-1.5 bg-slate-900/80 text-white text-[9px] flex items-center justify-center gap-1">
+            <ExternalLink className="h-3 w-3" /> Abrir imagen en tamaño completo
+          </div>
+        </button>
+      )}
+      <div className="p-2 text-[9px] bg-slate-50 border-t border-slate-100 space-y-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="font-mono text-slate-700 font-bold truncate">Envase/Receta: {photo.name}</span>
+          <span className="text-[9px] font-black text-[#1661E1] shrink-0 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
+            {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
+            {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} u.` : ''}
+          </span>
+        </div>
+        {photo.diagnostic && (
+          <div className="text-[9px] font-bold text-indigo-700 truncate" title={photo.diagnostic}>
+            Diag: {photo.diagnostic}
+          </div>
+        )}
+        {photo.comments && (
+          <div className="text-[9px] text-slate-600 italic truncate" title={photo.comments}>
+            Obs: {photo.comments}
+          </div>
+        )}
+      </div>
+    </div>
+  ));
 
   const WidgetRow = ({
     label,
@@ -412,7 +468,14 @@ export default function FloatingPrescriptionWidget({
             )}
 
             {/* Structured Medications */}
-            {order.medicationItems && order.medicationItems.length > 0 ? (
+            {hasMedicationPhotos && order.medicationMethod === 'foto' ? (
+              <div className="bg-white border-2 border-slate-200 rounded-xl p-3 shadow-xs space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Fotos de la Solicitud</span>
+                <div className="space-y-2.5">
+                  {renderMedicationPhotos(true)}
+                </div>
+              </div>
+            ) : order.medicationItems && order.medicationItems.length > 0 ? (
               order.medicationItems.map((item, idx) => (
                 <div 
                   key={idx} 
@@ -672,57 +735,7 @@ export default function FloatingPrescriptionWidget({
             <span className="text-[10px] font-bold text-slate-500 block">Archivos y fotos adjuntas en la solicitud:</span>
             <div className="grid grid-cols-1 gap-2.5">
               {/* Fotos de envases o recetas anteriores */}
-              {medicationPhotoList.map((photo, i) => (
-                <div key={i} className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
-                  {photo.url.startsWith('data:application/pdf') ? (
-                    <div className="p-4 bg-slate-50 flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-6 w-6 text-rose-500 shrink-0" />
-                        <span className="text-[11px] font-bold text-slate-700 truncate">{photo.name}</span>
-                      </div>
-                      <a
-                        href={photo.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="px-2.5 py-1 bg-[#1661E1] text-white rounded font-bold text-[10px] flex items-center gap-1 shrink-0"
-                      >
-                        <ExternalLink className="h-3 w-3" /> Abrir PDF
-                      </a>
-                    </div>
-                  ) : (
-                    <a
-                      href={photo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block relative group cursor-zoom-in"
-                    >
-                      <img src={photo.url} alt="Envase" className="max-h-48 w-full object-contain bg-slate-100" />
-                      <div className="p-1.5 bg-slate-900/80 text-white text-[9px] flex items-center justify-center gap-1">
-                        <ExternalLink className="h-3 w-3" /> Abrir imagen en tamaño completo
-                      </div>
-                    </a>
-                  )}
-                  <div className="p-2 text-[9px] bg-slate-50 border-t border-slate-100 space-y-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono text-slate-700 font-bold truncate">Envase/Receta: {photo.name}</span>
-                      <span className="text-[9px] font-black text-[#1661E1] shrink-0 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200">
-                        {photo.cantidadCajas || 1} {(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
-                        {photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} u.` : ''}
-                      </span>
-                    </div>
-                    {photo.diagnostic && (
-                      <div className="text-[9px] font-bold text-indigo-700 truncate" title={photo.diagnostic}>
-                        Diag: {photo.diagnostic}
-                      </div>
-                    )}
-                    {photo.comments && (
-                      <div className="text-[9px] text-slate-600 italic truncate" title={photo.comments}>
-                        Obs: {photo.comments}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
+              {renderMedicationPhotos()}
 
               {/* Comprobante de pago */}
               {hasPaymentReceipt && (
@@ -745,17 +758,16 @@ export default function FloatingPrescriptionWidget({
                       </a>
                     </div>
                   ) : (
-                    <a
-                      href={order.paymentReceiptUrl!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block relative group cursor-zoom-in"
+                    <button
+                      type="button"
+                      onClick={() => setPreviewImage({ url: order.paymentReceiptUrl!, name: order.paymentReceiptName || 'Comprobante de pago', orderId: order.id })}
+                      className="block w-full relative group cursor-zoom-in"
                     >
                       <img src={order.paymentReceiptUrl!} alt="Comprobante" className="max-h-48 w-full object-contain bg-slate-100" />
                       <div className="p-1.5 bg-slate-900/80 text-white text-[9px] flex items-center justify-center gap-1">
                         <ExternalLink className="h-3 w-3" /> Abrir comprobante de pago
                       </div>
-                    </a>
+                    </button>
                   )}
                   <div className="p-2 text-[9px] font-mono text-slate-500 truncate bg-slate-50 border-t border-slate-100">
                     Comprobante de Pago: {order.paymentReceiptName || 'comprobante_pago'}
@@ -766,6 +778,13 @@ export default function FloatingPrescriptionWidget({
           </div>
         )}
       </div>
+
+      {previewImage?.orderId === order.id && (
+        <PrescriptionImageViewer
+          image={previewImage}
+          onClose={() => setPreviewImage(null)}
+        />
+      )}
 
       {/* Footer Info & Hint */}
       <footer className="bg-slate-100 border-t border-slate-200 px-3 py-2 flex items-center justify-between text-[10px] text-slate-500 shrink-0 select-none">

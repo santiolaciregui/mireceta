@@ -8,17 +8,20 @@ import { storageService } from './storage/StorageService.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { cleanDni } from '../utils/formatters.js';
 import { PricingService } from './PricingService.js';
+import { PaymentService } from './PaymentService.js';
 import { generateOrderId, generateMessageId } from '../utils/idGenerator.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
   private patientRepo: PatientRepository;
   private tenantRepo: TenantRepository;
+  private paymentService: PaymentService;
 
   constructor() {
     this.orderRepo = new OrderRepository();
     this.patientRepo = new PatientRepository();
     this.tenantRepo = new TenantRepository();
+    this.paymentService = new PaymentService();
   }
 
   private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
@@ -294,13 +297,14 @@ export class OrderService {
         order.status = 'Cancelada';
         
         if (order.paymentStatus === 'approved') {
-          order.paymentStatus = 'refunded';
-          addAuditLogEntry(
-            order,
-            'En devolución (Reembolso iniciado)',
-            'Sistema (Reembolso)',
-            `Cancelación de orden paga. Se inició proceso de reintegro por $${order.paymentAmount || '0'}.`
-          );
+          const refund = await this.paymentService.refundApprovedCheckoutPayment(order);
+          if (refund.refunded) {
+            order.paymentStatus = 'refunded';
+            order.paymentRefundId = refund.refundId;
+            addAuditLogEntry(order, 'Reembolso acreditado', 'Sistema (Mercado Pago)', `Cancelación de orden paga. Mercado Pago confirmó el reintegro de $${order.paymentAmount || '0'}${refund.refundId ? ` (ID ${refund.refundId})` : ''}.`);
+          } else {
+            addAuditLogEntry(order, 'Reembolso pendiente de gestión', 'Sistema', `Cancelación de orden paga. No se realizó un reintegro automático: ${refund.reason}`);
+          }
         }
 
         addAuditLogEntry(order, 'Cancelada por paciente', 'Paciente (Autogestión)', 'El paciente canceló la solicitud antes de su aprobación.');
@@ -370,13 +374,14 @@ export class OrderService {
     if (updateData.status && updateData.status !== order.status) {
       const isBeingRejected = updateData.status === 'Rechazada';
       if (isBeingRejected && order.paymentStatus === 'approved') {
-        order.paymentStatus = 'refunded';
-        addAuditLogEntry(
-          order,
-          'En devolución (Reembolso iniciado)',
-          operatorName,
-          `Solicitud rechazada en revisión médica. Se inició automáticamente el proceso de reembolso de los $${order.paymentAmount || '0'} abonados.`
-        );
+        const refund = await this.paymentService.refundApprovedCheckoutPayment(order);
+        if (refund.refunded) {
+          order.paymentStatus = 'refunded';
+          order.paymentRefundId = refund.refundId;
+          addAuditLogEntry(order, 'Reembolso acreditado', 'Sistema (Mercado Pago)', `Solicitud rechazada. Mercado Pago confirmó el reintegro de $${order.paymentAmount || '0'}${refund.refundId ? ` (ID ${refund.refundId})` : ''}.`);
+        } else {
+          addAuditLogEntry(order, 'Reembolso pendiente de gestión', operatorName, `Solicitud rechazada. No se realizó un reintegro automático: ${refund.reason}`);
+        }
       }
 
       addAuditLogEntry(order, `Cambio de estado: ${updateData.status}`, operatorName, updateData.doctorNotes);

@@ -87,6 +87,7 @@ export interface MedicalOrder {
   paymentAmount: string;
   paymentDate: string;
   paymentId?: string;       // MP Transaction ID
+  paymentRefundId?: string;
   paymentStatus?: 'approved' | 'pending' | 'rejected' | 'refunded' | 'exempt';
   
   status: OrderStatus;

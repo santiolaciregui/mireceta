@@ -181,6 +181,7 @@ export default function DoctorDashboard({
     obraSocial: true,
     medication: true,
     payment: true,
+    audit: true,
   };
 
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(DEFAULT_COLLAPSED_SECTIONS);
@@ -197,7 +198,8 @@ export default function DoctorDashboard({
     collapsedSections.dependent &&
     collapsedSections.obraSocial &&
     collapsedSections.medication &&
-    collapsedSections.payment
+    collapsedSections.payment &&
+    collapsedSections.audit
   );
 
   const toggleAllSections = () => {
@@ -2081,26 +2083,36 @@ export default function DoctorDashboard({
                   {/* Audit Log (Registro de Cambios) */}
                   {selectedOrder.auditLog && selectedOrder.auditLog.length > 0 && (
                     <div className="mt-8 pt-6 border-t border-slate-200/80">
-                      <span className="font-mono text-xs uppercase tracking-wider text-slate-400 font-bold flex items-center gap-1.5 mb-3">
-                        <FileCheck className="h-4 w-4 text-slate-500" /> Registro de Cambios (Auditoría)
-                      </span>
-                      <div className="space-y-2.5">
-                        {selectedOrder.auditLog.map((log, idx) => (
-                          <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-700">
-                            <div className="flex justify-between items-start mb-1">
-                              <span className="font-bold text-slate-900">{log.action}</span>
-                              <span className="text-[10px] text-slate-500 font-mono">{new Date(log.timestamp).toLocaleString('es-AR')}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleSection('audit')}
+                        className="w-full font-mono text-xs uppercase tracking-wider text-slate-400 hover:text-slate-600 font-bold flex items-center justify-between gap-3 mb-3 text-left transition-colors cursor-pointer select-none"
+                        aria-expanded={!collapsedSections.audit}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <FileCheck className="h-4 w-4 text-slate-500" /> Registro de Cambios (Auditoría)
+                        </span>
+                        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform duration-200 ${!collapsedSections.audit ? 'rotate-180 text-slate-600' : ''}`} />
+                      </button>
+                      {!collapsedSections.audit && (
+                        <div className="space-y-2.5 animate-fadeIn">
+                          {selectedOrder.auditLog.map((log, idx) => (
+                            <div key={idx} className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs text-slate-700">
+                              <div className="flex justify-between items-start mb-1">
+                                <span className="font-bold text-slate-900">{log.action}</span>
+                                <span className="text-[10px] text-slate-500 font-mono">{new Date(log.timestamp).toLocaleString('es-AR')}</span>
+                              </div>
+                              <div className="flex items-center gap-1.5 text-slate-600">
+                                <User className="h-3.5 w-3.5" />
+                                <span className="font-medium">{log.user}</span>
+                              </div>
+                              {log.notes && (
+                                <p className="text-slate-500 italic mt-1 border-l-2 border-slate-300 pl-2 py-0.5">"{log.notes}"</p>
+                              )}
                             </div>
-                            <div className="flex items-center gap-1.5 text-slate-600">
-                              <User className="h-3.5 w-3.5" />
-                              <span className="font-medium">{log.user}</span>
-                            </div>
-                            {log.notes && (
-                              <p className="text-slate-500 italic mt-1 border-l-2 border-slate-300 pl-2 py-0.5">"{log.notes}"</p>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
