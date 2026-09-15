@@ -52,6 +52,9 @@ export interface NotificationEntry {
 }
 
 export interface MedicalOrder {
+  /** List responses omit binary attachment bodies until the order is opened. */
+  _isSummary?: boolean;
+  _hasRecipePdf?: boolean;
   id: string;
   clientRequestId?: string;
   tenantId?: string;

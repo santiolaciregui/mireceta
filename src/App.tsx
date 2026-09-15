@@ -106,6 +106,7 @@ export default function App() {
     users,
     activeRole,
     currentPatientDni,
+    loadOrderDetails,
     createOrder,
     updateOrderStatus,
     updateOrderRecipeFile,
@@ -409,6 +410,7 @@ export default function App() {
                       <PatientStatus
                         orders={orders}
                         isOrdersLoading={isOrdersLoading}
+                        onLoadOrderDetails={loadOrderDetails}
                         onCancelOrder={deleteOrder}
                         currentUser={currentUser}
                         onNavigateToChat={(orderId) => {
@@ -625,6 +627,7 @@ export default function App() {
                   <DoctorDashboard
                     orders={orders}
                     isOrdersLoading={isOrdersLoading}
+                    onLoadOrderDetails={loadOrderDetails}
                     users={users}
                     onUpdateStatus={updateOrderStatus}
                     onUpdateRecipeFile={updateOrderRecipeFile}

@@ -61,10 +61,11 @@ import {
   FileEdit
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
-import { DoctorOrdersSkeleton } from '../../common/OrdersSkeleton';
+import { DoctorOrdersSkeleton, DoctorDetailSkeleton } from '../../common/OrdersSkeleton';
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
   isOrdersLoading?: boolean;
+  onLoadOrderDetails?: (id: string) => Promise<MedicalOrder>;
   users?: any[];
   onUpdateStatus: (
     id: string, 
@@ -109,6 +110,7 @@ interface DoctorDashboardProps {
 export default function DoctorDashboard({ 
   orders, 
   isOrdersLoading = false,
+  onLoadOrderDetails,
   users = [],
   onUpdateStatus, 
   onUpdateRecipeFile,
@@ -122,6 +124,7 @@ export default function DoctorDashboard({
   onNavigateToSubview
 }: DoctorDashboardProps) {
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [loadingOrderDetailsId, setLoadingOrderDetailsId] = useState<string | null>(null);
   const skipClearOrderIdRef = useRef<string | null>(null);
   
   const [filter, setFilter] = useState<'Todos' | 'Pendientes' | 'Pago Pendiente' | 'En revisión' | 'Listos' | 'Rechazadas'>('Todos');
@@ -516,6 +519,14 @@ export default function DoctorDashboard({
       return;
     }
 
+    if (selectedOrder?._isSummary && onLoadOrderDetails) {
+      setLoadingOrderDetailsId(selectedOrderId);
+      onLoadOrderDetails(selectedOrderId)
+        .catch((error) => console.error('Error loading order details:', error))
+        .finally(() => setLoadingOrderDetailsId((current) => current === selectedOrderId ? null : current));
+      return;
+    }
+
     // Protect against background polling (every 6s) wiping out uploadedRecipe, notes, or active tab
     if (selectedOrder && currentLoadedOrderIdRef.current !== selectedOrderId) {
       currentLoadedOrderIdRef.current = selectedOrderId;
@@ -579,7 +590,7 @@ export default function DoctorDashboard({
         });
       }
     }
-  }, [selectedOrderId, selectedOrder]);
+  }, [selectedOrderId, selectedOrder, onLoadOrderDetails]);
 
   const pendingCount = orders.filter(o => o.status === 'Pendiente').length;
   const inProcessCount = orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length;
@@ -1115,7 +1126,9 @@ export default function DoctorDashboard({
 
             {/* Detail Pane */}
             <div className={`detail-pane ${!selectedOrderId ? 'hidden lg:flex' : 'flex'}`}>
-              {selectedOrder ? (
+              {selectedOrder && (loadingOrderDetailsId === selectedOrder.id || selectedOrder._isSummary) ? (
+                <DoctorDetailSkeleton />
+              ) : selectedOrder ? (
                 <div className="animate-fadeIn space-y-6 pb-12 w-full max-w-5xl mx-auto">
                   {/* Detail Header */}
                   <div className="border-b border-slate-200/80 pb-4 sm:pb-6">
@@ -2121,6 +2134,8 @@ export default function DoctorDashboard({
                     </div>
                   )}
                 </div>
+              ) : isOrdersLoading && orders.length === 0 ? (
+                <DoctorDetailSkeleton />
               ) : (
                 <div className="m-auto text-center max-w-sm p-8 space-y-3">
                   <div className="h-16 w-16 bg-[#1661E1]/10 text-[#1661E1] rounded-2xl flex items-center justify-center mx-auto shadow-xs border border-[#1661E1]/20">

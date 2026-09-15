@@ -14,6 +14,10 @@ export class OrderRepository {
     return Order.find({ tenantId }).sort({ createdAt: -1 }).lean() as unknown as IMedicalOrder[];
   }
 
+  async findSummariesByTenant(tenantId: string): Promise<IMedicalOrder[]> {
+    return this.findSummaries({ tenantId });
+  }
+
   async findByPatientDnis(tenantId: string, dnis: string[]): Promise<IMedicalOrder[]> {
     if (!dnis || dnis.length === 0) return [];
     return Order.find({
@@ -25,6 +29,47 @@ export class OrderRepository {
     })
       .sort({ createdAt: -1 })
       .lean() as unknown as IMedicalOrder[];
+  }
+
+  async findSummariesByPatientDnis(tenantId: string, dnis: string[]): Promise<IMedicalOrder[]> {
+    if (!dnis || dnis.length === 0) return [];
+    return this.findSummaries({
+      tenantId,
+      $or: [
+        { patientDni: { $in: dnis } },
+        { requestedByTitularDni: { $in: dnis } }
+      ]
+    });
+  }
+
+  private async findSummaries(match: Record<string, unknown>): Promise<IMedicalOrder[]> {
+    return Order.aggregate([
+      { $match: match },
+      { $sort: { createdAt: -1 } },
+      {
+        $set: {
+          _isSummary: true,
+          _hasRecipePdf: {
+            $gt: [{ $strLenBytes: { $ifNull: ['$recipePdfUrl', ''] } }, 0]
+          },
+          recipePdfUrl: {
+            $cond: [
+              { $regexMatch: { input: { $ifNull: ['$recipePdfUrl', ''] }, regex: '^data:' } },
+              '$$REMOVE',
+              '$recipePdfUrl'
+            ]
+          }
+        }
+      },
+      {
+        $unset: [
+          'medicationPhotos.url',
+          'medicationPhotoUrl',
+          'paymentReceiptUrl',
+          'messages.fileUrl'
+        ]
+      }
+    ]) as unknown as IMedicalOrder[];
   }
 
   async findByPatientId(patientId: string): Promise<IMedicalOrder[]> {

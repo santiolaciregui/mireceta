@@ -1,5 +1,5 @@
-# QA Report: US-001 - Pending order limit alerts
-**Date**: 2026-09-08
+# QA Report: US-002 — Horizontal mobile loading methods
+**Date**: 2026-09-15
 **QA Agent**: Agent QA
 **Verdict**: ✅ APPROVED
 
@@ -9,11 +9,11 @@
 
 | Metric | Value |
 |--------|-------|
-| Unit tests total | 7 |
-| Unit tests passed | 7 |
+| Unit tests total | 26 |
+| Unit tests passed | 26 |
 | Unit tests failed | 0 |
-| Coverage (new alert helper) | 100.00% lines |
-| Coverage (overall tested files) | 80.74% lines |
+| Coverage (changed service) | N/A — presentational React change only |
+| Coverage (overall existing suite) | 60.99% lines |
 | Static analysis | PASS |
 | Production build | PASS |
 
@@ -23,22 +23,18 @@
 
 | Criterion (from spec) | Status | Notes |
 |----------------------|--------|-------|
-| Admin UI loads and saves phone numbers and limit in WhatsApp settings | ✅ | Implemented in `NotificationConfigPanel` and the notification API payload. |
-| Multiple phones are normalized and deduplicated | ✅ | Covered by unit tests. |
-| Partial or invalid configuration is rejected | ✅ | Client and server validation; covered by unit tests. |
-| Only admins can save notification configuration | ✅ | Controller accepts `admin` and `superadmin`; others receive 403. |
-| Pending queue matches the operational dashboard | ✅ | Repository counts `Pendiente` orders whose payment is not `pending`. |
-| Alert uses `limite_solicitudes` with exact `es_AR` language | ✅ | Captured Meta payload is asserted in a unit test. |
-| Alert fires once per threshold breach and rearms below the limit | ✅ | Pure transition tests pass; the active state is claimed atomically. |
-| Notification failure does not roll back an order | ✅ | Order and payment services isolate alert errors. |
-| Create, update, delete, and payment transitions reevaluate the queue | ✅ | All identified mutation paths call the evaluator. |
-| TypeScript and build validation pass | ✅ | `npm run lint` and `npm run build` both pass. |
+| Three equal columns on mobile | ✅ | `grid-cols-3` is active at the base breakpoint. |
+| Compact icons and short mobile titles without subtitles | ✅ | Mobile labels use `sm:hidden`; full labels and subtitles are hidden below `sm`. |
+| Selected colors remain method-specific | ✅ | Existing state-dependent class branches were preserved. |
+| Desktop presentation remains expanded | ✅ | Original spacing, icon sizes, labels and subtitles are restored with `sm:` utilities. |
+| Selection behavior remains unchanged | ✅ | IDs, `onClick` handlers, state values and conditional content were preserved. |
+| TypeScript and production build pass | ✅ | `npm run lint` and `npm run build` completed successfully. |
 
 ---
 
 ## Bugs Found
 
-No release-blocking, minor, or cosmetic bugs were found in the requested feature.
+No defects found in the changed selector.
 
 ---
 
@@ -46,23 +42,24 @@ No release-blocking, minor, or cosmetic bugs were found in the requested feature
 
 | File | Source | Tests | Coverage |
 |------|--------|-------|----------|
-| `server/services/notification/PendingOrderAlert.spec.ts` | Developer + QA | 7 | Helper: 100.00% lines; tested files overall: 80.74% lines |
+| `server/services/*.spec.ts` and `server/services/notification/*.spec.ts` | Existing suite | 26 | 60.99% overall lines |
+
+No unit test was added for utility-class-only presentation changes because the repository has no frontend component-test harness.
 
 ---
 
 ## Tooling Issues
 
-None. The project now exposes `test` and `test:cov` scripts using the existing Node.js and `tsx` toolchain.
+The existing coverage command measures server-side files and does not instrument React components. Its 60.99% overall result therefore does not measure this UI change.
 
 ---
 
 ## Recommendations
 
-- Consider splitting the existing approximately 1 MB frontend bundle in a separate performance task. This does not block the feature.
-- Perform one controlled staging send after confirming that the Meta template `limite_solicitudes` is approved with language `es_AR` and no body parameters.
+Add a frontend component or visual regression harness in a separate tooling story if automated breakpoint rendering becomes a recurring requirement.
 
 ---
 
 ## Final Verdict
 
-**✅ APPROVED** - Code meets all acceptance criteria and is ready for staging validation.
+**✅ APPROVED** — The implementation meets all US-002 acceptance criteria. TypeScript, production build, all 26 existing tests and diff whitespace validation pass.

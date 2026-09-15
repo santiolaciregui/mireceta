@@ -11,6 +11,7 @@ router.get('/public/:id/pdf', controller.streamPublicPdf);
 router.use(authenticateToken);
 
 router.get('/', controller.getOrders);
+router.get('/:id', controller.getOrder);
 router.post('/', controller.createOrder);
 router.put('/:id', controller.updateOrder);
 router.delete('/:id', controller.deleteOrder);

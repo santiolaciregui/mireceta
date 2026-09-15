@@ -8,9 +8,25 @@ const orderService = new OrderService();
 export class OrderController {
   getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const orders = await orderService.getOrdersForUser(getCurrentUser(req));
+      const summaryOnly = req.query.summary === '1' || req.query.summary === 'true';
+      const orders = await orderService.getOrdersForUser(getCurrentUser(req), summaryOnly);
       res.json(orders);
     } catch (err: any) {
+      next(err);
+    }
+  };
+
+  getOrder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const order = await orderService.getOrderForUser(req.params.id, getCurrentUser(req));
+      res.json(order);
+    } catch (err: any) {
+      if (err.message === 'Pedido no encontrado.') {
+        return res.status(404).json({ error: err.message });
+      }
+      if (err.message === 'Acceso no autorizado a este pedido.') {
+        return res.status(403).json({ error: err.message });
+      }
       next(err);
     }
   };
@@ -121,4 +137,3 @@ export class OrderController {
     }
   };
 }
-

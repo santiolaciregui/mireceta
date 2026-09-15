@@ -32,7 +32,8 @@ import {
   Filter,
   Printer,
   RotateCcw,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import { MedicalOrder, DependentPatient } from '../../../types';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
@@ -43,6 +44,7 @@ import { PatientOrdersSkeleton } from '../../common/OrdersSkeleton';
 interface PatientStatusProps {
   orders: MedicalOrder[];
   isOrdersLoading?: boolean;
+  onLoadOrderDetails?: (id: string) => Promise<MedicalOrder>;
   onCancelOrder: (id: string) => Promise<boolean | void> | void;
   recentDni?: string;
   onSetDni?: (dni: string) => void;
@@ -54,6 +56,7 @@ interface PatientStatusProps {
 export default function PatientStatus({
   orders,
   isOrdersLoading = false,
+  onLoadOrderDetails,
   onCancelOrder,
   currentUser,
   onNavigateToChat,
@@ -66,6 +69,7 @@ export default function PatientStatus({
   
   // Expanded card state: set of order IDs expanded
   const [expandedOrderIds, setExpandedOrderIds] = useState<Record<string, boolean>>({});
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState<Record<string, boolean>>({});
   
   // Modal / Preview state
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
@@ -116,14 +120,47 @@ export default function PatientStatus({
     }, 150);
   };
 
-  const toggleExpand = (orderId: string) => {
+  const toggleExpand = async (orderId: string) => {
+    const shouldExpand = !expandedOrderIds[orderId];
+    const order = orders.find((candidate) => candidate.id === orderId);
+
+    if (shouldExpand && order?._isSummary && onLoadOrderDetails) {
+      setLoadingOrderDetails((previous) => ({ ...previous, [orderId]: true }));
+      try {
+        await onLoadOrderDetails(orderId);
+      } catch (error) {
+        console.error('Error loading order details:', error);
+        return;
+      } finally {
+        setLoadingOrderDetails((previous) => ({ ...previous, [orderId]: false }));
+      }
+    }
+
     setExpandedOrderIds(prev => ({
       ...prev,
-      [orderId]: !prev[orderId]
+      [orderId]: shouldExpand
     }));
   };
 
-  const toggleAll = (expand: boolean) => {
+  const toggleAll = async (expand: boolean) => {
+    if (expand && onLoadOrderDetails) {
+      const summaries = filteredOrders.filter((order) => order._isSummary);
+      setLoadingOrderDetails((previous) => ({
+        ...previous,
+        ...Object.fromEntries(summaries.map((order) => [order.id, true])),
+      }));
+      try {
+        await Promise.all(summaries.map((order) => onLoadOrderDetails(order.id)));
+      } catch (error) {
+        console.error('Error loading order details:', error);
+      } finally {
+        setLoadingOrderDetails((previous) => ({
+          ...previous,
+          ...Object.fromEntries(summaries.map((order) => [order.id, false])),
+        }));
+      }
+    }
+
     const next: Record<string, boolean> = {};
     filteredOrders.forEach(o => {
       next[o.id] = expand;
@@ -572,9 +609,9 @@ export default function PatientStatus({
                     )}
 
                     {/* Direct Download Button if emitted */}
-                    {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
+                    {isEmitida && (order.recipePdfUrl || order._hasRecipePdf) && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                       <a
-                        href={order.recipePdfUrl.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
+                        href={order.recipePdfUrl?.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
                         download={order.recipePdfName || `receta-${order.id}.pdf`}
                         onClick={(e) => e.stopPropagation()}
                         className="bg-[#14BE99] hover:bg-[#0fa685] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
@@ -588,7 +625,9 @@ export default function PatientStatus({
                     <div className={`p-1.5 rounded-xl text-slate-400 bg-slate-50 border border-slate-200 transition-transform duration-200 ${
                       isExpanded ? 'rotate-180 text-[#1661E1] bg-[#1661E1]/10 border-[#1661E1]/20' : ''
                     }`}>
-                      <ChevronDown className="h-4 w-4" />
+                      {loadingOrderDetails[order.id]
+                        ? <Loader2 className="h-4 w-4 animate-spin" />
+                        : <ChevronDown className="h-4 w-4" />}
                     </div>
                   </div>
                 </div>

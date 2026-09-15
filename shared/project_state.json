@@ -2,10 +2,10 @@
   "project": "Mi Receta - alertas por limite de solicitudes pendientes",
   "status": "qa_done",
   "current_phase": "complete",
-  "current_milestone": "M1",
-  "current_story": "US-001",
+  "current_milestone": "M2",
+  "current_story": "US-002",
   "pending_stories": [],
-  "completed_stories": ["US-001"],
+  "completed_stories": ["US-001", "US-002"],
   "open_questions": [],
   "last_agent": "cost-controller"
 }

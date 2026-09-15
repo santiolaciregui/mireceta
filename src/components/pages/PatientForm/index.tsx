@@ -3101,68 +3101,77 @@ export default function PatientForm({
                 Método de Carga <span className="text-red-500">*</span>
               </label>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <button
                   id="btn-method-past-orders"
                   type="button"
+                  aria-label="Últimas solicitudes"
+                  aria-pressed={medicationMethod === 'past_orders'}
                   onClick={() => setMedicationMethod('past_orders')}
-                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                  className={`group min-w-0 min-h-24 py-2.5 px-1 sm:min-h-0 sm:py-3.5 sm:px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'past_orders'
                       ? 'border-indigo-600 bg-indigo-600 text-white ring-2 ring-indigo-500/20 shadow-[0_8px_20px_rgba(79,70,229,0.24)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-indigo-900 hover:border-indigo-200 hover:bg-indigo-50/30'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl transition-colors ${
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors ${
                     medicationMethod === 'past_orders'
                       ? 'bg-indigo-800 text-white shadow-xs'
                       : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
                   }`}>
-                    <Clock className="h-5 w-5" />
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <span className="font-extrabold text-[12px]">Últimas Solicitudes</span>
-                  <span className={`text-[10px] font-medium ${medicationMethod === 'past_orders' ? 'text-indigo-100' : 'text-slate-500'}`}>Repetir pedido previo</span>
+                  <span className="font-extrabold text-[10px] leading-tight sm:hidden">Últimas</span>
+                  <span className="hidden sm:inline font-extrabold text-[12px]">Últimas Solicitudes</span>
+                  <span className={`hidden sm:block text-[10px] font-medium ${medicationMethod === 'past_orders' ? 'text-indigo-100' : 'text-slate-500'}`}>Repetir pedido previo</span>
                 </button>
 
                 <button
                   id="btn-method-new-manual"
                   type="button"
+                  aria-label="Nueva carga manual"
+                  aria-pressed={medicationMethod === 'new_manual'}
                   onClick={() => setMedicationMethod('new_manual')}
-                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                  className={`group min-w-0 min-h-24 py-2.5 px-1 sm:min-h-0 sm:py-3.5 sm:px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'new_manual'
                       ? 'border-emerald-600 bg-emerald-600 text-white ring-2 ring-emerald-500/20 shadow-[0_8px_20px_rgba(5,150,105,0.22)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-emerald-900 hover:border-emerald-200 hover:bg-emerald-50/30'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl transition-colors ${
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors ${
                     medicationMethod === 'new_manual'
                       ? 'bg-emerald-800 text-white shadow-xs'
                       : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'
                   }`}>
-                    <ClipboardCheck className="h-5 w-5" />
+                    <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <span className="font-extrabold text-[12px]">Nueva Carga Manual</span>
-                  <span className={`text-[10px] font-medium ${medicationMethod === 'new_manual' ? 'text-emerald-100' : 'text-slate-500'}`}>Escribir medicamentos</span>
+                  <span className="font-extrabold text-[10px] leading-tight sm:hidden">Carga manual</span>
+                  <span className="hidden sm:inline font-extrabold text-[12px]">Nueva Carga Manual</span>
+                  <span className={`hidden sm:block text-[10px] font-medium ${medicationMethod === 'new_manual' ? 'text-emerald-100' : 'text-slate-500'}`}>Escribir medicamentos</span>
                 </button>
 
                 <button
                   id="btn-method-upload-photo"
                   type="button"
+                  aria-label="Adjuntar foto o receta"
+                  aria-pressed={medicationMethod === 'upload_photo'}
                   onClick={() => setMedicationMethod('upload_photo')}
-                  className={`group py-3.5 px-3 rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                  className={`group min-w-0 min-h-24 py-2.5 px-1 sm:min-h-0 sm:py-3.5 sm:px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-col items-center justify-center text-center gap-1 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
                     medicationMethod === 'upload_photo'
                       ? 'border-[#1661E1] bg-[#1661E1] text-white ring-2 ring-[#1661E1]/20 shadow-[0_8px_20px_rgba(22,97,225,0.24)]'
                       : 'border-slate-200 bg-white text-slate-600 hover:text-[#0141BC] hover:border-blue-200 hover:bg-blue-50/30'
                   }`}
                 >
-                  <div className={`p-2 rounded-xl transition-colors ${
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors ${
                     medicationMethod === 'upload_photo'
                       ? 'bg-[#0141BC] text-white shadow-xs'
                       : 'bg-blue-50 text-[#1661E1] group-hover:bg-blue-100'
                   }`}>
-                    <Camera className="h-5 w-5" />
+                    <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <span className="font-extrabold text-[12px]">Adjuntar Foto / Receta</span>
-                  <span className={`text-[10px] font-medium ${medicationMethod === 'upload_photo' ? 'text-blue-100' : 'text-slate-500'}`}>Foto de envase o receta</span>
+                  <span className="font-extrabold text-[10px] leading-tight sm:hidden">Foto / receta</span>
+                  <span className="hidden sm:inline font-extrabold text-[12px]">Adjuntar Foto / Receta</span>
+                  <span className={`hidden sm:block text-[10px] font-medium ${medicationMethod === 'upload_photo' ? 'text-blue-100' : 'text-slate-500'}`}>Foto de envase o receta</span>
                 </button>
               </div>
             </div>

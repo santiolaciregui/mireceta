@@ -3,8 +3,44 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { MedicalOrder, OrderStatus, SystemUser, UserRole } from '../types';
+
+const mergeOrderSummaries = (
+  previousOrders: MedicalOrder[],
+  summaries: MedicalOrder[]
+): MedicalOrder[] => {
+  const previousById = new Map(previousOrders.map((order) => [order.id, order]));
+
+  return summaries.map((summary) => {
+    const previous = previousById.get(summary.id);
+    if (!previous || previous._isSummary) return summary;
+
+    const previousMessagesById = new Map(
+      (previous.messages || []).map((message) => [message.id, message])
+    );
+    const medicationPhotos = summary.medicationPhotos
+      ? summary.medicationPhotos.map((photo, index) => ({
+          ...previous.medicationPhotos?.[index],
+          ...photo,
+        }))
+      : previous.medicationPhotos;
+    const messages = summary.messages
+      ? summary.messages.map((message) => ({
+          ...previousMessagesById.get(message.id),
+          ...message,
+        }))
+      : previous.messages;
+
+    return {
+      ...previous,
+      ...summary,
+      medicationPhotos,
+      messages,
+      _isSummary: false,
+    };
+  });
+};
 
 export function useMedicalOrders() {
   const [token, setToken] = useState<string | null>(() => {
@@ -26,6 +62,7 @@ export function useMedicalOrders() {
   const [isOrdersLoading, setIsOrdersLoading] = useState<boolean>(!!token);
   const [isSessionChecking, setIsSessionChecking] = useState(!!token);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const orderDetailRequestsRef = useRef<Map<string, Promise<MedicalOrder>>>(new Map());
 
   // Derive activeRole and currentPatientDni from authenticated session
   const activeRole: UserRole = currentUser?.role || 'paciente';
@@ -76,26 +113,32 @@ export function useMedicalOrders() {
       return;
     }
 
+    let ordersRequestInFlight = false;
+
     const loadOrdersAndUsers = (isInitial: boolean = false) => {
       if (document.hidden) return;
       const headers = fetchHeaders();
 
-      if (isInitial) {
-        setIsOrdersLoading(true);
-      }
+      if (!ordersRequestInFlight) {
+        ordersRequestInFlight = true;
+        if (isInitial) {
+          setIsOrdersLoading(true);
+        }
 
-      fetch('/api/orders', { headers })
-        .then((res) => {
-          if (res.ok) return res.json();
-          throw new Error('Error al cargar órdenes');
-        })
-        .then((data) => setOrders(data))
-        .catch((err) => console.error(err))
-        .finally(() => {
-          if (isInitial) {
-            setIsOrdersLoading(false);
-          }
-        });
+        fetch('/api/orders?summary=1', { headers })
+          .then((res) => {
+            if (res.ok) return res.json();
+            throw new Error('Error al cargar órdenes');
+          })
+          .then((data) => setOrders((previous) => mergeOrderSummaries(previous, data)))
+          .catch((err) => console.error(err))
+          .finally(() => {
+            ordersRequestInFlight = false;
+            if (isInitial) {
+              setIsOrdersLoading(false);
+            }
+          });
+      }
 
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico' || currentUser?.role === 'colaborador') {
         fetch('/api/users', { headers })
@@ -255,11 +298,38 @@ export function useMedicalOrders() {
 
   const refreshOrders = () => {
     if (!token) return;
-    fetch('/api/orders', { headers: fetchHeaders() })
+    fetch('/api/orders?summary=1', { headers: fetchHeaders() })
       .then((res) => res.ok && res.json())
-      .then((data) => data && setOrders(data))
+      .then((data) => data && setOrders((previous) => mergeOrderSummaries(previous, data)))
       .catch((err) => console.error(err));
   };
+
+  const loadOrderDetails = useCallback(async (orderId: string): Promise<MedicalOrder> => {
+    const pendingRequest = orderDetailRequestsRef.current.get(orderId);
+    if (pendingRequest) return pendingRequest;
+
+    const request = fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
+      headers: fetchHeaders(),
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || 'Error al cargar el detalle de la orden.');
+        }
+
+        const detailedOrder = { ...data, _isSummary: false } as MedicalOrder;
+        setOrders((previous) =>
+          previous.map((order) => (order.id === orderId ? detailedOrder : order))
+        );
+        return detailedOrder;
+      })
+      .finally(() => {
+        orderDetailRequestsRef.current.delete(orderId);
+      });
+
+    orderDetailRequestsRef.current.set(orderId, request);
+    return request;
+  }, [token]);
 
   const refreshUsers = () => {
     if (!token || (currentUser?.role !== 'admin' && currentUser?.role !== 'superadmin' && currentUser?.role !== 'medico')) return;
@@ -656,6 +726,7 @@ export function useMedicalOrders() {
     users,
     activeRole,
     currentPatientDni,
+    loadOrderDetails,
     createOrder,
     updateOrderPhotos,
     updateOrderStatus,

@@ -85,3 +85,79 @@ export function DoctorOrdersSkeleton({ count = 5 }: { count?: number }) {
     </div>
   );
 }
+
+/**
+ * Skeleton placeholder for the main detail pane in DoctorDashboard.
+ * Replicates the clinical detail pane structure: badges, patient name,
+ * info cards, medication summary, and action panel.
+ */
+export function DoctorDetailSkeleton() {
+  return (
+    <div
+      className="space-y-6 pb-12 w-full max-w-5xl mx-auto p-4 sm:p-6 animate-pulse"
+      role="status"
+      aria-label="Cargando detalles de la solicitud..."
+    >
+      {/* Header Skeleton */}
+      <div className="border-b border-slate-200/80 pb-5 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-24 rounded-full bg-slate-200/80" />
+            <div className="h-6 w-32 rounded-full bg-slate-200/60" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-32 rounded-xl bg-slate-200/60" />
+            <div className="h-8 w-36 rounded-xl bg-slate-200/60" />
+          </div>
+        </div>
+
+        <div className="space-y-2 pt-2">
+          <div className="h-8 w-72 bg-slate-200/90 rounded-lg" />
+          <div className="h-4 w-48 bg-slate-200/50 rounded" />
+        </div>
+
+        {/* Floating banner placeholder */}
+        <div className="h-20 w-full rounded-2xl bg-slate-100 border border-slate-200/60" />
+      </div>
+
+      {/* Grid of clinical cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="h-24 rounded-2xl bg-slate-50 border border-slate-200/60 p-4 space-y-2">
+          <div className="h-3.5 w-24 bg-slate-200/60 rounded" />
+          <div className="h-5 w-36 bg-slate-200/80 rounded" />
+        </div>
+        <div className="h-24 rounded-2xl bg-slate-50 border border-slate-200/60 p-4 space-y-2">
+          <div className="h-3.5 w-24 bg-slate-200/60 rounded" />
+          <div className="h-5 w-40 bg-slate-200/80 rounded" />
+        </div>
+        <div className="h-24 rounded-2xl bg-slate-50 border border-slate-200/60 p-4 space-y-2">
+          <div className="h-3.5 w-20 bg-slate-200/60 rounded" />
+          <div className="h-5 w-28 bg-slate-200/80 rounded" />
+        </div>
+      </div>
+
+      {/* Medication card skeleton */}
+      <div className="rounded-2xl border border-slate-200/70 p-5 bg-white space-y-3 shadow-xs">
+        <div className="h-5 w-48 bg-slate-200/80 rounded" />
+        <div className="space-y-2 pt-1">
+          <div className="h-4 w-full max-w-lg bg-slate-200/60 rounded" />
+          <div className="h-4 w-3/4 bg-slate-200/50 rounded" />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <div className="h-7 w-28 rounded-lg bg-slate-200/60" />
+          <div className="h-7 w-32 rounded-lg bg-slate-200/60" />
+        </div>
+      </div>
+
+      {/* Action / Emission panel skeleton */}
+      <div className="h-28 rounded-2xl bg-slate-50 border border-slate-200/60 p-5 space-y-3">
+        <div className="h-4 w-44 bg-slate-200/70 rounded" />
+        <div className="flex gap-3 pt-1">
+          <div className="h-10 w-40 rounded-xl bg-slate-200/80" />
+          <div className="h-10 w-36 rounded-xl bg-slate-200/60" />
+        </div>
+      </div>
+      <span className="sr-only">Cargando datos clínicos de la solicitud...</span>
+    </div>
+  );
+}

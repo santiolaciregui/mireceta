@@ -32,7 +32,7 @@ export class OrderService {
     }
   }
 
-  async getOrdersForUser(currentUser: any) {
+  async getOrdersForUser(currentUser: any, summaryOnly = false) {
     const tenantId = currentUser?.tenantId || 'TEN-0001';
 
     if (currentUser?.role === 'paciente') {
@@ -50,7 +50,9 @@ export class OrderService {
         new Set([patientDniClean, rawPatientDni, ...dependentDnisClean, ...rawDependentDnis])
       ).filter(Boolean);
 
-      const candidateOrders = await this.orderRepo.findByPatientDnis(tenantId, targetDnis);
+      const candidateOrders = summaryOnly
+        ? await this.orderRepo.findSummariesByPatientDnis(tenantId, targetDnis)
+        : await this.orderRepo.findByPatientDnis(tenantId, targetDnis);
 
       return candidateOrders.filter((o: any) => {
         const orderDniClean = cleanDni(o.patientDni);
@@ -63,7 +65,36 @@ export class OrderService {
       });
     }
 
-    return this.orderRepo.findByTenant(tenantId);
+    return summaryOnly
+      ? this.orderRepo.findSummariesByTenant(tenantId)
+      : this.orderRepo.findByTenant(tenantId);
+  }
+
+  async getOrderForUser(id: string, currentUser: any) {
+    const order: any = await this.orderRepo.findById(id);
+    if (!order) throw new Error('Pedido no encontrado.');
+
+    const tenantId = currentUser?.tenantId || 'TEN-0001';
+    if ((order.tenantId || 'TEN-0001') !== tenantId) {
+      throw new Error('Acceso no autorizado a este pedido.');
+    }
+
+    if (currentUser?.role === 'paciente') {
+      const patientDniClean = cleanDni(currentUser.identifier);
+      const dependentDnisClean = (currentUser.dependents || [])
+        .map((dependent: any) => cleanDni(dependent.dni || dependent.identifier))
+        .filter(Boolean);
+      const orderDniClean = cleanDni(order.patientDni);
+      const titularDniClean = cleanDni(order.requestedByTitularDni);
+      const canAccess =
+        orderDniClean === patientDniClean ||
+        dependentDnisClean.includes(orderDniClean) ||
+        titularDniClean === patientDniClean;
+
+      if (!canAccess) throw new Error('Acceso no autorizado a este pedido.');
+    }
+
+    return order;
   }
 
   async createOrder(orderData: any, currentUser: any) {

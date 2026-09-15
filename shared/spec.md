@@ -1,3 +1,3 @@
-# Active Spec: US-001 - Configurar alertas por cola pendiente
+# Active Spec: US-002 - Mostrar metodos de carga en una fila en celulares
 
-Implementar exactamente `shared/specs/US-001.md` en la aplicacion existente. DevOps Required: NO.
+Implementar exactamente `shared/specs/US-002.md` en la aplicacion existente. DevOps Required: NO.
