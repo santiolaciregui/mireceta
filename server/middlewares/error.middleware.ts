@@ -8,6 +8,9 @@ import { errorNotificationService } from '../services/ErrorNotificationService.j
  */
 export const responseErrorMonitor = (req: Request, res: Response, next: NextFunction) => {
   res.on('finish', () => {
+    // Suppress only token validation rejections explicitly identified by authentication.
+    if (res.statusCode === 403 && res.locals.invalidAuthToken === true) return;
+
     if (res.statusCode >= 400 && !(res as any).__errorReported) {
       (res as any).__errorReported = true;
       const statusMsg = res.statusMessage || `HTTP ${res.statusCode}`;
@@ -51,5 +54,4 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
     error: err.message || 'Error interno del servidor.'
   });
 };
-
 
