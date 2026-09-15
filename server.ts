@@ -10,6 +10,7 @@ import routes from './server/routes/index.js';
 import { Tenant } from './server/models/Tenant.js';
 import { User } from './server/models/User.js';
 import { Order } from './server/models/Order.js';
+import { httpCompression } from './server/middlewares/compression.middleware.js';
 
 // Global Process Error Monitors
 process.on('uncaughtException', (error) => {
@@ -77,6 +78,7 @@ async function runTenantMigration() {
 
 async function startServer() {
   const app = express();
+  app.use(httpCompression);
   app.use(express.json({ limit: '50mb' }));
   app.use(responseErrorMonitor);
 

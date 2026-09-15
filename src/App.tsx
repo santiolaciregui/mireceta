@@ -94,6 +94,7 @@ export default function App() {
   const {
     currentUser,
     isLoading: authLoading,
+    isOrdersLoading,
     isSessionChecking,
     login,
     logout,
@@ -407,6 +408,7 @@ export default function App() {
                     <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
                       <PatientStatus
                         orders={orders}
+                        isOrdersLoading={isOrdersLoading}
                         onCancelOrder={deleteOrder}
                         currentUser={currentUser}
                         onNavigateToChat={(orderId) => {
@@ -622,6 +624,7 @@ export default function App() {
                   /* Render DoctorDashboard with the selected subcategory passed as forcedSubview */
                   <DoctorDashboard
                     orders={orders}
+                    isOrdersLoading={isOrdersLoading}
                     users={users}
                     onUpdateStatus={updateOrderStatus}
                     onUpdateRecipeFile={updateOrderRecipeFile}

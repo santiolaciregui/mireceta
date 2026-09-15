@@ -34,26 +34,36 @@ export class OrderService {
 
   async getOrdersForUser(currentUser: any) {
     const tenantId = currentUser?.tenantId || 'TEN-0001';
-    const allOrders = await this.orderRepo.findByTenant(tenantId);
 
     if (currentUser?.role === 'paciente') {
       const patientDniClean = cleanDni(currentUser.identifier);
-      const dependentDnis = (currentUser.dependents || [])
+      const rawPatientDni = (currentUser.identifier || '').trim();
+      const dependentDnisClean = (currentUser.dependents || [])
         .map((d: any) => cleanDni(d.dni || d.identifier))
         .filter(Boolean);
+      const rawDependentDnis = (currentUser.dependents || [])
+        .flatMap((d: any) => [d.dni, d.identifier])
+        .filter(Boolean)
+        .map((s: string) => s.trim());
 
-      return allOrders.filter((o: any) => {
+      const targetDnis = Array.from(
+        new Set([patientDniClean, rawPatientDni, ...dependentDnisClean, ...rawDependentDnis])
+      ).filter(Boolean);
+
+      const candidateOrders = await this.orderRepo.findByPatientDnis(tenantId, targetDnis);
+
+      return candidateOrders.filter((o: any) => {
         const orderDniClean = cleanDni(o.patientDni);
         const titularDniClean = cleanDni(o.requestedByTitularDni);
         return (
           orderDniClean === patientDniClean ||
-          dependentDnis.includes(orderDniClean) ||
+          dependentDnisClean.includes(orderDniClean) ||
           titularDniClean === patientDniClean
         );
       });
     }
 
-    return allOrders;
+    return this.orderRepo.findByTenant(tenantId);
   }
 
   async createOrder(orderData: any, currentUser: any) {

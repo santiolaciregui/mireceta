@@ -23,6 +23,7 @@ export function useMedicalOrders() {
   const [orders, setOrders] = useState<MedicalOrder[]>([]);
   const [users, setUsers] = useState<SystemUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOrdersLoading, setIsOrdersLoading] = useState<boolean>(!!token);
   const [isSessionChecking, setIsSessionChecking] = useState(!!token);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -71,12 +72,17 @@ export function useMedicalOrders() {
     if (!token) {
       setOrders([]);
       setUsers([]);
+      setIsOrdersLoading(false);
       return;
     }
 
-    const loadOrdersAndUsers = () => {
+    const loadOrdersAndUsers = (isInitial: boolean = false) => {
       if (document.hidden) return;
       const headers = fetchHeaders();
+
+      if (isInitial) {
+        setIsOrdersLoading(true);
+      }
 
       fetch('/api/orders', { headers })
         .then((res) => {
@@ -84,7 +90,12 @@ export function useMedicalOrders() {
           throw new Error('Error al cargar órdenes');
         })
         .then((data) => setOrders(data))
-        .catch((err) => console.error(err));
+        .catch((err) => console.error(err))
+        .finally(() => {
+          if (isInitial) {
+            setIsOrdersLoading(false);
+          }
+        });
 
       if (currentUser?.role === 'admin' || currentUser?.role === 'superadmin' || currentUser?.role === 'medico' || currentUser?.role === 'colaborador') {
         fetch('/api/users', { headers })
@@ -97,9 +108,9 @@ export function useMedicalOrders() {
       }
     };
 
-    loadOrdersAndUsers();
+    loadOrdersAndUsers(true);
 
-    const intervalId = setInterval(loadOrdersAndUsers, 6000);
+    const intervalId = setInterval(() => loadOrdersAndUsers(false), 6000);
     return () => clearInterval(intervalId);
   }, [token, currentUser?.role]);
 
@@ -237,6 +248,7 @@ export function useMedicalOrders() {
     setCurrentUser(null);
     setOrders([]);
     setUsers([]);
+    setIsOrdersLoading(false);
     localStorage.removeItem('mi-receta-jwt');
     localStorage.removeItem('mi-receta-user');
   };
@@ -631,6 +643,7 @@ export function useMedicalOrders() {
     currentUser,
     token,
     isLoading,
+    isOrdersLoading,
     isSessionChecking,
     errorMsg,
     login,

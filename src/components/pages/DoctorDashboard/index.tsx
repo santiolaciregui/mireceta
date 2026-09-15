@@ -61,8 +61,10 @@ import {
   FileEdit
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
+import { DoctorOrdersSkeleton } from '../../common/OrdersSkeleton';
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
+  isOrdersLoading?: boolean;
   users?: any[];
   onUpdateStatus: (
     id: string, 
@@ -106,6 +108,7 @@ interface DoctorDashboardProps {
 
 export default function DoctorDashboard({ 
   orders, 
+  isOrdersLoading = false,
   users = [],
   onUpdateStatus, 
   onUpdateRecipeFile,
@@ -1018,7 +1021,9 @@ export default function DoctorDashboard({
               </div>
 
               <div className="flex-1 overflow-y-auto">
-                {filteredOrders.length === 0 ? (
+                {isOrdersLoading && orders.length === 0 ? (
+                  <DoctorOrdersSkeleton count={6} />
+                ) : filteredOrders.length === 0 ? (
                   <div className="p-8 text-center text-[var(--ink-muted)]">
                     <p className="text-[0.85rem]">No se encontraron solicitudes</p>
                   </div>

@@ -38,9 +38,11 @@ import { MedicalOrder, DependentPatient } from '../../../types';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
+import { PatientOrdersSkeleton } from '../../common/OrdersSkeleton';
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
+  isOrdersLoading?: boolean;
   onCancelOrder: (id: string) => Promise<boolean | void> | void;
   recentDni?: string;
   onSetDni?: (dni: string) => void;
@@ -51,6 +53,7 @@ interface PatientStatusProps {
 
 export default function PatientStatus({
   orders,
+  isOrdersLoading = false,
   onCancelOrder,
   currentUser,
   onNavigateToChat,
@@ -409,7 +412,9 @@ export default function PatientStatus({
       </div>
 
       {/* Orders List */}
-      {filteredOrders.length === 0 ? (
+      {isOrdersLoading && orders.length === 0 ? (
+        <PatientOrdersSkeleton count={3} />
+      ) : filteredOrders.length === 0 ? (
         <div className="bg-white rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-sm border border-slate-200/90">
           <div className="mx-auto w-14 h-14 bg-[#1661E1]/10 text-[#1661E1] rounded-2xl flex items-center justify-center shadow-inner">
             <FileText className="h-7 w-7" />

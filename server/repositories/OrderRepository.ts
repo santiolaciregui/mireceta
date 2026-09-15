@@ -11,7 +11,20 @@ export class OrderRepository {
   }
 
   async findByTenant(tenantId: string): Promise<IMedicalOrder[]> {
-    return Order.find({ tenantId }).sort({ createdAt: -1 });
+    return Order.find({ tenantId }).sort({ createdAt: -1 }).lean() as unknown as IMedicalOrder[];
+  }
+
+  async findByPatientDnis(tenantId: string, dnis: string[]): Promise<IMedicalOrder[]> {
+    if (!dnis || dnis.length === 0) return [];
+    return Order.find({
+      tenantId,
+      $or: [
+        { patientDni: { $in: dnis } },
+        { requestedByTitularDni: { $in: dnis } }
+      ]
+    })
+      .sort({ createdAt: -1 })
+      .lean() as unknown as IMedicalOrder[];
   }
 
   async findByPatientId(patientId: string): Promise<IMedicalOrder[]> {

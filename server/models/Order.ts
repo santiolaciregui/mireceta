@@ -241,4 +241,10 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   lastPatientWhatsAppInteractionAt: { type: String }
 });
 
+// Composite indexes for fast tenant listing and patient order lookups
+medicalOrderSchema.index({ tenantId: 1, createdAt: -1 });
+medicalOrderSchema.index({ tenantId: 1, patientDni: 1 });
+medicalOrderSchema.index({ tenantId: 1, requestedByTitularDni: 1 });
+medicalOrderSchema.index({ tenantId: 1, status: 1 });
+
 export const Order: Model<IMedicalOrder> = (mongoose.models.Order as any) || mongoose.model<IMedicalOrder>('Order', medicalOrderSchema);
