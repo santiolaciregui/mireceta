@@ -133,8 +133,14 @@ export class UserService {
   async updateUser(id: string, updateData: any, currentUser: any) {
     const isSelf = currentUser.id === id;
     const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
+    const targetUser = await this.userRepo.findById(id);
+    if (!targetUser) throw new Error('Usuario no encontrado');
 
-    if (!isAdmin && !isSelf) {
+    const isStaffUpdatingPatient = 
+      (currentUser.role === 'colaborador' || currentUser.role === 'medico') && 
+      targetUser.role === 'paciente';
+
+    if (!isAdmin && !isSelf && !isStaffUpdatingPatient) {
       throw new Error('No autorizado');
     }
 
@@ -142,12 +148,15 @@ export class UserService {
     if (safeUpdateData.dni && !safeUpdateData.identifier) {
       safeUpdateData.identifier = safeUpdateData.dni;
     }
-    if (!isAdmin && isSelf) {
+    if (!isAdmin && (isSelf || isStaffUpdatingPatient)) {
       // Prevent non-admin users from escalating permissions or altering system fields
       delete safeUpdateData.role;
       delete safeUpdateData.tenantId;
       delete safeUpdateData.status;
       delete safeUpdateData.id;
+      if (isStaffUpdatingPatient) {
+        delete safeUpdateData.password;
+      }
     }
 
     if (safeUpdateData.rate !== undefined) {

@@ -122,6 +122,8 @@ export default function App() {
     addDependent,
     updateDependent,
     removeDependent,
+    updateOrderPatientInfo,
+    updatePatientRecord,
   } = useMedicalOrders();
 
   // Sidebar Layout Navigation state
@@ -519,6 +521,7 @@ export default function App() {
                     orders={orders}
                     users={users}
                     currentUser={currentUser}
+                    onUpdatePatient={updatePatientRecord}
                     onSelectOrder={(orderId) => {
                       const ord = orders.find(o => o.id === orderId);
                       setActiveCategory('solicitudes');
@@ -633,6 +636,7 @@ export default function App() {
                     onUpdateStatus={updateOrderStatus}
                     onUpdateRecipeFile={updateOrderRecipeFile}
                     onUpdatePaymentInfo={updateOrderPaymentInfo}
+                    onUpdatePatientInfo={updateOrderPatientInfo}
                     onDeleteOrder={deleteOrder}
                     onSendRecipeLink={sendRecipeLink}
                     onCreateOrder={createOrder}

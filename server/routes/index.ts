@@ -7,10 +7,13 @@ import paymentRoutes from './payment.routes.js';
 import notificationRoutes from './notification.routes.js';
 import chatRoutes from './chat.routes.js';
 
+import patientRoutes from './patient.routes.js';
+
 const router = Router();
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
+router.use('/patients', patientRoutes);
 router.use('/tenants', tenantRoutes);
 router.use('/orders', orderRoutes);
 router.use('/payments', paymentRoutes);

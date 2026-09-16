@@ -143,6 +143,20 @@ export type PaymentInformationUpdate = Pick<
   'paymentMethod' | 'paymentAmount' | 'paymentStatus' | 'paymentId' | 'paymentDate'
 >;
 
+export interface PatientInformationUpdate {
+  name: string;
+  lastName: string;
+  dni: string;
+  birthDate?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  province?: string;
+  obraSocial?: string;
+  obraSocialNumber?: string;
+  deliveryMethod?: 'email' | 'whatsapp' | 'both';
+}
+
 export interface ChatMessage {
   id: string;
   sender: 'paciente' | 'medico' | 'colaborador' | 'sistema';
@@ -150,7 +164,7 @@ export interface ChatMessage {
   text?: string;
   fileUrl?: string;
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker' | 'text';
   mimeType?: string;
   timestamp: string;
   status?: 'sent' | 'delivered' | 'read';

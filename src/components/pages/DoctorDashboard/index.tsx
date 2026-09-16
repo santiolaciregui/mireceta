@@ -58,7 +58,8 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
-  FileEdit
+  FileEdit,
+  Save
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 import { formatOrderCreatedAt, sortOrdersNewestFirst } from '../../../utils/orderInbox';
@@ -74,7 +75,7 @@ interface DoctorDashboardProps {
     doctorNotes?: string, 
     recipePdfUrl?: string, 
     recipePdfName?: string
-  ) => void;
+  ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }> | void;
   onUpdateRecipeFile?: (
     orderId: string,
     recipePdfUrl: string,
@@ -84,6 +85,10 @@ interface DoctorDashboardProps {
   onUpdatePaymentInfo?: (
     orderId: string,
     updates: PaymentInformationUpdate
+  ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }>;
+  onUpdatePatientInfo?: (
+    orderId: string,
+    updates: Partial<MedicalOrder>
   ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }>;
   onDeleteOrder?: (id: string) => Promise<boolean | void> | void;
   onCreateOrder?: (data: any) => Promise<string>;
@@ -120,6 +125,7 @@ export default function DoctorDashboard({
   onUpdateStatus, 
   onUpdateRecipeFile,
   onUpdatePaymentInfo,
+  onUpdatePatientInfo,
   onDeleteOrder,
   onCreateOrder, 
   onSendRecipeLink,
@@ -146,6 +152,7 @@ export default function DoctorDashboard({
   const [modifyFileError, setModifyFileError] = useState<string | null>(null);
   const [notifyPatientOnUpdate, setNotifyPatientOnUpdate] = useState(false);
   const [isSubmittingFileUpdate, setIsSubmittingFileUpdate] = useState(false);
+  const [isSubmittingEmit, setIsSubmittingEmit] = useState(false);
   const modifyFileInputRef = useRef<HTMLInputElement>(null);
 
   // Sync with forcedSubview from sidebar
@@ -196,6 +203,22 @@ export default function DoctorDashboard({
     paymentStatus: 'pending',
     paymentId: '',
     paymentDate: '',
+  });
+  const [isEditingPatient, setIsEditingPatient] = useState(false);
+  const [isSavingPatient, setIsSavingPatient] = useState(false);
+  const [patientEditError, setPatientEditError] = useState<string | null>(null);
+  const [patientDraft, setPatientDraft] = useState({
+    patientName: '',
+    patientLastName: '',
+    patientDni: '',
+    patientBirthDate: '',
+    patientPhone: '',
+    patientEmail: '',
+    patientCity: '',
+    patientProvince: '',
+    obraSocial: '',
+    obraSocialNumber: '',
+    deliveryMethod: 'whatsapp' as 'email' | 'whatsapp' | 'both',
   });
   const DEFAULT_COLLAPSED_SECTIONS: Record<string, boolean> = {
     patient: true,
@@ -542,6 +565,54 @@ export default function DoctorDashboard({
     showToast('Información de pago actualizada correctamente.');
   };
 
+  const buildPatientDraft = (order: MedicalOrder) => ({
+    patientName: order.patientName || '',
+    patientLastName: order.patientLastName || '',
+    patientDni: order.patientDni || '',
+    patientBirthDate: order.patientBirthDate || '',
+    patientPhone: order.patientPhone || '',
+    patientEmail: order.patientEmail || '',
+    patientCity: order.patientCity || '',
+    patientProvince: order.patientProvince || '',
+    obraSocial: order.obraSocial || 'Particular',
+    obraSocialNumber: order.obraSocialNumber || '',
+    deliveryMethod: (order.deliveryMethod || 'whatsapp') as 'email' | 'whatsapp' | 'both',
+  });
+
+  const handleStartPatientEdit = () => {
+    if (!selectedOrder) return;
+    setPatientDraft(buildPatientDraft(selectedOrder));
+    setPatientEditError(null);
+    setIsEditingPatient(true);
+  };
+
+  const handleCancelPatientEdit = () => {
+    if (selectedOrder) setPatientDraft(buildPatientDraft(selectedOrder));
+    setPatientEditError(null);
+    setIsEditingPatient(false);
+  };
+
+  const handleSavePatientInfo = async () => {
+    if (!selectedOrder || !onUpdatePatientInfo) return;
+    if (!patientDraft.patientName.trim() || !patientDraft.patientLastName.trim() || !patientDraft.patientDni.trim()) {
+      setPatientEditError('El nombre, apellido y DNI del paciente son obligatorios.');
+      return;
+    }
+
+    setIsSavingPatient(true);
+    setPatientEditError(null);
+    const result = await onUpdatePatientInfo(selectedOrder.id, patientDraft);
+    setIsSavingPatient(false);
+
+    if (!result.success) {
+      setPatientEditError(result.error || 'No se pudieron actualizar los datos del paciente.');
+      return;
+    }
+
+    setIsEditingPatient(false);
+    showToast('Datos del paciente actualizados correctamente.');
+  };
+
   // Floating Prescription Assistant (Document PiP / Popup window)
   const {
     isOpen: isFloatingWindowOpen,
@@ -564,7 +635,29 @@ export default function DoctorDashboard({
     setCollapsedSections(DEFAULT_COLLAPSED_SECTIONS);
     setIsEditingPayment(false);
     setPaymentEditError(null);
+    setIsEditingPatient(false);
+    setPatientEditError(null);
   }, [selectedOrderId]);
+
+  React.useEffect(() => {
+    if (selectedOrder && !isEditingPatient) {
+      setPatientDraft(buildPatientDraft(selectedOrder));
+    }
+  }, [
+    selectedOrder?.id,
+    selectedOrder?.patientName,
+    selectedOrder?.patientLastName,
+    selectedOrder?.patientDni,
+    selectedOrder?.patientBirthDate,
+    selectedOrder?.patientPhone,
+    selectedOrder?.patientEmail,
+    selectedOrder?.patientCity,
+    selectedOrder?.patientProvince,
+    selectedOrder?.obraSocial,
+    selectedOrder?.obraSocialNumber,
+    selectedOrder?.deliveryMethod,
+    isEditingPatient,
+  ]);
 
   React.useEffect(() => {
     if (selectedOrder && !isEditingPayment) {
@@ -673,8 +766,12 @@ export default function DoctorDashboard({
   const completedCount = orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
 
   // Handler to mark an order as "En revisión"
-  const handleMarkInProcess = (id: string) => {
-    onUpdateStatus(id, 'En revisión', 'Trabajando en el pedido. Evaluando médicamente la renovación.');
+  const handleMarkInProcess = async (id: string) => {
+    const res = await onUpdateStatus(id, 'En revisión', 'Trabajando en el pedido. Evaluando médicamente la renovación.');
+    if (res && !res.success) {
+      showToast(`Error: ${res.error || 'No se pudo actualizar la solicitud.'}`);
+      return;
+    }
     showToast('El pedido ha sido marcado en estado "En Revisión". El paciente lo verá actualizado en tiempo real.');
     
     // Set ref to keep this order ID selected when changing subview
@@ -880,22 +977,33 @@ export default function DoctorDashboard({
   };
 
   // Submit complete co-signed recipe back to Patient
-  const handleCompletePrescription = (e: React.FormEvent, orderId: string) => {
+  const handleCompletePrescription = async (e: React.FormEvent, orderId: string) => {
     e.preventDefault();
     if (!uploadedRecipe) {
       showToast('Por favor, selecciona un archivo de receta digital o haz clic en "Simular Receta PDF" para continuar.');
       return;
     }
 
-    onUpdateStatus(
-      orderId, 
-      'Emitida', 
-      doctorNotes.trim() || 'Receta digital oficial firmada por el médico de cabecera.',
-      uploadedRecipe.url,
-      uploadedRecipe.name
-    );
+    setIsSubmittingEmit(true);
+    try {
+      const res = await onUpdateStatus(
+        orderId, 
+        'Emitida', 
+        doctorNotes.trim() || 'Receta digital oficial firmada por el médico de cabecera.',
+        uploadedRecipe.url,
+        uploadedRecipe.name
+      );
 
-    showToast(`¡Éxito! La receta ${orderId} ha sido firmada e integrada. Se ha notificado electrónicamente al paciente.`);
+      if (res && !res.success) {
+        showToast(`Error: ${res.error || 'No se pudo emitir la receta.'}`);
+      } else {
+        showToast(`¡Éxito! La receta ${orderId} ha sido firmada e integrada. Se ha notificado electrónicamente al paciente.`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err.message || 'No se pudo emitir la receta.'}`);
+    } finally {
+      setIsSubmittingEmit(false);
+    }
   };
 
   // Submit manual prescription on behalf of a patient (Cargar de Oficio)
@@ -1408,42 +1516,216 @@ export default function DoctorDashboard({
                         </div>
                       </button>
                       {!collapsedSections.patient && (
-                        <div className="divide-y divide-slate-100 animate-fadeIn">
-                          <CopyableFieldRow label="ID Solicitud" value={selectedOrder.id} fieldId="id" />
-                          <CopyableFieldRow label="Nombre" value={selectedOrder.patientName} fieldId="patientName" />
-                          <CopyableFieldRow label="Apellido" value={selectedOrder.patientLastName} fieldId="patientLastName" />
-                          <CopyableFieldRow label="DNI / Identificación" value={selectedOrder.patientDni} fieldId="patientDni" />
-                          <CopyableFieldRow 
-                            label="Fecha de Nacimiento" 
-                            value={formatBirthDate(selectedOrder.patientBirthDate)} 
-                            copyValue={formatBirthDate(selectedOrder.patientBirthDate)}
-                            fieldId="patientBirthDate" 
-                          />
-                          <CopyableFieldRow label="Teléfono / WhatsApp" value={selectedOrder.patientPhone || '—'} fieldId="patientPhone" />
-                          <CopyableFieldRow label="Correo Electrónico" value={selectedOrder.patientEmail || '—'} fieldId="patientEmail" />
-                          {selectedOrder.patientCity && (
-                            <CopyableFieldRow label="Ciudad" value={selectedOrder.patientCity} fieldId="patientCity" />
+                        <div className="animate-fadeIn">
+                          {(currentUser?.role === 'colaborador' || currentUser?.role === 'medico' || currentUser?.role === 'admin') && !isEditingPatient && (
+                            <div className="px-4 pt-3 pb-1 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={handleStartPatientEdit}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-[#1661E1] border border-blue-200 text-xs font-bold transition-colors cursor-pointer shadow-3xs"
+                              >
+                                <FileEdit className="h-3.5 w-3.5" />
+                                Editar datos del paciente
+                              </button>
+                            </div>
                           )}
-                          {selectedOrder.patientProvince && (
-                            <CopyableFieldRow label="Provincia" value={selectedOrder.patientProvince} fieldId="patientProvince" />
-                          )}
-                          <CopyableFieldRow 
-                            label="Canal de Entrega" 
-                            value={selectedOrder.deliveryMethod === 'both' ? 'Email y WhatsApp' : selectedOrder.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
-                            copyValue={selectedOrder.deliveryMethod} 
-                            fieldId="deliveryMethod" 
-                          />
-                          <CopyableFieldRow 
-                            label="Fecha de Solicitud" 
-                            value={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
-                            copyValue={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
-                            fieldId="createdAt" 
-                          />
-                          {selectedOrder.lastConsultationTime && (
-                            <CopyableFieldRow label="Última Consulta" value={selectedOrder.lastConsultationTime} fieldId="lastConsultationTime" />
-                          )}
-                          {selectedOrder.lastConsultationDoctor && (
-                            <CopyableFieldRow label="Médico de Última Consulta" value={selectedOrder.lastConsultationDoctor} fieldId="lastConsultationDoctor" />
+
+                          {isEditingPatient && (currentUser?.role === 'colaborador' || currentUser?.role === 'medico' || currentUser?.role === 'admin') ? (
+                            <div className="p-4 space-y-4 border-t border-slate-100 bg-slate-50/50">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Nombre *</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.patientName}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientName: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Nombre del paciente"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Apellido *</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.patientLastName}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientLastName: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Apellido del paciente"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">DNI / Documento *</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.patientDni}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientDni: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Solo números"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Fecha de Nacimiento</span>
+                                  <input
+                                    type="date"
+                                    value={patientDraft.patientBirthDate}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientBirthDate: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Teléfono / WhatsApp</span>
+                                  <input
+                                    type="tel"
+                                    value={patientDraft.patientPhone}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientPhone: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Ej: 1123456789"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Correo Electrónico</span>
+                                  <input
+                                    type="email"
+                                    value={patientDraft.patientEmail}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientEmail: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="correo@ejemplo.com"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Localidad / Ciudad</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.patientCity}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientCity: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Ciudad o localidad"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Provincia</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.patientProvince}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, patientProvince: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Provincia"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">Obra Social / Cobertura</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.obraSocial}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, obraSocial: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="Ej: OSDE, Swiss Medical, Particular"
+                                  />
+                                </label>
+
+                                <label className="space-y-1">
+                                  <span className="block text-xs font-bold text-slate-600">N° de Afiliado / Credencial</span>
+                                  <input
+                                    type="text"
+                                    value={patientDraft.obraSocialNumber}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, obraSocialNumber: e.target.value }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                    placeholder="N° de credencial"
+                                  />
+                                </label>
+
+                                <label className="space-y-1 sm:col-span-2">
+                                  <span className="block text-xs font-bold text-slate-600">Canal de Entrega Preferido</span>
+                                  <select
+                                    value={patientDraft.deliveryMethod}
+                                    onChange={(e) => setPatientDraft(prev => ({ ...prev, deliveryMethod: e.target.value as any }))}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                                  >
+                                    <option value="whatsapp">WhatsApp</option>
+                                    <option value="email">Correo Electrónico</option>
+                                    <option value="both">Ambos (Email y WhatsApp)</option>
+                                  </select>
+                                </label>
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 leading-relaxed">
+                                Esta corrección actualiza la solicitud actual y sincroniza la ficha del paciente en el padrón. La acción queda registrada en auditoría.
+                              </p>
+
+                              {patientEditError && (
+                                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                  <span>{patientEditError}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-end gap-2 pt-1">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelPatientEdit}
+                                  disabled={isSavingPatient}
+                                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <X className="h-3.5 w-3.5" /> Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSavePatientInfo}
+                                  disabled={isSavingPatient}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1661E1] hover:bg-[#0141BC] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs disabled:opacity-50"
+                                >
+                                  {isSavingPatient ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                                  <span>Guardar cambios</span>
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-slate-100">
+                              <CopyableFieldRow label="ID Solicitud" value={selectedOrder.id} fieldId="id" />
+                              <CopyableFieldRow label="Nombre" value={selectedOrder.patientName} fieldId="patientName" />
+                              <CopyableFieldRow label="Apellido" value={selectedOrder.patientLastName} fieldId="patientLastName" />
+                              <CopyableFieldRow label="DNI / Identificación" value={selectedOrder.patientDni} fieldId="patientDni" />
+                              <CopyableFieldRow 
+                                label="Fecha de Nacimiento" 
+                                value={formatBirthDate(selectedOrder.patientBirthDate)} 
+                                copyValue={formatBirthDate(selectedOrder.patientBirthDate)}
+                                fieldId="patientBirthDate" 
+                              />
+                              <CopyableFieldRow label="Teléfono / WhatsApp" value={selectedOrder.patientPhone || '—'} fieldId="patientPhone" />
+                              <CopyableFieldRow label="Correo Electrónico" value={selectedOrder.patientEmail || '—'} fieldId="patientEmail" />
+                              {selectedOrder.patientCity && (
+                                <CopyableFieldRow label="Ciudad" value={selectedOrder.patientCity} fieldId="patientCity" />
+                              )}
+                              {selectedOrder.patientProvince && (
+                                <CopyableFieldRow label="Provincia" value={selectedOrder.patientProvince} fieldId="patientProvince" />
+                              )}
+                              <CopyableFieldRow 
+                                label="Canal de Entrega" 
+                                value={selectedOrder.deliveryMethod === 'both' ? 'Email y WhatsApp' : selectedOrder.deliveryMethod === 'email' ? 'Email' : 'WhatsApp'} 
+                                copyValue={selectedOrder.deliveryMethod} 
+                                fieldId="deliveryMethod" 
+                              />
+                              <CopyableFieldRow 
+                                label="Fecha de Solicitud" 
+                                value={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
+                                copyValue={new Date(selectedOrder.createdAt).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.createdAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
+                                fieldId="createdAt" 
+                              />
+                              {selectedOrder.lastConsultationTime && (
+                                <CopyableFieldRow label="Última Consulta" value={selectedOrder.lastConsultationTime} fieldId="lastConsultationTime" />
+                              )}
+                              {selectedOrder.lastConsultationDoctor && (
+                                <CopyableFieldRow label="Médico de Última Consulta" value={selectedOrder.lastConsultationDoctor} fieldId="lastConsultationDoctor" />
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -2009,11 +2291,23 @@ export default function DoctorDashboard({
                                 EMPEZAR REVISIÓN CLÍNICA
                               </button>
                               <button
-                                onClick={() => {
-                                  onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
-                                  showToast('La solicitud ha sido rechazada.');
+                                onClick={async () => {
+                                  setIsSubmittingEmit(true);
+                                  try {
+                                    const res = await onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud no aprobada tras evaluación clínica.');
+                                    if (res && !res.success) {
+                                      showToast(`Error: ${res.error || 'No se pudo rechazar la solicitud.'}`);
+                                    } else {
+                                      showToast('La solicitud ha sido rechazada.');
+                                    }
+                                  } catch (err: any) {
+                                    showToast(`Error: ${err.message || 'No se pudo rechazar la solicitud.'}`);
+                                  } finally {
+                                    setIsSubmittingEmit(false);
+                                  }
                                 }}
-                                className="bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 px-4 py-3 rounded-xl text-xs font-bold cursor-pointer transition-colors"
+                                disabled={isSubmittingEmit}
+                                className="bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 px-4 py-3 rounded-xl text-xs font-bold cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 Rechazar
                               </button>
@@ -2183,7 +2477,7 @@ export default function DoctorDashboard({
                             {/* Buttons */}
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <button
-                                onClick={() => {
+                                onClick={async () => {
                                   if (prescriptionType === 'RCTA' && !uploadedRecipe) {
                                     setPdfUploadError('Debe adjuntar el archivo (PDF o Imagen) de la receta oficial firmada antes de emitir.');
                                     showToast('Error: Debe adjuntar la receta oficial.');
@@ -2193,20 +2487,53 @@ export default function DoctorDashboard({
                                   const finalUrl = prescriptionType === 'RCTA' ? uploadedRecipe?.url : prescriptionType;
                                   const finalName = prescriptionType === 'RCTA' ? uploadedRecipe?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
 
-                                  onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, finalUrl, finalName);
-                                  showToast('Receta emitida y enviada con éxito.');
+                                  setIsSubmittingEmit(true);
+                                  try {
+                                    const res = await onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, finalUrl, finalName);
+                                    if (res && !res.success) {
+                                      showToast(`Error: ${res.error || 'No se pudo emitir la receta.'}`);
+                                    } else {
+                                      showToast('Receta emitida y enviada con éxito.');
+                                    }
+                                  } catch (err: any) {
+                                    showToast(`Error: ${err.message || 'No se pudo emitir la receta.'}`);
+                                  } finally {
+                                    setIsSubmittingEmit(false);
+                                  }
                                 }}
-                                className="flex-1 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                                disabled={isSubmittingEmit}
+                                className="flex-1 bg-[#1661E1] hover:bg-[#1E6EFB] active:scale-[0.99] text-white py-3.5 px-6 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                               >
-                                <CheckCircle className="h-4 w-4" />
-                                <span>EMITIR RECETA FINAL</span>
+                                {isSubmittingEmit ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <span>EMITIENDO...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>EMITIR RECETA FINAL</span>
+                                  </>
+                                )}
                               </button>
                               <button
-                                onClick={() => {
-                                  onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
-                                  showToast('La solicitud ha sido rechazada.');
+                                onClick={async () => {
+                                  setIsSubmittingEmit(true);
+                                  try {
+                                    const res = await onUpdateStatus(selectedOrder.id, 'Rechazada', doctorNotes.trim() || 'Solicitud rechazada en revisión médica.');
+                                    if (res && !res.success) {
+                                      showToast(`Error: ${res.error || 'No se pudo rechazar la solicitud.'}`);
+                                    } else {
+                                      showToast('La solicitud ha sido rechazada.');
+                                    }
+                                  } catch (err: any) {
+                                    showToast(`Error: ${err.message || 'No se pudo rechazar la solicitud.'}`);
+                                  } finally {
+                                    setIsSubmittingEmit(false);
+                                  }
                                 }}
-                                className="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white px-6 py-3.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-sm hover:shadow"
+                                disabled={isSubmittingEmit}
+                                className="bg-rose-600 hover:bg-rose-700 active:scale-[0.99] text-white px-6 py-3.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all shadow-sm hover:shadow disabled:opacity-60 disabled:cursor-not-allowed"
                               >
                                 RECHAZAR SOLICITUD
                               </button>

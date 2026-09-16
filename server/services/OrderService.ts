@@ -15,18 +15,27 @@ import {
   normalizePaymentInformationUpdate,
   PaymentInformationUpdate,
 } from './orderPaymentUpdate.js';
+import {
+  hasPatientInformationUpdate,
+  validateAndNormalizePatientInformation,
+  getPatientChangeSummary,
+  isAuthorizedToEditPatient,
+} from './patientInformationUpdate.js';
+import { PatientService } from './PatientService.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
   private patientRepo: PatientRepository;
   private tenantRepo: TenantRepository;
   private paymentService: PaymentService;
+  private patientService: PatientService;
 
   constructor() {
     this.orderRepo = new OrderRepository();
     this.patientRepo = new PatientRepository();
     this.tenantRepo = new TenantRepository();
     this.paymentService = new PaymentService();
+    this.patientService = new PatientService();
   }
 
   private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
@@ -35,6 +44,23 @@ export class OrderService {
     } catch (error) {
       console.error('[OrderService] Pending order limit evaluation failed:', error);
     }
+  }
+
+  private sanitizeOrderMessages(messages: any[]): any[] {
+    if (!Array.isArray(messages)) return messages;
+    return messages.map((msg) => {
+      if (!msg || typeof msg !== 'object') return msg;
+      if (msg.fileType === 'text') {
+        const sanitized = { ...msg };
+        delete sanitized.fileType;
+        if (sanitized.fileUrl === 'PAMI' || sanitized.fileUrl === 'IOMA') {
+          delete sanitized.fileUrl;
+          delete sanitized.fileName;
+        }
+        return sanitized;
+      }
+      return msg;
+    });
   }
 
   async getOrdersForUser(currentUser: any, summaryOnly = false) {
@@ -466,6 +492,11 @@ export class OrderService {
       throw new Error('Solo los colaboradores pueden editar la información de pago.');
     }
 
+    const includesPatientInformation = hasPatientInformationUpdate(updateData);
+    if (includesPatientInformation && !isAuthorizedToEditPatient(currentUser?.role)) {
+      throw new Error('Solo los colaboradores, médicos y administradores pueden editar los datos del paciente.');
+    }
+
     // 3. Medic & Collaborator modifications
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
     const wasAlreadyIssued = order.status === 'Emitida' || order.status === 'Enviada';
@@ -529,6 +560,69 @@ export class OrderService {
           entityId: id,
           details: `Información de pago corregida por ${operatorName}: ${changeSummary}`,
         });
+      }
+    }
+
+    if (includesPatientInformation) {
+      const normalizedPatient = validateAndNormalizePatientInformation(updateData, order);
+      const patientChangeSummary = getPatientChangeSummary(order, normalizedPatient);
+
+      const patientOrderFields: Record<string, unknown> = {
+        patientName: normalizedPatient.name,
+        patientLastName: normalizedPatient.lastName,
+        patientDni: normalizedPatient.dni,
+        patientBirthDate: normalizedPatient.birthDate || order.patientBirthDate,
+        patientPhone: normalizedPatient.phone || order.patientPhone,
+        patientEmail: normalizedPatient.email || order.patientEmail,
+        patientCity: normalizedPatient.city || order.patientCity,
+        patientProvince: normalizedPatient.province || order.patientProvince,
+        obraSocial: normalizedPatient.obraSocial,
+        obraSocialNumber: normalizedPatient.obraSocialNumber || order.obraSocialNumber,
+      };
+      if (normalizedPatient.deliveryMethod) {
+        patientOrderFields.deliveryMethod = normalizedPatient.deliveryMethod;
+      }
+
+      const changedPatientFields = Object.entries(patientOrderFields).filter(
+        ([field, value]) => String(order[field] ?? '') !== String(value ?? '')
+      );
+
+      if (changedPatientFields.length > 0) {
+        Object.assign(order, patientOrderFields);
+
+        addAuditLogEntry(
+          order,
+          'Datos del paciente actualizados',
+          operatorName,
+          `Corrección administrativa: ${patientChangeSummary}`
+        );
+
+        await auditLogService.log({
+          tenantId: order.tenantId || 'TEN-0001',
+          currentUser,
+          action: 'ORDER_PATIENT_UPDATE',
+          entity: 'Order',
+          entityId: id,
+          details: `Datos del paciente corregidos en solicitud ${id} por ${operatorName}: ${patientChangeSummary}`,
+        });
+
+        try {
+          await this.patientService.createOrUpdatePatient({
+            dni: normalizedPatient.dni,
+            name: normalizedPatient.name,
+            lastName: normalizedPatient.lastName,
+            birthDate: normalizedPatient.birthDate,
+            phone: normalizedPatient.phone,
+            email: normalizedPatient.email,
+            city: normalizedPatient.city,
+            province: normalizedPatient.province,
+            obraSocial: normalizedPatient.obraSocial,
+            obraSocialNumber: normalizedPatient.obraSocialNumber,
+            tenantId: order.tenantId || 'TEN-0001',
+          }, currentUser);
+        } catch (syncErr) {
+          console.error('[OrderService] Error sincronizando ficha de paciente:', syncErr);
+        }
       }
     }
 
@@ -629,20 +723,22 @@ export class OrderService {
         timestamp: new Date().toISOString(),
         status: 'sent',
         text: chatText,
-        fileUrl: order.recipePdfUrl || recipeLink,
-        fileName: order.recipePdfName || `receta_${order.id}.pdf`,
-        fileType: isElectronic ? 'text' : 'pdf'
+        ...(!isElectronic ? {
+          fileUrl: order.recipePdfUrl || recipeLink,
+          fileName: order.recipePdfName || `receta_${order.id}.pdf`,
+          fileType: 'pdf'
+        } : {})
       };
 
       const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];
-      order.messages = [...currentOrderMsgs, emissionChatMessage];
+      order.messages = this.sanitizeOrderMessages([...currentOrderMsgs, emissionChatMessage]);
 
       if (order.patientDni) {
         const cleanPatientDni = cleanDni(order.patientDni);
         this.patientRepo.findByDni(cleanPatientDni, order.tenantId || 'TEN-0001').then((pDoc) => {
           if (pDoc) {
             const currentPatientMsgs = Array.isArray(pDoc.messages) ? pDoc.messages : [];
-            pDoc.messages = [...currentPatientMsgs, emissionChatMessage];
+            pDoc.messages = this.sanitizeOrderMessages([...currentPatientMsgs, emissionChatMessage]);
             pDoc.save().catch((pErr) => console.error('Error guardando mensaje en paciente:', pErr));
           }
         }).catch((pErr) => console.error('Error buscando paciente para chat:', pErr));
@@ -678,6 +774,10 @@ export class OrderService {
           interactionRecord: order
         }).catch((err) => console.error('Error enviando WhatsApp de consulta médica:', err));
       }
+    }
+
+    if (Array.isArray(order.messages)) {
+      order.messages = this.sanitizeOrderMessages(order.messages);
     }
 
     const updatedOrder = await this.orderRepo.update(id, order);
@@ -837,20 +937,22 @@ export class OrderService {
       timestamp: new Date().toISOString(),
       status: 'sent',
       text: resendText,
-      fileUrl: order.recipePdfUrl || recipeLink,
-      fileName: order.recipePdfName || `receta_${order.id}.pdf`,
-      fileType: isElectronicResend ? 'text' : 'pdf'
+      ...(!isElectronicResend ? {
+        fileUrl: order.recipePdfUrl || recipeLink,
+        fileName: order.recipePdfName || `receta_${order.id}.pdf`,
+        fileType: 'pdf'
+      } : {})
     };
 
     const currentOrderMsgs = Array.isArray(order.messages) ? order.messages : [];
-    order.messages = [...currentOrderMsgs, resendChatMessage];
+    order.messages = this.sanitizeOrderMessages([...currentOrderMsgs, resendChatMessage]);
 
     if (order.patientDni) {
       const cleanPatientDni = cleanDni(order.patientDni);
       const patientDoc = await this.patientRepo.findByDni(cleanPatientDni, tenantId);
       if (patientDoc) {
         const currentPatientMsgs = Array.isArray(patientDoc.messages) ? patientDoc.messages : [];
-        patientDoc.messages = [...currentPatientMsgs, resendChatMessage];
+        patientDoc.messages = this.sanitizeOrderMessages([...currentPatientMsgs, resendChatMessage]);
         await patientDoc.save();
       }
     }

@@ -4,15 +4,15 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { MedicalOrder, SystemUser } from '../../../types';
+import { MedicalOrder, SystemUser, PatientInformationUpdate } from '../../../types';
 import PatientDetailModal, { PatientRecord } from './PatientDetailModal';
 import { 
   Users, 
   Search, 
   Filter, 
   ArrowUpDown, 
-  ArrowUp,
-  ArrowDown,
+  ArrowUp, 
+  ArrowDown, 
   FileText, 
   Clock, 
   CheckCircle2, 
@@ -21,16 +21,16 @@ import {
   Mail, 
   Calendar, 
   MessageSquare, 
-  ExternalLink,
-  ChevronRight,
-  Eye,
-  PlusCircle,
-  Sparkles,
-  Check,
-  RotateCcw,
-  SlidersHorizontal,
-  X,
-  UserCheck
+  ExternalLink, 
+  ChevronRight, 
+  Eye, 
+  PlusCircle, 
+  Sparkles, 
+  Check, 
+  RotateCcw, 
+  SlidersHorizontal, 
+  X, 
+  UserCheck 
 } from 'lucide-react';
 
 interface PatientListViewProps {
@@ -42,6 +42,7 @@ interface PatientListViewProps {
     name: string;
     lastName: string;
   };
+  onUpdatePatient?: (patientIdOrDni: string, updates: PatientInformationUpdate) => Promise<{ success: boolean; error?: string; patient?: any }>;
   onSelectOrder?: (orderId: string) => void;
   onNavigateToChat?: (orderIdOrDni: string) => void;
   onCreateOrderForPatient?: (patientDni: string) => void;
@@ -51,6 +52,7 @@ export default function PatientListView({
   orders,
   users,
   currentUser,
+  onUpdatePatient,
   onSelectOrder,
   onNavigateToChat,
   onCreateOrderForPatient,
@@ -713,6 +715,30 @@ export default function PatientListView({
         onClose={() => {
           setIsModalOpen(false);
           setSelectedPatient(null);
+        }}
+        currentUser={currentUser}
+        onUpdatePatient={async (patientIdOrDni, updates) => {
+          if (!onUpdatePatient) return { success: false, error: 'Función de edición no disponible.' };
+          const res = await onUpdatePatient(patientIdOrDni, updates);
+          if (res.success && res.patient) {
+            setSelectedPatient((prev) => {
+              if (!prev) return null;
+              return {
+                ...prev,
+                name: res.patient.name || prev.name,
+                lastName: res.patient.lastName || prev.lastName,
+                dni: res.patient.dni || prev.dni,
+                phone: res.patient.phone !== undefined ? res.patient.phone : prev.phone,
+                email: res.patient.email !== undefined ? res.patient.email : prev.email,
+                birthDate: res.patient.birthDate !== undefined ? res.patient.birthDate : prev.birthDate,
+                city: res.patient.city !== undefined ? res.patient.city : prev.city,
+                province: res.patient.province !== undefined ? res.patient.province : prev.province,
+                obraSocial: res.patient.obraSocial !== undefined ? res.patient.obraSocial : prev.obraSocial,
+                obraSocialNumber: res.patient.obraSocialNumber !== undefined ? res.patient.obraSocialNumber : prev.obraSocialNumber,
+              };
+            });
+          }
+          return res;
         }}
         onSelectOrder={onSelectOrder}
         onNavigateToChat={onNavigateToChat}

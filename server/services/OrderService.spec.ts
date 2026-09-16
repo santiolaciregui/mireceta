@@ -3,6 +3,8 @@ import test from 'node:test';
 import { Order } from '../models/Order.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { OrderService } from './OrderService.js';
+import { auditLogService } from './AuditLogService.js';
+import { notificationService } from './NotificationService.js';
 
 test('builds a lightweight database projection that removes binary order fields', async () => {
   const originalAggregate = (Order as any).aggregate;
@@ -158,4 +160,219 @@ test('replaces a rejected Mercado Pago attempt with the submitted transfer recei
   assert.equal(persistedOrder.status, 'Pendiente');
   assert.match(persistedOrder.paymentId, /^TRANS-\d{6}$/);
   assert.equal(persistedOrder.auditLog.at(-1).action, 'Método de pago actualizado');
+});
+
+test('emits PAMI electronic prescription without invalid fileType and passes Order validation', async () => {
+  const origLog = auditLogService.log;
+  const origWa = notificationService.sendRecipeIssuedWhatsApp;
+  const origEmail = notificationService.sendRecipeIssuedEmail;
+  auditLogService.log = async () => undefined;
+  notificationService.sendRecipeIssuedWhatsApp = async () => ({ success: true });
+  notificationService.sendRecipeIssuedEmail = async () => ({ success: true });
+
+  try {
+    const service: any = new OrderService();
+    const existingOrder: any = {
+      id: 'ORD-PAMI',
+      tenantId: 'TEN-123',
+      patientName: 'Roberto',
+      patientLastName: 'Gomez',
+      patientDni: '12345678',
+      patientPhone: '5491100000000',
+      obraSocial: 'PAMI',
+      status: 'En revisión',
+      messages: [
+        {
+          id: 'msg-1',
+          sender: 'paciente',
+          senderName: 'Roberto Gomez',
+          timestamp: new Date().toISOString(),
+          text: 'Hola necesito la receta'
+        }
+      ],
+      auditLog: []
+    };
+
+    let savedOrder: any;
+    service.orderRepo = {
+      findById: async () => existingOrder,
+      update: async (_id: string, order: any) => {
+        savedOrder = order;
+        return order;
+      }
+    };
+    service.patientRepo = {
+      findByDni: async () => null
+    };
+    service.refreshPendingOrderLimitAlert = async () => undefined;
+    service.notificationService = {
+      sendRecipeIssuedNotification: async () => undefined
+    };
+
+    const result = await service.updateOrder(
+      'ORD-PAMI',
+      {
+        status: 'Emitida',
+        recipePdfUrl: 'PAMI',
+        recipePdfName: 'receta_electronica_pami',
+        doctorNotes: 'Aprobado PAMI'
+      },
+      { role: 'medico', name: 'Dra. Lopez', tenantId: 'TEN-123' }
+    );
+
+    assert.equal(result.status, 'Emitida');
+    const lastMsg = savedOrder.messages.at(-1);
+    assert.equal(lastMsg.fileType, undefined);
+    assert.equal(lastMsg.fileUrl, undefined);
+    assert.ok(lastMsg.text.includes('transmitida a la red de farmacias'));
+
+    // Test Mongoose validation on the saved order
+    const orderDoc = new Order({
+      id: savedOrder.id,
+      createdAt: new Date().toISOString(),
+      medicationMethod: 'manual',
+      obraSocial: savedOrder.obraSocial,
+      patientName: savedOrder.patientName,
+      patientLastName: savedOrder.patientLastName,
+      patientDni: savedOrder.patientDni,
+      status: savedOrder.status,
+      messages: savedOrder.messages
+    });
+    const validationError = orderDoc.validateSync();
+    assert.equal(validationError, undefined);
+  } finally {
+    auditLogService.log = origLog;
+    notificationService.sendRecipeIssuedWhatsApp = origWa;
+    notificationService.sendRecipeIssuedEmail = origEmail;
+  }
+});
+
+test('emits standard PDF recipe with valid fileType: pdf', async () => {
+  const origLog = auditLogService.log;
+  const origWa = notificationService.sendRecipeIssuedWhatsApp;
+  const origEmail = notificationService.sendRecipeIssuedEmail;
+  auditLogService.log = async () => undefined;
+  notificationService.sendRecipeIssuedWhatsApp = async () => ({ success: true });
+  notificationService.sendRecipeIssuedEmail = async () => ({ success: true });
+
+  try {
+    const service: any = new OrderService();
+    const existingOrder: any = {
+      id: 'ORD-RCTA',
+      tenantId: 'TEN-123',
+      patientName: 'Maria',
+      patientLastName: 'Perez',
+      patientDni: '23456789',
+      patientPhone: '5491100000001',
+      obraSocial: 'OSDE',
+      status: 'En revisión',
+      messages: [],
+      auditLog: []
+    };
+
+    let savedOrder: any;
+    service.orderRepo = {
+      findById: async () => existingOrder,
+      update: async (_id: string, order: any) => {
+        savedOrder = order;
+        return order;
+      }
+    };
+    service.patientRepo = {
+      findByDni: async () => null
+    };
+    service.refreshPendingOrderLimitAlert = async () => undefined;
+    service.notificationService = {
+      sendRecipeIssuedNotification: async () => undefined
+    };
+
+    const result = await service.updateOrder(
+      'ORD-RCTA',
+      {
+        status: 'Emitida',
+        recipePdfUrl: 'https://example.com/receta.pdf',
+        recipePdfName: 'receta_123.pdf',
+        doctorNotes: 'Aprobado'
+      },
+      { role: 'medico', name: 'Dr. Gonzalez', tenantId: 'TEN-123' }
+    );
+
+    assert.equal(result.status, 'Emitida');
+    const lastMsg = savedOrder.messages.at(-1);
+    assert.equal(lastMsg.fileType, 'pdf');
+    assert.equal(lastMsg.fileUrl, 'https://example.com/receta.pdf');
+    assert.equal(lastMsg.fileName, 'receta_123.pdf');
+
+    // Test Mongoose validation on standard PDF order
+    const orderDoc = new Order({
+      id: savedOrder.id,
+      createdAt: new Date().toISOString(),
+      medicationMethod: 'manual',
+      obraSocial: savedOrder.obraSocial,
+      patientName: savedOrder.patientName,
+      patientLastName: savedOrder.patientLastName,
+      patientDni: savedOrder.patientDni,
+      status: savedOrder.status,
+      messages: savedOrder.messages
+    });
+    const validationError = orderDoc.validateSync();
+    assert.equal(validationError, undefined);
+  } finally {
+    auditLogService.log = origLog;
+    notificationService.sendRecipeIssuedWhatsApp = origWa;
+    notificationService.sendRecipeIssuedEmail = origEmail;
+  }
+});
+
+test('sanitizes legacy messages with fileType: text before saving', async () => {
+  const origLog = auditLogService.log;
+  auditLogService.log = async () => undefined;
+
+  try {
+    const service: any = new OrderService();
+    const existingOrder: any = {
+      id: 'ORD-LEGACY',
+      tenantId: 'TEN-123',
+      patientName: 'Carlos',
+      patientLastName: 'Sanz',
+      patientDni: '34567890',
+      status: 'Emitida',
+      messages: [
+        {
+          id: 'msg-old',
+          sender: 'medico',
+          senderName: 'Dr. Test',
+          timestamp: new Date().toISOString(),
+          text: 'Receta emitida',
+          fileType: 'text',
+          fileUrl: 'PAMI',
+          fileName: 'receta_electronica_pami'
+        }
+      ],
+      auditLog: []
+    };
+
+    let savedOrder: any;
+    service.orderRepo = {
+      findById: async () => existingOrder,
+      update: async (_id: string, order: any) => {
+        savedOrder = order;
+        return order;
+      }
+    };
+    service.patientRepo = { findByDni: async () => null };
+    service.refreshPendingOrderLimitAlert = async () => undefined;
+
+    await service.updateOrder(
+      'ORD-LEGACY',
+      { doctorNotes: 'Nueva nota' },
+      { role: 'medico', name: 'Dr. Test', tenantId: 'TEN-123' }
+    );
+
+    assert.equal(savedOrder.messages[0].fileType, undefined);
+    assert.equal(savedOrder.messages[0].fileUrl, undefined);
+    assert.equal(savedOrder.messages[0].fileName, undefined);
+  } finally {
+    auditLogService.log = origLog;
+  }
 });

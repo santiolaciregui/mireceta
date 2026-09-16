@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MedicalOrder, OrderStatus, PaymentInformationUpdate, SystemUser, UserRole } from '../types';
+import { MedicalOrder, OrderStatus, PaymentInformationUpdate, PatientInformationUpdate, SystemUser, UserRole } from '../types';
 
 const mergeOrderSummaries = (
   previousOrders: MedicalOrder[],
@@ -389,7 +389,7 @@ export function useMedicalOrders() {
     doctorNotes?: string,
     recipePdfUrl?: string,
     recipePdfName?: string
-  ) => {
+  ): Promise<{ success: boolean; error?: string; order?: MedicalOrder }> => {
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PUT',
@@ -401,12 +401,15 @@ export function useMedicalOrders() {
           recipePdfName,
         }),
       });
-      if (res.ok) {
-        const updated = await res.json();
-        setOrders((prev) => prev.map((o) => (o.id === orderId ? updated : o)));
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar el estado de la solicitud');
       }
-    } catch (err) {
+      setOrders((prev) => prev.map((o) => (o.id === orderId ? data : o)));
+      return { success: true, order: data };
+    } catch (err: any) {
       console.error(err);
+      return { success: false, error: err.message || 'Error al actualizar el estado de la solicitud' };
     }
   };
 
@@ -459,6 +462,120 @@ export function useMedicalOrders() {
     } catch (err: any) {
       console.error('Error updating payment information:', err);
       return { success: false, error: err.message || 'Error al actualizar la información de pago' };
+    }
+  };
+
+  // Update patient information on a specific order (collaborator, doctor, admin)
+  const updateOrderPatientInfo = async (
+    orderId: string,
+    updates: Partial<MedicalOrder>
+  ): Promise<{ success: boolean; error?: string; order?: MedicalOrder }> => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: fetchHeaders(),
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar los datos del paciente en la solicitud.');
+      }
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? data : order)));
+      if (data.patientDni) {
+        setUsers((prev) =>
+          prev.map((u) => {
+            if (u.identifier === data.patientDni || (updates.patientDni && u.identifier === updates.patientDni)) {
+              return {
+                ...u,
+                name: data.patientName,
+                lastName: data.patientLastName,
+                phone: data.patientPhone || u.phone,
+                email: data.patientEmail || u.email,
+                birthDate: data.patientBirthDate || u.birthDate,
+                obraSocial: data.obraSocial || u.obraSocial,
+                obraSocialNumber: data.obraSocialNumber || u.obraSocialNumber,
+                city: data.patientCity || u.city,
+                province: data.patientProvince || u.province,
+              };
+            }
+            return u;
+          })
+        );
+      }
+      return { success: true, order: data };
+    } catch (err: any) {
+      console.error('Error updating patient order info:', err);
+      return { success: false, error: err.message || 'Error al actualizar los datos del paciente.' };
+    }
+  };
+
+  // Update patient record directly from Padrón / Ficha del Paciente (collaborator, doctor, admin)
+  const updatePatientRecord = async (
+    patientIdOrDni: string,
+    updates: PatientInformationUpdate
+  ): Promise<{ success: boolean; error?: string; patient?: any }> => {
+    try {
+      const res = await fetch(`/api/patients/${encodeURIComponent(patientIdOrDni)}`, {
+        method: 'PUT',
+        headers: fetchHeaders(),
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar la ficha del paciente.');
+      }
+
+      // 1. Update users list if user account exists
+      setUsers((prev) =>
+        prev.map((u) => {
+          if (u.id === data.userId || u.identifier === patientIdOrDni || u.identifier === data.dni) {
+            return {
+              ...u,
+              name: data.name,
+              lastName: data.lastName,
+              identifier: data.dni,
+              phone: data.phone || u.phone,
+              email: data.email || u.email,
+              birthDate: data.birthDate || u.birthDate,
+              obraSocial: data.obraSocial || u.obraSocial,
+              obraSocialNumber: data.obraSocialNumber || u.obraSocialNumber,
+              city: data.city || u.city,
+              province: data.province || u.province,
+            };
+          }
+          return u;
+        })
+      );
+
+      // 2. Update orders list for orders belonging to this patient
+      const oldDniClean = patientIdOrDni.replace(/\D/g, '');
+      const newDniClean = (data.dni || '').replace(/\D/g, '');
+      setOrders((prev) =>
+        prev.map((order) => {
+          const ordDni = (order.patientDni || '').replace(/\D/g, '');
+          if (ordDni === oldDniClean || ordDni === newDniClean) {
+            return {
+              ...order,
+              patientName: data.name,
+              patientLastName: data.lastName,
+              patientDni: data.dni,
+              patientPhone: data.phone || order.patientPhone,
+              patientEmail: data.email || order.patientEmail,
+              patientBirthDate: data.birthDate || order.patientBirthDate,
+              obraSocial: data.obraSocial || order.obraSocial,
+              obraSocialNumber: data.obraSocialNumber || order.obraSocialNumber,
+              patientCity: data.city || order.patientCity,
+              patientProvince: data.province || order.patientProvince,
+            };
+          }
+          return order;
+        })
+      );
+
+      return { success: true, patient: data };
+    } catch (err: any) {
+      console.error('Error updating patient record:', err);
+      return { success: false, error: err.message || 'Error al actualizar la ficha del paciente.' };
     }
   };
 
@@ -746,6 +863,8 @@ export function useMedicalOrders() {
     updateOrderStatus,
     updateOrderRecipeFile,
     updateOrderPaymentInfo,
+    updateOrderPatientInfo,
+    updatePatientRecord,
     sendRecipeLink,
     deleteOrder,
     createUser,

@@ -19,7 +19,7 @@ export interface ChatMessageDto {
   text?: string;
   fileUrl?: string;
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker' | 'text';
   mimeType?: string;
   audioDuration?: number;
   timestamp?: string;

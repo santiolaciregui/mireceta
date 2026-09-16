@@ -5,7 +5,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { MedicalOrder } from '../../../types';
+import { MedicalOrder, PatientInformationUpdate } from '../../../types';
 import { 
   User, 
   X, 
@@ -22,18 +22,21 @@ import {
   Users, 
   Copy, 
   Check, 
-  FileCheck,
-  ExternalLink,
-  MapPin,
-  HeartHandshake,
-  CheckCircle2,
-  AlertCircle,
-  RotateCcw,
-  Sparkles,
-  Layers,
-  ChevronDown,
-  ChevronUp,
-  Filter
+  FileCheck, 
+  ExternalLink, 
+  MapPin, 
+  HeartHandshake, 
+  CheckCircle2, 
+  AlertCircle, 
+  RotateCcw, 
+  Sparkles, 
+  Layers, 
+  ChevronDown, 
+  ChevronUp, 
+  Filter,
+  FileEdit,
+  Save,
+  Loader2
 } from 'lucide-react';
 import { copyToClipboard } from '../../../utils/clipboard';
 
@@ -59,6 +62,13 @@ interface PatientDetailModalProps {
   patient: PatientRecord | null;
   isOpen: boolean;
   onClose: () => void;
+  currentUser?: {
+    id: string;
+    role: string;
+    name: string;
+    lastName: string;
+  };
+  onUpdatePatient?: (patientIdOrDni: string, updates: PatientInformationUpdate) => Promise<{ success: boolean; error?: string; patient?: any }>;
   onSelectOrder?: (orderId: string) => void;
   onNavigateToChat?: (orderIdOrDni: string) => void;
 }
@@ -67,6 +77,8 @@ export default function PatientDetailModal({
   patient,
   isOpen,
   onClose,
+  currentUser,
+  onUpdatePatient,
   onSelectOrder,
   onNavigateToChat,
 }: PatientDetailModalProps) {
@@ -79,6 +91,75 @@ export default function PatientDetailModal({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Edit Patient State
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState<PatientInformationUpdate>({
+    name: '',
+    lastName: '',
+    dni: '',
+    birthDate: '',
+    phone: '',
+    email: '',
+    city: '',
+    province: '',
+    obraSocial: 'Particular',
+    obraSocialNumber: '',
+  });
+
+  const canEdit = currentUser?.role === 'colaborador' || currentUser?.role === 'medico' || currentUser?.role === 'admin' || currentUser?.role === 'superadmin';
+
+  const startEditing = () => {
+    if (!patient) return;
+    setEditDraft({
+      name: patient.name || '',
+      lastName: patient.lastName || '',
+      dni: patient.dni || '',
+      birthDate: patient.birthDate || '',
+      phone: patient.phone || '',
+      email: patient.email || '',
+      city: patient.city || '',
+      province: patient.province || '',
+      obraSocial: patient.obraSocial || 'Particular',
+      obraSocialNumber: patient.obraSocialNumber || '',
+    });
+    setEditError(null);
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditError(null);
+    setIsEditing(false);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!patient || !onUpdatePatient) return;
+    if (!editDraft.name.trim() || !editDraft.lastName.trim() || !editDraft.dni.trim()) {
+      setEditError('El nombre, apellido y DNI del paciente son obligatorios.');
+      return;
+    }
+
+    setIsSaving(true);
+    setEditError(null);
+    const result = await onUpdatePatient(patient.id || patient.dni, editDraft);
+    setIsSaving(false);
+
+    if (!result.success) {
+      setEditError(result.error || 'Error al actualizar los datos del paciente.');
+      return;
+    }
+
+    setIsEditing(false);
+  };
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setIsEditing(false);
+      setEditError(null);
+    }
+  }, [isOpen, patient?.id, patient?.dni]);
 
   if (!isOpen || !patient) return null;
 
@@ -262,6 +343,17 @@ export default function PatientDetailModal({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {canEdit && !isEditing && (
+              <button
+                type="button"
+                onClick={startEditing}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition-all cursor-pointer border border-white/25 shadow-xs"
+                title="Editar datos de la ficha del paciente"
+              >
+                <FileEdit className="h-4 w-4 text-white" />
+                <span>Editar Ficha</span>
+              </button>
+            )}
             {onNavigateToChat && (
               <button
                 type="button"
@@ -383,6 +475,16 @@ export default function PatientDetailModal({
                 </div>
 
                 <div className="flex items-center gap-2 self-start sm:self-auto">
+                  {canEdit && !isEditing && (
+                    <button
+                      type="button"
+                      onClick={startEditing}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-3xs cursor-pointer hover:border-slate-300"
+                    >
+                      <FileEdit className="h-3.5 w-3.5 text-[#1661E1]" />
+                      <span>Editar Ficha</span>
+                    </button>
+                  )}
                   {patient.phone && (
                     <a
                       href={`https://wa.me/${patient.phone.replace(/\D/g, '')}`}
@@ -397,73 +499,238 @@ export default function PatientDetailModal({
                 </div>
               </div>
 
-              {/* 3 Blocks Grid for Titular */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                
-                {/* 1. Datos Personales */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5 text-[#1661E1]" /> Datos Personales
+              {isEditing ? (
+                <div className="bg-white border border-blue-200 rounded-2xl p-5 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <FileEdit className="h-4 w-4 text-[#1661E1]" />
+                      <h4 className="text-sm font-bold text-slate-900">Editar Datos de la Ficha del Paciente</h4>
+                    </div>
+                    <span className="text-xs text-slate-500">
+                      Rol colaborador / médico / admin
                     </span>
                   </div>
-                  <div className="space-y-0.5">
-                    <DetailRow label="Nombre Completo" value={`${patient.name} ${patient.lastName}`} fieldId="t_name" />
-                    <DetailRow label="DNI" value={patient.dni} copyValue={patient.dni} fieldId="t_dni" isMono />
-                    <DetailRow 
-                      label="Nacimiento" 
-                      value={`${formatBirthDate(patient.birthDate)}${titularAge !== null ? ` (${titularAge} años)` : ''}`} 
-                      copyValue={formatBirthDate(patient.birthDate)}
-                      fieldId="t_birth" 
-                    />
-                    <DetailRow label="Estado" value={patient.status} fieldId="t_status" />
-                    <DetailRow label="Familiares" value={`${dependentsList.length} registrados`} fieldId="t_deps" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Nombre *</span>
+                      <input
+                        type="text"
+                        value={editDraft.name || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, name: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Nombre"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Apellido *</span>
+                      <input
+                        type="text"
+                        value={editDraft.lastName || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, lastName: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Apellido"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">DNI *</span>
+                      <input
+                        type="text"
+                        value={editDraft.dni || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, dni: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Solo números"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Fecha de Nacimiento</span>
+                      <input
+                        type="date"
+                        value={editDraft.birthDate || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, birthDate: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Teléfono / WhatsApp</span>
+                      <input
+                        type="tel"
+                        value={editDraft.phone || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, phone: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Ej: 1123456789"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Email</span>
+                      <input
+                        type="email"
+                        value={editDraft.email || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, email: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="correo@ejemplo.com"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Localidad / Ciudad</span>
+                      <input
+                        type="text"
+                        value={editDraft.city || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, city: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Ciudad o localidad"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Provincia</span>
+                      <input
+                        type="text"
+                        value={editDraft.province || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, province: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Provincia"
+                      />
+                    </label>
+
+                    <label className="space-y-1">
+                      <span className="block text-xs font-bold text-slate-600">Obra Social / Cobertura</span>
+                      <input
+                        type="text"
+                        value={editDraft.obraSocial || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, obraSocial: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="Ej: OSDE, Swiss Medical, Particular"
+                      />
+                    </label>
+
+                    <label className="space-y-1 sm:col-span-2 md:col-span-3">
+                      <span className="block text-xs font-bold text-slate-600">N° de Afiliado / Credencial</span>
+                      <input
+                        type="text"
+                        value={editDraft.obraSocialNumber || ''}
+                        onChange={(e) => setEditDraft(prev => ({ ...prev, obraSocialNumber: e.target.value }))}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                        placeholder="N° de credencial"
+                      />
+                    </label>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 leading-relaxed">
+                    Las modificaciones se sincronizarán en la ficha general del paciente, su cuenta de usuario y las órdenes activas. La acción queda registrada en auditoría.
+                  </p>
+
+                  {editError && (
+                    <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>{editError}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={isSaving}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSaveEdit}
+                      disabled={isSaving}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#1661E1] hover:bg-blue-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm disabled:opacity-50"
+                    >
+                      {isSaving ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          <span>Guardando cambios...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-3.5 w-3.5" />
+                          <span>Guardar Ficha</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
+              ) : (
+                /* 3 Blocks Grid for Titular */
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  
+                  {/* 1. Datos Personales */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                        <User className="h-3.5 w-3.5 text-[#1661E1]" /> Datos Personales
+                      </span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <DetailRow label="Nombre Completo" value={`${patient.name} ${patient.lastName}`} fieldId="t_name" />
+                      <DetailRow label="DNI" value={patient.dni} copyValue={patient.dni} fieldId="t_dni" isMono />
+                      <DetailRow 
+                        label="Nacimiento" 
+                        value={`${formatBirthDate(patient.birthDate)}${titularAge !== null ? ` (${titularAge} años)` : ''}`} 
+                        copyValue={formatBirthDate(patient.birthDate)}
+                        fieldId="t_birth" 
+                      />
+                      <DetailRow label="Estado" value={patient.status} fieldId="t_status" />
+                      <DetailRow label="Familiares" value={`${dependentsList.length} registrados`} fieldId="t_deps" />
+                    </div>
+                  </div>
 
-                {/* 2. Contacto y Residencia */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5 text-emerald-600" /> Contacto y Ubicación
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-600">Verificado</span>
+                  {/* 2. Contacto y Residencia */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                        <Phone className="h-3.5 w-3.5 text-emerald-600" /> Contacto y Ubicación
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-600">Verificado</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <DetailRow label="Teléfono" value={patient.phone || '—'} copyValue={patient.phone} fieldId="t_phone" />
+                      <DetailRow label="Email" value={patient.email || '—'} copyValue={patient.email} fieldId="t_email" />
+                      <DetailRow label="Localidad" value={patient.city || '—'} fieldId="t_city" />
+                      <DetailRow label="Provincia" value={patient.province || 'Buenos Aires'} fieldId="t_province" />
+                    </div>
                   </div>
-                  <div className="space-y-0.5">
-                    <DetailRow label="Teléfono" value={patient.phone || '—'} copyValue={patient.phone} fieldId="t_phone" />
-                    <DetailRow label="Email" value={patient.email || '—'} copyValue={patient.email} fieldId="t_email" />
-                    <DetailRow label="Localidad" value={patient.city || '—'} fieldId="t_city" />
-                    <DetailRow label="Provincia" value={patient.province || 'Buenos Aires'} fieldId="t_province" />
+
+                  {/* 3. Cobertura Médica */}
+                  <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                        <Shield className="h-3.5 w-3.5 text-blue-600" /> Cobertura Médica
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-600">Titular</span>
+                    </div>
+                    <div className="space-y-0.5">
+                      <DetailRow label="Obra Social" value={patient.obraSocial || 'Particular'} fieldId="t_os" />
+                      <DetailRow 
+                        label="Nº Afiliado" 
+                        value={patient.obraSocialNumber || '—'} 
+                        copyValue={patient.obraSocialNumber}
+                        fieldId="t_osNum" 
+                        isMono 
+                      />
+                      <DetailRow label="Condición" value="Titular de Cobertura" fieldId="t_cond" />
+                      <DetailRow 
+                        label="Solicitudes" 
+                        value={`${patient.orders.length} (${completedCount} emitidas, ${pendingCount} pend.)`} 
+                        fieldId="t_orders_tot" 
+                      />
+                    </div>
                   </div>
+
                 </div>
-
-                {/* 3. Cobertura Médica */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs space-y-2.5">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="text-xs font-black uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
-                      <Shield className="h-3.5 w-3.5 text-blue-600" /> Cobertura Médica
-                    </span>
-                    <span className="text-[10px] font-bold text-blue-600">Titular</span>
-                  </div>
-                  <div className="space-y-0.5">
-                    <DetailRow label="Obra Social" value={patient.obraSocial || 'Particular'} fieldId="t_os" />
-                    <DetailRow 
-                      label="Nº Afiliado" 
-                      value={patient.obraSocialNumber || '—'} 
-                      copyValue={patient.obraSocialNumber}
-                      fieldId="t_osNum" 
-                      isMono 
-                    />
-                    <DetailRow label="Condición" value="Titular de Cobertura" fieldId="t_cond" />
-                    <DetailRow 
-                      label="Solicitudes" 
-                      value={`${patient.orders.length} (${completedCount} emitidas, ${pendingCount} pend.)`} 
-                      fieldId="t_orders_tot" 
-                    />
-                  </div>
-                </div>
-
-              </div>
+              )}
 
             </div>
           )}

@@ -1094,6 +1094,11 @@ export default function PatientForm({
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
+      const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+      if (isPdf && file.size > 2.5 * 1024 * 1024) {
+        showToast(`Optimizando PDF (${(file.size / (1024 * 1024)).toFixed(1)} MB) para agilizar el envío...`);
+      }
+
       compressImageAndGetBase64(file).then((base64String) => {
         if (target === 'medication') {
           const newPhoto: MedicationPhoto = {
@@ -1105,7 +1110,7 @@ export default function PatientForm({
             comments: '',
           };
           setMedicationPhotos(prev => [...prev, newPhoto]);
-          showToast(`¡Foto/receta "${file.name}" agregada al carrito con éxito!`);
+          showToast(`¡Archivo/receta "${file.name}" agregado al carrito con éxito!`);
           scrollToCart();
         } else {
           setPaymentReceipt({ url: base64String, name: file.name });
@@ -1113,8 +1118,8 @@ export default function PatientForm({
           showToast('Comprobante de pago adjuntado correctamente');
         }
       }).catch((err) => {
-        console.error('Error procesando imagen:', err);
-        setError('Error al procesar la imagen. Intente nuevamente.');
+        console.error('Error procesando archivo:', err);
+        setError(err.message || 'Error al procesar el archivo. Intente nuevamente.');
       });
     }
     // Reset file input value so selecting the same file triggers onChange again

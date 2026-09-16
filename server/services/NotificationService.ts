@@ -30,7 +30,7 @@ export interface SendDirectNotificationDto {
 export interface ChatMediaPayload {
   dataUrl: string;
   fileName?: string;
-  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker';
+  fileType?: 'image' | 'audio' | 'video' | 'document' | 'pdf' | 'sticker' | 'text';
   mimeType?: string;
 }
 
