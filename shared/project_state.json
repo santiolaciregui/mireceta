@@ -1,11 +1,11 @@
 {
-  "project": "Mi Receta - edicion administrativa de pagos",
+  "project": "Mi Receta - carrito lateral de medicacion",
   "status": "qa_done",
   "current_phase": "complete",
-  "current_milestone": "M4",
-  "current_story": "US-004",
+  "current_milestone": "M5",
+  "current_story": "US-005",
   "pending_stories": [],
-  "completed_stories": ["US-001", "US-002", "US-003", "US-004"],
+  "completed_stories": ["US-001", "US-002", "US-003", "US-004", "US-005"],
   "open_questions": [],
   "last_agent": "cost-controller"
 }

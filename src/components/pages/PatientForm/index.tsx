@@ -2872,19 +2872,23 @@ export default function PatientForm({
               </div>
             )}
 
-            {/* 🛒 CARRITO DE LA SOLICITUD (PLACED ABOVE MÉTODO DE CARGA) */}
-            <div 
+            {/* T-001/T-002: ecommerce-style responsive content + cart layout */}
+            <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(20rem,1fr)] lg:items-start lg:gap-5">
+            {/* 🛒 CARRITO DE LA SOLICITUD */}
+            <aside
               ref={cartSectionRef}
               id="cart-container"
-              className={`p-4.5 rounded-2xl border space-y-3 transition-all scroll-mt-6 ${
+              aria-label="Carrito de la solicitud"
+              className={`order-2 min-w-0 p-4.5 rounded-2xl border space-y-3 transition-all scroll-mt-6 lg:sticky lg:top-4 ${
                 fieldErrors.medicationList 
                   ? 'bg-rose-50/50 border-rose-400 ring-2 ring-rose-500/10' 
                   : 'bg-white/90 border-blue-100 shadow-[0_8px_24px_rgba(22,97,225,0.08)]'
               }`}
             >
-              <div className="flex items-center justify-between">
-                <h5 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
-                  <span>🛒 Carrito de la Solicitud</span>
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <h5 className="min-w-0 text-xs font-extrabold text-slate-800 uppercase tracking-wider flex flex-wrap items-center gap-2">
+                  <span className="lg:hidden">2. Revisá tu carrito</span>
+                  <span className="hidden lg:inline">🛒 Carrito de la Solicitud</span>
                   <span className="bg-[#14BE99] text-white text-[10px] px-2.5 py-0.5 rounded-full font-black shadow-xs">
                     {medicationItems.length + medicationPhotos.length} {medicationItems.length + medicationPhotos.length === 1 ? 'item' : 'items'}
                   </span>
@@ -2913,7 +2917,12 @@ export default function PatientForm({
 
               {medicationItems.length === 0 && medicationPhotos.length === 0 ? (
                 <div className="py-5 text-center text-xs text-slate-400 font-medium bg-white/60 rounded-xl border border-dashed border-slate-250">
-                  El recetario está vacío. Seleccione un <strong>Método de Carga</strong> a continuación para ingresar medicamentos o adjuntar fotos.
+                  <span className="lg:hidden">
+                    Tu carrito está vacío. Elegí un método arriba y agregá tu medicación o receta.
+                  </span>
+                  <span className="hidden lg:inline">
+                    Tu carrito está vacío. Elegí un <strong>Método de Carga</strong> en la columna izquierda para agregar medicamentos o recetas.
+                  </span>
                 </div>
               ) : (
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-1">
@@ -3090,12 +3099,16 @@ export default function PatientForm({
                   ))}
                 </div>
               )}
-            </div>
+            </aside>
+
+            <div className="contents lg:order-1 lg:block lg:min-w-0 lg:space-y-4">
 
             {/* Input Method Toggle */}
-            <div className="space-y-2">
+            <div className="order-1 space-y-2">
               <label className="block text-xs font-bold text-slate-600 uppercase">
-                Método de Carga <span className="text-red-500">*</span>
+                <span className="lg:hidden">1. Elegí cómo cargar la medicación</span>
+                <span className="hidden lg:inline">Método de Carga</span>{' '}
+                <span className="text-red-500">*</span>
               </label>
               
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
@@ -3175,7 +3188,7 @@ export default function PatientForm({
 
             {/* SECTION A: NUEVA CARGA MANUAL */}
             {medicationMethod === 'new_manual' && (
-              <div className="space-y-4 animate-fadeIn">
+              <div className="order-1 space-y-4 animate-fadeIn">
                 {/* A1. Formulario intuitivo para agregar medicación */}
                 <div className="bg-slate-100 p-5 rounded-2xl border-2 border-slate-300 space-y-4">
                   <div className="flex items-center justify-between">
@@ -3353,7 +3366,7 @@ export default function PatientForm({
 
             {/* SECTION B: ADJUNTAR FOTO DE RECETA O MEDICACIÓN */}
             {medicationMethod === 'upload_photo' && (
-              <div className="space-y-4 animate-fadeIn">
+              <div className="order-1 space-y-4 animate-fadeIn">
                 <div className="bg-white/80 p-5 rounded-2xl border border-blue-100 space-y-4 shadow-xs">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
@@ -3385,7 +3398,7 @@ export default function PatientForm({
 
             {/* SECTION B: PAST ORDERS (ÚLTIMAS SOLICITUDES) */}
             {medicationMethod === 'past_orders' && (
-              <div className="space-y-4 animate-fadeIn">
+              <div className="order-1 space-y-4 animate-fadeIn">
                 {patientOrders.length === 0 ? (
                   <div className="bg-slate-50 p-6 text-center text-xs text-slate-500 font-medium rounded-2xl border border-slate-200">
                     No posee solicitudes anteriores asociadas a su DNI en el sistema. Seleccione <strong>Nueva Carga Manual (Carrito)</strong> para ingresar sus medicamentos.
@@ -3515,7 +3528,7 @@ export default function PatientForm({
             )}
 
             {/* CONTROL PREGUNTAS (OPCIONALES) */}
-            <div className="bg-white/80 p-4 rounded-2xl border border-blue-100 space-y-3 shadow-xs">
+            <div className="order-3 bg-white/80 p-4 rounded-2xl border border-blue-100 space-y-3 shadow-xs">
               <p className="text-[10px] font-bold text-blue-900 flex items-center gap-1 uppercase tracking-wider">
                 <span className="flex h-2 w-2 rounded-full bg-blue-500" />
                 Información de Control Clínico (Opcional)
@@ -3555,7 +3568,7 @@ export default function PatientForm({
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="order-3 flex gap-3 pt-4">
               <button
                 id="btn-back-1"
                 type="button"
@@ -3575,6 +3588,8 @@ export default function PatientForm({
                 <span>Siguiente</span>
                 <ArrowRight className="h-4 w-4" />
               </button>
+            </div>
+            </div>
             </div>
           </div>
         )}

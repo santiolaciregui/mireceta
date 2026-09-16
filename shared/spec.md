@@ -1,3 +1,3 @@
-# Active Spec: US-004 - Editar informacion de pago del paciente
+# Active Spec: US-005 - Mostrar el carrito a la derecha en escritorio
 
-Implementar exactamente `shared/specs/US-004.md` en la aplicacion existente. DevOps Required: NO.
+Implementar exactamente `shared/specs/US-005.md` en la aplicacion existente. DevOps Required: NO.

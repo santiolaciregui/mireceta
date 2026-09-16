@@ -23,6 +23,10 @@
 **Description**: Permitir que colaboradores autorizados corrijan la informacion de pago de una solicitud con validacion y auditoria.
 **Stories**: US-004
 
+### M5: Carrito lateral de medicacion
+**Description**: Reorganizar la carga de medicacion en escritorio con un resumen lateral similar a un checkout de ecommerce.
+**Stories**: US-005
+
 ---
 
 ## User Stories
@@ -55,6 +59,13 @@
 **Summary**: Agrega edicion inline para metodo, monto, estado, identificador y fecha de pago, con autorizacion backend y trazabilidad.
 **Complexity**: M
 
+### US-005: Mostrar el carrito a la derecha en escritorio (M5)
+**As** paciente que completa una solicitud
+**I want** ver el carrito junto al formulario de medicacion
+**So that** pueda revisar lo agregado mientras continuo cargando datos
+**Summary**: Convierte el paso de medicacion en dos columnas en escritorio y guia el flujo movil como carga, revision del carrito y continuacion.
+**Complexity**: S
+
 ---
 
 ## Out of Scope
@@ -63,6 +74,7 @@
 - Enviar alertas por email u otros canales.
 - Conciliar automaticamente pagos con Mercado Pago o ejecutar reembolsos.
 - Reemplazar comprobantes de transferencia desde esta edicion.
+- Cambiar campos, validaciones o logica del carrito y del formulario de medicacion.
 
 ---
 

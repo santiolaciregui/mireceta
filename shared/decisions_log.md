@@ -15,3 +15,7 @@
 | 2026-09-16T12:20:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-004 | Added collaborator-only inline editing, backend normalization and audit logging; 45 tests, typecheck and production build passed |
 | 2026-09-16T12:35:00-03:00 | QA | Approved US-004 | 45/45 tests passed; payment validation module has 98.92% line coverage; typecheck, build and diff check passed |
 | 2026-09-16T12:40:00-03:00 | Cost Controller | Completed US-004 cost review | Estimated cost ~$0.14; budget status green; DevOps not used |
+| 2026-09-16T13:00:00-03:00 | PM | Added US-005 specification for a right-side medication cart | 1 incremental story; responsive two-column desktop layout; DevOps Required: NO |
+| 2026-09-16T13:15:00-03:00 | Developer | Implemented tasks T-001 through T-003 for US-005 | Desktop two-column layout with sticky cart; mobile guided order is load, review cart, continue; existing handlers and IDs preserved |
+| 2026-09-16T13:25:00-03:00 | QA | Approved US-005 | 45/45 tests, coverage, typecheck, production build and diff check passed; authenticated visual QA remains external |
+| 2026-09-16T13:30:00-03:00 | Cost Controller | Completed US-005 cost review | Estimated incremental cost ~$0.09; budget status green; DevOps not used |
