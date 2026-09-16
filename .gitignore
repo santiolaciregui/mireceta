@@ -13,3 +13,5 @@ rewrite.cjs
 package-lock.json
 /scripts
 /.agents
+/shared
+/shared

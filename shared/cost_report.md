@@ -97,3 +97,59 @@ Estimates are approximate. The change reused the existing React/Tailwind structu
 ## Alert
 
 No alerts — the estimated incremental cost remains below the $1.00 threshold.
+
+---
+
+# Cost Addendum: US-006
+**Date**: 2026-09-16
+**Project**: Mi Receta — chronological conversation ordering
+
+## Executive Summary
+
+| Metric | Value |
+|--------|-------|
+| Estimated incremental cost | ~$0.12 |
+| Estimated input tokens | ~24,500 |
+| Estimated output tokens | ~5,900 |
+| Roles used | PM, Developer, QA, Cost Controller |
+| Phases completed | Spec, Development, QA, Cost Control |
+| Budget status | 🟢 OK |
+| DevOps | Not used |
+
+Estimates are approximate and use the Cost Controller reference rates. The implementation added no dependency or infrastructure and used mocked repositories for regression coverage.
+
+## Breakdown per Role
+
+| Role | Reference model | Input Tokens | Output Tokens | Estimated Cost |
+|------|-----------------|--------------|---------------|----------------|
+| PM | claude-sonnet-4 | ~3,500 | ~1,200 | ~$0.03 |
+| Developer | claude-sonnet-4 | ~14,000 | ~3,000 | ~$0.09 |
+| QA | claude-haiku-4-5 | ~5,500 | ~1,200 | ~$0.00 |
+| Cost Controller | claude-haiku-4-5 | ~1,500 | ~500 | ~$0.00 |
+| **TOTAL** | | **~24,500** | **~5,900** | **~$0.12** |
+
+## Timeline and Operations
+
+| Phase | Agent | Main operations | Phase cost |
+|-------|-------|----------------|------------|
+| Spec | PM | Added one incremental story with six acceptance criteria | ~$0.03 |
+| Development | Developer | Added one shared utility, corrected backend and two frontend list modes, and added four focused tests | ~$0.09 |
+| QA | QA | Ran 49 tests, coverage, typecheck, production build and diff checks | ~$0.00 |
+| Cost Control | Cost Controller | Produced resource estimate and threshold check | ~$0.00 |
+
+## Efficiency Analysis
+
+- Functional files changed for US-006: 3, plus two focused test files and workflow documentation.
+- New focused unit tests: 4.
+- Ordering utility coverage: 100% lines and functions.
+- Estimated cost per focused test: ~$0.03.
+- Estimated equivalent single-agent task: ~$0.09; the role-based workflow adds explicit acceptance criteria, server regression coverage and recorded QA evidence.
+
+## Suggested Optimizations
+
+1. Keep all future inbox ordering rules in the shared timestamp utility to avoid separate frontend/backend priority ladders.
+2. Add browser component coverage only when the repository adopts a frontend test runner; the pure ordering logic is already isolated and fully covered.
+
+## Alert
+
+No alerts — the estimated incremental cost remains below the $1.00 threshold.

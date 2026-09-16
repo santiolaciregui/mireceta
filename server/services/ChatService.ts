@@ -5,6 +5,10 @@ import { notificationService } from './NotificationService.js';
 import { auditLogService } from './AuditLogService.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generateMessageId } from '../utils/idGenerator.js';
+import {
+  compareActivityTimestampsDesc,
+  getLatestActivityTimestamp,
+} from '../../src/utils/activityOrdering.js';
 
 export interface ChatMessageDto {
   id?: string;
@@ -153,15 +157,17 @@ export class ChatService {
       const lastMsg = dedupedMessages.length > 0 ? dedupedMessages[dedupedMessages.length - 1] : null;
       const isFromPatient = lastMsg?.sender === 'paciente';
 
-      let latestOrderAt: string | null = null;
-      if (conv.orders && conv.orders.length > 0) {
-        const sortedOrders = [...conv.orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        if (sortedOrders[0]?.createdAt) {
-          latestOrderAt = new Date(sortedOrders[0].createdAt).toISOString();
-        }
+      let latestOrderAt = '';
+      for (const order of conv.orders || []) {
+        latestOrderAt = getLatestActivityTimestamp(latestOrderAt, order.createdAt);
       }
 
-      const lastMessageAt = lastMsg?.timestamp || conv.lastPatientWhatsAppInteractionAt || latestOrderAt || conv.createdAt || null;
+      const lastMessageAt = getLatestActivityTimestamp(
+        lastMsg?.timestamp,
+        conv.lastPatientWhatsAppInteractionAt,
+        latestOrderAt,
+        conv.createdAt
+      );
 
       return {
         ...conv,
@@ -174,26 +180,10 @@ export class ChatService {
     });
 
     conversations.sort((a, b) => {
-      const aTime = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
-      const bTime = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+      const activityOrder = compareActivityTimestampsDesc(a.lastMessageAt, b.lastMessageAt);
+      if (activityOrder !== 0) return activityOrder;
 
-      // 1. Conversations with actual messages always on top, newest message first
-      if (aTime && bTime) {
-        return bTime - aTime;
-      }
-      if (aTime && !bTime) return -1;
-      if (!aTime && bTime) return 1;
-
-      // 2. Conversations without messages: sort by latest order or registration date
-      const aFallback = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : 0;
-      const bFallback = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : 0;
-      if (aFallback && bFallback && aFallback !== bFallback) {
-        return bFallback - aFallback;
-      }
-      if (aFallback && !bFallback) return -1;
-      if (!aFallback && bFallback) return 1;
-
-      // 3. Fallback: alphabetical by last name, name
+      // Deterministic fallback for equal or missing activity timestamps.
       const aName = `${a.patientLastName || ''} ${a.patientName || ''}`.trim();
       const bName = `${b.patientLastName || ''} ${b.patientName || ''}`.trim();
       return aName.localeCompare(bName, 'es-AR');

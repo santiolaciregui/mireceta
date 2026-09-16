@@ -19,3 +19,7 @@
 | 2026-09-16T13:15:00-03:00 | Developer | Implemented tasks T-001 through T-003 for US-005 | Desktop two-column layout with sticky cart; mobile guided order is load, review cart, continue; existing handlers and IDs preserved |
 | 2026-09-16T13:25:00-03:00 | QA | Approved US-005 | 45/45 tests, coverage, typecheck, production build and diff check passed; authenticated visual QA remains external |
 | 2026-09-16T13:30:00-03:00 | Cost Controller | Completed US-005 cost review | Estimated incremental cost ~$0.09; budget status green; DevOps not used |
+| 2026-09-16T14:00:00-03:00 | PM | Added US-006 specification for chronological conversation ordering | 1 incremental story; effective activity unifies messages, WhatsApp interaction and request creation; DevOps Required: NO |
+| 2026-09-16T14:15:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-006 | Shared timestamp utility; backend and both inbox modes now sort by effective latest activity; 49 tests, typecheck, build and diff check passed |
+| 2026-09-16T14:25:00-03:00 | QA | Approved US-006 | 49/49 tests passed; ordering utility has 100% line/function coverage; typecheck, production build and diff check passed |
+| 2026-09-16T14:30:00-03:00 | Cost Controller | Completed US-006 cost review | Estimated incremental cost ~$0.12; budget status green; DevOps not used |

@@ -27,6 +27,10 @@
 **Description**: Reorganizar la carga de medicacion en escritorio con un resumen lateral similar a un checkout de ecommerce.
 **Stories**: US-005
 
+### M6: Orden cronologico de conversaciones
+**Description**: Ordenar conversaciones y solicitudes por su actividad efectiva mas reciente, sin priorizar artificialmente los elementos que ya tienen mensajes.
+**Stories**: US-006
+
 ---
 
 ## User Stories
@@ -66,6 +70,13 @@
 **Summary**: Convierte el paso de medicacion en dos columnas en escritorio y guia el flujo movil como carga, revision del carrito y continuacion.
 **Complexity**: S
 
+### US-006: Corregir el orden del listado de conversaciones (M6)
+**As** colaborador o medico
+**I want** ver conversaciones y solicitudes ordenadas por la actividad mas reciente
+**So that** las novedades actuales no queden debajo de intercambios antiguos
+**Summary**: Unifica el criterio cronologico de ambos listados usando la fecha mas reciente entre mensajes, interacciones y creacion de solicitudes.
+**Complexity**: S
+
 ---
 
 ## Out of Scope
@@ -75,6 +86,7 @@
 - Conciliar automaticamente pagos con Mercado Pago o ejecutar reembolsos.
 - Reemplazar comprobantes de transferencia desde esta edicion.
 - Cambiar campos, validaciones o logica del carrito y del formulario de medicacion.
+- Cambiar filtros, busqueda, contadores de no leidos o contenido de los mensajes del chat.
 
 ---
 

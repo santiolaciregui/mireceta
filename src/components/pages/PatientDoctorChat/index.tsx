@@ -31,6 +31,10 @@ import {
 import { MedicalOrder, ChatMessage, SystemUser } from '../../../types';
 import { compressImageAndGetBase64, fileToBase64 } from '../../../utils/file';
 import {
+  compareActivityTimestampsDesc,
+  getLatestActivityTimestamp,
+} from '../../../utils/activityOrdering';
+import {
   mergeChatMessages,
   reconcileOptimisticMessages,
 } from './optimisticMessages';
@@ -266,44 +270,31 @@ export default function PatientDoctorChat({
       const lastMsg = deduped.length > 0 ? deduped[deduped.length - 1] : null;
 
       let latestOrderAt = '';
-      if (conv.orders && conv.orders.length > 0) {
-        const sorted = [...conv.orders].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        if (sorted[0]?.createdAt) {
-          latestOrderAt = new Date(sorted[0].createdAt).toISOString();
-        }
+      for (const order of conv.orders || []) {
+        latestOrderAt = getLatestActivityTimestamp(latestOrderAt, order.createdAt);
       }
+
+      const lastTimestamp = getLatestActivityTimestamp(
+        lastMsg?.timestamp,
+        conv.lastTimestamp,
+        latestOrderAt
+      );
 
       return {
         ...conv,
         messages: deduped,
         lastMessage: lastMsg,
-        lastTimestamp: lastMsg?.timestamp || conv.lastTimestamp || latestOrderAt || '',
+        lastTimestamp,
         hasPatientReplied: lastMsg?.sender === 'paciente'
       };
     });
 
     // Sort conversations with most recent message / activity on top
     result.sort((a, b) => {
-      const aMsgTime = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
-      const bMsgTime = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+      const activityOrder = compareActivityTimestampsDesc(a.lastTimestamp, b.lastTimestamp);
+      if (activityOrder !== 0) return activityOrder;
 
-      // 1. Conversations with actual messages always on top, newest message first
-      if (aMsgTime && bMsgTime) {
-        return bMsgTime - aMsgTime;
-      }
-      if (aMsgTime && !bMsgTime) return -1;
-      if (!aMsgTime && bMsgTime) return 1;
-
-      // 2. Conversations without messages: sort by latest order or interaction date
-      const aActivity = a.lastTimestamp ? new Date(a.lastTimestamp).getTime() : 0;
-      const bActivity = b.lastTimestamp ? new Date(b.lastTimestamp).getTime() : 0;
-      if (aActivity && bActivity && aActivity !== bActivity) {
-        return bActivity - aActivity;
-      }
-      if (aActivity && !bActivity) return -1;
-      if (!aActivity && bActivity) return 1;
-
-      // 3. Fallback: alphabetical by last name, name
+      // Deterministic fallback for equal or missing activity timestamps.
       const aName = `${a.lastName || ''} ${a.name || ''}`.trim();
       const bName = `${b.lastName || ''} ${b.name || ''}`.trim();
       return aName.localeCompare(bName, 'es-AR');
@@ -504,7 +495,7 @@ export default function PatientDoctorChat({
       const clean = cleanDni(ord.requestedByTitularDni || ord.patientDni);
       const msgs = Array.isArray(ord.messages) ? ord.messages : [];
       const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
-      const ts = lastMsg?.timestamp || (ord.createdAt ? new Date(ord.createdAt).toISOString() : '');
+      const ts = getLatestActivityTimestamp(lastMsg?.timestamp, ord.createdAt);
 
       list.push({
         id: ord.id,
@@ -525,17 +516,12 @@ export default function PatientDoctorChat({
     }
 
     list.sort((a, b) => {
-      const aHasMsg = Boolean(a.lastMessage?.timestamp);
-      const bHasMsg = Boolean(b.lastMessage?.timestamp);
-      if (aHasMsg && bHasMsg) {
-        return new Date(b.lastMessage!.timestamp).getTime() - new Date(a.lastMessage!.timestamp).getTime();
-      }
-      if (aHasMsg && !bHasMsg) return -1;
-      if (!aHasMsg && bHasMsg) return 1;
+      const activityOrder = compareActivityTimestampsDesc(a.timestamp, b.timestamp);
+      if (activityOrder !== 0) return activityOrder;
 
-      const aTime = a.timestamp ? new Date(a.timestamp).getTime() : 0;
-      const bTime = b.timestamp ? new Date(b.timestamp).getTime() : 0;
-      return bTime - aTime;
+      const aName = `${a.patientLastName || ''} ${a.patientName || ''}`.trim();
+      const bName = `${b.patientLastName || ''} ${b.patientName || ''}`.trim();
+      return aName.localeCompare(bName, 'es-AR') || a.orderId.localeCompare(b.orderId, 'es-AR');
     });
     return list;
   }, [orders, isPatient, currentUser, cleanDni]);
@@ -1146,7 +1132,7 @@ export default function PatientDoctorChat({
                             {conv.name} {conv.lastName}
                           </h4>
                           <span className={`text-[10px] font-mono shrink-0 ${hasUnread ? 'text-[#25D366] font-bold' : 'text-slate-400'}`}>
-                            {formatChatDateTime24h(lastMsg ? lastMsg.timestamp : (conv.ordersCount > 0 ? conv.lastTimestamp : null))}
+                            {formatChatDateTime24h(conv.lastTimestamp)}
                           </span>
                         </div>
 

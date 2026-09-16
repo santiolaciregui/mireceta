@@ -95,3 +95,53 @@ Frontend component coverage is not configured. The local browser reached the aut
 ## Final Verdict
 
 **✅ APPROVED** — The responsive layout and guided mobile sequence meet the specification. No application-logic regression was detected.
+
+---
+
+# QA Addendum: US-006 — Chronological conversation ordering
+**Date**: 2026-09-16
+**QA Agent**: Agent QA
+**Verdict**: ✅ APPROVED
+
+## Summary
+
+| Metric | Value |
+|--------|-------|
+| Unit tests total | 49 |
+| Unit tests passed | 49 |
+| Unit tests failed | 0 |
+| Coverage (`activityOrdering.ts`) | 100% lines / 100% functions |
+| Coverage (overall loaded suite) | 63.77% lines |
+| TypeScript static analysis | PASS |
+| Production build | PASS |
+| Diff whitespace check | PASS |
+
+## Results per Acceptance Criterion
+
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| Conversations use the latest effective activity | ✅ | Backend and frontend select the maximum valid timestamp across messages, WhatsApp interaction, requests and registration data. |
+| Requests use message or creation activity | ✅ | Each request compares its last message with `createdAt` and sorts by the resulting timestamp. |
+| Recent items without messages are not demoted | ✅ | The regression test places a request from 16/09 above a conversation message from 11/09. |
+| Displayed time matches ordering time | ✅ | Both list modes render their computed effective activity timestamp. |
+| Invalid dates and ties are deterministic | ✅ | Invalid and missing dates normalize to no activity; name and request ID provide stable fallbacks. |
+| Project checks pass | ✅ | 49/49 tests, coverage, TypeScript, production build and diff check passed. |
+
+## Bugs Found
+
+No release-blocking bugs found.
+
+## Tests Reviewed / Added
+
+| File | Source | Tests | Coverage |
+|------|--------|-------|----------|
+| `src/components/pages/PatientDoctorChat/activityOrdering.spec.ts` | Developer | 3 | Timestamp selection, ordering and invalid dates |
+| `server/services/ChatService.spec.ts` | Developer | 1 | Server aggregation regression without a database connection |
+
+## Tooling Issues
+
+Frontend component coverage is not configured. The pure ordering utility has 100% line and function coverage; the server aggregation path is covered with mocked repositories. The repository-wide percentage remains below 80% because unrelated services are loaded by the shared test command.
+
+## Final Verdict
+
+**✅ APPROVED** — Both inbox modes now use one descending effective-activity criterion, and a recent request without messages no longer falls below older conversations.

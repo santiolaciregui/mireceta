@@ -1,3 +1,3 @@
-# Active Spec: US-005 - Mostrar el carrito a la derecha en escritorio
+# Active Spec: US-006 - Corregir el orden del listado de conversaciones
 
-Implementar exactamente `shared/specs/US-005.md` en la aplicacion existente. DevOps Required: NO.
+Implementar exactamente `shared/specs/US-006.md` en la aplicacion existente. DevOps Required: NO.
