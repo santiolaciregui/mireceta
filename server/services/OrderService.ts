@@ -110,13 +110,59 @@ export class OrderService {
       : '';
 
     if (clientRequestId) {
-      const existingOrder = await this.orderRepo.findByClientRequestId(clientRequestId);
+      const existingOrder: any = await this.orderRepo.findByClientRequestId(clientRequestId);
       if (existingOrder) {
         if (existingOrder.tenantId !== tenantIdToUse) {
           throw new Error('La solicitud no pertenece al centro médico actual.');
         }
+
+        const isReplacingRejectedCheckout =
+          orderData.paymentRetryOrderId === existingOrder.id &&
+          orderData.paymentMethod === 'transfer' &&
+          existingOrder.paymentMethod === 'mp' &&
+          !['approved', 'exempt', 'refunded'].includes(existingOrder.paymentStatus);
+
+        if (isReplacingRejectedCheckout) {
+          if (!orderData.paymentReceiptUrl) {
+            throw new Error('Debe adjuntar el comprobante de transferencia bancaria para continuar.');
+          }
+
+          let paymentReceiptUrl = orderData.paymentReceiptUrl;
+          if (paymentReceiptUrl.startsWith('data:') || paymentReceiptUrl.length > 500) {
+            try {
+              const fileName = orderData.paymentReceiptName || `comprobante_${existingOrder.id}.pdf`;
+              paymentReceiptUrl = await storageService.saveRecipePdf(fileName, paymentReceiptUrl);
+            } catch (storageErr) {
+              console.error('[OrderService] Failed to store replacement transfer receipt:', storageErr);
+              throw new Error('No se pudo guardar el comprobante de transferencia. Intente nuevamente.');
+            }
+          }
+
+          existingOrder.paymentMethod = 'transfer';
+          existingOrder.paymentReceiptUrl = paymentReceiptUrl;
+          existingOrder.paymentReceiptName = orderData.paymentReceiptName || 'comprobante_transferencia';
+          existingOrder.paymentId = `TRANS-${Math.floor(100000 + Math.random() * 900000)}`;
+          existingOrder.paymentStatus = 'pending';
+          existingOrder.status = 'Pendiente';
+          existingOrder.paymentDate = new Date().toISOString();
+          addAuditLogEntry(
+            existingOrder,
+            'Método de pago actualizado',
+            'Paciente (Autogestión)',
+            'El intento de Mercado Pago fue reemplazado por una transferencia bancaria con comprobante adjunto. Pendiente de validación.'
+          );
+
+          const updatedOrder = await this.orderRepo.update(existingOrder.id, existingOrder);
+          await this.refreshPendingOrderLimitAlert(existingOrder.tenantId);
+          return updatedOrder;
+        }
+
         return existingOrder;
       }
+    }
+
+    if (orderData.paymentMethod === 'transfer' && !orderData.paymentReceiptUrl) {
+      throw new Error('Debe adjuntar el comprobante de transferencia bancaria para continuar.');
     }
     let basePricePerPrescription = 10000;
     try {
@@ -140,7 +186,9 @@ export class OrderService {
     });
 
     const isExempt = pricing.isExempt;
-    const calculatedPaymentStatus = isExempt ? 'exempt' : (orderData.paymentStatus || 'pending');
+    const calculatedPaymentStatus = isExempt
+      ? 'exempt'
+      : (orderData.paymentMethod === 'transfer' ? 'pending' : (orderData.paymentStatus || 'pending'));
 
     // Guard against rapid duplicate submissions (within 15s) from same patient with identical medication text or arancel
     if (currentUser?.role === 'paciente') {
@@ -238,7 +286,7 @@ export class OrderService {
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
       paymentAmount: pricing.amountFormatted,
-      status: orderData.status || 'Pendiente',
+      status: orderData.paymentMethod === 'transfer' ? 'Pendiente' : (orderData.status || 'Pendiente'),
       createdAt: new Date().toISOString(),
       auditLog: [],
       notificationsSent: [],

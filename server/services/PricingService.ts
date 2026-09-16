@@ -34,10 +34,9 @@ export class PricingService {
     const prescriptionCount = Math.max(1, Math.ceil(totalCount / this.MEDICATIONS_PER_PRESCRIPTION));
     const basePrice = params.basePricePerPrescription ?? this.BASE_PRICE_PER_PRESCRIPTION;
 
-    // Reglas de exención / bonificación
-    const isPami = params.obraSocial?.trim() === 'PAMI (Inssjp)';
+    // Explicitly bonified orders are exempt. Health insurance alone never waives the fee.
     const isBonificado = params.paymentMethod === 'bonificado';
-    const isExempt = isPami || isBonificado;
+    const isExempt = isBonificado;
 
     // Si es personal médico/administrativo y especificó un arancel explícito o bonificado
     const isStaff = params.userRole && ['medico', 'colaborador', 'admin'].includes(params.userRole);
@@ -65,7 +64,7 @@ export class PricingService {
         isExempt: true,
         itemCount: totalCount,
         pricePerPrescription: basePrice,
-        breakdown: isPami ? 'Arancel exento por obra social PAMI' : 'Arancel bonificado',
+        breakdown: 'Arancel bonificado',
       };
     }
 

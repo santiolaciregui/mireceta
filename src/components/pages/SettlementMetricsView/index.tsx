@@ -398,7 +398,7 @@ if (onUpdateUser) {
     }, 0);
 
     const exemptCount = filteredOrders.filter(
-      (o) => o.paymentStatus === 'exempt' || o.obraSocial === 'PAMI (Inssjp)' || String(o.paymentAmount) === '0'
+      (o) => o.paymentStatus === 'exempt' || String(o.paymentAmount) === '0' || o.paymentMethod === 'bonificado'
     ).length;
 
     // Settlement calculations
@@ -1565,7 +1565,7 @@ if (onUpdateUser) {
                       const doc = getOrderDoctorName(o);
                       const colab = getOrderCollaboratorName(o);
                       const isApproved = o.paymentStatus === 'approved';
-                      const isExempt = o.paymentStatus === 'exempt' || o.obraSocial === 'PAMI (Inssjp)';
+                      const isExempt = o.paymentStatus === 'exempt' || String(o.paymentAmount) === '0' || o.paymentMethod === 'bonificado';
 
                       return (
                         <tr key={o.id} className="hover:bg-slate-50/80 transition-colors">

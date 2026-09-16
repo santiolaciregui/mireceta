@@ -823,7 +823,7 @@ export default function PatientDetailModal({
                               {/* Payment Badge */}
                               {(() => {
                                 const pStatus = order.paymentStatus;
-                                const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
+                                const isExempt = pStatus === 'exempt' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado';
                                 if (pStatus === 'approved') return <span className="text-[9px] font-extrabold text-[#14BE99] bg-[#14BE99]/10 px-2 py-0.5 rounded-md border border-[#14BE99]/20">Pagado (${order.paymentAmount || '10.000'})</span>;
                                 if (pStatus === 'refunded') return <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Reintegrado</span>;
                                 if (isExempt) return <span className="text-[9px] font-extrabold text-[#3066C6] bg-[#3066C6]/10 px-2 py-0.5 rounded-md border border-[#3066C6]/20">Exento</span>;

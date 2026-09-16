@@ -15,6 +15,10 @@
 **Description**: Compactar la seleccion del metodo de carga para aprovechar mejor el ancho disponible en celulares.
 **Stories**: US-002
 
+### M3: Correccion de aranceles por cobertura
+**Description**: Alinear el cobro de PAMI con IOMA y el resto de las obras sociales.
+**Stories**: US-003
+
 ---
 
 ## User Stories
@@ -31,6 +35,13 @@
 **I want** ver las tres alternativas de carga una junto a la otra
 **So that** pueda compararlas y elegirlas sin desplazarme verticalmente
 **Summary**: Convierte el selector movil en tres tarjetas compactas horizontales, conservando la presentacion amplia en escritorio.
+**Complexity**: S
+
+### US-003: Cobrar arancel a solicitudes PAMI (M3)
+**As** paciente con cobertura PAMI
+**I want** ver y abonar el arancel administrativo correspondiente
+**So that** mi solicitud siga la misma regla de cobro que IOMA y las demas obras sociales
+**Summary**: Elimina la exencion automatica por PAMI del calculo, el checkout y las vistas de pago, conservando las bonificaciones explicitas.
 **Complexity**: S
 
 ---

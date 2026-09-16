@@ -126,7 +126,7 @@ export default function FloatingPrescriptionWidget({
   };
 
   const getPaymentMethodLabel = (ord: MedicalOrder) => {
-    if (ord.paymentStatus === 'exempt' || ord.obraSocial === 'PAMI (Inssjp)' || String(ord.paymentAmount) === '0' || ord.paymentMethod === 'bonificado') {
+    if (ord.paymentStatus === 'exempt' || String(ord.paymentAmount) === '0' || ord.paymentMethod === 'bonificado') {
       return 'Bonificado / Exento';
     }
     if (ord.paymentMethod === 'mp') return 'Mercado Pago (Online)';

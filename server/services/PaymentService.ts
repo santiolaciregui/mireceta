@@ -296,7 +296,6 @@ export class PaymentService {
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
-            recipeStatus = 'Rechazada';
           } else if (status === 'refunded' || status === 'charged_back') {
             updatedPaymentStatus = 'refunded';
             recipeStatus = 'Rechazada';
@@ -375,7 +374,6 @@ export class PaymentService {
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             updatedPaymentStatus = 'rejected';
-            recipeStatus = 'Rechazada';
           } else if (status === 'refunded' || status === 'charged_back') {
             updatedPaymentStatus = 'refunded';
             recipeStatus = 'Rechazada';
@@ -484,7 +482,6 @@ export class PaymentService {
             }
           } else if (status === 'rejected' || status === 'cancelled') {
             order.paymentStatus = 'rejected';
-            order.status = 'Rechazada';
             addAuditLogEntry(
               order,
               'Pago rechazado (Mercado Pago API)',

@@ -73,7 +73,7 @@ export default function OfficialOrderReceipt({
   };
 
   const getPaymentMethodLabel = () => {
-    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || obraSocial === 'PAMI (Inssjp)' || paymentMethod === 'bonificado') {
+    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || paymentMethod === 'bonificado') {
       return 'Bonificado / Exento';
     }
     if (paymentMethod === 'mp') return 'Mercado Pago (Online)';
@@ -85,7 +85,7 @@ export default function OfficialOrderReceipt({
   const getPaymentStatusDisplay = () => {
     if (paymentStatus === 'approved') return { label: 'Pagado / Verificado', color: 'text-emerald-700' };
     if (paymentStatus === 'refunded') return { label: 'En devolución / Reembolso', color: 'text-amber-700' };
-    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || obraSocial === 'PAMI (Inssjp)') return { label: 'Exento / Bonificado', color: 'text-blue-700' };
+    if (paymentStatus === 'exempt' || String(paymentAmount) === '0' || paymentMethod === 'bonificado') return { label: 'Exento / Bonificado', color: 'text-blue-700' };
     if (paymentStatus === 'rejected') return { label: 'Rechazado', color: 'text-rose-700' };
     return { label: 'Pendiente de Acreditación', color: 'text-yellow-700' };
   };

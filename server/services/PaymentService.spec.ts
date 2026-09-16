@@ -126,3 +126,38 @@ test('keeps an emitted recipe emitted when synchronizing its late payment', asyn
     (Payment.prototype as any).search = originalSearch;
   }
 });
+
+test('keeps the clinical request open when Mercado Pago rejects a payment', async () => {
+  const originalSearch = (Payment.prototype as any).search;
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'ORD-REJECTED',
+    tenantId: 'TEN-123',
+    patientName: 'Cesar',
+    patientLastName: 'Elorriaga',
+    paymentStatus: 'pending',
+    paymentId: 'MP-12345678',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+
+  (Payment.prototype as any).search = async () => ({
+    results: [{ id: 123456, status: 'rejected', transaction_amount: 10000 }],
+  });
+  service.orderRepo = {
+    findById: async () => order,
+    update: async (_id: string, updatedOrder: any) => updatedOrder,
+  };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+
+  try {
+    const result = await service.getPaymentStatus('ORD-REJECTED');
+
+    assert.equal(result.paymentStatus, 'rejected');
+    assert.equal(result.status, 'Pendiente');
+  } finally {
+    (Payment.prototype as any).search = originalSearch;
+  }
+});

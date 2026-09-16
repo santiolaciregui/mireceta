@@ -243,7 +243,7 @@ export default function DoctorDashboard({
   };
 
   const getOrderPaymentMethod = (order: MedicalOrder) => {
-    if (order.paymentStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado') {
+    if (order.paymentStatus === 'exempt' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado') {
       return 'bonificado';
     }
     if (order.paymentMethod) return order.paymentMethod;
@@ -1093,7 +1093,7 @@ export default function DoctorDashboard({
                           </p>
                           {(() => {
                             const pStatus = order.paymentStatus;
-                            const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
+                            const isExempt = pStatus === 'exempt' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado';
                             if (pStatus === 'approved') return <span className="text-[9px] font-extrabold text-[#14BE99] bg-[#14BE99]/10 px-1.5 py-0.5 rounded border border-[#14BE99]/30 shrink-0">Pagado</span>;
                             if (pStatus === 'refunded') return <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 shrink-0">En dev.</span>;
                             if (isExempt) return <span className="text-[9px] font-extrabold text-[#3066C6] bg-[#3066C6]/10 px-1.5 py-0.5 rounded border border-[#3066C6]/30 shrink-0">Exento</span>;
@@ -1145,7 +1145,7 @@ export default function DoctorDashboard({
                         <span className="status-pill !m-0">{selectedOrder.status}</span>
                         {(() => {
                           const pStatus = selectedOrder.paymentStatus;
-                          const isExempt = pStatus === 'exempt' || selectedOrder.obraSocial === 'PAMI (Inssjp)' || String(selectedOrder.paymentAmount) === '0';
+                          const isExempt = pStatus === 'exempt' || String(selectedOrder.paymentAmount) === '0' || selectedOrder.paymentMethod === 'bonificado';
                           if (pStatus === 'approved') {
                             return (
                               <span className="h-6 inline-flex items-center gap-1 text-[11px] font-extrabold px-2.5 rounded-full bg-[#14BE99]/10 text-[#0F6C7D] border border-[#14BE99]/30 leading-none">

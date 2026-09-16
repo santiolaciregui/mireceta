@@ -1,5 +1,5 @@
-# QA Report: US-002 — Horizontal mobile loading methods
-**Date**: 2026-09-15
+# QA Report: US-003 — Cobrar arancel a solicitudes PAMI
+**Date**: 2026-09-16
 **QA Agent**: Agent QA
 **Verdict**: ✅ APPROVED
 
@@ -9,32 +9,33 @@
 
 | Metric | Value |
 |--------|-------|
-| Unit tests total | 26 |
-| Unit tests passed | 26 |
+| Unit tests total | 37 |
+| Unit tests passed | 37 |
 | Unit tests failed | 0 |
-| Coverage (changed service) | N/A — presentational React change only |
-| Coverage (overall existing suite) | 60.99% lines |
-| Static analysis | PASS |
+| Coverage (`PricingService.ts`) | 90.36% lines / 100% functions |
+| Coverage (overall server suite) | 58.77% lines |
+| TypeScript static analysis | PASS |
 | Production build | PASS |
+| Diff whitespace check | PASS |
 
 ---
 
 ## Results per Acceptance Criterion
 
-| Criterion (from spec) | Status | Notes |
-|----------------------|--------|-------|
-| Three equal columns on mobile | ✅ | `grid-cols-3` is active at the base breakpoint. |
-| Compact icons and short mobile titles without subtitles | ✅ | Mobile labels use `sm:hidden`; full labels and subtitles are hidden below `sm`. |
-| Selected colors remain method-specific | ✅ | Existing state-dependent class branches were preserved. |
-| Desktop presentation remains expanded | ✅ | Original spacing, icon sizes, labels and subtitles are restored with `sm:` utilities. |
-| Selection behavior remains unchanged | ✅ | IDs, `onClick` handlers, state values and conditional content were preserved. |
-| TypeScript and production build pass | ✅ | `npm run lint` and `npm run build` completed successfully. |
+| Criterion | Status | Notes |
+|-----------|--------|-------|
+| PAMI uses the standard tenant price calculation | ✅ | Regression test verifies a configured $12,500 price. |
+| PAMI checkout is not automatically exempt | ✅ | PAMI-specific zeroing and exemption branches were removed from `PatientForm`. |
+| Backend does not exempt orders based only on PAMI | ✅ | `PricingService` now exempts only explicit `bonificado` orders. |
+| Payment views do not infer exemption from PAMI | ✅ | Static search found no remaining PAMI-to-exempt condition in `server/` or `src/`. |
+| Explicit bonification remains supported | ✅ | Regression test verifies amount zero and exempt status for `bonificado`. |
+| Tests, lint and build pass | ✅ | 37/37 tests, `tsc --noEmit`, Vite/esbuild production build. |
 
 ---
 
 ## Bugs Found
 
-No defects found in the changed selector.
+No release-blocking bugs found in the PAMI pricing correction.
 
 ---
 
@@ -42,24 +43,16 @@ No defects found in the changed selector.
 
 | File | Source | Tests | Coverage |
 |------|--------|-------|----------|
-| `server/services/*.spec.ts` and `server/services/notification/*.spec.ts` | Existing suite | 26 | 60.99% overall lines |
-
-No unit test was added for utility-class-only presentation changes because the repository has no frontend component-test harness.
+| `server/services/PricingService.spec.ts` | Developer | 3 | PAMI, IOMA and explicit bonification |
 
 ---
 
 ## Tooling Issues
 
-The existing coverage command measures server-side files and does not instrument React components. Its 60.99% overall result therefore does not measure this UI change.
-
----
-
-## Recommendations
-
-Add a frontend component or visual regression harness in a separate tooling story if automated breakpoint rendering becomes a recurring requirement.
+The repository-wide server coverage remains below 80% because many unrelated services are loaded with limited unit coverage. The changed pricing service exceeds the story target with 90.36% line coverage. Frontend component coverage is not configured; frontend validation used TypeScript, production build and static condition checks.
 
 ---
 
 ## Final Verdict
 
-**✅ APPROVED** — The implementation meets all US-002 acceptance criteria. TypeScript, production build, all 26 existing tests and diff whitespace validation pass.
+**✅ APPROVED** — The PAMI-only exemption was removed while explicit bonification remains intact. Historical records already persisted as `exempt` or amount zero were intentionally not migrated.

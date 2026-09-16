@@ -821,7 +821,7 @@ export default function PatientStatus({
                             <span className="text-slate-500 font-medium">Estado del Pago:</span>
                             {(() => {
                               const pStatus = order.paymentStatus;
-                              const isExempt = pStatus === 'exempt' || order.obraSocial === 'PAMI (Inssjp)' || String(order.paymentAmount) === '0';
+                              const isExempt = pStatus === 'exempt' || String(order.paymentAmount) === '0' || order.paymentMethod === 'bonificado';
 
                               if (pStatus === 'approved') {
                                 return (

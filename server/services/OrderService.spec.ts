@@ -107,3 +107,55 @@ test('allows a patient to load details for a registered dependent', async () => 
 
   assert.equal(result, order);
 });
+
+test('requires a receipt before accepting a bank transfer', async () => {
+  const service: any = new OrderService();
+  service.orderRepo = { findByClientRequestId: async () => null };
+
+  await assert.rejects(
+    () => service.createOrder({ paymentMethod: 'transfer' }, { role: 'paciente', tenantId: 'TEN-123' }),
+    /Debe adjuntar el comprobante/
+  );
+});
+
+test('replaces a rejected Mercado Pago attempt with the submitted transfer receipt', async () => {
+  const service: any = new OrderService();
+  const existingOrder: any = {
+    id: 'ORD-123',
+    tenantId: 'TEN-123',
+    paymentMethod: 'mp',
+    paymentStatus: 'rejected',
+    paymentId: 'MP-12345678',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+  let persistedOrder: any;
+  service.orderRepo = {
+    findByClientRequestId: async () => existingOrder,
+    update: async (_id: string, order: any) => {
+      persistedOrder = order;
+      return order;
+    },
+  };
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+
+  const result = await service.createOrder(
+    {
+      clientRequestId: 'request-123',
+      paymentRetryOrderId: 'ORD-123',
+      paymentMethod: 'transfer',
+      paymentReceiptUrl: 'https://files.example.test/receipt.png',
+      paymentReceiptName: 'receipt.png',
+    },
+    { role: 'paciente', tenantId: 'TEN-123' }
+  );
+
+  assert.equal(result, existingOrder);
+  assert.equal(persistedOrder.paymentMethod, 'transfer');
+  assert.equal(persistedOrder.paymentReceiptUrl, 'https://files.example.test/receipt.png');
+  assert.equal(persistedOrder.paymentStatus, 'pending');
+  assert.equal(persistedOrder.status, 'Pendiente');
+  assert.match(persistedOrder.paymentId, /^TRANS-\d{6}$/);
+  assert.equal(persistedOrder.auditLog.at(-1).action, 'Método de pago actualizado');
+});

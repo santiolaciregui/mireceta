@@ -230,6 +230,7 @@ export default function PatientForm({
           console.warn('[Payment Return Sync Warning]:', err);
         });
       } else if (payment === 'rejected' || payment === 'failure' || payment === 'cancelled') {
+        setCreatedOrderId(orderId);
         setError(`El pago para la receta ${orderId} fue rechazado o cancelado en Mercado Pago. Puede reintentar el pago o seleccionar otro método.`);
         setStep('payment');
       }
@@ -899,11 +900,6 @@ export default function PatientForm({
 
   // Calculate costs based on medications count
   useEffect(() => {
-    const isPami = selectedObraSocial?.trim() === 'PAMI (Inssjp)';
-    if (isPami) {
-      setPaymentAmount('0');
-      return;
-    }
     const itemsCount = medicationItems.length;
     const photosCount = medicationPhotos.length;
     const count = (itemsCount + photosCount) > 0 ? (itemsCount + photosCount) : 1;
@@ -911,7 +907,7 @@ export default function PatientForm({
     const basePrice = currentTenant?.pricePerPrescription || 10000;
     const calculated = Math.max(1, Math.ceil(count / 2)) * basePrice;
     setPaymentAmount(calculated.toString());
-  }, [selectedObraSocial, medicationItems.length, medicationPhotos.length, currentTenant]);
+  }, [medicationItems.length, medicationPhotos.length, currentTenant]);
 
   // --- Age calculation helper ---
   const calculateAge = (dobString: string): number => {
@@ -1443,7 +1439,7 @@ export default function PatientForm({
 
     setError(null);
 
-    const isExempt = selectedObraSocial?.trim() === 'PAMI (Inssjp)' || paymentAmount === '0';
+    const isExempt = paymentAmount === '0';
 
     // Final payment checks
     if (!isExempt && paymentMethod !== 'cash_desk') {
@@ -1525,6 +1521,7 @@ export default function PatientForm({
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
       paymentMethod: isExempt ? 'bonificado' : paymentMethod,
       clientRequestId,
+      paymentRetryOrderId: !isExempt && paymentMethod === 'transfer' ? createdOrderId : undefined,
       
       // Payment details
       paymentReceiptUrl: isExempt
@@ -1544,8 +1541,8 @@ export default function PatientForm({
         : (paymentMethod === 'cash_desk'
             ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
             : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`)),
-      paymentStatus: isExempt ? 'exempt' : 'approved',
-      status: 'En revisión',
+      paymentStatus: isExempt ? 'exempt' : (paymentMethod === 'transfer' ? 'pending' : 'approved'),
+      status: paymentMethod === 'transfer' ? 'Pendiente' : 'En revisión',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
@@ -3584,7 +3581,7 @@ export default function PatientForm({
 
         {/* STEP 3: PAYMENT */}
         {step === 'payment' && (() => {
-          const isExemptOrder = selectedObraSocial?.trim() === 'PAMI (Inssjp)' || paymentAmount === '0';
+          const isExemptOrder = paymentAmount === '0';
           return (
           <div className="space-y-4 animate-fadeIn">
             
