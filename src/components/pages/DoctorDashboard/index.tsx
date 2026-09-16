@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PatientForm from '../PatientForm';
 import NewOrderForm from '../NewOrderForm';
-import { MedicalOrder, OrderStatus } from '../../../types';
+import { MedicalOrder, OrderStatus, PaymentInformationUpdate } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
 import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
@@ -80,6 +80,10 @@ interface DoctorDashboardProps {
     recipePdfName: string,
     notifyPatient?: boolean
   ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }>;
+  onUpdatePaymentInfo?: (
+    orderId: string,
+    updates: PaymentInformationUpdate
+  ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }>;
   onDeleteOrder?: (id: string) => Promise<boolean | void> | void;
   onCreateOrder?: (data: any) => Promise<string>;
   onSendRecipeLink?: (
@@ -114,6 +118,7 @@ export default function DoctorDashboard({
   users = [],
   onUpdateStatus, 
   onUpdateRecipeFile,
+  onUpdatePaymentInfo,
   onDeleteOrder,
   onCreateOrder, 
   onSendRecipeLink,
@@ -181,6 +186,16 @@ export default function DoctorDashboard({
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isEditingPayment, setIsEditingPayment] = useState(false);
+  const [isSavingPayment, setIsSavingPayment] = useState(false);
+  const [paymentEditError, setPaymentEditError] = useState<string | null>(null);
+  const [paymentDraft, setPaymentDraft] = useState<PaymentInformationUpdate>({
+    paymentMethod: 'mp',
+    paymentAmount: '0',
+    paymentStatus: 'pending',
+    paymentId: '',
+    paymentDate: '',
+  });
   const DEFAULT_COLLAPSED_SECTIONS: Record<string, boolean> = {
     patient: true,
     dependent: true,
@@ -482,6 +497,50 @@ export default function DoctorDashboard({
   // Compute selected order reference (strictly scoped to currently filtered list)
   const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
 
+  const toPaymentDateInput = (dateValue?: string) => {
+    if (!dateValue) return '';
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return '';
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+    return localDate.toISOString().slice(0, 16);
+  };
+
+  const buildPaymentDraft = (order: MedicalOrder): PaymentInformationUpdate => ({
+    paymentMethod: getOrderPaymentMethod(order) as PaymentInformationUpdate['paymentMethod'],
+    paymentAmount: String(order.paymentAmount ?? '0'),
+    paymentStatus: order.paymentStatus || 'pending',
+    paymentId: order.paymentId || '',
+    paymentDate: toPaymentDateInput(order.paymentDate),
+  });
+
+  const handleCancelPaymentEdit = () => {
+    if (selectedOrder) setPaymentDraft(buildPaymentDraft(selectedOrder));
+    setPaymentEditError(null);
+    setIsEditingPayment(false);
+  };
+
+  const handleSavePaymentInfo = async () => {
+    if (!selectedOrder || !onUpdatePaymentInfo) return;
+    const amount = Number(paymentDraft.paymentAmount);
+    if (!paymentDraft.paymentAmount?.trim() || !Number.isFinite(amount) || amount < 0) {
+      setPaymentEditError('Ingresá un monto válido mayor o igual a cero.');
+      return;
+    }
+
+    setIsSavingPayment(true);
+    setPaymentEditError(null);
+    const result = await onUpdatePaymentInfo(selectedOrder.id, paymentDraft);
+    setIsSavingPayment(false);
+
+    if (!result.success) {
+      setPaymentEditError(result.error || 'No se pudo actualizar la información de pago.');
+      return;
+    }
+
+    setIsEditingPayment(false);
+    showToast('Información de pago actualizada correctamente.');
+  };
+
   // Floating Prescription Assistant (Document PiP / Popup window)
   const {
     isOpen: isFloatingWindowOpen,
@@ -502,7 +561,23 @@ export default function DoctorDashboard({
   // Reset collapsed sections whenever a new order is opened
   React.useEffect(() => {
     setCollapsedSections(DEFAULT_COLLAPSED_SECTIONS);
+    setIsEditingPayment(false);
+    setPaymentEditError(null);
   }, [selectedOrderId]);
+
+  React.useEffect(() => {
+    if (selectedOrder && !isEditingPayment) {
+      setPaymentDraft(buildPaymentDraft(selectedOrder));
+    }
+  }, [
+    selectedOrder?.id,
+    selectedOrder?.paymentMethod,
+    selectedOrder?.paymentAmount,
+    selectedOrder?.paymentStatus,
+    selectedOrder?.paymentId,
+    selectedOrder?.paymentDate,
+    isEditingPayment,
+  ]);
 
   const currentLoadedOrderIdRef = useRef<string | null>(null);
 
@@ -1649,52 +1724,187 @@ export default function DoctorDashboard({
                       </button>
                       {!collapsedSections.payment && (
                         <div className="animate-fadeIn">
-                          <div className="divide-y divide-slate-100">
-                            <CopyableFieldRow 
-                              label="Método de Pago" 
-                              value={(() => {
-                                const method = getOrderPaymentMethod(selectedOrder);
-                                if (method === 'mp') return 'Mercado Pago (Online)';
-                                if (method === 'transfer') return 'Transferencia Bancaria';
-                                if (method === 'cash_desk') return 'Mesa de Entrada / Efectivo';
-                                if (method === 'bonificado') return 'Bonificado / Exento';
-                                return 'No especificado';
-                              })()} 
-                              fieldId="paymentMethodDisplay" 
-                            />
-                            {(() => {
-                              const isExempt = selectedOrder.paymentStatus === 'exempt' || getOrderPaymentMethod(selectedOrder) === 'bonificado';
-                              const displayId = isExempt
-                                ? (selectedOrder.paymentId && !selectedOrder.paymentId.startsWith('MP-') ? selectedOrder.paymentId : 'Exento de arancel')
-                                : selectedOrder.paymentId;
-                              if (!displayId) return null;
-                              return (
-                                <CopyableFieldRow label="ID de Transacción / Pago" value={displayId} fieldId="paymentId" />
-                              );
-                            })()}
-                            <CopyableFieldRow label="Monto" value={`$${selectedOrder.paymentAmount || '0'}`} fieldId="paymentAmount" />
-                            <CopyableFieldRow 
-                              label="Estado del Pago" 
-                              value={(() => {
-                                const status = selectedOrder.paymentStatus;
-                                if (status === 'approved') return 'Aprobado';
-                                if (status === 'pending') return 'Pendiente';
-                                if (status === 'rejected') return 'Rechazado';
-                                if (status === 'refunded') return 'Devuelto';
-                                if (status === 'exempt') return 'Exento';
-                                return 'Desconocido';
-                              })()} 
-                              fieldId="paymentStatusDisplay" 
-                            />
-                            {selectedOrder.paymentDate && (
-                              <CopyableFieldRow 
-                                label="Fecha de Pago" 
-                                value={new Date(selectedOrder.paymentDate).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.paymentDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })} 
-                                copyValue={selectedOrder.paymentDate}
-                                fieldId="paymentDate" 
+                          {currentUser?.role === 'colaborador' && !isEditingPayment && (
+                            <div className="px-4 pt-4 flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPaymentDraft(buildPaymentDraft(selectedOrder));
+                                  setPaymentEditError(null);
+                                  setIsEditingPayment(true);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                <FileEdit className="h-3.5 w-3.5" />
+                                Editar información de pago
+                              </button>
+                            </div>
+                          )}
+
+                          {isEditingPayment && currentUser?.role === 'colaborador' ? (
+                            <div className="p-4 space-y-4">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <label className="space-y-1.5">
+                                  <span className="block text-xs font-bold text-slate-600">Método de pago</span>
+                                  <select
+                                    value={paymentDraft.paymentMethod}
+                                    onChange={(event) => {
+                                      const paymentMethod = event.target.value as PaymentInformationUpdate['paymentMethod'];
+                                      setPaymentDraft((current) => ({
+                                        ...current,
+                                        paymentMethod,
+                                        ...(paymentMethod === 'bonificado'
+                                          ? { paymentAmount: '0', paymentStatus: 'exempt' as const }
+                                          : {}),
+                                      }));
+                                    }}
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                                  >
+                                    <option value="mp">Mercado Pago (Online)</option>
+                                    <option value="transfer">Transferencia bancaria</option>
+                                    <option value="cash_desk">Mesa de entrada / Efectivo</option>
+                                    <option value="bonificado">Bonificado / Exento</option>
+                                  </select>
+                                </label>
+
+                                <label className="space-y-1.5">
+                                  <span className="block text-xs font-bold text-slate-600">Monto ($ ARS)</span>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={paymentDraft.paymentAmount}
+                                    disabled={paymentDraft.paymentMethod === 'bonificado'}
+                                    onChange={(event) => setPaymentDraft((current) => ({ ...current, paymentAmount: event.target.value }))}
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10 disabled:bg-slate-100 disabled:text-slate-500"
+                                  />
+                                </label>
+
+                                <label className="space-y-1.5">
+                                  <span className="block text-xs font-bold text-slate-600">Estado del pago</span>
+                                  <select
+                                    value={paymentDraft.paymentStatus}
+                                    onChange={(event) => {
+                                      const paymentStatus = event.target.value as PaymentInformationUpdate['paymentStatus'];
+                                      setPaymentDraft((current) => ({
+                                        ...current,
+                                        paymentStatus,
+                                        ...(paymentStatus === 'exempt'
+                                          ? { paymentMethod: 'bonificado' as const, paymentAmount: '0' }
+                                          : {}),
+                                      }));
+                                    }}
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-semibold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                                  >
+                                    <option value="pending">Pendiente</option>
+                                    <option value="approved">Aprobado</option>
+                                    <option value="rejected">Rechazado</option>
+                                    <option value="refunded">Devuelto</option>
+                                    <option value="exempt">Exento</option>
+                                  </select>
+                                </label>
+
+                                <label className="space-y-1.5">
+                                  <span className="block text-xs font-bold text-slate-600">ID de transacción / pago</span>
+                                  <input
+                                    type="text"
+                                    value={paymentDraft.paymentId}
+                                    onChange={(event) => setPaymentDraft((current) => ({ ...current, paymentId: event.target.value }))}
+                                    placeholder="Ej. MP-123456 o TRANS-654321"
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-mono outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                                  />
+                                </label>
+
+                                <label className="space-y-1.5 sm:col-span-2">
+                                  <span className="block text-xs font-bold text-slate-600">Fecha de pago</span>
+                                  <input
+                                    type="datetime-local"
+                                    value={paymentDraft.paymentDate}
+                                    onChange={(event) => setPaymentDraft((current) => ({ ...current, paymentDate: event.target.value }))}
+                                    className="w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl text-xs outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/10"
+                                  />
+                                </label>
+                              </div>
+
+                              <p className="text-[11px] text-slate-500 leading-relaxed">
+                                Esta corrección actualiza el registro administrativo y queda auditada. No cobra, concilia ni devuelve dinero en Mercado Pago.
+                              </p>
+
+                              {paymentEditError && (
+                                <div className="flex items-start gap-2 p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs font-semibold text-rose-700">
+                                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                                  <span>{paymentEditError}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelPaymentEdit}
+                                  disabled={isSavingPayment}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  <X className="h-3.5 w-3.5" /> Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleSavePaymentInfo}
+                                  disabled={isSavingPayment}
+                                  className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isSavingPayment ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                                  {isSavingPayment ? 'Guardando...' : 'Guardar cambios'}
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="divide-y divide-slate-100">
+                              <CopyableFieldRow
+                                label="Método de Pago"
+                                value={(() => {
+                                  const method = getOrderPaymentMethod(selectedOrder);
+                                  if (method === 'mp') return 'Mercado Pago (Online)';
+                                  if (method === 'transfer') return 'Transferencia Bancaria';
+                                  if (method === 'cash_desk') return 'Mesa de Entrada / Efectivo';
+                                  if (method === 'bonificado') return 'Bonificado / Exento';
+                                  return 'No especificado';
+                                })()}
+                                fieldId="paymentMethodDisplay"
                               />
-                            )}
-                          </div>
+                              {(() => {
+                                const isExempt = selectedOrder.paymentStatus === 'exempt' || getOrderPaymentMethod(selectedOrder) === 'bonificado';
+                                const displayId = isExempt
+                                  ? (selectedOrder.paymentId && !selectedOrder.paymentId.startsWith('MP-') ? selectedOrder.paymentId : 'Exento de arancel')
+                                  : selectedOrder.paymentId;
+                                if (!displayId) return null;
+                                return (
+                                  <CopyableFieldRow label="ID de Transacción / Pago" value={displayId} fieldId="paymentId" />
+                                );
+                              })()}
+                              <CopyableFieldRow label="Monto" value={`$${selectedOrder.paymentAmount || '0'}`} fieldId="paymentAmount" />
+                              <CopyableFieldRow
+                                label="Estado del Pago"
+                                value={(() => {
+                                  const status = selectedOrder.paymentStatus;
+                                  if (status === 'approved') return 'Aprobado';
+                                  if (status === 'pending') return 'Pendiente';
+                                  if (status === 'rejected') return 'Rechazado';
+                                  if (status === 'refunded') return 'Devuelto';
+                                  if (status === 'exempt') return 'Exento';
+                                  return 'Desconocido';
+                                })()}
+                                fieldId="paymentStatusDisplay"
+                              />
+                              {selectedOrder.paymentDate && (
+                                <CopyableFieldRow
+                                  label="Fecha de Pago"
+                                  value={new Date(selectedOrder.paymentDate).toLocaleDateString('es-AR') + ' ' + new Date(selectedOrder.paymentDate).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}
+                                  copyValue={selectedOrder.paymentDate}
+                                  fieldId="paymentDate"
+                                />
+                              )}
+                            </div>
+                          )}
 
                           {/* En caso de ser transferencia, mostrar el comprobante de pago cargado */}
                           {getOrderPaymentMethod(selectedOrder) === 'transfer' && selectedOrder.paymentReceiptUrl && (

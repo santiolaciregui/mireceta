@@ -11,3 +11,7 @@
 | 2026-09-16T00:00:00-03:00 | PM | Added US-003 specification for PAMI pricing correction | 1 incremental story; DevOps Required: NO; PAMI follows the standard insurance pricing path |
 | 2026-09-16T00:10:00-03:00 | Developer | Implemented tasks T-001 through T-004 for US-003 | Removed PAMI-only exemption from backend, checkout and payment views; added pricing regression tests; lint, build and 37 tests passed |
 | 2026-09-16T00:20:00-03:00 | QA | Approved US-003 | PAMI, IOMA and explicit bonification tests passed; pricing service line coverage 90.36%; lint, build and static PAMI exemption scan passed |
+| 2026-09-16T12:00:00-03:00 | PM | Added US-004 specification for collaborator payment editing | 1 incremental story; DevOps Required: NO; provider operations and receipt replacement are out of scope |
+| 2026-09-16T12:20:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-004 | Added collaborator-only inline editing, backend normalization and audit logging; 45 tests, typecheck and production build passed |
+| 2026-09-16T12:35:00-03:00 | QA | Approved US-004 | 45/45 tests passed; payment validation module has 98.92% line coverage; typecheck, build and diff check passed |
+| 2026-09-16T12:40:00-03:00 | Cost Controller | Completed US-004 cost review | Estimated cost ~$0.14; budget status green; DevOps not used |

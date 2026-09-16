@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { MedicalOrder, OrderStatus, SystemUser, UserRole } from '../types';
+import { MedicalOrder, OrderStatus, PaymentInformationUpdate, SystemUser, UserRole } from '../types';
 
 const mergeOrderSummaries = (
   previousOrders: MedicalOrder[],
@@ -439,6 +439,29 @@ export function useMedicalOrders() {
     }
   };
 
+  // US-004 / T-003: persist a collaborator's validated payment information correction.
+  const updateOrderPaymentInfo = async (
+    orderId: string,
+    updates: PaymentInformationUpdate
+  ): Promise<{ success: boolean; error?: string; order?: MedicalOrder }> => {
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: 'PUT',
+        headers: fetchHeaders(),
+        body: JSON.stringify(updates),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Error al actualizar la información de pago');
+      }
+      setOrders((prev) => prev.map((order) => (order.id === orderId ? data : order)));
+      return { success: true, order: data };
+    } catch (err: any) {
+      console.error('Error updating payment information:', err);
+      return { success: false, error: err.message || 'Error al actualizar la información de pago' };
+    }
+  };
+
   // Resend recipe link via WhatsApp, Email, or Both
   const sendRecipeLink = async (
     orderId: string,
@@ -579,24 +602,11 @@ export function useMedicalOrders() {
   const sendChatMessage = async (dniOrOrderId: string, message: any) => {
     try {
       const cleanTargetDni = (dniOrOrderId || '').replace(/\D/g, '');
-      const matchingOrders = orders.filter(
-        (o) => o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)
-      );
-
-      // Optimistic update across all matching orders for this patient
-      setOrders((prev) =>
-        prev.map((o) => {
-          if (o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)) {
-            const currentMessages = o.messages || [];
-            return {
-              ...o,
-              messages: [...currentMessages, message],
-              lastPatientWhatsAppInteractionAt: new Date().toISOString()
-            };
-          }
-          return o;
-        })
-      );
+      const matchesTarget = (order: MedicalOrder) => {
+        const orderConversationDni = (order.requestedByTitularDni || order.patientDni || '').replace(/\D/g, '');
+        return order.id === dniOrOrderId || Boolean(cleanTargetDni && orderConversationDni === cleanTargetDni);
+      };
+      const matchingOrders = orders.filter(matchesTarget);
 
       // 1. Try unified patient chat endpoint /api/chat/:dni
       const chatEndpoint = cleanTargetDni ? `/api/chat/${cleanTargetDni}` : `/api/chat/${dniOrOrderId}`;
@@ -611,7 +621,7 @@ export function useMedicalOrders() {
         if (chatData?.messages) {
           setOrders((prev) =>
             prev.map((o) => {
-              if (o.id === dniOrOrderId || (cleanTargetDni && (o.patientDni || '').replace(/\D/g, '') === cleanTargetDni)) {
+              if (matchesTarget(o)) {
                 return { ...o, messages: chatData.messages };
               }
               return o;
@@ -630,10 +640,14 @@ export function useMedicalOrders() {
         if (orderRes.ok) {
           const updated = await orderRes.json();
           setOrders((prev) => prev.map((o) => (o.id === orderIdToCall ? updated : o)));
+        } else {
+          const errorData = await orderRes.json().catch(() => ({}));
+          throw new Error(errorData.error || 'No se pudo enviar el mensaje.');
         }
       }
     } catch (err) {
       console.error('Error sending chat message:', err);
+      throw err;
     }
   };
 
@@ -731,6 +745,7 @@ export function useMedicalOrders() {
     updateOrderPhotos,
     updateOrderStatus,
     updateOrderRecipeFile,
+    updateOrderPaymentInfo,
     sendRecipeLink,
     deleteOrder,
     createUser,

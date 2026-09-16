@@ -1,11 +1,11 @@
 {
-  "project": "Mi Receta - alertas por limite de solicitudes pendientes",
+  "project": "Mi Receta - edicion administrativa de pagos",
   "status": "qa_done",
   "current_phase": "complete",
-  "current_milestone": "M3",
-  "current_story": "US-003",
+  "current_milestone": "M4",
+  "current_story": "US-004",
   "pending_stories": [],
-  "completed_stories": ["US-001", "US-002", "US-003"],
+  "completed_stories": ["US-001", "US-002", "US-003", "US-004"],
   "open_questions": [],
   "last_agent": "cost-controller"
 }

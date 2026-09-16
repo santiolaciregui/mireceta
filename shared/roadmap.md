@@ -19,6 +19,10 @@
 **Description**: Alinear el cobro de PAMI con IOMA y el resto de las obras sociales.
 **Stories**: US-003
 
+### M4: Correccion administrativa de pagos
+**Description**: Permitir que colaboradores autorizados corrijan la informacion de pago de una solicitud con validacion y auditoria.
+**Stories**: US-004
+
 ---
 
 ## User Stories
@@ -44,13 +48,21 @@
 **Summary**: Elimina la exencion automatica por PAMI del calculo, el checkout y las vistas de pago, conservando las bonificaciones explicitas.
 **Complexity**: S
 
+### US-004: Editar informacion de pago del paciente (M4)
+**As** colaborador
+**I want** editar la informacion de pago de una solicitud
+**So that** pueda corregir datos administrativos sin alterar el resto de la orden
+**Summary**: Agrega edicion inline para metodo, monto, estado, identificador y fecha de pago, con autorizacion backend y trazabilidad.
+**Complexity**: M
+
 ---
 
 ## Out of Scope
 
 - Crear o aprobar la plantilla en Meta Business Manager.
 - Enviar alertas por email u otros canales.
-- Modificar solicitudes o pagos existentes.
+- Conciliar automaticamente pagos con Mercado Pago o ejecutar reembolsos.
+- Reemplazar comprobantes de transferencia desde esta edicion.
 
 ---
 

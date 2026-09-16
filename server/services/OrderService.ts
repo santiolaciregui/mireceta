@@ -10,6 +10,11 @@ import { cleanDni } from '../utils/formatters.js';
 import { PricingService } from './PricingService.js';
 import { PaymentService } from './PaymentService.js';
 import { generateOrderId, generateMessageId } from '../utils/idGenerator.js';
+import {
+  hasPaymentInformationUpdate,
+  normalizePaymentInformationUpdate,
+  PaymentInformationUpdate,
+} from './orderPaymentUpdate.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
@@ -455,6 +460,12 @@ export class OrderService {
       }
     }
 
+    // US-004 / T-002: only collaborators may correct persisted payment information.
+    const includesPaymentInformation = hasPaymentInformationUpdate(updateData);
+    if (includesPaymentInformation && currentUser?.role !== 'colaborador') {
+      throw new Error('Solo los colaboradores pueden editar la información de pago.');
+    }
+
     // 3. Medic & Collaborator modifications
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
     const wasAlreadyIssued = order.status === 'Emitida' || order.status === 'Enviada';
@@ -491,14 +502,34 @@ export class OrderService {
       });
     }
 
-    if (updateData.paymentStatus && updateData.paymentStatus !== order.paymentStatus) {
-      order.paymentStatus = updateData.paymentStatus;
-      addAuditLogEntry(
-        order,
-        `Estado de pago actualizado: ${updateData.paymentStatus}`,
-        operatorName,
-        `El estado del pago fue modificado a "${updateData.paymentStatus}".`
+    if (includesPaymentInformation) {
+      const normalizedPayment = normalizePaymentInformationUpdate(updateData, order);
+      const changedFields = Object.entries(normalizedPayment).filter(
+        ([field, value]) => String(order[field] ?? '') !== String(value ?? '')
       );
+
+      if (changedFields.length > 0) {
+        Object.assign(order, normalizedPayment as PaymentInformationUpdate);
+        const changeSummary = changedFields
+          .map(([field, value]) => `${field}: ${String(value || 'vacío')}`)
+          .join(', ');
+
+        addAuditLogEntry(
+          order,
+          'Información de pago actualizada',
+          operatorName,
+          `Corrección administrativa: ${changeSummary}. No se ejecutaron operaciones en el proveedor de pagos.`
+        );
+
+        await auditLogService.log({
+          tenantId: order.tenantId || 'TEN-0001',
+          currentUser,
+          action: 'ORDER_PAYMENT_UPDATE',
+          entity: 'Order',
+          entityId: id,
+          details: `Información de pago corregida por ${operatorName}: ${changeSummary}`,
+        });
+      }
     }
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;

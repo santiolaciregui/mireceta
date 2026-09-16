@@ -138,6 +138,11 @@ export interface MedicalOrder {
   messages?: ChatMessage[];
 }
 
+export type PaymentInformationUpdate = Pick<
+  MedicalOrder,
+  'paymentMethod' | 'paymentAmount' | 'paymentStatus' | 'paymentId' | 'paymentDate'
+>;
+
 export interface ChatMessage {
   id: string;
   sender: 'paciente' | 'medico' | 'colaborador' | 'sistema';

@@ -24,10 +24,17 @@ import {
   ArrowLeft,
   ChevronLeft,
   FileText,
-  Download
+  Download,
+  AlertCircle,
+  Clock
 } from 'lucide-react';
 import { MedicalOrder, ChatMessage, SystemUser } from '../../../types';
 import { compressImageAndGetBase64, fileToBase64 } from '../../../utils/file';
+import {
+  mergeChatMessages,
+  reconcileOptimisticMessages,
+} from './optimisticMessages';
+import type { OptimisticChatMessage } from './optimisticMessages';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];
@@ -68,6 +75,7 @@ export default function PatientDoctorChat({
 
   const [serverConversations, setServerConversations] = useState<any[]>([]);
   const serverConversationsRef = useRef<any[]>([]);
+  const [optimisticMessagesByDni, setOptimisticMessagesByDni] = useState<Record<string, OptimisticChatMessage[]>>({});
 
   const fetchConversations = async () => {
     try {
@@ -240,7 +248,12 @@ export default function PatientDoctorChat({
       const seen = new Set<string>();
       const deduped: ChatMessage[] = [];
 
-      for (const m of conv.messages) {
+      const messagesWithOptimisticUpdates = mergeChatMessages(
+        conv.messages,
+        optimisticMessagesByDni[conv.cleanDni] || []
+      );
+
+      for (const m of messagesWithOptimisticUpdates) {
         if (!m) continue;
         const key = m.id || `${m.timestamp}-${m.sender}-${m.text || ''}`;
         if (!seen.has(key)) {
@@ -296,7 +309,47 @@ export default function PatientDoctorChat({
       return aName.localeCompare(bName, 'es-AR');
     });
     return result;
-  }, [orders, serverConversations, isPatient, currentUser.identifier]);
+  }, [orders, serverConversations, optimisticMessagesByDni, isPatient, currentUser.identifier]);
+
+  useEffect(() => {
+    const confirmedIdsByDni = new Map<string, Set<string>>();
+    const addConfirmedMessages = (dni: string, messages: ChatMessage[] | undefined) => {
+      const clean = cleanDni(dni);
+      if (!clean || !Array.isArray(messages)) return;
+      const confirmedIds = confirmedIdsByDni.get(clean) || new Set<string>();
+      for (const message of messages) {
+        if (message?.id) confirmedIds.add(message.id);
+      }
+      confirmedIdsByDni.set(clean, confirmedIds);
+    };
+
+    for (const conversation of serverConversations) {
+      addConfirmedMessages(
+        conversation.cleanDni || conversation.patientDni || conversation.dni,
+        conversation.messages
+      );
+    }
+
+    for (const order of orders) {
+      addConfirmedMessages(order.requestedByTitularDni || order.patientDni, order.messages);
+    }
+
+    setOptimisticMessagesByDni((previous) => {
+      let changed = false;
+      const next: Record<string, OptimisticChatMessage[]> = {};
+
+      for (const [dni, messages] of Object.entries(previous) as Array<[string, OptimisticChatMessage[]]>) {
+        const remaining = reconcileOptimisticMessages(
+          messages,
+          confirmedIdsByDni.get(dni) || new Set<string>()
+        );
+        if (remaining.length !== messages.length) changed = true;
+        if (remaining.length > 0) next[dni] = remaining;
+      }
+
+      return changed ? next : previous;
+    });
+  }, [orders, serverConversations]);
 
   const formatChatDateTime24h = (timestampStr?: string | Date | null): string => {
     if (!timestampStr) return '';
@@ -728,8 +781,7 @@ export default function PatientDoctorChat({
     };
 
     setReplyingTo(null);
-    await onSendMessage(activeConversation.cleanDni, newMessage);
-    fetchConversations();
+    await sendMessageWithOptimisticFeedback(activeConversation.cleanDni, newMessage);
   };
 
   const handleFileClick = () => {
@@ -767,6 +819,35 @@ export default function PatientDoctorChat({
     return `${mins}:${remaining < 10 ? '0' : ''}${remaining}`;
   };
 
+  const sendMessageWithOptimisticFeedback = async (dni: string, message: ChatMessage) => {
+    const conversationDni = cleanDni(dni);
+    const optimisticMessage: OptimisticChatMessage = {
+      ...message,
+      localDeliveryState: 'sending',
+    };
+
+    setOptimisticMessagesByDni((previous) => ({
+      ...previous,
+      [conversationDni]: [
+        ...(previous[conversationDni] || []).filter((item) => item.id !== message.id),
+        optimisticMessage,
+      ],
+    }));
+
+    try {
+      await onSendMessage(conversationDni, message);
+      await fetchConversations();
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+      setOptimisticMessagesByDni((previous) => ({
+        ...previous,
+        [conversationDni]: (previous[conversationDni] || []).map((item) =>
+          item.id === message.id ? { ...item, localDeliveryState: 'failed' } : item
+        ),
+      }));
+    }
+  };
+
   const handleSendMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!activeConversation) return;
@@ -793,8 +874,7 @@ export default function PatientDoctorChat({
     setInputText('');
     setAttachment(null);
     setReplyingTo(null);
-    await onSendMessage(activeConversation.cleanDni, newMessage);
-    fetchConversations();
+    await sendMessageWithOptimisticFeedback(activeConversation.cleanDni, newMessage);
   };
 
   const togglePlayAudio = (msgId: string, url: string, durationSecs: number = 8) => {
@@ -1419,6 +1499,7 @@ export default function PatientDoctorChat({
                 displayedMessages.map((msg) => {
                   const isOwn = (isPatient && msg.sender === 'paciente') || 
                                 (!isPatient && msg.sender !== 'paciente');
+                  const localDeliveryState = (msg as Partial<OptimisticChatMessage>).localDeliveryState;
 
                   return (
                     <div 
@@ -1594,9 +1675,21 @@ export default function PatientDoctorChat({
                             {formatChatDateTime24h(msg.timestamp)}
                           </span>
                           {isOwn && (
-                            <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+                            localDeliveryState === 'sending' ? (
+                              <Clock className="h-3.5 w-3.5 text-slate-400" aria-label="Enviando" />
+                            ) : localDeliveryState === 'failed' ? (
+                              <AlertCircle className="h-3.5 w-3.5 text-red-500" aria-label="No se pudo enviar" />
+                            ) : (
+                              <CheckCheck className="h-3.5 w-3.5 text-[#53bdeb]" />
+                            )
                           )}
                         </div>
+
+                        {isOwn && localDeliveryState === 'failed' && (
+                          <p className="mt-1 text-right text-[10px] font-semibold text-red-600">
+                            No se pudo enviar. Verificá tu conexión.
+                          </p>
+                        )}
 
                       </div>
                     </div>

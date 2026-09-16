@@ -1,3 +1,3 @@
-# Active Spec: US-003 - Cobrar arancel a solicitudes PAMI
+# Active Spec: US-004 - Editar informacion de pago del paciente
 
-Implementar exactamente `shared/specs/US-003.md` en la aplicacion existente. DevOps Required: NO.
+Implementar exactamente `shared/specs/US-004.md` en la aplicacion existente. DevOps Required: NO.

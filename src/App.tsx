@@ -110,6 +110,7 @@ export default function App() {
     createOrder,
     updateOrderStatus,
     updateOrderRecipeFile,
+    updateOrderPaymentInfo,
     sendRecipeLink,
     deleteOrder,
     createUser,
@@ -631,6 +632,7 @@ export default function App() {
                     users={users}
                     onUpdateStatus={updateOrderStatus}
                     onUpdateRecipeFile={updateOrderRecipeFile}
+                    onUpdatePaymentInfo={updateOrderPaymentInfo}
                     onDeleteOrder={deleteOrder}
                     onSendRecipeLink={sendRecipeLink}
                     onCreateOrder={createOrder}
