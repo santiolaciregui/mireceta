@@ -61,6 +61,7 @@ import {
   FileEdit
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
+import { formatOrderCreatedAt, sortOrdersNewestFirst } from '../../../utils/orderInbox';
 import { DoctorOrdersSkeleton, DoctorDetailSkeleton } from '../../common/OrdersSkeleton';
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
@@ -463,7 +464,7 @@ export default function DoctorDashboard({
   );
 
   // Filters logic
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = sortOrdersNewestFirst(orders.filter(order => {
     // Status Filter
     if (filter === 'Pendientes' && order.paymentStatus !== 'pending') return false;
     if (filter === 'Pago Pendiente' && order.paymentStatus !== 'pending') return false;
@@ -492,7 +493,7 @@ export default function DoctorDashboard({
     }
 
     return true;
-  });
+  }));
 
   // Compute selected order reference (strictly scoped to currently filtered list)
   const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
@@ -1129,7 +1130,7 @@ export default function DoctorDashboard({
                         <div className="order-meta items-center">
                           <span>{order.id.split('-')[0]}-{order.id.substring(order.id.length-4)}</span>
                           <div className="flex items-center gap-1.5">
-                            <span>{new Date(order.createdAt).toLocaleDateString('es-AR')}</span>
+                            <span>{formatOrderCreatedAt(order.createdAt)}</span>
                             {onDeleteOrder && (
                               <span
                                 role="button"

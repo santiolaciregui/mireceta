@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { Payment } from 'mercadopago';
+import { Payment, MerchantOrder } from 'mercadopago';
 import { PaymentService } from './PaymentService.js';
 
 test('refunds an approved Checkout payment that belongs to the order', async () => {
@@ -161,3 +161,119 @@ test('keeps the clinical request open when Mercado Pago rejects a payment', asyn
     (Payment.prototype as any).search = originalSearch;
   }
 });
+
+test('processes merchant_order webhook and prioritizes approved payment when earlier attempt was rejected', async () => {
+  const originalMerchantOrderGet = (MerchantOrder.prototype as any).get;
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'REC-1431',
+    tenantId: 'TEN-123',
+    patientName: 'Silvia',
+    patientLastName: 'Fuhr',
+    paymentStatus: 'pending',
+    paymentId: 'MP-12743518',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+
+  (MerchantOrder.prototype as any).get = async ({ merchantOrderId }: any) => {
+    assert.equal(merchantOrderId, '44487570489');
+    return {
+      id: 44487570489,
+      status: 'closed',
+      order_status: 'paid',
+      external_reference: 'REC-1431',
+      payments: [
+        {
+          id: 178318357921,
+          status: 'rejected',
+          transaction_amount: 10000,
+          date_created: '2026-09-16T09:51:50.000Z',
+        },
+        {
+          id: 178318740803,
+          status: 'approved',
+          transaction_amount: 10000,
+          date_created: '2026-09-16T09:53:16.000Z',
+        },
+      ],
+    };
+  };
+
+  let updatedOrder: any = null;
+  service.orderRepo = {
+    findById: async (id: string) => (id === 'REC-1431' ? order : null),
+    update: async (_id: string, updateData: any) => {
+      updatedOrder = updateData;
+      return updateData;
+    },
+  };
+  service.tenantRepo = {
+    findAll: async () => [{ id: 'TEN-123', mpAccessToken: 'TEST-token' }],
+  };
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+
+  try {
+    const result = await service.processWebhook(
+      { topic: 'merchant_order', id: '44487570489' },
+      {},
+      {}
+    );
+
+    assert.equal(result.received, true);
+    assert.equal(result.paymentId, 178318740803);
+    assert.equal(result.status, 'approved');
+    assert.equal(result.orderId, 'REC-1431');
+    assert.equal(updatedOrder.paymentStatus, 'approved');
+    assert.equal(updatedOrder.paymentId, '178318740803');
+    assert.equal(updatedOrder.status, 'En revisión');
+    assert.ok(updatedOrder.auditLog.some((e: any) => e.action === 'Mercado Pago Webhook: approved'));
+  } finally {
+    (MerchantOrder.prototype as any).get = originalMerchantOrderGet;
+  }
+});
+
+test('synchronizes a pending order prioritizing the approved payment over earlier rejected attempts', async () => {
+  const originalSearch = (Payment.prototype as any).search;
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'REC-1431',
+    tenantId: 'TEN-123',
+    patientName: 'Silvia',
+    patientLastName: 'Fuhr',
+    paymentStatus: 'pending',
+    paymentId: 'MP-12743518',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+
+  (Payment.prototype as any).search = async ({ options }: any) => {
+    assert.equal(options.external_reference, 'REC-1431');
+    return {
+      // In Mercado Pago, results are sorted chronologically ascending by default
+      results: [
+        { id: 178318357921, status: 'rejected', transaction_amount: 10000, date_created: '2026-09-16T09:51:50.000Z' },
+        { id: 178318740803, status: 'approved', transaction_amount: 10000, date_created: '2026-09-16T09:53:16.000Z' },
+      ],
+    };
+  };
+  service.orderRepo = {
+    findById: async () => order,
+    update: async (_id: string, updated: any) => updated,
+  };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+
+  try {
+    const result = await service.getPaymentStatus('REC-1431');
+
+    assert.equal(result.paymentStatus, 'approved');
+    assert.equal(result.paymentId, '178318740803');
+    assert.equal(result.status, 'En revisión');
+  } finally {
+    (Payment.prototype as any).search = originalSearch;
+  }
+});
+

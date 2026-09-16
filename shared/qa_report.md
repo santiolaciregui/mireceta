@@ -1,4 +1,4 @@
-# QA Report: US-004 — Editar informacion de pago del paciente
+# QA Report: US-007 — Order inbox chronological sorting
 **Date**: 2026-09-16
 **QA Agent**: Agent QA
 **Verdict**: ✅ APPROVED
@@ -8,13 +8,13 @@
 ## Summary
 
 | Metric | Value |
-|--------|-------|
-| Unit tests total | 45 |
-| Unit tests passed | 45 |
+|---|---|
+| Unit tests total | 54 |
+| Unit tests passed | 54 |
 | Unit tests failed | 0 |
-| Coverage (`orderPaymentUpdate.ts`) | 98.92% lines / 100% functions |
-| Coverage (overall loaded suite) | 61.54% lines |
-| TypeScript static analysis | PASS |
+| Coverage (`orderInbox.ts`) | 100% lines / branches / functions |
+| Coverage (overall measured files) | 64.30% lines |
+| Static analysis | PASS |
 | Production build | PASS |
 | Diff whitespace check | PASS |
 
@@ -23,125 +23,44 @@
 ## Results per Acceptance Criterion
 
 | Criterion | Status | Notes |
-|-----------|--------|-------|
-| Collaborator can edit payment method, amount, status, ID and date | ✅ | Inline editor is rendered only for `currentUser.role === 'colaborador'`. |
-| Save persists and updates local state | ✅ | The typed hook calls the existing order endpoint and replaces the returned order in state. |
-| Other roles cannot edit payment information | ✅ | UI hides the editor and the service rejects payment-field payloads from non-collaborators. |
-| Backend validates and normalizes payment information | ✅ | Enums, non-negative amount and valid date are checked; exempt data is normalized to `bonificado`, `exempt`, and zero. |
-| Corrections are audited without provider operations | ✅ | Unit test verifies order/global audit entries; the correction path does not call payment or refund services. |
-| Cancel and order switching discard drafts | ✅ | Draft reset and edit state reset are bound to the selected order. |
-| Tests, lint and build pass | ✅ | 45/45 tests, `tsc --noEmit`, Vite/esbuild build and whitespace check passed. |
+|---|---|---|
+| Cards show local date and time to the minute | ✅ | `formatOrderCreatedAt` uses `es-AR` and an explicit 24-hour clock. |
+| General and filtered inboxes show newest orders first | ✅ | The common filtered list is sorted descending by `createdAt`. |
+| Equal, missing, and invalid dates are safe and deterministic | ✅ | Tests verify ID tie-breaking and the safe display fallback. |
+| The `orders` prop is not mutated | ✅ | The utility sorts a copied array; covered by regression test. |
+| Existing search, filters, selection, status, and deletion remain intact | ✅ | Only the filtered result ordering and timestamp rendering changed. |
+| Tests, TypeScript, build, and diff check pass | ✅ | All final commands completed successfully. |
 
 ---
-
-## Bugs Found
-
-No release-blocking bugs found. QA removed trailing whitespace detected by `git diff --check` and reran the check successfully.
-
----
-
-## Tests Reviewed / Added
-
-| File | Source | Tests | Coverage |
-|------|--------|-------|----------|
-| `server/services/orderPaymentUpdate.spec.ts` | Developer | 5 | Authorization, normalization, validation, persistence and audit |
-
----
-
-## Tooling Issues
-
-Repository-wide coverage is below 80% because many unrelated services are loaded by the Node test runner without focused unit coverage. The new payment-normalization module has 98.92% line coverage. Frontend component coverage is not configured; the UI path was validated through TypeScript, production build and static role/contract review.
-
----
-
-## Final Verdict
-
-**✅ APPROVED** — The collaborator can safely correct persisted payment information with server-side authorization, validation and auditability. No provider charge, reconciliation or refund is executed by this flow.
-
----
-
-# QA Addendum: US-005 — Right-side medication cart
-**Date**: 2026-09-16
-**QA Agent**: Agent QA
-**Verdict**: ✅ APPROVED
-
-## Summary
-
-| Metric | Value |
-|--------|-------|
-| Unit tests total | 45 |
-| Unit tests passed | 45 |
-| Unit tests failed | 0 |
-| Coverage (overall loaded suite) | 61.54% lines |
-| TypeScript static analysis | PASS |
-| Production build | PASS |
-| Diff whitespace check | PASS |
-
-## Results per Acceptance Criterion
-
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| Desktop uses form-left/cart-right columns | ✅ | The `lg` grid uses a flexible 2:1 layout. |
-| Desktop cart remains visible | ✅ | The cart is an `aside` with `lg:sticky lg:top-4`. |
-| Mobile follows load, review, continue | ✅ | CSS ordering presents the numbered loading UI first, cart second, and clinical/navigation controls last. |
-| Existing cart behavior is preserved | ✅ | State, refs, IDs, handlers and validation branches were not changed. |
-| Narrow cart content does not overflow | ✅ | Both columns use `min-w-0`; the cart retains its bounded internal vertical scroll. |
-| Project checks pass | ✅ | 45/45 tests, coverage, `tsc --noEmit`, Vite/esbuild build and diff check passed. |
-
-## Tooling Issues
-
-Frontend component coverage is not configured. The local browser reached the authentication boundary, so visual verification of the protected medication step requires a real authenticated test session; no environment credentials were reused.
-
-## Final Verdict
-
-**✅ APPROVED** — The responsive layout and guided mobile sequence meet the specification. No application-logic regression was detected.
-
----
-
-# QA Addendum: US-006 — Chronological conversation ordering
-**Date**: 2026-09-16
-**QA Agent**: Agent QA
-**Verdict**: ✅ APPROVED
-
-## Summary
-
-| Metric | Value |
-|--------|-------|
-| Unit tests total | 49 |
-| Unit tests passed | 49 |
-| Unit tests failed | 0 |
-| Coverage (`activityOrdering.ts`) | 100% lines / 100% functions |
-| Coverage (overall loaded suite) | 63.77% lines |
-| TypeScript static analysis | PASS |
-| Production build | PASS |
-| Diff whitespace check | PASS |
-
-## Results per Acceptance Criterion
-
-| Criterion | Status | Notes |
-|-----------|--------|-------|
-| Conversations use the latest effective activity | ✅ | Backend and frontend select the maximum valid timestamp across messages, WhatsApp interaction, requests and registration data. |
-| Requests use message or creation activity | ✅ | Each request compares its last message with `createdAt` and sorts by the resulting timestamp. |
-| Recent items without messages are not demoted | ✅ | The regression test places a request from 16/09 above a conversation message from 11/09. |
-| Displayed time matches ordering time | ✅ | Both list modes render their computed effective activity timestamp. |
-| Invalid dates and ties are deterministic | ✅ | Invalid and missing dates normalize to no activity; name and request ID provide stable fallbacks. |
-| Project checks pass | ✅ | 49/49 tests, coverage, TypeScript, production build and diff check passed. |
 
 ## Bugs Found
 
 No release-blocking bugs found.
 
+---
+
 ## Tests Reviewed / Added
 
 | File | Source | Tests | Coverage |
-|------|--------|-------|----------|
-| `src/components/pages/PatientDoctorChat/activityOrdering.spec.ts` | Developer | 3 | Timestamp selection, ordering and invalid dates |
-| `server/services/ChatService.spec.ts` | Developer | 1 | Server aggregation regression without a database connection |
+|---|---|---:|---:|
+| `src/components/pages/DoctorDashboard/orderInbox.spec.ts` | Developer | 5 | 100% of `src/utils/orderInbox.ts` |
+
+The tests cover descending chronology, source-array immutability, deterministic invalid/equal-date handling, visible hours/minutes, and invalid-date fallback.
+
+---
 
 ## Tooling Issues
 
-Frontend component coverage is not configured. The pure ordering utility has 100% line and function coverage; the server aggregation path is covered with mocked repositories. The repository-wide percentage remains below 80% because unrelated services are loaded by the shared test command.
+None. The existing test scripts were extended to include DoctorDashboard unit tests.
+
+---
+
+## Recommendations
+
+Run an authenticated visual smoke test after deployment to confirm the timestamp fits the production sidebar width. An unauthenticated browser check was intentionally avoided because this application can emit authentication error alerts.
+
+---
 
 ## Final Verdict
 
-**✅ APPROVED** — Both inbox modes now use one descending effective-activity criterion, and a recent request without messages no longer falls below older conversations.
+**✅ APPROVED** — The implementation meets all acceptance criteria and is ready for orchestrator review.

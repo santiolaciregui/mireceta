@@ -31,6 +31,10 @@
 **Description**: Ordenar conversaciones y solicitudes por su actividad efectiva mas reciente, sin priorizar artificialmente los elementos que ya tienen mensajes.
 **Stories**: US-006
 
+### M7: Orden cronologico de bandejas de pedidos
+**Description**: Mostrar la hora de creacion y ordenar cada bandeja operativa con la solicitud mas nueva arriba.
+**Stories**: US-007
+
 ---
 
 ## User Stories
@@ -77,6 +81,13 @@
 **Summary**: Unifica el criterio cronologico de ambos listados usando la fecha mas reciente entre mensajes, interacciones y creacion de solicitudes.
 **Complexity**: S
 
+### US-007: Ordenar bandejas de pedidos por fecha y hora (M7)
+**As** colaborador o medico
+**I want** ver la fecha y hora de cada solicitud con las mas nuevas primero
+**So that** pueda atender los pedidos en el orden cronologico correcto
+**Summary**: Ordena todas las categorias de la bandeja del DoctorDashboard por fecha de creacion descendente y muestra fecha y hora.
+**Complexity**: S
+
 ---
 
 ## Out of Scope
@@ -87,6 +98,7 @@
 - Reemplazar comprobantes de transferencia desde esta edicion.
 - Cambiar campos, validaciones o logica del carrito y del formulario de medicacion.
 - Cambiar filtros, busqueda, contadores de no leidos o contenido de los mensajes del chat.
+- Cambiar el orden de mensajes o usar su actividad para reordenar pedidos.
 
 ---
 

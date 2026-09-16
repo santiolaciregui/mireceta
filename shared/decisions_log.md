@@ -23,3 +23,7 @@
 | 2026-09-16T14:15:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-006 | Shared timestamp utility; backend and both inbox modes now sort by effective latest activity; 49 tests, typecheck, build and diff check passed |
 | 2026-09-16T14:25:00-03:00 | QA | Approved US-006 | 49/49 tests passed; ordering utility has 100% line/function coverage; typecheck, production build and diff check passed |
 | 2026-09-16T14:30:00-03:00 | Cost Controller | Completed US-006 cost review | Estimated incremental cost ~$0.12; budget status green; DevOps not used |
+| 2026-09-16T15:00:00-03:00 | PM | Added US-007 specification for chronological order inboxes | 1 incremental story; newest created order first with visible time; DevOps Required: NO |
+| 2026-09-16T15:10:00-03:00 | Developer | Implemented tasks T-001 through T-004 for US-007 | Shared immutable inbox ordering and date-time formatting utility; all DoctorDashboard filters reuse the corrected list |
+| 2026-09-16T15:20:00-03:00 | QA | Approved US-007 | 54/54 tests passed; order inbox utility has 100% coverage; typecheck, build and diff check passed |
+| 2026-09-16T15:25:00-03:00 | Cost Controller | Completed US-007 cost review | Estimated incremental cost ~$0.10; budget status green; DevOps not used |

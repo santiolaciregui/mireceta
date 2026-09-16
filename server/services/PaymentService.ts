@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { MercadoPagoConfig, Preference, Payment } from 'mercadopago';
+import { MercadoPagoConfig, Preference, Payment, MerchantOrder } from 'mercadopago';
 import { TenantRepository } from '../repositories/TenantRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
@@ -46,6 +46,17 @@ export class PaymentService {
   constructor() {
     this.tenantRepo = new TenantRepository();
     this.orderRepo = new OrderRepository();
+  }
+
+  private selectBestPayment(payments: any[]): any | null {
+    if (!Array.isArray(payments) || payments.length === 0) return null;
+    const approved = payments.find(p => p.status === 'approved');
+    if (approved) return approved;
+    return [...payments].sort((a, b) => {
+      const dateA = new Date(a.date_created || a.date_last_updated || 0).getTime();
+      const dateB = new Date(b.date_created || b.date_last_updated || 0).getTime();
+      return dateB - dateA;
+    })[0];
   }
 
   private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
@@ -217,25 +228,25 @@ export class PaymentService {
   }
 
   async processWebhook(query: any, body: any, headers: any = {}) {
-    const paymentId = query.id || query['data.id'] || body?.data?.id || body?.id;
-    const topic = query.topic || query.type || body?.type || body?.action;
+    const rawId = query.id || query['data.id'] || body?.data?.id || body?.id;
+    const rawTopic = query.topic || query.type || body?.type || body?.action;
     const xSignature = headers['x-signature'] || headers['X-Signature'];
     const xRequestId = headers['x-request-id'] || headers['X-Request-Id'];
 
-    console.log(`[MercadoPago Webhook] Notification received. Topic: ${topic}, Payment ID: ${paymentId}`);
+    console.log(`[MercadoPago Webhook] Notification received. Topic: ${rawTopic}, ID: ${rawId}`);
 
-    if (!paymentId) {
+    if (!rawId) {
       return { received: true, note: 'No payment ID provided' };
     }
 
     const webhookSecret = process.env.MP_WEBHOOK_SECRET || process.env.MP_SECRET_KEY;
     if (webhookSecret && xSignature) {
-      const isValid = verifyWebhookSignature(xSignature, xRequestId, String(paymentId), webhookSecret);
+      const isValid = verifyWebhookSignature(xSignature, xRequestId, String(rawId), webhookSecret);
       if (!isValid) {
-        console.warn(`[MercadoPago Webhook Security] Invalid signature for Payment ID: ${paymentId}`);
+        console.warn(`[MercadoPago Webhook Security] Invalid signature for ID: ${rawId}`);
         return { received: false, error: 'Firma de webhook inválida' };
       }
-      console.log(`[MercadoPago Webhook Security] Valid x-signature for Payment ID: ${paymentId}`);
+      console.log(`[MercadoPago Webhook Security] Valid x-signature for ID: ${rawId}`);
     }
 
     let accessToken = process.env.MP_ACCESS_TOKEN;
@@ -252,16 +263,68 @@ export class PaymentService {
     try {
       const client = new MercadoPagoConfig({ accessToken });
       const paymentApi = new Payment(client);
-      const paymentInfo = await paymentApi.get({ id: paymentId });
+      const merchantOrderApi = new MerchantOrder(client);
 
-      if (!paymentInfo) {
-        console.warn(`[MercadoPago Webhook] Could not fetch payment info for ID: ${paymentId}`);
-        return { received: true };
+      let orderId: string | undefined;
+      let paymentId: string | number | undefined;
+      let status: string | undefined;
+      let paidAmount = 0;
+
+      const isMerchantOrderTopic = rawTopic === 'merchant_order' || rawTopic === 'merchant_orders';
+
+      if (isMerchantOrderTopic) {
+        const merchantOrder: any = await merchantOrderApi.get({ merchantOrderId: String(rawId) });
+        if (!merchantOrder) {
+          console.warn(`[MercadoPago Webhook] Merchant order not found for ID: ${rawId}`);
+          return { received: true };
+        }
+        orderId = merchantOrder.external_reference;
+        const bestPayment = this.selectBestPayment(merchantOrder.payments);
+        if (bestPayment) {
+          paymentId = bestPayment.id;
+          status = bestPayment.status;
+          paidAmount = Number(bestPayment.transaction_amount || bestPayment.total_paid_amount) || 0;
+        } else if (merchantOrder.order_status === 'paid') {
+          status = 'approved';
+          paidAmount = Number(merchantOrder.paid_amount) || 0;
+        }
+      } else {
+        let paymentInfo: any = null;
+        try {
+          paymentInfo = await paymentApi.get({ id: String(rawId) });
+        } catch (err: any) {
+          // Fallback: check if notification ID was actually a merchant_order (e.g. from IPN)
+          try {
+            const merchantOrder: any = await merchantOrderApi.get({ merchantOrderId: String(rawId) });
+            if (merchantOrder) {
+              orderId = merchantOrder.external_reference;
+              const bestPayment = this.selectBestPayment(merchantOrder.payments);
+              if (bestPayment) {
+                paymentId = bestPayment.id;
+                status = bestPayment.status;
+                paidAmount = Number(bestPayment.transaction_amount || bestPayment.total_paid_amount) || 0;
+              } else if (merchantOrder.order_status === 'paid') {
+                status = 'approved';
+                paidAmount = Number(merchantOrder.paid_amount) || 0;
+              }
+            }
+          } catch {
+            throw err;
+          }
+        }
+
+        if (paymentInfo) {
+          paymentId = paymentInfo.id;
+          orderId = paymentInfo.external_reference || (paymentInfo as any).metadata?.order_id;
+          status = paymentInfo.status;
+          paidAmount = Number(paymentInfo.transaction_amount) || 0;
+        }
       }
 
-      const orderId = paymentInfo.external_reference || (paymentInfo as any).metadata?.order_id;
-      const status = paymentInfo.status;
-      const paidAmount = Number(paymentInfo.transaction_amount) || 0;
+      if (!paymentId && !status) {
+        console.warn(`[MercadoPago Webhook] No payment details resolved for ID: ${rawId}`);
+        return { received: true };
+      }
 
       console.log(`[MercadoPago Webhook] Payment ${paymentId} for Order ${orderId} status: ${status}, amount: $${paidAmount}`);
 
@@ -348,8 +411,20 @@ export class PaymentService {
               external_reference: orderId,
             }
           });
-          if (searchResult.results && searchResult.results.length > 0) {
-            fetchedPayment = searchResult.results[0];
+          fetchedPayment = this.selectBestPayment(searchResult.results);
+          if (!fetchedPayment) {
+            try {
+              const moSearch = await new MerchantOrder(client).search({
+                options: { external_reference: orderId }
+              });
+              const merchantOrders = moSearch.elements || (moSearch as any).results || [];
+              if (merchantOrders.length > 0) {
+                const mo: any = merchantOrders[0];
+                fetchedPayment = this.selectBestPayment(mo.payments);
+              }
+            } catch {
+              // ignore
+            }
           }
         }
 
@@ -442,9 +517,7 @@ export class PaymentService {
           const searchRes = await paymentApi.search({
             options: { external_reference: orderId }
           });
-          if (searchRes.results && searchRes.results.length > 0) {
-            paymentInfo = searchRes.results[0];
-          }
+          paymentInfo = this.selectBestPayment(searchRes.results);
         }
 
         if (paymentInfo) {
