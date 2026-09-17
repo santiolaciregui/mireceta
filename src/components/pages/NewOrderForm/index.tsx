@@ -21,12 +21,15 @@ import {
   ShieldCheck, 
   AlertCircle,
   CreditCard,
-  Phone,
-  Mail,
-  Calendar,
-  Sparkles
+  Phone, 
+  Mail, 
+  Calendar, 
+  Sparkles,
+  ClipboardPaste,
+  Loader2
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
+import { readImagesFromClipboard } from '../../../utils/clipboard';
 interface NewOrderFormProps {
   currentUser?: any;
   orders?: any[];
@@ -87,6 +90,7 @@ export default function NewOrderForm({
 
   // Photo uploads
   const [medicationPhotos, setMedicationPhotos] = useState<MedicationPhoto[]>([]);
+  const [isPastingClipboard, setIsPastingClipboard] = useState(false);
 
   // Clinical & Admin Notes
   const [diagnostic, setDiagnostic] = useState('');
@@ -219,13 +223,10 @@ export default function NewOrderForm({
     }
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      compressImageAndGetBase64(file).then((base64String) => {
+  const processMedicationFiles = async (files: File[]) => {
+    for (const file of files) {
+      try {
+        const base64String = await compressImageAndGetBase64(file);
         const newPhoto: MedicationPhoto = {
           url: base64String,
           name: file.name,
@@ -238,13 +239,37 @@ export default function NewOrderForm({
         setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
         showToast(`¡Foto "${file.name}" agregada con éxito!`);
         scrollToCart();
-      }).catch(err => {
+      } catch (err) {
         console.error('Error comprimiendo imagen:', err);
         setError('Error al procesar la imagen de receta.');
-      });
+        showToast('Error al procesar la imagen.');
+      }
     }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []) as File[];
+    if (files.length === 0) return;
+    void processMedicationFiles(files);
     // Reset file input so selecting same file works
     e.target.value = '';
+  };
+
+  const handlePasteFromClipboard = async () => {
+    setIsPastingClipboard(true);
+    try {
+      const result = await readImagesFromClipboard();
+      if (!result.success || result.files.length === 0) {
+        showToast(`Error: ${result.error || 'No se pudo obtener una imagen del portapapeles.'}`);
+        return;
+      }
+      await processMedicationFiles(result.files);
+    } catch (err: unknown) {
+      const errorMsg = (err as Error)?.message || 'Error al pegar desde el portapapeles.';
+      showToast(`Error: ${errorMsg}`);
+    } finally {
+      setIsPastingClipboard(false);
+    }
   };
 
   const handleUpdatePhotoField = (index: number, field: keyof MedicationPhoto, value: any) => {
@@ -858,7 +883,25 @@ export default function NewOrderForm({
 
             {/* Optional Photo Attachment */}
             <div className="space-y-3">
-              <label className="block text-xs font-bold text-slate-700 mb-1.5">Adjuntar Fotos/Escaneo de Receta Anterior o Envase (Opcional)</label>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
+                <label className="block text-xs font-bold text-slate-700">
+                  Adjuntar Fotos/Escaneo de Receta Anterior o Envase (Opcional)
+                </label>
+                <button
+                  type="button"
+                  onClick={handlePasteFromClipboard}
+                  disabled={isPastingClipboard}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1661E1] hover:text-[#0141BC] border border-blue-200/90 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                  title="Pegar imagen copiada previamente en el portapapeles (solo imágenes)"
+                >
+                  {isPastingClipboard ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1661E1]" />
+                  ) : (
+                    <ClipboardPaste className="h-3.5 w-3.5 text-[#1661E1]" />
+                  )}
+                  <span>{isPastingClipboard ? 'Pegando...' : 'Pegar desde portapapeles'}</span>
+                </button>
+              </div>
               <input
                 type="file"
                 accept="image/*,application/pdf"

@@ -40,8 +40,14 @@ export class PatientRepository {
     });
   }
 
+  async findSummariesByTenant(tenantId: string): Promise<IPatient[]> {
+    return Patient.find({ tenantId }, { 'messages.fileUrl': 0 })
+      .sort({ lastName: 1, name: 1 })
+      .lean() as unknown as IPatient[];
+  }
+
   async findByTenant(tenantId: string): Promise<IPatient[]> {
-    return Patient.find({ tenantId }).sort({ lastName: 1, name: 1 });
+    return Patient.find({ tenantId }).sort({ lastName: 1, name: 1 }).lean() as unknown as IPatient[];
   }
 
   async create(patientData: Partial<IPatient>): Promise<IPatient> {

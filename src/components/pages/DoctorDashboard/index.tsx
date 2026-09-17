@@ -12,7 +12,7 @@ import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
 import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
-import { copyToClipboard } from '../../../utils/clipboard';
+import { copyToClipboard, readImagesFromClipboard, extractImagesFromDataTransfer } from '../../../utils/clipboard';
 import { 
   FileText, 
   Clock, 
@@ -59,7 +59,8 @@ import {
   ChevronUp,
   ChevronsUpDown,
   FileEdit,
-  Save
+  Save,
+  ClipboardPaste
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 import { formatOrderCreatedAt, sortOrdersNewestFirst } from '../../../utils/orderInbox';
@@ -156,6 +157,7 @@ export default function DoctorDashboard({
   const [newModifyFile, setNewModifyFile] = useState<{ url: string; name: string; size?: number } | null>(null);
   const [isDraggingModifyFile, setIsDraggingModifyFile] = useState(false);
   const [modifyFileError, setModifyFileError] = useState<string | null>(null);
+  const [isPastingModifyClipboard, setIsPastingModifyClipboard] = useState(false);
   const [notifyPatientOnUpdate, setNotifyPatientOnUpdate] = useState(false);
   const [isSubmittingFileUpdate, setIsSubmittingFileUpdate] = useState(false);
   const [isSubmittingEmit, setIsSubmittingEmit] = useState(false);
@@ -197,6 +199,7 @@ export default function DoctorDashboard({
   const [uploadedRecipes, setUploadedRecipes] = useState<Array<RecipeFile & { size?: number }>>([]);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
+  const [isPastingClipboard, setIsPastingClipboard] = useState(false);
   const pdfInputRef = useRef<HTMLInputElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -857,6 +860,44 @@ export default function DoctorDashboard({
     e.target.value = '';
   };
 
+  // Helper to paste image from clipboard when emitting a prescription
+  const handlePasteRecipeFromClipboard = async () => {
+    setIsPastingClipboard(true);
+    setPdfUploadError(null);
+    try {
+      const result = await readImagesFromClipboard();
+      if (!result.success || result.files.length === 0) {
+        const errorMsg = result.error || 'No se pudo obtener una imagen del portapapeles.';
+        setPdfUploadError(errorMsg);
+        showToast(`Error: ${errorMsg}`);
+        return;
+      }
+      await processPdfFiles(result.files);
+    } catch (err: unknown) {
+      const errorMsg = (err as Error)?.message || 'Error al pegar desde el portapapeles.';
+      setPdfUploadError(errorMsg);
+      showToast(`Error: ${errorMsg}`);
+    } finally {
+      setIsPastingClipboard(false);
+    }
+  };
+
+  const handlePdfPaste = (e: React.ClipboardEvent) => {
+    const target = e.target as HTMLElement;
+    const isEditingText = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    if (isEditingText) return;
+
+    const result = extractImagesFromDataTransfer(e.clipboardData);
+    if (result.files.length > 0) {
+      e.preventDefault();
+      void processPdfFiles(result.files);
+    } else if (result.hasText) {
+      e.preventDefault();
+      setPdfUploadError('Solo se permiten formatos de imagen para pegar. No se permite pegar texto.');
+      showToast('Error: Solo se permite pegar imágenes, no texto.');
+    }
+  };
+
   // Helper to validate and process modified recipe files for emitted orders
   const processModifyFile = (file: File) => {
     setModifyFileError(null);
@@ -919,6 +960,44 @@ export default function DoctorDashboard({
     const file = e.target.files?.[0];
     if (file) {
       processModifyFile(file);
+    }
+  };
+
+  // Helper to paste image from clipboard when modifying an emitted prescription
+  const handlePasteModifyRecipeFromClipboard = async () => {
+    setIsPastingModifyClipboard(true);
+    setModifyFileError(null);
+    try {
+      const result = await readImagesFromClipboard();
+      if (!result.success || result.files.length === 0) {
+        const errorMsg = result.error || 'No se pudo obtener una imagen del portapapeles.';
+        setModifyFileError(errorMsg);
+        showToast(`Error: ${errorMsg}`);
+        return;
+      }
+      processModifyFile(result.files[0]);
+    } catch (err: unknown) {
+      const errorMsg = (err as Error)?.message || 'Error al pegar desde el portapapeles.';
+      setModifyFileError(errorMsg);
+      showToast(`Error: ${errorMsg}`);
+    } finally {
+      setIsPastingModifyClipboard(false);
+    }
+  };
+
+  const handleModifyFilePaste = (e: React.ClipboardEvent) => {
+    const target = e.target as HTMLElement;
+    const isEditingText = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+    if (isEditingText) return;
+
+    const result = extractImagesFromDataTransfer(e.clipboardData);
+    if (result.files.length > 0) {
+      e.preventDefault();
+      processModifyFile(result.files[0]);
+    } else if (result.hasText) {
+      e.preventDefault();
+      setModifyFileError('Solo se permiten formatos de imagen para pegar. No se permite pegar texto.');
+      showToast('Error: Solo se permite pegar imágenes, no texto.');
     }
   };
 
@@ -2388,10 +2467,30 @@ export default function DoctorDashboard({
                               </div>
                             ) : (
                               <div>
-                                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                                  <span>Adjuntar Receta Firmada Digitalmente o Documento</span>
-                                  <span className="text-[11px] text-slate-400 font-normal">Formatos admitidos: PDF o Imágenes (.png, .jpg, .jpeg, .webp)</span>
-                                </label>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-700">
+                                      Adjuntar Receta Firmada Digitalmente o Documento
+                                    </label>
+                                    <span className="text-[11px] text-slate-400 font-normal">
+                                      Formatos admitidos: PDF o Imágenes (.png, .jpg, .jpeg, .webp)
+                                    </span>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={handlePasteRecipeFromClipboard}
+                                    disabled={isPastingClipboard}
+                                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1661E1] hover:text-[#0141BC] border border-blue-200/90 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                                    title="Pegar imagen copiada previamente en el portapapeles (solo imágenes)"
+                                  >
+                                    {isPastingClipboard ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1661E1]" />
+                                    ) : (
+                                      <ClipboardPaste className="h-3.5 w-3.5 text-[#1661E1]" />
+                                    )}
+                                    <span>{isPastingClipboard ? 'Pegando...' : 'Pegar desde portapapeles'}</span>
+                                  </button>
+                                </div>
 
                                 {uploadedRecipes.length > 0 && (
                                   <div className="space-y-2 mb-3">
@@ -2433,8 +2532,10 @@ export default function DoctorDashboard({
                                   onDragOver={handlePdfDragOver}
                                   onDragLeave={handlePdfDragLeave}
                                   onDrop={handlePdfDrop}
+                                  onPaste={handlePdfPaste}
+                                  tabIndex={0}
                                   onClick={() => pdfInputRef.current?.click()}
-                                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer select-none ${
+                                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#1661E1]/40 ${
                                     pdfUploadError
                                       ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
                                       : isDraggingPdf
@@ -2451,7 +2552,7 @@ export default function DoctorDashboard({
                                     {isDraggingPdf ? 'Suelte los archivos aquí' : uploadedRecipes.length > 0 ? 'Agregar más recetas' : 'Arrastre una o varias recetas aquí *'}
                                   </p>
                                   <p className="text-[11px] text-slate-500 mt-0.5">
-                                    Puede seleccionar varios PDF o imágenes a la vez (15 MB por archivo, 35 MB en total)
+                                    Puede seleccionar varios PDF o imágenes a la vez (15 MB por archivo, 35 MB en total) o usar "Pegar desde portapapeles"
                                   </p>
                                 </div>
 
@@ -3088,10 +3189,28 @@ export default function DoctorDashboard({
 
               {/* Upload Dropzone / New File Preview */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                  <span>Nuevo archivo de receta *</span>
-                  <span className="text-[11px] text-slate-400 font-normal">PDF o imágenes (.png, .jpg, .webp)</span>
-                </label>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700">
+                      Nuevo archivo de receta *
+                    </label>
+                    <span className="text-[11px] text-slate-400 font-normal">PDF o imágenes (.png, .jpg, .webp)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePasteModifyRecipeFromClipboard}
+                    disabled={isPastingModifyClipboard}
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1661E1] hover:text-[#0141BC] border border-blue-200/90 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                    title="Pegar imagen copiada previamente en el portapapeles (solo imágenes)"
+                  >
+                    {isPastingModifyClipboard ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1661E1]" />
+                    ) : (
+                      <ClipboardPaste className="h-3.5 w-3.5 text-[#1661E1]" />
+                    )}
+                    <span>{isPastingModifyClipboard ? 'Pegando...' : 'Pegar desde portapapeles'}</span>
+                  </button>
+                </div>
 
                 {newModifyFile ? (
                   <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
@@ -3144,8 +3263,10 @@ export default function DoctorDashboard({
                     onDragOver={handleModifyFileDragOver}
                     onDragLeave={handleModifyFileDragLeave}
                     onDrop={handleModifyFileDrop}
+                    onPaste={handleModifyFilePaste}
+                    tabIndex={0}
                     onClick={() => modifyFileInputRef.current?.click()}
-                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
+                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none focus:outline-none focus:ring-2 focus:ring-[#1661E1]/40 ${
                       modifyFileError
                         ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
                         : isDraggingModifyFile
@@ -3162,7 +3283,7 @@ export default function DoctorDashboard({
                       {isDraggingModifyFile ? 'Suelte el nuevo archivo aquí' : 'Haga clic o arrastre el nuevo archivo aquí *'}
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      PDF o imágenes PNG, JPG, JPEG, WEBP (hasta 15 MB)
+                      PDF o imágenes PNG, JPG, JPEG, WEBP (hasta 15 MB) o use "Pegar desde portapapeles"
                     </p>
                   </div>
                 )}

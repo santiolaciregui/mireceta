@@ -70,9 +70,13 @@ export class ChatService {
       return convos.length > 0 ? convos : [await this.getPatientChat(patientDniClean, currentUser)];
     }
 
-    // Staff view: Fetch all orders and patients
-    const orders = await this.orderRepo.findByTenant(tenantId);
-    const patients = await this.patientRepo.findByTenant(tenantId);
+    // Staff view: Fetch lightweight order and patient summaries (excluding large base64 attachments)
+    const orders = typeof this.orderRepo.findSummariesByTenant === 'function'
+      ? await this.orderRepo.findSummariesByTenant(tenantId)
+      : await this.orderRepo.findByTenant(tenantId);
+    const patients = typeof this.patientRepo.findSummariesByTenant === 'function'
+      ? await this.patientRepo.findSummariesByTenant(tenantId)
+      : await this.patientRepo.findByTenant(tenantId);
 
     const patientMap = new Map<string, any>();
 
@@ -213,7 +217,10 @@ export class ChatService {
 
     const tenantId = currentUser?.tenantId || 'TEN-0001';
     const patientDoc = await this.patientRepo.findByDni(clean, tenantId);
-    const orders = await this.orderRepo.findByTenant(tenantId);
+    const candidateDnis = Array.from(new Set([clean, dni].filter(Boolean)));
+    const orders = typeof this.orderRepo.findByPatientDnis === 'function'
+      ? await this.orderRepo.findByPatientDnis(tenantId, candidateDnis)
+      : await this.orderRepo.findByTenant(tenantId);
     const patientOrders = orders.filter((o) => cleanDni(o.patientDni) === clean);
 
     let allMessages: any[] = [];
@@ -325,7 +332,10 @@ export class ChatService {
     }
 
     // 2. Update all orders belonging to this patient
-    const orders = await this.orderRepo.findByTenant(tenantId);
+    const candidateDnis = Array.from(new Set([clean, dniOrOrderId].filter(Boolean)));
+    const orders = typeof this.orderRepo.findByPatientDnis === 'function'
+      ? await this.orderRepo.findByPatientDnis(tenantId, candidateDnis)
+      : await this.orderRepo.findByTenant(tenantId);
     const patientOrders = orders.filter((o) => cleanDni(o.patientDni) === clean);
 
     for (const ord of patientOrders) {

@@ -81,7 +81,11 @@ export default function PatientDoctorChat({
   const serverConversationsRef = useRef<any[]>([]);
   const [optimisticMessagesByDni, setOptimisticMessagesByDni] = useState<Record<string, OptimisticChatMessage[]>>({});
 
+  const isFetchingConversationsRef = useRef(false);
+
   const fetchConversations = async () => {
+    if (isFetchingConversationsRef.current) return;
+    isFetchingConversationsRef.current = true;
     try {
       const res = await fetch('/api/chat/conversations', {
         headers: {
@@ -112,6 +116,8 @@ export default function PatientDoctorChat({
       }
     } catch {
       // quiet
+    } finally {
+      isFetchingConversationsRef.current = false;
     }
   };
 
@@ -122,7 +128,7 @@ export default function PatientDoctorChat({
       if (!document.hidden) {
         fetchConversations();
       }
-    }, 4000);
+    }, 5000);
 
     return () => clearInterval(intervalId);
   }, []);
