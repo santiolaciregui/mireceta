@@ -544,6 +544,7 @@ export default function PatientDoctorChat({
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [filePickerMode, setFilePickerMode] = useState<'attachment' | 'sticker'>('attachment');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messageInputRef = useRef<HTMLTextAreaElement>(null);
 
   // Audio Playback progress tracking
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
@@ -555,6 +556,15 @@ export default function PatientDoctorChat({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const prevConvoKeyRef = useRef<string | null>(null);
   const prevMessageCountRef = useRef<number>(0);
+
+  useEffect(() => {
+    const messageInput = messageInputRef.current;
+    if (!messageInput) return;
+
+    messageInput.style.height = 'auto';
+    messageInput.style.height = `${Math.min(messageInput.scrollHeight, 120)}px`;
+    messageInput.style.overflowY = messageInput.scrollHeight > 120 ? 'auto' : 'hidden';
+  }, [inputText]);
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
     if (messagesContainerRef.current) {
@@ -1753,7 +1763,7 @@ export default function PatientDoctorChat({
                 </div>
               ) : (
                 /* STANDARD TEXT & MEDIA INPUT FORM */
-                <form onSubmit={handleSendMessage} className="flex items-center gap-1.5 sm:gap-2.5">
+                <form onSubmit={handleSendMessage} className="flex items-end gap-1.5 sm:gap-2.5">
                   
                   {/* File attacher trigger */}
                   <input
@@ -1806,12 +1816,13 @@ export default function PatientDoctorChat({
                         {CHAT_EMOJIS.map((emoji) => <button key={emoji} type="button" className="p-1 hover:bg-slate-100 rounded" onClick={() => { setInputText((text) => `${text}${emoji}`); setShowEmojiPicker(false); }}>{emoji}</button>)}
                       </div>
                     )}
-                    <input
-                      type="text"
+                    <textarea
+                      ref={messageInputRef}
+                      rows={1}
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
                       placeholder="Escribí un mensaje de WhatsApp..."
-                      className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 sm:pr-4 sm:py-2 text-xs sm:text-sm font-medium focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
+                      className="block w-full max-h-[120px] resize-none bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 sm:pr-4 sm:py-2 text-xs sm:text-sm font-medium leading-5 focus:outline-none focus:ring-1 focus:ring-[#00a884] text-slate-800 placeholder:text-slate-400 shadow-xs"
                     />
                   </div>
 

@@ -148,6 +148,7 @@ export default function PatientForm({
   const { toast, showToast } = useToast();
   const cartSectionRef = useRef<HTMLDivElement>(null);
   const isSubmittingRef = useRef(false);
+  const paymentDraftCreationRef = useRef<Promise<string> | null>(null);
 
   const scrollToCart = () => {
     setTimeout(() => {
@@ -1298,9 +1299,95 @@ export default function PatientForm({
     return true;
   };
 
-  const goToPayment = () => {
-    if (validateStep2()) {
-      isOficio ? setStep('confirmation') : setStep('payment');
+  const persistReachedPaymentDraft = async (): Promise<string> => {
+    if (createdOrderId) return createdOrderId;
+    if (paymentDraftCreationRef.current) return paymentDraftCreationRef.current;
+
+    const request = (async () => {
+      const mappedMedicationMethod = medicationItems.length > 0 ? 'manual' : 'foto';
+      const medicationSummary = medicationItems.length > 0
+        ? medicationItems.map(item =>
+            `- ${item.nombreComercial}${item.miligramos ? ` (${item.miligramos})` : ''}${item.diagnostic ? ` [Diag: ${item.diagnostic}]` : ''}, Pres: ${item.presentacion}${item.unidadesPorCaja ? `, ${item.unidadesPorCaja} u/caja` : ''} x ${item.cantidadCajas} cajas`
+          ).join('\n')
+        : `Carga por Foto (${medicationPhotos.length} adjuntos):\n${medicationPhotos.map((photo, index) =>
+            `- Foto/Receta #${index + 1} (${photo.name}): ${photo.cantidadCajas || 1} ${(photo.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}${photo.unidadesPorCaja ? ` x ${photo.unidadesPorCaja} comp./u.` : ''}${photo.diagnostic ? ` [Diag: ${photo.diagnostic}]` : ''}${photo.comments ? ` [Obs: ${photo.comments}]` : ''}`
+          ).join('\n')}`;
+      const aggregatedDiagnostic = diagnostic.trim()
+        || medicationItems.map(item => item.diagnostic).filter(Boolean).join(', ')
+        || medicationPhotos.map(photo => photo.diagnostic).filter(Boolean).join(', ')
+        || 'Sin especificar';
+      const isForDependent = selectedCardId !== 'titular';
+      const selectedDep = isForDependent ? dependents.find((dependent) => dependent.id === selectedCardId) : null;
+
+      const orderId = await onSubmitOrder({
+        patientName: patientName.trim(),
+        patientLastName: patientLastName.trim(),
+        patientDni: patientDni.trim(),
+        patientBirthDate,
+        patientEmail: patientEmail.trim(),
+        patientPhone: patientPhone.trim(),
+        patientCity: patientCity.trim() || undefined,
+        patientProvince: patientProvince.trim() || undefined,
+        deliveryMethod,
+        obraSocial: selectedObraSocial,
+        obraSocialNumber: obraSocialNumber.trim() || undefined,
+        isForDependent,
+        dependentRelationship: selectedDep?.relationship || (isForDependent ? 'A Cargo' : undefined),
+        requestedByTitularName: isForDependent ? `${titularData.name} ${titularData.lastName}`.trim() : undefined,
+        requestedByTitularDni: isForDependent ? titularData.dni : undefined,
+        requestedByTitularEmail: isForDependent ? titularData.email : undefined,
+        requestedByTitularPhone: isForDependent ? titularData.phone : undefined,
+        medicationMethod: mappedMedicationMethod,
+        medicationText: medicationSummary,
+        medicationItems,
+        diagnostic: aggregatedDiagnostic,
+        comments: comments.trim() || undefined,
+        medicationPhotos,
+        medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
+        medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
+        paymentMethod: 'mp',
+        paymentAmount,
+        paymentDate: new Date().toISOString(),
+        paymentStatus: 'pending',
+        paymentStage: 'not_started',
+        status: 'Pendiente',
+        clientRequestId,
+        lastConsultationTime: lastConsultationTime || undefined,
+        lastConsultationDoctor: lastConsultationDoctor || undefined,
+        consentsAccepted: {
+          isOfAge: consentAge,
+          termsAccepted: consentTerms,
+          informedConsentAccepted: consentInformed,
+          swornStatementAccepted: consentSworn,
+          acceptedAt: new Date().toISOString(),
+          termsVersion: TERMS_VERSION,
+        },
+      });
+
+      setCreatedOrderId(orderId);
+      return orderId;
+    })();
+
+    paymentDraftCreationRef.current = request;
+    try {
+      return await request;
+    } finally {
+      paymentDraftCreationRef.current = null;
+    }
+  };
+
+  const goToPayment = async () => {
+    if (!validateStep2()) return;
+    if (isOficio) {
+      setStep('confirmation');
+      return;
+    }
+
+    try {
+      await persistReachedPaymentDraft();
+      setStep('payment');
+    } catch (err: any) {
+      setError(err.message || 'No se pudo registrar la solicitud antes del pago. Intente nuevamente.');
     }
   };
 
@@ -1522,7 +1609,7 @@ export default function PatientForm({
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
       paymentMethod: isExempt ? 'bonificado' : paymentMethod,
       clientRequestId,
-      paymentRetryOrderId: !isExempt && paymentMethod === 'transfer' ? createdOrderId : undefined,
+      paymentRetryOrderId: createdOrderId || undefined,
       
       // Payment details
       paymentReceiptUrl: isExempt
@@ -2464,7 +2551,7 @@ export default function PatientForm({
         <div 
           onClick={() => {
             if (patientName && patientLastName && patientDni && selectedObraSocial && (medicationItems.length > 0 || medicationPhotos.length > 0) && diagnostic) {
-              setStep('payment');
+              void goToPayment();
             }
           }}
           className={`flex flex-col items-center gap-1 cursor-pointer transition-all ${

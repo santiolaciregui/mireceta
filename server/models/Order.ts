@@ -73,6 +73,7 @@ export interface IMedicalOrder extends Document {
   paymentId?: string;
   paymentRefundId?: string;
   paymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' | 'exempt';
+  paymentStage?: 'not_started' | 'checkout_started' | 'awaiting_validation';
   
   status: 'Pendiente' | 'En revisión' | 'Solicita más información' | 'Aprobada' | 'Rechazada' | 'Emitida' | 'Enviada' | 'Cancelada';
   createdAt: string;
@@ -207,6 +208,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   paymentId: { type: String },
   paymentRefundId: { type: String },
   paymentStatus: { type: String, enum: ['approved', 'pending', 'rejected', 'refunded', 'exempt'], required: false, default: 'pending' },
+  paymentStage: { type: String, enum: ['not_started', 'checkout_started', 'awaiting_validation'], required: false },
   
   status: { 
     type: String, 

@@ -175,6 +175,7 @@ export class OrderService {
           existingOrder.paymentReceiptName = orderData.paymentReceiptName || 'comprobante_transferencia';
           existingOrder.paymentId = `TRANS-${Math.floor(100000 + Math.random() * 900000)}`;
           existingOrder.paymentStatus = 'pending';
+          existingOrder.paymentStage = 'awaiting_validation';
           existingOrder.status = 'Pendiente';
           existingOrder.paymentDate = new Date().toISOString();
           addAuditLogEntry(
@@ -367,6 +368,14 @@ export class OrderService {
         `Solicitud registrada como exenta / bonificada (arancel $0). Detalle: ${pricing.breakdown}.`
       );
     } else {
+      if (newOrder.paymentStage === 'not_started') {
+        addAuditLogEntry(
+          newOrder,
+          'Paso de pago alcanzado',
+          'Paciente (Autogestión)',
+          'La solicitud completó los datos clínicos y llegó al paso de pago, pero todavía no se inició ningún medio de pago.'
+        );
+      }
       addAuditLogEntry(
         newOrder,
         'Arancel oficial fijado',

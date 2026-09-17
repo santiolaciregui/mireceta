@@ -97,6 +97,8 @@ export interface MedicalOrder {
   paymentId?: string;       // MP Transaction ID
   paymentRefundId?: string;
   paymentStatus?: 'approved' | 'pending' | 'rejected' | 'refunded' | 'exempt';
+  /** Distinguishes an untouched payment step from an initiated checkout or transfer review. */
+  paymentStage?: 'not_started' | 'checkout_started' | 'awaiting_validation';
   
   status: OrderStatus;
   createdAt: string;
