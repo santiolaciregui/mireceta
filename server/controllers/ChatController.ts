@@ -8,7 +8,10 @@ export class ChatController {
       const conversations = await chatService.getConversations(getCurrentUser(req));
       res.json(conversations);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      if (err.message === 'Acceso no autorizado.') {
+        return res.status(403).json({ error: err.message });
+      }
+      next(err);
     }
   };
 
@@ -18,7 +21,10 @@ export class ChatController {
       const chat = await chatService.getPatientChat(dni, getCurrentUser(req));
       res.json(chat);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      if (err.message === 'Acceso no autorizado.') {
+        return res.status(403).json({ error: err.message });
+      }
+      next(err);
     }
   };
 
@@ -28,7 +34,10 @@ export class ChatController {
       const result = await chatService.sendMessage(dniOrId, req.body, getCurrentUser(req));
       res.json(result);
     } catch (err: any) {
-      res.status(400).json({ error: err.message });
+      if (err.message === 'Acceso no autorizado.') {
+        return res.status(403).json({ error: err.message });
+      }
+      next(err);
     }
   };
 }
