@@ -26,14 +26,25 @@ import {
   Calendar, 
   Sparkles,
   ClipboardPaste,
-  Loader2
+  Loader2,
+  Clock,
+  ClipboardCheck,
+  Camera,
+  Copy
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 import { readImagesFromClipboard } from '../../../utils/clipboard';
+import { 
+  filterPatientOrders, 
+  getRepeatableOrderData, 
+  getPastOrderDisplaySummary 
+} from './orderMethods';
+
 interface NewOrderFormProps {
   currentUser?: any;
   orders?: any[];
   users?: any[];
+  onLoadOrderDetails?: (id: string) => Promise<any>;
   onSubmitOrder?: (data: any) => Promise<string>;
   onSuccess: () => void;
   onCancel: () => void;
@@ -45,6 +56,7 @@ export default function NewOrderForm({
   currentTenant,
   orders = [],
   users = [],
+  onLoadOrderDetails,
   onSubmitOrder,
   onSuccess,
   onCancel
@@ -81,6 +93,11 @@ export default function NewOrderForm({
   const [customObraSocial, setCustomObraSocial] = useState('');
   const [obraSocialNumber, setObraSocialNumber] = useState('');
 
+  // Medication Loading Method State
+  const [medicationMethod, setMedicationMethod] = useState<'past_orders' | 'new_manual' | 'upload_photo'>('new_manual');
+  const [selectedPastOrderId, setSelectedPastOrderId] = useState('');
+  const [isLoadingPastOrder, setIsLoadingPastOrder] = useState(false);
+
   // Medication Items State
   const [medicationItems, setMedicationItems] = useState<MedicationItem[]>([]);
   const [curNombreComercial, setCurNombreComercial] = useState('');
@@ -106,6 +123,15 @@ export default function NewOrderForm({
 
   const { toast, showToast } = useToast();
   const cartSectionRef = useRef<HTMLDivElement>(null);
+
+  // Derive historical orders belonging to patient by DNI
+  const patientOrders = React.useMemo(() => {
+    return filterPatientOrders(orders, patientDni);
+  }, [orders, patientDni]);
+
+  const lastOrder = React.useMemo(() => {
+    return patientOrders.length > 0 ? patientOrders[0] : null;
+  }, [patientOrders]);
 
   const scrollToCart = () => {
     setTimeout(() => {
@@ -157,17 +183,75 @@ export default function NewOrderForm({
       }
       if (osNumber) setObraSocialNumber(osNumber);
 
+      const matchingOrders = filterPatientOrders(orders, queryDni);
+      const ordersCount = matchingOrders.length;
+
       setFieldErrors({});
       setSearchStatus({
         found: true,
-        message: `Paciente registrado encontrado: ${name} ${lastName}`
+        message: `Paciente registrado encontrado: ${name} ${lastName}${ordersCount > 0 ? ` (${ordersCount} ${ordersCount === 1 ? 'solicitud previa' : 'solicitudes previas'})` : ''}`
       });
+
+      // Suggest past orders method if historical orders exist and cart is empty
+      if (ordersCount > 0 && medicationItems.length === 0 && medicationPhotos.length === 0) {
+        setMedicationMethod('past_orders');
+      }
     } else {
       setSearchStatus({
         found: false,
         message: `No se registraron datos previos para el DNI ${queryDni}. Puede completar el formulario libremente.`
       });
     }
+  };
+
+  // Helper to clone past order data into active form state
+  const applyRepeatedOrderData = async (targetOrder: any) => {
+    let orderToUse = targetOrder;
+    if (orderToUse._isSummary && onLoadOrderDetails) {
+      try {
+        setIsLoadingPastOrder(true);
+        const detailed = await onLoadOrderDetails(orderToUse.id);
+        if (detailed) {
+          orderToUse = detailed;
+        }
+      } catch (e) {
+        console.warn('Could not load full order details, using summary:', e);
+      } finally {
+        setIsLoadingPastOrder(false);
+      }
+    }
+
+    const data = getRepeatableOrderData(orderToUse);
+    setMedicationItems(data.medicationItems);
+    setMedicationPhotos(data.medicationPhotos);
+    if (data.diagnostic) setDiagnostic(data.diagnostic);
+    if (data.comments) setComments(data.comments);
+    if (data.lastConsultationTime) setLastConsultationTime(data.lastConsultationTime);
+    if (data.lastConsultationDoctor) setLastConsultationDoctor(data.lastConsultationDoctor);
+
+    // Clear validation warnings for medication and diagnostic
+    setFieldErrors(prev => ({
+      ...prev,
+      medicationList: undefined,
+      diagnostic: undefined,
+    }));
+
+    const dateStr = orderToUse.createdAt
+      ? new Date(orderToUse.createdAt).toLocaleDateString('es-AR')
+      : '';
+    showToast(`¡Se cargó la medicación y diagnóstico de la solicitud ${dateStr ? `del ${dateStr}` : 'anterior'}!`);
+    scrollToCart();
+  };
+
+  const handleRepeatLastOrder = async () => {
+    if (!lastOrder) return;
+    await applyRepeatedOrderData(lastOrder);
+  };
+
+  const handleRepeatPastOrder = async (orderId: string) => {
+    const found = patientOrders.find((o: any) => o.id === orderId);
+    if (!found) return;
+    await applyRepeatedOrderData(found);
   };
 
   const handleAddMedication = () => {
@@ -760,233 +844,557 @@ export default function NewOrderForm({
               </div>
             </div>
 
-            {/* Manual Item Creator Panel */}
-            <div className={`p-4 rounded-xl border space-y-3 transition-all ${
-              fieldErrors.medicationList
-                ? 'bg-rose-50/40 border-rose-400 ring-2 ring-rose-500/10'
-                : 'bg-slate-50 border-slate-200/80'
-            }`}>
-              <span className="block text-xs font-bold text-slate-800">Agregar Medicamento al Pedido <span className="text-red-500">*</span></span>
-              {fieldErrors.medicationList && (
-                <p className="text-xs text-rose-600 font-semibold flex items-center gap-1.5 animate-fadeIn">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{fieldErrors.medicationList}</span>
-                </p>
-              )}
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <div className="sm:col-span-2">
-                  <input
-                    type="text"
-                    value={curNombreComercial}
-                    onChange={e => {
-                      setCurNombreComercial(e.target.value);
-                      if (fieldErrors.curNombreComercial) setFieldErrors(prev => ({ ...prev, curNombreComercial: undefined }));
-                    }}
-                    placeholder="Nombre comercial (Ej: Losartán) *"
-                    className={`w-full px-3 py-2 rounded-lg text-xs transition-all outline-hidden ${
-                      fieldErrors.curNombreComercial
-                        ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
-                        : 'bg-white border border-slate-300 focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10'
-                    }`}
-                  />
-                  {fieldErrors.curNombreComercial && (
-                    <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
-                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                      <span>{fieldErrors.curNombreComercial}</span>
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    value={curMiligramos}
-                    onChange={e => setCurMiligramos(e.target.value)}
-                    placeholder="Dosis (Ej: 50mg)"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
-                  />
-                </div>
-                <div>
-                  <select
-                    value={curPresentacion}
-                    onChange={e => setCurPresentacion(e.target.value)}
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
-                  >
-                    <option value="Comprimidos">Comprimidos</option>
-                    <option value="Cápsulas">Cápsulas</option>
-                    <option value="Gotas / Jarabe">Gotas / Jarabe</option>
-                    <option value="Inyectable / Pluma">Inyectable / Pluma</option>
-                    <option value="Inhalador">Inhalador</option>
-                    <option value="Crema / Gel">Crema / Gel</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center pt-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-600 font-medium">Cantidad de cajas o envases :</span>
-                  <select
-                    value={curCantidadCajas}
-                    onChange={e => {
-                      setCurCantidadCajas(e.target.value);
-                      if (fieldErrors.curCantidadCajas) setFieldErrors(prev => ({ ...prev, curCantidadCajas: undefined }));
-                    }}
-                    className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-[#1661E1] cursor-pointer"
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                      <option key={num} value={num}>
-                        {num} {num === 1 ? 'caja' : 'cajas'}
-                      </option>
-                    ))}
-                  </select>
-                  {fieldErrors.curCantidadCajas && (
-                    <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 animate-fadeIn">
-                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                      <span>{fieldErrors.curCantidadCajas}</span>
-                    </p>
-                  )}
-                </div>
-
+            {/* Input Method Toggle Selector */}
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                Método de Carga <span className="text-red-500">*</span>
+              </label>
+              
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                {/* A. Últimas Solicitudes */}
                 <button
+                  id="btn-method-past-orders"
                   type="button"
-                  onClick={handleAddMedication}
-                  className="px-4 py-2 bg-[#0141BC] hover:bg-[#1661E1] text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  aria-label="Últimas solicitudes"
+                  aria-pressed={medicationMethod === 'past_orders'}
+                  onClick={() => setMedicationMethod('past_orders')}
+                  className={`group min-w-0 py-3 px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-row sm:flex-col items-center sm:justify-center text-left sm:text-center gap-2 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                    medicationMethod === 'past_orders'
+                      ? 'border-indigo-600 bg-indigo-600 text-white ring-2 ring-indigo-500/20 shadow-[0_8px_20px_rgba(79,70,229,0.24)]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-indigo-900 hover:border-indigo-200 hover:bg-indigo-50/30'
+                  }`}
                 >
-                  <Plus className="h-4 w-4" /> Añadir Medicamento
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors shrink-0 ${
+                    medicationMethod === 'past_orders'
+                      ? 'bg-indigo-800 text-white shadow-xs'
+                      : 'bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100'
+                  }`}>
+                    <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-extrabold text-[12px] block">
+                      Últimas Solicitudes {patientOrders.length > 0 && <span className="opacity-90">({patientOrders.length})</span>}
+                    </span>
+                    <span className={`text-[10px] font-medium block ${medicationMethod === 'past_orders' ? 'text-indigo-100' : 'text-slate-500'}`}>
+                      Repetir pedido previo
+                    </span>
+                  </div>
+                </button>
+
+                {/* B. Nueva Carga Manual */}
+                <button
+                  id="btn-method-new-manual"
+                  type="button"
+                  aria-label="Nueva carga manual"
+                  aria-pressed={medicationMethod === 'new_manual'}
+                  onClick={() => setMedicationMethod('new_manual')}
+                  className={`group min-w-0 py-3 px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-row sm:flex-col items-center sm:justify-center text-left sm:text-center gap-2 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                    medicationMethod === 'new_manual'
+                      ? 'border-emerald-600 bg-emerald-600 text-white ring-2 ring-emerald-500/20 shadow-[0_8px_20px_rgba(5,150,105,0.22)]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-emerald-900 hover:border-emerald-200 hover:bg-emerald-50/30'
+                  }`}
+                >
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors shrink-0 ${
+                    medicationMethod === 'new_manual'
+                      ? 'bg-emerald-800 text-white shadow-xs'
+                      : 'bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100'
+                  }`}>
+                    <ClipboardCheck className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-extrabold text-[12px] block">Nueva Carga Manual</span>
+                    <span className={`text-[10px] font-medium block ${medicationMethod === 'new_manual' ? 'text-emerald-100' : 'text-slate-500'}`}>
+                      Escribir medicamentos
+                    </span>
+                  </div>
+                </button>
+
+                {/* C. Adjuntar Foto / Receta */}
+                <button
+                  id="btn-method-upload-photo"
+                  type="button"
+                  aria-label="Adjuntar foto o receta"
+                  aria-pressed={medicationMethod === 'upload_photo'}
+                  onClick={() => setMedicationMethod('upload_photo')}
+                  className={`group min-w-0 py-3 px-3 rounded-xl sm:rounded-2xl border font-bold text-xs flex flex-row sm:flex-col items-center sm:justify-center text-left sm:text-center gap-2 sm:gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                    medicationMethod === 'upload_photo'
+                      ? 'border-[#1661E1] bg-[#1661E1] text-white ring-2 ring-[#1661E1]/20 shadow-[0_8px_20px_rgba(22,97,225,0.24)]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:text-[#0141BC] hover:border-blue-200 hover:bg-blue-50/30'
+                  }`}
+                >
+                  <div className={`p-1.5 sm:p-2 rounded-lg sm:rounded-xl transition-colors shrink-0 ${
+                    medicationMethod === 'upload_photo'
+                      ? 'bg-[#0141BC] text-white shadow-xs'
+                      : 'bg-blue-50 text-[#1661E1] group-hover:bg-blue-100'
+                  }`}>
+                    <Camera className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <span className="font-extrabold text-[12px] block">Adjuntar Foto / Receta</span>
+                    <span className={`text-[10px] font-medium block ${medicationMethod === 'upload_photo' ? 'text-blue-100' : 'text-slate-500'}`}>
+                      Foto de envase o receta
+                    </span>
+                  </div>
                 </button>
               </div>
             </div>
 
-            {/* List of Added Medication Items */}
-            {medicationItems.length > 0 && (
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-700">Medicamentos Agregados ({medicationItems.length}):</span>
-                <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
-                  {medicationItems.map((item, idx) => (
-                    <div key={idx} className="p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                      <div>
-                        <p className="text-xs font-bold text-[#0141BC]">{item.nombreComercial} {item.miligramos && `(${item.miligramos})`}</p>
-                        <p className="text-[11px] text-slate-500">{item.presentacion} • Cantidad: {item.cantidadCajas} caja(s)</p>
-                      </div>
+            {/* METHOD PANEL A: PAST ORDERS (ÚLTIMAS SOLICITUDES) */}
+            {medicationMethod === 'past_orders' && (
+              <div className="space-y-4 animate-fadeIn">
+                {!patientDni.trim() ? (
+                  <div className="bg-slate-50 p-6 text-center text-xs text-slate-500 font-medium rounded-2xl border border-slate-200 space-y-2">
+                    <Clock className="h-7 w-7 text-slate-400 mx-auto" />
+                    <p className="font-bold text-slate-700">Consulte las solicitudes anteriores ingresando el DNI del paciente</p>
+                    <p className="text-[11px] text-slate-500">Ingrese el número de DNI en la sección 1 para buscar automáticamente su historial clínico y repetir pedidos previos.</p>
+                  </div>
+                ) : patientOrders.length === 0 ? (
+                  <div className="bg-amber-50/70 p-6 text-center text-xs text-amber-800 font-medium rounded-2xl border border-amber-200/80 space-y-2.5">
+                    <AlertCircle className="h-7 w-7 text-amber-500 mx-auto" />
+                    <p className="font-bold text-amber-900">
+                      No se encontraron solicitudes anteriores asociadas al DNI {patientDni}.
+                    </p>
+                    <p className="text-[11px] text-amber-700 max-w-md mx-auto">
+                      Este paciente no registra pedidos previos en el sistema. Puede utilizar{' '}
                       <button
                         type="button"
-                        onClick={() => handleRemoveMedication(idx)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Quitar"
+                        onClick={() => setMedicationMethod('new_manual')}
+                        className="font-bold underline text-amber-900 hover:text-amber-950 cursor-pointer"
                       >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
-                    </div>
-                  ))}
+                        Nueva Carga Manual
+                      </button>{' '}
+                      para ingresar los medicamentos o{' '}
+                      <button
+                        type="button"
+                        onClick={() => setMedicationMethod('upload_photo')}
+                        className="font-bold underline text-amber-900 hover:text-amber-950 cursor-pointer"
+                      >
+                        Adjuntar Foto / Receta
+                      </button>.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* A1. Repetir último pedido completo (Prominent Card) */}
+                    {lastOrder && (
+                      <div className="bg-gradient-to-br from-indigo-50/70 to-blue-50/60 border border-indigo-200/90 rounded-2xl p-5 space-y-3.5 shadow-2xs animate-fadeIn">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="h-9 w-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Clock className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-extrabold text-sm text-indigo-950">Última Solicitud Registrada</h4>
+                                {lastOrder.status && (
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white text-indigo-700 border border-indigo-200">
+                                    {lastOrder.status}
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500 font-semibold">
+                                Fecha:{' '}
+                                {new Date(lastOrder.createdAt).toLocaleDateString('es-AR', {
+                                  day: '2-digit',
+                                  month: '2-digit',
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}{' '}
+                                hs
+                              </p>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            disabled={isLoadingPastOrder}
+                            onClick={handleRepeatLastOrder}
+                            className="flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm shrink-0 cursor-pointer disabled:opacity-50"
+                          >
+                            {isLoadingPastOrder ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin text-white" />
+                            ) : (
+                              <Copy className="h-3.5 w-3.5" />
+                            )}
+                            <span>Repetir Último Pedido Completo</span>
+                          </button>
+                        </div>
+
+                        <div className="bg-white/90 rounded-xl p-4 text-xs space-y-2.5 border border-indigo-100">
+                          <div>
+                            <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wide">Diagnóstico de Tratamiento:</span>
+                            <span className="font-semibold text-slate-800">{lastOrder.diagnostic || 'Sin diagnóstico especificado'}</span>
+                          </div>
+
+                          <div>
+                            <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wide">Medicamentos:</span>
+                            {lastOrder.medicationItems && lastOrder.medicationItems.length > 0 ? (
+                              <ul className="list-disc pl-4 space-y-1 text-slate-800 mt-1 font-medium">
+                                {lastOrder.medicationItems.map((item: any, i: number) => (
+                                  <li key={i}>
+                                    <strong>{item.nombreComercial}</strong> {item.miligramos && `(${item.miligramos})`} - {item.presentacion || 'Comprimidos'} x {item.cantidadCajas || 1} {(item.cantidadCajas || 1) === 1 ? 'caja' : 'cajas'}
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : lastOrder.medicationPhotos && lastOrder.medicationPhotos.length > 0 ? (
+                              <span className="text-slate-800 font-semibold flex items-center gap-1.5 mt-1">
+                                <Camera className="h-3.5 w-3.5 text-blue-500" />
+                                Cargado mediante {lastOrder.medicationPhotos.length} foto(s) de envase o receta
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 italic mt-1 block">Sin medicamentos desglosados</span>
+                            )}
+                          </div>
+
+                          {lastOrder.comments && (
+                            <div>
+                              <span className="font-bold text-slate-400 block text-[10px] uppercase tracking-wide">Observaciones / Notas:</span>
+                              <span className="font-medium text-slate-700 italic">"{lastOrder.comments}"</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* A2. Selector para solicitudes anteriores adicionales */}
+                    {patientOrders.length > 1 && (
+                      <div className="bg-slate-50 p-4 border border-slate-200/80 rounded-2xl space-y-3">
+                        <label htmlFor="past-order-select" className="block text-xs font-bold text-slate-700 uppercase">
+                          Otras Solicitudes Previas del Paciente
+                        </label>
+                        <select
+                          id="past-order-select"
+                          value={selectedPastOrderId}
+                          onChange={e => setSelectedPastOrderId(e.target.value)}
+                          className="w-full px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 cursor-pointer focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 outline-none"
+                        >
+                          <option value="">Seleccione otra solicitud previa para ver detalles...</option>
+                          {patientOrders.slice(1).map((order: any) => (
+                            <option key={order.id} value={order.id}>
+                              {getPastOrderDisplaySummary(order)}
+                            </option>
+                          ))}
+                        </select>
+
+                        {selectedPastOrderId && (() => {
+                          const selectedOrder = patientOrders.find((o: any) => o.id === selectedPastOrderId);
+                          if (!selectedOrder) return null;
+                          return (
+                            <div className="bg-white border border-slate-200 rounded-xl p-3.5 space-y-2.5 animate-fadeIn">
+                              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                                <span className="font-bold text-xs text-slate-700">Detalles de la Solicitud Seleccionada</span>
+                                <button
+                                  type="button"
+                                  disabled={isLoadingPastOrder}
+                                  onClick={() => handleRepeatPastOrder(selectedPastOrderId)}
+                                  className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
+                                >
+                                  {isLoadingPastOrder ? (
+                                    <Loader2 className="h-3 w-3 animate-spin text-indigo-600" />
+                                  ) : (
+                                    <Copy className="h-3 w-3" />
+                                  )}
+                                  <span>Repetir esta solicitud</span>
+                                </button>
+                              </div>
+
+                              <div className="text-xs space-y-1.5">
+                                <div>
+                                  <span className="font-bold text-slate-400 block text-[9px] uppercase tracking-wide">Diagnóstico:</span>
+                                  <span className="text-slate-800 font-semibold">{selectedOrder.diagnostic || 'Sin diagnóstico'}</span>
+                                </div>
+                                <div>
+                                  <span className="font-bold text-slate-400 block text-[9px] uppercase tracking-wide">Medicamentos:</span>
+                                  {selectedOrder.medicationItems && selectedOrder.medicationItems.length > 0 ? (
+                                    <ul className="list-disc pl-4 space-y-0.5 text-slate-800 mt-0.5">
+                                      {selectedOrder.medicationItems.map((item: any, i: number) => (
+                                        <li key={i}>
+                                          <strong>{item.nombreComercial}</strong> {item.miligramos && `(${item.miligramos})`} - {item.cantidadCajas || 1} cj.
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  ) : (
+                                    <span className="text-slate-500 italic mt-0.5 block">Cargado mediante fotos o archivo</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* METHOD PANEL B: NUEVA CARGA MANUAL */}
+            {medicationMethod === 'new_manual' && (
+              <div className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/70 space-y-3 animate-fadeIn">
+                <span className="block text-xs font-bold text-slate-800">
+                  Ingresar Medicamento al Pedido <span className="text-red-500">*</span>
+                </span>
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                  <div className="sm:col-span-2">
+                    <input
+                      type="text"
+                      value={curNombreComercial}
+                      onChange={e => {
+                        setCurNombreComercial(e.target.value);
+                        if (fieldErrors.curNombreComercial) setFieldErrors(prev => ({ ...prev, curNombreComercial: undefined }));
+                      }}
+                      placeholder="Nombre comercial o droga (Ej: Losartán) *"
+                      className={`w-full px-3 py-2 rounded-lg text-xs transition-all outline-hidden ${
+                        fieldErrors.curNombreComercial
+                          ? 'border-2 border-rose-400 bg-rose-50/40 text-slate-900 focus:bg-white focus:border-rose-500 focus:ring-4 focus:ring-rose-500/15'
+                          : 'bg-white border border-slate-300 focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10'
+                      }`}
+                    />
+                    {fieldErrors.curNombreComercial && (
+                      <p className="text-[11px] text-rose-600 font-semibold mt-1 flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{fieldErrors.curNombreComercial}</span>
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={curMiligramos}
+                      onChange={e => setCurMiligramos(e.target.value)}
+                      placeholder="Dosis (Ej: 50mg)"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10"
+                    />
+                  </div>
+                  <div>
+                    <select
+                      value={curPresentacion}
+                      onChange={e => setCurPresentacion(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-xs outline-none focus:border-[#1661E1] focus:ring-2 focus:ring-[#1661E1]/10 cursor-pointer"
+                    >
+                      <option value="Comprimidos">Comprimidos</option>
+                      <option value="Cápsulas">Cápsulas</option>
+                      <option value="Gotas / Jarabe">Gotas / Jarabe</option>
+                      <option value="Inyectable / Pluma">Inyectable / Pluma</option>
+                      <option value="Inhalador">Inhalador</option>
+                      <option value="Crema / Gel">Crema / Gel</option>
+                      <option value="Sobres">Sobres</option>
+                      <option value="Otra">Otra</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-600 font-medium">Cantidad de cajas o envases :</span>
+                    <select
+                      value={curCantidadCajas}
+                      onChange={e => {
+                        setCurCantidadCajas(e.target.value);
+                        if (fieldErrors.curCantidadCajas) setFieldErrors(prev => ({ ...prev, curCantidadCajas: undefined }));
+                      }}
+                      className="px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold outline-none focus:border-[#1661E1] cursor-pointer"
+                    >
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                        <option key={num} value={num}>
+                          {num} {num === 1 ? 'caja' : 'cajas'}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors.curCantidadCajas && (
+                      <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 animate-fadeIn">
+                        <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                        <span>{fieldErrors.curCantidadCajas}</span>
+                      </p>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddMedication}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Plus className="h-4 w-4" /> Añadir Medicamento
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Optional Photo Attachment */}
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1.5">
-                <label className="block text-xs font-bold text-slate-700">
-                  Adjuntar Fotos/Escaneo de Receta Anterior o Envase (Opcional)
-                </label>
-                <button
-                  type="button"
-                  onClick={handlePasteFromClipboard}
-                  disabled={isPastingClipboard}
-                  className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1661E1] hover:text-[#0141BC] border border-blue-200/90 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
-                  title="Pegar imagen copiada previamente en el portapapeles (solo imágenes)"
-                >
-                  {isPastingClipboard ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1661E1]" />
-                  ) : (
-                    <ClipboardPaste className="h-3.5 w-3.5 text-[#1661E1]" />
-                  )}
-                  <span>{isPastingClipboard ? 'Pegando...' : 'Pegar desde portapapeles'}</span>
-                </button>
+            {/* METHOD PANEL C: ADJUNTAR FOTO / RECETA */}
+            {medicationMethod === 'upload_photo' && (
+              <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-3.5 animate-fadeIn">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <span className="block text-xs font-bold text-slate-800">
+                      Adjuntar Foto de Receta Anterior o Envase
+                    </span>
+                    <span className="text-[11px] text-slate-500">
+                      Formatos admitidos: JPG, PNG, HEIC, PDF. Puede seleccionar múltiples archivos.
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handlePasteFromClipboard}
+                    disabled={isPastingClipboard}
+                    className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 bg-white hover:bg-blue-100 text-[#1661E1] hover:text-[#0141BC] border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs shrink-0 disabled:opacity-50"
+                    title="Pegar imagen copiada previamente en el portapapeles"
+                  >
+                    {isPastingClipboard ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin text-[#1661E1]" />
+                    ) : (
+                      <ClipboardPaste className="h-3.5 w-3.5 text-[#1661E1]" />
+                    )}
+                    <span>{isPastingClipboard ? 'Pegando...' : 'Pegar desde portapapeles'}</span>
+                  </button>
+                </div>
+
+                <input
+                  type="file"
+                  accept="image/*,application/pdf"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="w-full text-xs text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1661E1] file:text-white hover:file:bg-[#0141BC] cursor-pointer bg-white p-2.5 rounded-xl border border-blue-200/80"
+                />
               </div>
-              <input
-                type="file"
-                accept="image/*,application/pdf"
-                multiple
-                onChange={handleFileUpload}
-                className="text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-[#1661E1]/10 file:text-[#1661E1] hover:file:bg-[#1661E1]/20 cursor-pointer"
-              />
-              
-              {medicationPhotos.length > 0 && (
-                <div className="space-y-2.5 pt-1">
-                  <span className="text-xs font-bold text-slate-700 block">Fotos/Archivos Adjuntos ({medicationPhotos.length}):</span>
-                  <div className="space-y-2">
-                    {medicationPhotos.map((photo, idx) => (
-                      <div key={idx} className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <CheckCircle className="h-4 w-4 text-[#14BE99] shrink-0" />
-                            <span className="font-bold text-slate-800 truncate max-w-[200px] sm:max-w-xs">{photo.name}</span>
+            )}
+
+            {/* PERMANENT ORDER CART / RESUMEN DE MEDICACIÓN EN EL PEDIDO */}
+            <div className="pt-2 border-t border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">
+                    Medicamentos y Recetas en el Pedido ({medicationItems.length + medicationPhotos.length})
+                  </span>
+                  <span className="text-red-500 font-bold text-xs">*</span>
+                </div>
+              </div>
+
+              {fieldErrors.medicationList && (
+                <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl flex items-center gap-2 text-xs text-rose-700 font-semibold animate-fadeIn">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-500" />
+                  <span>{fieldErrors.medicationList}</span>
+                </div>
+              )}
+
+              {medicationItems.length === 0 && medicationPhotos.length === 0 ? (
+                <div className="py-5 px-4 text-center text-xs text-slate-400 font-medium bg-slate-50/70 rounded-xl border border-dashed border-slate-250">
+                  El pedido aún no tiene medicamentos agregados. Seleccione un <strong>Método de Carga</strong> arriba para añadir medicamentos o recetas.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Manual items list */}
+                  {medicationItems.length > 0 && (
+                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                      {medicationItems.map((item, idx) => (
+                        <div key={`item-${idx}`} className="p-3.5 flex items-center justify-between hover:bg-slate-50/80 transition-colors">
+                          <div>
+                            <p className="text-xs font-bold text-[#0141BC]">
+                              {item.nombreComercial} {item.miligramos && <span className="text-[#1661E1]">({item.miligramos})</span>}
+                            </p>
+                            <p className="text-[11px] text-slate-500">
+                              {item.presentacion} • Cantidad: {item.cantidadCajas} {item.cantidadCajas === 1 ? 'caja' : 'cajas'}
+                            </p>
                           </div>
                           <button
                             type="button"
-                            onClick={() => {
-                              setMedicationPhotos(prev => prev.filter((_, i) => i !== idx));
-                              showToast(`"${photo.name}" eliminada del pedido`);
-                            }}
-                            className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
-                            title="Quitar"
+                            onClick={() => handleRemoveMedication(idx)}
+                            className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                            title="Quitar medicamento"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
+                      ))}
+                    </div>
+                  )}
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Cajas</label>
-                            <select
-                              value={photo.cantidadCajas || 1}
-                              onChange={e => handleUpdatePhotoField(idx, 'cantidadCajas', parseInt(e.target.value) || 1)}
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                  {/* Attached photos list */}
+                  {medicationPhotos.length > 0 && (
+                    <div className="space-y-2.5">
+                      {medicationPhotos.map((photo, idx) => (
+                        <div key={`photo-${idx}`} className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2.5 text-xs shadow-2xs">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="h-9 w-9 bg-blue-100 border border-blue-200 rounded-lg flex items-center justify-center shrink-0 overflow-hidden text-blue-700 font-bold">
+                                {photo.url && photo.url.startsWith('data:image') ? (
+                                  <img src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
+                                ) : (
+                                  <span className="text-[10px]">DOC</span>
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <span className="font-bold text-slate-800 truncate block max-w-[200px] sm:max-w-xs">{photo.name}</span>
+                                <span className="text-[10px] text-slate-400">Receta / Envase adjunto</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMedicationPhotos(prev => prev.filter((_, i) => i !== idx));
+                                showToast(`"${photo.name}" eliminada del pedido`);
+                              }}
+                              className="p-1 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"
+                              title="Quitar adjunto"
                             >
-                              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                                <option key={num} value={num}>
-                                  {num} {num === 1 ? 'caja' : 'cajas'}
-                                </option>
-                              ))}
-                            </select>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Comprimidos</label>
-                            <input
-                              type="number"
-                              min="1"
-                              value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
-                              onChange={e => handleUpdatePhotoField(idx, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
-                              placeholder="30"
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
-                            />
-                          </div>
-                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Diagnóstico o Motivo</label>
-                            <input
-                              type="text"
-                              value={photo.diagnostic || ''}
-                              onChange={e => handleUpdatePhotoField(idx, 'diagnostic', e.target.value)}
-                              placeholder="Ej. Hipertensión arterial..."
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
-                            />
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2 border-t border-slate-200/60">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Cajas</label>
+                              <select
+                                value={photo.cantidadCajas || 1}
+                                onChange={e => handleUpdatePhotoField(idx, 'cantidadCajas', parseInt(e.target.value) || 1)}
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800 cursor-pointer"
+                              >
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                                  <option key={num} value={num}>
+                                    {num} {num === 1 ? 'caja' : 'cajas'}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Cantidad de Comprimidos</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={photo.unidadesPorCaja !== undefined ? photo.unidadesPorCaja : 30}
+                                onChange={e => handleUpdatePhotoField(idx, 'unidadesPorCaja', e.target.value ? parseInt(e.target.value) : undefined)}
+                                placeholder="30"
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                              />
+                            </div>
                           </div>
-                          <div>
-                            <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Comentarios / Aclaraciones</label>
-                            <input
-                              type="text"
-                              value={photo.comments || ''}
-                              onChange={e => handleUpdatePhotoField(idx, 'comments', e.target.value)}
-                              placeholder="Ej. Tomo 1 por día..."
-                              className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
-                            />
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Diagnóstico o Motivo</label>
+                              <input
+                                type="text"
+                                value={photo.diagnostic || ''}
+                                onChange={e => handleUpdatePhotoField(idx, 'diagnostic', e.target.value)}
+                                placeholder="Ej. Hipertensión arterial..."
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-0.5">Comentarios / Aclaraciones</label>
+                              <input
+                                type="text"
+                                value={photo.comments || ''}
+                                onChange={e => handleUpdatePhotoField(idx, 'comments', e.target.value)}
+                                placeholder="Ej. Tomo 1 por día..."
+                                className="w-full px-2.5 py-1.5 bg-white border border-slate-300 rounded-lg text-xs font-bold text-slate-800"
+                              />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

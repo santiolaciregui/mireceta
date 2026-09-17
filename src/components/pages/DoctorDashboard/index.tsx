@@ -1190,6 +1190,7 @@ export default function DoctorDashboard({
         currentTenant={currentTenant}
         orders={orders}
         users={users}
+        onLoadOrderDetails={onLoadOrderDetails}
         onSubmitOrder={onCreateOrder}
         onSuccess={() => {
           showToast('¡Solicitud creada de oficio exitosamente!');
