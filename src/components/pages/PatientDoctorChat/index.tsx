@@ -1493,8 +1493,9 @@ export default function PatientDoctorChat({
                 </div>
               ) : (
                 displayedMessages.map((msg) => {
+                  const isSystem = msg.sender === 'sistema';
                   const isOwn = (isPatient && msg.sender === 'paciente') || 
-                                (!isPatient && msg.sender !== 'paciente');
+                                (!isPatient && !isSystem && msg.sender !== 'paciente');
                   const localDeliveryState = (msg as Partial<OptimisticChatMessage>).localDeliveryState;
 
                   return (
@@ -1506,8 +1507,10 @@ export default function PatientDoctorChat({
                     >
                       {/* Sender name label for incoming */}
                       {!isOwn && (
-                        <span className="text-[10px] font-bold text-[#075E54] mb-0.5 ml-1">
-                          {isPatient ? 'mireceta.online' : `${msg.senderName} (${msg.sender})`}
+                        <span className={`text-[10px] font-bold mb-0.5 ml-1 ${isSystem ? 'text-amber-700' : 'text-[#075E54]'}`}>
+                          {isSystem 
+                            ? (isPatient ? 'mireceta.online (Sistema)' : 'Sistema (Automático)')
+                            : (isPatient ? 'mireceta.online' : `${msg.senderName} (${msg.sender})`)}
                         </span>
                       )}
 
@@ -1515,7 +1518,9 @@ export default function PatientDoctorChat({
                       <div className={`relative p-2.5 sm:p-3 rounded-lg shadow-xs text-slate-800 text-xs sm:text-sm leading-relaxed max-w-full break-words [overflow-wrap:anywhere] [word-break:break-word] ${
                         isOwn 
                           ? 'bg-[#d9fdd3] rounded-tr-none border border-emerald-200/50' 
-                          : 'bg-white rounded-tl-none border border-slate-200/60'
+                          : isSystem
+                            ? 'bg-amber-50/80 rounded-tl-none border border-amber-200/60'
+                            : 'bg-white rounded-tl-none border border-slate-200/60'
                       }`}>
 
                         {/* Reply Trigger Quick Button */}

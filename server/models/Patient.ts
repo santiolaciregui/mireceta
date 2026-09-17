@@ -46,7 +46,7 @@ const patientSchema = new Schema<IPatient>({
   id: { type: String, required: true, unique: true },
   dni: { type: String, required: true },
   name: { type: String, required: true },
-  lastName: { type: String, required: true },
+  lastName: { type: String, default: '' },
   email: { type: String },
   phone: { type: String },
   city: { type: String },

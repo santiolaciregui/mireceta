@@ -36,6 +36,10 @@ export interface ChatMediaPayload {
 
 const MAX_PERSISTED_CHAT_MEDIA_BYTES = 8 * 1024 * 1024;
 
+export const DEFAULT_AUDIO_REJECTION_MESSAGE =
+  'Hola, por el momento no podemos procesar mensajes ni notas de audio. Por favor, enviá tu consulta por escrito como texto para que podamos ayudarte.';
+export const AUDIO_NOT_SUPPORTED_TEMPLATE_CODE = 'AUDIO_NOT_SUPPORTED';
+
 export class NotificationService {
   private configRepo: NotificationConfigRepository;
   private templateRepo: NotificationTemplateRepository;
@@ -356,6 +360,46 @@ export class NotificationService {
         isActive: true
       });
     }
+
+    const audioRejectTemplate = await this.templateRepo.findByTenantAndCode(tenantId, AUDIO_NOT_SUPPORTED_TEMPLATE_CODE);
+    if (!audioRejectTemplate) {
+      await this.templateRepo.upsertTemplate(tenantId, {
+        code: AUDIO_NOT_SUPPORTED_TEMPLATE_CODE,
+        name: 'Aviso de Audio No Soportado',
+        channel: 'all',
+        subject: 'No podemos procesar mensajes de audio',
+        body: 'Hola {{patientName}}, por el momento no podemos procesar mensajes ni notas de audio. Por favor, enviá tu consulta por escrito como texto para que podamos ayudarte.',
+        variables: ['patientName'],
+        isActive: true
+      });
+    }
+  }
+
+  public async getAudioRejectionMessage(tenantId: string, patientName?: string): Promise<string> {
+    const trimmedName = patientName?.trim();
+    const fallbackMessage = trimmedName
+      ? `Hola ${trimmedName}, por el momento no podemos procesar mensajes ni notas de audio. Por favor, enviá tu consulta por escrito como texto para que podamos ayudarte.`
+      : DEFAULT_AUDIO_REJECTION_MESSAGE;
+
+    try {
+      const template = await this.templateRepo.findByTenantAndCode(tenantId, AUDIO_NOT_SUPPORTED_TEMPLATE_CODE);
+      if (template && template.isActive && template.body) {
+        return template.body.replace(/\{\{\s*patientName\s*\}\}/g, trimmedName || 'estimado/a');
+      }
+
+      const waConfig = await this.getConfig(tenantId, 'whatsapp');
+      if (
+        waConfig?.settings &&
+        typeof waConfig.settings.audioRejectionMessage === 'string' &&
+        waConfig.settings.audioRejectionMessage.trim()
+      ) {
+        return waConfig.settings.audioRejectionMessage.trim();
+      }
+    } catch (err) {
+      console.warn('[NotificationService] No se pudo obtener plantilla personalizada de rechazo de audio, usando predeterminada:', err);
+    }
+
+    return fallbackMessage;
   }
 
   public async getTemplates(tenantId: string) {
@@ -394,7 +438,7 @@ export class NotificationService {
 
             const contactName = contacts.find((c: any) => c.wa_id === senderPhone)?.profile?.name || 'Paciente WhatsApp';
             const mediaType = this.getInboundMediaType(msg.type);
-            const media = mediaType ? msg[msg.type] : undefined;
+            const media = mediaType ? (msg[msg.type] || (mediaType === 'audio' ? (msg.audio || msg.voice) : undefined)) : undefined;
             const mediaData = media?.id ? await this.downloadInboundWhatsAppMedia(media.id, 'TEN-0001') : null;
             const textContent = msg.text?.body || media?.caption || this.getInboundMediaLabel(mediaType, media?.filename);
 
@@ -406,10 +450,10 @@ export class NotificationService {
               senderName: contactName,
               senderRole: 'paciente',
               text: textContent,
+              ...(mediaType ? { fileType: mediaType } : {}),
               ...(mediaData ? {
                 fileUrl: mediaData.dataUrl,
                 fileName: media?.filename || mediaData.fileName || this.defaultMediaFileName(mediaType, mediaData.mimeType),
-                fileType: mediaType,
                 mimeType: mediaData.mimeType
               } : {}),
               timestamp: nowIso,
@@ -430,11 +474,15 @@ export class NotificationService {
               const patientCount = (await this.patientRepo.findByTenant('TEN-0001')).length;
               const newPatientId = generatePatientId(patientCount);
 
+              const nameParts = contactName.trim().split(/\s+/);
+              const firstName = nameParts[0] || contactName;
+              const parsedLastName = nameParts.slice(1).join(' ') || '';
+
               targetPatient = await this.patientRepo.create({
                 id: newPatientId,
                 dni: senderPhone,
-                name: contactName,
-                lastName: '',
+                name: firstName,
+                lastName: parsedLastName,
                 phone: senderPhone,
                 tenantId: 'TEN-0001',
                 status: 'Activo',
@@ -463,6 +511,59 @@ export class NotificationService {
               entityId: targetPatient?.id || senderPhone,
               details: `Mensaje de WhatsApp recibido de ${contactName} (${senderPhone}): "${textContent.substring(0, 80)}"`
             });
+
+            // 4. Si el mensaje recibido es un audio o nota de voz, responder automáticamente que no se procesan audios
+            if (mediaType === 'audio') {
+              const tenantId = targetPatient?.tenantId || 'TEN-0001';
+              const patientName = targetPatient?.name || contactName;
+              const rejectionText = await this.getAudioRejectionMessage(tenantId, patientName);
+              const replyTimestamp = new Date().toISOString();
+
+              const autoReplyMessage: any = {
+                id: generateMessageId(),
+                sender: 'sistema',
+                senderName: 'Sistema',
+                senderRole: 'sistema',
+                text: rejectionText,
+                timestamp: replyTimestamp,
+                status: 'delivered'
+              };
+
+              // Persistir respuesta automática en el paciente
+              const updatedPatientMessages = Array.isArray(targetPatient.messages) ? targetPatient.messages : [];
+              targetPatient.messages = [...updatedPatientMessages, autoReplyMessage];
+              await targetPatient.save();
+
+              // Persistir respuesta en pedidos vinculados
+              for (const order of matchingOrders) {
+                const updatedOrderMessages = Array.isArray(order.messages) ? order.messages : [];
+                order.messages = [...updatedOrderMessages, autoReplyMessage];
+                await this.orderRepo.update(order.id, {
+                  messages: order.messages
+                });
+              }
+
+              // Enviar respuesta por WhatsApp al paciente
+              try {
+                await this.sendNotification({
+                  tenantId,
+                  channel: 'whatsapp',
+                  to: senderPhone,
+                  body: rejectionText
+                });
+              } catch (dispatchErr) {
+                console.error('[NotificationService] Error enviando respuesta automática de audio vía WhatsApp:', dispatchErr);
+              }
+
+              // Registrar en auditoría
+              await auditLogService.log({
+                tenantId,
+                action: 'WHATSAPP_AUDIO_REJECTED',
+                entity: 'Patient',
+                entityId: targetPatient?.id || senderPhone,
+                details: `Respuesta automática enviada a ${contactName} (${senderPhone}): Aviso de audio no soportado.`
+              });
+            }
 
             count++;
           }
@@ -537,7 +638,8 @@ export class NotificationService {
   }
 
   private getInboundMediaType(type: string): ChatMediaPayload['fileType'] | null {
-    if (type === 'image' || type === 'audio' || type === 'video' || type === 'document' || type === 'sticker') return type;
+    if (type === 'audio' || type === 'voice') return 'audio';
+    if (type === 'image' || type === 'video' || type === 'document' || type === 'sticker') return type;
     return null;
   }
 

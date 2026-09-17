@@ -35,11 +35,13 @@ export class ChatService {
   private orderRepo: OrderRepository;
   private patientRepo: PatientRepository;
   private userRepo: UserRepository;
+  private notificationService: typeof notificationService;
 
-  constructor() {
+  constructor(customNotificationService: typeof notificationService = notificationService) {
     this.orderRepo = new OrderRepository();
     this.patientRepo = new PatientRepository();
     this.userRepo = new UserRepository();
+    this.notificationService = customNotificationService;
   }
 
   /**
@@ -346,7 +348,7 @@ export class ChatService {
 
       if (recipientPhone) {
         const messageText = messageData.text || (messageData.fileType === 'audio' ? 'Nota de voz adjunta' : 'Archivo adjunto enviado');
-        const waResult = await notificationService.sendDoctorInquiryWhatsApp({
+        const waResult = await this.notificationService.sendDoctorInquiryWhatsApp({
           tenantId,
           patientPhone: recipientPhone,
           patientName: patientFullName,
@@ -402,6 +404,44 @@ export class ChatService {
         entityId: clean,
         details: `Mensaje recibido de paciente DNI ${clean}: "${(newMessage.text || '').substring(0, 50)}"`
       });
+
+      // Si el paciente envió un audio o nota de voz, responder automáticamente que no se procesan audios
+      if (newMessage.fileType === 'audio') {
+        const patientName = currentUser.name || patientDoc?.name || 'Paciente';
+        const rejectionText = await this.notificationService.getAudioRejectionMessage(tenantId, patientName);
+        const systemReplyMessage: any = {
+          id: generateMessageId(),
+          sender: 'sistema',
+          senderName: 'Sistema',
+          senderRole: 'sistema',
+          text: rejectionText,
+          timestamp: new Date().toISOString(),
+          status: 'delivered'
+        };
+
+        if (patientDoc) {
+          const currentMsgs = Array.isArray(patientDoc.messages) ? patientDoc.messages : [];
+          patientDoc.messages = [...currentMsgs, systemReplyMessage];
+          await patientDoc.save();
+        }
+
+        for (const ord of patientOrders) {
+          const currentOrdMsgs = Array.isArray(ord.messages) ? ord.messages : [];
+          ord.messages = [...currentOrdMsgs, systemReplyMessage];
+          await this.orderRepo.update(ord.id, {
+            messages: ord.messages
+          });
+        }
+
+        await auditLogService.log({
+          tenantId,
+          currentUser,
+          action: 'AUDIO_MESSAGE_REJECTED',
+          entity: 'Patient',
+          entityId: clean,
+          details: `Respuesta automática enviada en el chat a ${patientName} (DNI ${clean}): Aviso de audio no soportado.`
+        });
+      }
     }
 
     return this.getPatientChat(clean, currentUser);
