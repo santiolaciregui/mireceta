@@ -50,7 +50,10 @@ export class OrderRepository {
         $set: {
           _isSummary: true,
           _hasRecipePdf: {
-            $gt: [{ $strLenBytes: { $ifNull: ['$recipePdfUrl', ''] } }, 0]
+            $or: [
+              { $gt: [{ $strLenBytes: { $ifNull: ['$recipePdfUrl', ''] } }, 0] },
+              { $gt: [{ $size: { $ifNull: ['$recipeFiles', []] } }, 0] }
+            ]
           },
           recipePdfUrl: {
             $cond: [
@@ -66,6 +69,7 @@ export class OrderRepository {
           'medicationPhotos.url',
           'medicationPhotoUrl',
           'paymentReceiptUrl',
+          'recipeFiles.url',
           'messages.fileUrl'
         ]
       }
@@ -98,6 +102,16 @@ export class OrderRepository {
 
   async count(): Promise<number> {
     return Order.countDocuments();
+  }
+
+  async findPendingMercadoPago(limit = 100): Promise<IMedicalOrder[]> {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 1, 1), 500);
+    return Order.find({
+      paymentMethod: 'mp',
+      paymentStatus: { $in: ['pending', 'rejected'] },
+    })
+      .sort({ createdAt: 1 })
+      .limit(safeLimit) as unknown as IMedicalOrder[];
   }
 
   async countActionablePendingByTenant(tenantId: string): Promise<number> {

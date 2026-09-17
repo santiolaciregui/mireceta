@@ -5,6 +5,11 @@ import { OrderRepository } from '../repositories/OrderRepository.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { generateOrderId } from '../utils/idGenerator.js';
 import { notificationService } from './NotificationService.js';
+import {
+  buildMercadoPagoReconciliation,
+  MercadoPagoPaymentLike,
+  selectBestMercadoPagoPayment,
+} from './mercadoPagoReconciliation.js';
 
 function verifyWebhookSignature(
   xSignature: string | undefined,
@@ -48,15 +53,103 @@ export class PaymentService {
     this.orderRepo = new OrderRepository();
   }
 
-  private selectBestPayment(payments: any[]): any | null {
-    if (!Array.isArray(payments) || payments.length === 0) return null;
-    const approved = payments.find(p => p.status === 'approved');
-    if (approved) return approved;
-    return [...payments].sort((a, b) => {
-      const dateA = new Date(a.date_created || a.date_last_updated || 0).getTime();
-      const dateB = new Date(b.date_created || b.date_last_updated || 0).getTime();
-      return dateB - dateA;
-    })[0];
+  private async fetchBestPaymentForOrder(
+    order: any,
+    accessToken: string,
+    preferredPaymentId?: string
+  ): Promise<MercadoPagoPaymentLike | null> {
+    const client = new MercadoPagoConfig({ accessToken });
+    const paymentApi = new Payment(client);
+    const candidates: MercadoPagoPaymentLike[] = [];
+    const numericPaymentId = String(preferredPaymentId || order.paymentId || '');
+
+    if (/^\d+$/.test(numericPaymentId)) {
+      try {
+        const exactPayment: any = await paymentApi.get({ id: numericPaymentId });
+        if (exactPayment) candidates.push(exactPayment);
+      } catch (error: any) {
+        console.warn(`[PaymentService] Exact payment lookup failed for order ${order.id}:`, error?.message || error);
+      }
+    }
+
+    try {
+      const searchResult: any = await paymentApi.search({
+        options: { external_reference: order.id },
+      });
+      for (const payment of searchResult?.results || []) {
+        candidates.push({
+          ...payment,
+          external_reference: payment.external_reference || payment.metadata?.order_id || order.id,
+        });
+      }
+    } catch (error: any) {
+      console.warn(`[PaymentService] Payment search failed for order ${order.id}:`, error?.message || error);
+    }
+
+    let selected = selectBestMercadoPagoPayment(
+      candidates,
+      order.id,
+      Number(order.paymentAmount) || 0
+    );
+    if (selected) return selected;
+
+    try {
+      const merchantOrderSearch: any = await new MerchantOrder(client).search({
+        options: { external_reference: order.id },
+      });
+      const merchantOrders = merchantOrderSearch?.elements || merchantOrderSearch?.results || [];
+      const merchantPayments = merchantOrders.flatMap((merchantOrder: any) =>
+        (merchantOrder?.payments || []).map((payment: any) => ({
+          ...payment,
+          external_reference: payment.external_reference || merchantOrder.external_reference || order.id,
+        }))
+      );
+      selected = selectBestMercadoPagoPayment(
+        merchantPayments,
+        order.id,
+        Number(order.paymentAmount) || 0
+      );
+    } catch (error: any) {
+      console.warn(`[PaymentService] Merchant order search failed for order ${order.id}:`, error?.message || error);
+    }
+
+    return selected;
+  }
+
+  private async applyProviderPayment(order: any, payment: MercadoPagoPaymentLike, source: string) {
+    const decision = buildMercadoPagoReconciliation(order, payment);
+
+    if (decision.reason === 'unmatched') {
+      console.warn(`[PaymentService] Ignored unmatched Mercado Pago payment ${payment.id || 'unknown'} for order ${order.id}.`);
+      return { updated: false, decision };
+    }
+
+    if (!decision.shouldPersist) {
+      return { updated: false, decision };
+    }
+
+    order.paymentStatus = decision.paymentStatus;
+    order.paymentId = decision.paymentId;
+    order.paymentDate = decision.paymentDate;
+    order.status = decision.orderStatus;
+
+    const actionByReason: Record<string, string> = {
+      approved: 'Pago acreditado (Mercado Pago)',
+      underpaid: 'Alerta: Pago insuficiente detectado',
+      rejected: 'Pago rechazado (Mercado Pago)',
+      pending: 'Pago pendiente (Mercado Pago)',
+      refunded: 'Pago reintegrado (Mercado Pago)',
+    };
+    addAuditLogEntry(
+      order,
+      actionByReason[decision.reason] || 'Actualización de pago Mercado Pago',
+      `Sistema (${source})`,
+      `Pago oficial #${decision.paymentId || 'sin ID'}, estado "${decision.providerStatus}", monto $${decision.paidAmount}. Estado de pago local: "${decision.paymentStatus}".`
+    );
+
+    await this.orderRepo.update(order.id, order);
+    await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
+    return { updated: true, decision };
   }
 
   private async refreshPendingOrderLimitAlert(tenantId: string): Promise<void> {
@@ -239,11 +332,11 @@ export class PaymentService {
       return { received: true, note: 'No payment ID provided' };
     }
 
-    const webhookSecret = process.env.MP_WEBHOOK_SECRET || process.env.MP_SECRET_KEY;
-    if (webhookSecret && xSignature) {
+    const webhookSecret = process.env.MP_WEBHOOK_SECRET;
+    if (webhookSecret) {
       const isValid = verifyWebhookSignature(xSignature, xRequestId, String(rawId), webhookSecret);
       if (!isValid) {
-        console.warn(`[MercadoPago Webhook Security] Invalid signature for ID: ${rawId}`);
+        console.warn(`[MercadoPago Webhook Security] Missing or invalid signature for ID: ${rawId}`);
         return { received: false, error: 'Firma de webhook inválida' };
       }
       console.log(`[MercadoPago Webhook Security] Valid x-signature for ID: ${rawId}`);
@@ -269,6 +362,7 @@ export class PaymentService {
       let paymentId: string | number | undefined;
       let status: string | undefined;
       let paidAmount = 0;
+      let resolvedPayment: MercadoPagoPaymentLike | null = null;
 
       const isMerchantOrderTopic = rawTopic === 'merchant_order' || rawTopic === 'merchant_orders';
 
@@ -279,8 +373,16 @@ export class PaymentService {
           return { received: true };
         }
         orderId = merchantOrder.external_reference;
-        const bestPayment = this.selectBestPayment(merchantOrder.payments);
+        const bestPayment = selectBestMercadoPagoPayment(
+          (merchantOrder.payments || []).map((payment: any) => ({
+            ...payment,
+            external_reference: payment.external_reference || merchantOrder.external_reference,
+          })),
+          String(orderId || ''),
+          Number(merchantOrder.total_amount) || 0
+        );
         if (bestPayment) {
+          resolvedPayment = bestPayment;
           paymentId = bestPayment.id;
           status = bestPayment.status;
           paidAmount = Number(bestPayment.transaction_amount || bestPayment.total_paid_amount) || 0;
@@ -298,8 +400,16 @@ export class PaymentService {
             const merchantOrder: any = await merchantOrderApi.get({ merchantOrderId: String(rawId) });
             if (merchantOrder) {
               orderId = merchantOrder.external_reference;
-              const bestPayment = this.selectBestPayment(merchantOrder.payments);
+              const bestPayment = selectBestMercadoPagoPayment(
+                (merchantOrder.payments || []).map((payment: any) => ({
+                  ...payment,
+                  external_reference: payment.external_reference || merchantOrder.external_reference,
+                })),
+                String(orderId || ''),
+                Number(merchantOrder.total_amount) || 0
+              );
               if (bestPayment) {
+                resolvedPayment = bestPayment;
                 paymentId = bestPayment.id;
                 status = bestPayment.status;
                 paidAmount = Number(bestPayment.transaction_amount || bestPayment.total_paid_amount) || 0;
@@ -314,6 +424,7 @@ export class PaymentService {
         }
 
         if (paymentInfo) {
+          resolvedPayment = paymentInfo;
           paymentId = paymentInfo.id;
           orderId = paymentInfo.external_reference || (paymentInfo as any).metadata?.order_id;
           status = paymentInfo.status;
@@ -331,55 +442,19 @@ export class PaymentService {
       if (orderId) {
         const order: any = await this.orderRepo.findById(orderId);
         if (order) {
-          const expectedAmount = Number(order.paymentAmount) || 0;
-          let updatedPaymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' = 'pending';
-          let recipeStatus = order.status;
-
-          if (status === 'approved') {
-            // Amount integrity check: avoid approving underpaid orders
-            if (expectedAmount > 0 && paidAmount < expectedAmount) {
-              console.warn(`[MercadoPago Webhook Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
-              order.paymentStatus = 'rejected';
-              order.paymentId = String(paymentId);
-              order.paymentDate = new Date().toISOString();
-              addAuditLogEntry(
-                order,
-                'Alerta: Pago insuficiente detectado',
-                'Sistema (Seguridad Mercado Pago)',
-                `Se acreditó un importe de $${paidAmount}, inferior al arancel oficial de $${expectedAmount}. Operación #${paymentId} retenida.`
-              );
-              await this.orderRepo.update(orderId, order);
-              await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
-              return { received: true, error: 'Monto insuficiente abonado' };
-            }
-
-            updatedPaymentStatus = 'approved';
-            if (recipeStatus === 'Pendiente de Pago' || recipeStatus === 'Pendiente') {
-              recipeStatus = 'En revisión';
-            }
-          } else if (status === 'rejected' || status === 'cancelled') {
-            updatedPaymentStatus = 'rejected';
-          } else if (status === 'refunded' || status === 'charged_back') {
-            updatedPaymentStatus = 'refunded';
-            recipeStatus = 'Rechazada';
-          }
-
-          order.paymentStatus = updatedPaymentStatus;
-          order.status = recipeStatus;
-          order.paymentId = String(paymentId);
-          order.paymentDate = new Date().toISOString();
-
-          addAuditLogEntry(
-            order,
-            `Mercado Pago Webhook: ${status}`,
-            'Sistema (Mercado Pago API)',
-            `Notificación oficial Mercado Pago ID ${paymentId}: Estado de pago "${status}", Monto $${paidAmount}. Receta configurada en "${recipeStatus}".`
-          );
-
-          await this.orderRepo.update(orderId, order);
-          await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
-          console.log(`[MercadoPago Webhook] Order ${orderId} updated: paymentStatus=${updatedPaymentStatus}, status=${recipeStatus}`);
+          const reconciliation = await this.applyProviderPayment(order, {
+            ...(resolvedPayment || {}),
+            id: paymentId,
+            status,
+            transaction_amount: paidAmount,
+            external_reference: orderId,
+          }, 'Mercado Pago Webhook');
+          console.log(`[MercadoPago Webhook] Order ${orderId} reconciled: updated=${reconciliation.updated}, paymentStatus=${reconciliation.decision.paymentStatus}`);
+        } else {
+          console.warn(`[MercadoPago Webhook] Order ${orderId} was not found for payment ${paymentId}.`);
         }
+      } else {
+        console.warn(`[MercadoPago Webhook] Payment ${paymentId} did not include an order reference.`);
       }
 
       return { received: true, paymentId, status, orderId };
@@ -397,79 +472,16 @@ export class PaymentService {
 
     const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
     const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
-    if (order.paymentStatus === 'pending' && accessToken) {
+    const looksLikeMercadoPago =
+      order.paymentMethod === 'mp' ||
+      String(order.paymentId || '').startsWith('MP-') ||
+      /^\d+$/.test(String(order.paymentId || ''));
+    const canReconcile = looksLikeMercadoPago && ['pending', 'rejected'].includes(order.paymentStatus);
+    if (canReconcile && accessToken) {
       try {
-        const client = new MercadoPagoConfig({ accessToken });
-        const paymentApi = new Payment(client);
-
-        let fetchedPayment: any = null;
-        if (order.paymentId && /^\d+$/.test(order.paymentId)) {
-          fetchedPayment = await paymentApi.get({ id: order.paymentId });
-        } else {
-          const searchResult = await paymentApi.search({
-            options: {
-              external_reference: orderId,
-            }
-          });
-          fetchedPayment = this.selectBestPayment(searchResult.results);
-          if (!fetchedPayment) {
-            try {
-              const moSearch = await new MerchantOrder(client).search({
-                options: { external_reference: orderId }
-              });
-              const merchantOrders = moSearch.elements || (moSearch as any).results || [];
-              if (merchantOrders.length > 0) {
-                const mo: any = merchantOrders[0];
-                fetchedPayment = this.selectBestPayment(mo.payments);
-              }
-            } catch {
-              // ignore
-            }
-          }
-        }
-
+        const fetchedPayment = await this.fetchBestPaymentForOrder(order, accessToken);
         if (fetchedPayment) {
-          const status = fetchedPayment.status;
-          const paidAmount = Number(fetchedPayment.transaction_amount) || 0;
-          const expectedAmount = Number(order.paymentAmount) || 0;
-
-          let updatedPaymentStatus: 'approved' | 'pending' | 'rejected' | 'refunded' = 'pending';
-          let recipeStatus = order.status;
-
-          if (status === 'approved') {
-            if (expectedAmount > 0 && paidAmount < expectedAmount) {
-              console.warn(`[MercadoPago Sync Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
-              updatedPaymentStatus = 'rejected';
-              recipeStatus = 'Rechazada';
-            } else {
-              updatedPaymentStatus = 'approved';
-              if (recipeStatus === 'Pendiente' || recipeStatus === 'Pendiente de Pago') {
-                recipeStatus = 'En revisión';
-              }
-            }
-          } else if (status === 'rejected' || status === 'cancelled') {
-            updatedPaymentStatus = 'rejected';
-          } else if (status === 'refunded' || status === 'charged_back') {
-            updatedPaymentStatus = 'refunded';
-            recipeStatus = 'Rechazada';
-          }
-
-          if (updatedPaymentStatus !== order.paymentStatus) {
-            order.paymentStatus = updatedPaymentStatus;
-            order.status = recipeStatus;
-            order.paymentId = String(fetchedPayment.id);
-            order.paymentDate = new Date().toISOString();
-
-            addAuditLogEntry(
-              order,
-              `Sync Pago Mercado Pago: ${status}`,
-              'Sistema (Consulta Sync API)',
-              `Sincronización activa: Pago ID ${fetchedPayment.id}, estado "${status}", monto $${paidAmount}.`
-            );
-
-            await this.orderRepo.update(orderId, order);
-            await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
-          }
+          await this.applyProviderPayment(order, fetchedPayment, 'Consulta Sync API');
         }
       } catch (err: any) {
         console.warn(`[MercadoPago Sync Warning]:`, err.message || err);
@@ -493,109 +505,26 @@ export class PaymentService {
       throw new Error(`Receta con ID ${orderId} no encontrada`);
     }
 
-    const paymentParam = returnData.payment || returnData.collection_status || returnData.status;
     const paymentId = returnData.payment_id || returnData.collection_id || returnData.id || order.paymentId;
-    const isApproved = paymentParam === 'approved';
-    const isRejected = paymentParam === 'rejected' || paymentParam === 'cancelled';
-
-    // 1. Try to verify officially with Mercado Pago API if access token is available
     const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
     const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
-
     let verifiedWithApi = false;
 
-    if (accessToken && paymentId && !String(paymentId).startsWith('REC-')) {
+    if (accessToken) {
       try {
-        const client = new MercadoPagoConfig({ accessToken });
-        const paymentApi = new Payment(client);
-        let paymentInfo: any = null;
-
-        try {
-          paymentInfo = await paymentApi.get({ id: String(paymentId) });
-        } catch {
-          // If paymentId not found directly, search by external_reference
-          const searchRes = await paymentApi.search({
-            options: { external_reference: orderId }
-          });
-          paymentInfo = this.selectBestPayment(searchRes.results);
-        }
-
+        const paymentInfo = await this.fetchBestPaymentForOrder(order, accessToken, paymentId ? String(paymentId) : undefined);
         if (paymentInfo) {
           verifiedWithApi = true;
-          const status = paymentInfo.status;
-          const paidAmount = Number(paymentInfo.transaction_amount) || 0;
-          const expectedAmount = Number(order.paymentAmount) || 0;
-
-          if (status === 'approved') {
-            if (expectedAmount > 0 && paidAmount < expectedAmount) {
-              console.warn(`[MercadoPago syncReturn Security Alert] Underpayment for Order ${orderId}: Expected $${expectedAmount}, Paid $${paidAmount}`);
-              order.paymentStatus = 'rejected';
-              order.status = 'Rechazada';
-              order.paymentId = String(paymentInfo.id);
-              order.paymentDate = new Date().toISOString();
-              addAuditLogEntry(
-                order,
-                'Alerta: Pago insuficiente en retorno',
-                'Sistema (Seguridad Mercado Pago)',
-                `Se intentó validar pago #${paymentInfo.id} por $${paidAmount}, menor a los $${expectedAmount} exigidos.`
-              );
-            } else {
-              order.paymentStatus = 'approved';
-              order.paymentId = String(paymentInfo.id);
-              order.paymentDate = new Date().toISOString();
-              if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
-                order.status = 'En revisión';
-              }
-              addAuditLogEntry(
-                order,
-                'Pago acreditado (Mercado Pago API)',
-                'Sistema (Mercado Pago)',
-                `Verificación en tiempo real: Se acreditó el pago de $${paidAmount} con código de operación oficial #${paymentInfo.id}.`
-              );
-            }
-          } else if (status === 'rejected' || status === 'cancelled') {
-            order.paymentStatus = 'rejected';
-            addAuditLogEntry(
-              order,
-              'Pago rechazado (Mercado Pago API)',
-              'Sistema (Mercado Pago)',
-              `Pago ID #${paymentInfo.id} rechazado por la pasarela de pagos.`
-            );
-          }
+          await this.applyProviderPayment(order, paymentInfo, 'Retorno de Checkout');
         }
       } catch (apiErr: any) {
         console.warn('[PaymentService syncReturn API check warning]:', apiErr.message || apiErr);
       }
     }
 
-    // 2. If API was not able to verify (e.g. sandbox token delay or missing token) but return params state approved
-    if (!verifiedWithApi && isApproved && order.paymentStatus !== 'approved') {
-      order.paymentStatus = 'approved';
-      if (paymentId) {
-        order.paymentId = String(paymentId);
-      }
-      order.paymentDate = new Date().toISOString();
-      if (order.status === 'Pendiente de Pago' || order.status === 'Pendiente') {
-        order.status = 'En revisión';
-      }
-      addAuditLogEntry(
-        order,
-        'Pago confirmado al retornar de Mercado Pago',
-        'Sistema (Retorno de Checkout)',
-        `El usuario completó el checkout exitosamente con ID de transacción ${order.paymentId || paymentId}.`
-      );
-    } else if (!verifiedWithApi && isRejected && order.paymentStatus !== 'rejected') {
-      order.paymentStatus = 'rejected';
-      addAuditLogEntry(
-        order,
-        'Pago declinado en pasarela',
-        'Sistema (Retorno de Checkout)',
-        `El pago fue rechazado al retornar de la pasarela.`
-      );
+    if (!verifiedWithApi) {
+      console.warn(`[PaymentService] Checkout return for order ${orderId} could not be verified with Mercado Pago.`);
     }
-
-    await this.orderRepo.update(orderId, order);
-    await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
 
     return {
       orderId: order.id,
@@ -605,7 +534,40 @@ export class PaymentService {
       paymentId: order.paymentId,
       patientName: `${order.patientName} ${order.patientLastName}`,
       createdAt: order.createdAt,
+      verifiedWithApi,
+      verificationPending: !verifiedWithApi,
       order,
     };
+  }
+
+  async reconcilePendingPayments(limit = 100) {
+    const orders: any[] = await this.orderRepo.findPendingMercadoPago(limit);
+    const summary = { checked: orders.length, updated: 0, unresolved: 0, failed: 0 };
+
+    for (const order of orders) {
+      try {
+        const tenant = order.tenantId ? await this.tenantRepo.findById(order.tenantId) : null;
+        const accessToken = tenant?.mpAccessToken || process.env.MP_ACCESS_TOKEN;
+        if (!accessToken) {
+          summary.unresolved += 1;
+          console.warn(`[PaymentService Reconciliation] No Mercado Pago token for order ${order.id}.`);
+          continue;
+        }
+
+        const payment = await this.fetchBestPaymentForOrder(order, accessToken);
+        if (!payment) {
+          summary.unresolved += 1;
+          continue;
+        }
+
+        const result = await this.applyProviderPayment(order, payment, 'Conciliación Programada');
+        if (result.updated) summary.updated += 1;
+      } catch (error: any) {
+        summary.failed += 1;
+        console.error(`[PaymentService Reconciliation] Failed for order ${order.id}:`, error?.message || error);
+      }
+    }
+
+    return summary;
   }
 }

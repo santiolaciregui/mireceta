@@ -26,6 +26,11 @@ export interface INotificationEntry {
   content: string;
 }
 
+export interface IRecipeFile {
+  url: string;
+  name: string;
+}
+
 export interface IMedicalOrder extends Document {
   id: string;
   clientRequestId?: string;
@@ -73,6 +78,7 @@ export interface IMedicalOrder extends Document {
   createdAt: string;
   updatedAt?: string;
   
+  recipeFiles?: IRecipeFile[];
   recipePdfUrl: string | null;
   recipePdfName: string | null;
   doctorNotes?: string;
@@ -131,6 +137,11 @@ const notificationEntrySchema = new Schema<INotificationEntry>({
   sentAt: { type: String, required: true },
   subject: { type: String, required: false, default: '' },
   content: { type: String, required: false, default: '' }
+}, { _id: false });
+
+const recipeFileSchema = new Schema<IRecipeFile>({
+  url: { type: String, required: true },
+  name: { type: String, required: true },
 }, { _id: false });
 
 const chatMessageSchema = new Schema({
@@ -207,6 +218,7 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   createdAt: { type: String, required: true },
   updatedAt: { type: String },
   
+  recipeFiles: [recipeFileSchema],
   recipePdfUrl: { type: String },
   recipePdfName: { type: String },
   doctorNotes: { type: String },

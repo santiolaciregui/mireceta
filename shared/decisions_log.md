@@ -27,3 +27,12 @@
 | 2026-09-16T15:10:00-03:00 | Developer | Implemented tasks T-001 through T-004 for US-007 | Shared immutable inbox ordering and date-time formatting utility; all DoctorDashboard filters reuse the corrected list |
 | 2026-09-16T15:20:00-03:00 | QA | Approved US-007 | 54/54 tests passed; order inbox utility has 100% coverage; typecheck, build and diff check passed |
 | 2026-09-16T15:25:00-03:00 | Cost Controller | Completed US-007 cost review | Estimated incremental cost ~$0.10; budget status green; DevOps not used |
+| 2026-09-17T00:00:00-03:00 | PM | Added US-008 specification for multiple recipes per request | Incremental story with legacy compatibility and per-file downloads; DevOps Required: NO |
+| 2026-09-17T00:20:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-008 | Multiple accumulated uploads, legacy-compatible persistence, indexed public downloads, patient actions and regression tests |
+| 2026-09-17T00:35:00-03:00 | QA | Approved US-008 | 77/77 tests, typecheck, production build and diff check passed; new normalization modules have 94-100% line coverage |
+| 2026-09-17T00:40:00-03:00 | Cost Controller | Completed US-008 cost review | Estimated cost ~$0.25; budget status green; DevOps not used |
+| 2026-09-17T10:20:00-03:00 | PM | Added US-009 specification for resilient Mercado Pago synchronization | Provider-verified, idempotent transitions; existing records remain untouched |
+| 2026-09-17T10:24:00-03:00 | DevOps | Added production scheduling configuration for US-009 | Daily Vercel cron plus documented `MP_WEBHOOK_SECRET` and `CRON_SECRET`; no deployment or real secrets |
+| 2026-09-17T10:34:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-009 | Shared reconciliation policy, webhook/return/manual/cron paths, bounded frontend retries and regression tests |
+| 2026-09-17T10:40:00-03:00 | QA | Approved US-009 | 88/88 tests passed; reconciliation module 96.47% line coverage; typecheck, build and diff check passed |
+| 2026-09-17T10:42:00-03:00 | Cost Controller | Completed US-009 cost review | Estimated cost ~$0.23; budget status green; deployment and live provider verification remain pending |

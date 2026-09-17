@@ -22,6 +22,7 @@ import {
   isAuthorizedToEditPatient,
 } from './patientInformationUpdate.js';
 import { PatientService } from './PatientService.js';
+import { getOrderRecipeFiles, validateRecipeFiles } from '../utils/recipeFiles.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
@@ -500,7 +501,10 @@ export class OrderService {
     // 3. Medic & Collaborator modifications
     const operatorName = `${currentUser.name} ${currentUser.lastName} (${currentUser.role})`;
     const wasAlreadyIssued = order.status === 'Emitida' || order.status === 'Enviada';
-    const isFileUpdated = Boolean(updateData.recipePdfUrl && updateData.recipePdfUrl !== order.recipePdfUrl);
+    const isFileUpdated = Boolean(
+      Array.isArray(updateData.recipeFiles)
+      || (updateData.recipePdfUrl && updateData.recipePdfUrl !== order.recipePdfUrl)
+    );
 
     if (updateData.status && updateData.status !== order.status) {
       const isBeingRejected = updateData.status === 'Rechazada';
@@ -627,30 +631,52 @@ export class OrderService {
     }
 
     if (updateData.doctorNotes) order.doctorNotes = updateData.doctorNotes;
-    if (updateData.recipePdfUrl) {
-      const oldPdfUrl = order.recipePdfUrl;
-      // If the PDF is sent as Base64 from the client, persist it to storage
-      if (updateData.recipePdfUrl.startsWith('data:') || updateData.recipePdfUrl.length > 500) {
-        try {
-          const fileName = updateData.recipePdfName || `receta_${order.id}.pdf`;
-          const savedUrl = await storageService.saveRecipePdf(fileName, updateData.recipePdfUrl);
-          order.recipePdfUrl = savedUrl;
-          if (oldPdfUrl && oldPdfUrl.startsWith('/uploads/recipes/') && oldPdfUrl !== savedUrl) {
-            await storageService.deleteRecipeFile(oldPdfUrl).catch(() => {});
-          }
-        } catch (storageErr) {
-          console.error('[OrderService] Error guardando PDF en almacenamiento, utilizando URL directa:', storageErr);
-          order.recipePdfUrl = updateData.recipePdfUrl;
-        }
-      } else {
+    if (Array.isArray(updateData.recipeFiles) || updateData.recipePdfUrl) {
+      const oldRecipeFiles = getOrderRecipeFiles(order);
+      const isElectronicRecipe = !Array.isArray(updateData.recipeFiles)
+        && (updateData.recipePdfUrl === 'PAMI' || updateData.recipePdfUrl === 'IOMA');
+
+      if (isElectronicRecipe) {
+        order.recipeFiles = [];
         order.recipePdfUrl = updateData.recipePdfUrl;
+        order.recipePdfName = updateData.recipePdfName || order.recipePdfName;
+      } else {
+        const incomingRecipeFiles = Array.isArray(updateData.recipeFiles)
+          ? validateRecipeFiles(updateData.recipeFiles)
+          : validateRecipeFiles([{
+              url: updateData.recipePdfUrl,
+              name: updateData.recipePdfName || `receta_${order.id}.pdf`,
+            }]);
+
+        const savedRecipeFiles = await Promise.all(incomingRecipeFiles.map(async (file) => {
+          if (!file.url.startsWith('data:') && file.url.length <= 500) return file;
+
+          try {
+            const savedUrl = await storageService.saveRecipePdf(file.name, file.url);
+            return { ...file, url: savedUrl };
+          } catch (storageErr) {
+            console.error('[OrderService] Error guardando receta en almacenamiento, utilizando URL directa:', storageErr);
+            return file;
+          }
+        }));
+
+        order.recipeFiles = savedRecipeFiles;
+        order.recipePdfUrl = savedRecipeFiles[0].url;
+        order.recipePdfName = savedRecipeFiles[0].name;
+
+        const savedUrls = new Set(savedRecipeFiles.map((file) => file.url));
+        await Promise.all(oldRecipeFiles
+          .filter((file) => file.url.startsWith('/uploads/recipes/') && !savedUrls.has(file.url))
+          .map((file) => storageService.deleteRecipeFile(file.url).catch(() => {})));
       }
-      
-      order.recipePdfName = updateData.recipePdfName || order.recipePdfName;
+
+      const recipeNames = isElectronicRecipe
+        ? [order.recipePdfName]
+        : getOrderRecipeFiles(order).map((file) => file.name);
       const logAction = wasAlreadyIssued ? 'Receta modificada' : 'Receta adjuntada';
       const logDetails = wasAlreadyIssued
-        ? `Se modificó el archivo adjunto: ${order.recipePdfName}. El enlace público se mantiene idéntico.`
-        : `Se adjuntó el documento: ${order.recipePdfName}`;
+        ? `Se modificaron ${recipeNames.length} archivos adjuntos: ${recipeNames.join(', ')}. El enlace público principal se mantiene idéntico.`
+        : `Se adjuntaron ${recipeNames.length} documentos: ${recipeNames.join(', ')}`;
 
       addAuditLogEntry(order, logAction, operatorName, logDetails);
 
@@ -660,7 +686,7 @@ export class OrderService {
         action: wasAlreadyIssued ? 'ORDER_PDF_UPDATE' : 'ORDER_PDF_ATTACH',
         entity: 'Order',
         entityId: id,
-        details: `${logAction}: ${order.recipePdfName}`
+        details: `${logAction}: ${recipeNames.join(', ')}`
       });
     }
 

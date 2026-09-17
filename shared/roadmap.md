@@ -35,6 +35,14 @@
 **Description**: Mostrar la hora de creacion y ordenar cada bandeja operativa con la solicitud mas nueva arriba.
 **Stories**: US-007
 
+### M8: Multiples recetas por solicitud
+**Description**: Permitir que el colaborador adjunte y emita varios archivos de receta para una misma solicitud.
+**Stories**: US-008
+
+### M9: Conciliacion resiliente de pagos
+**Description**: Mantener las solicitudes sincronizadas con Mercado Pago mediante webhook, retorno verificado y conciliacion programada.
+**Stories**: US-009
+
 ---
 
 ## User Stories
@@ -88,21 +96,37 @@
 **Summary**: Ordena todas las categorias de la bandeja del DoctorDashboard por fecha de creacion descendente y muestra fecha y hora.
 **Complexity**: S
 
+### US-008: Adjuntar multiples recetas a una solicitud (M8)
+**As** colaborador
+**I want** cargar mas de un archivo de receta en la solicitud de un paciente
+**So that** pueda entregar todas las recetas necesarias sin crear solicitudes adicionales
+**Summary**: Agrega carga multiple acumulativa, persistencia compatible y descarga individual de todos los archivos emitidos.
+**Complexity**: M
+
+### US-009: Sincronizar pagos de Mercado Pago de forma resiliente (M9)
+**As** operador de MiReceta
+**I want** que los pagos oficiales se concilien automaticamente
+**So that** una solicitud abonada no permanezca pendiente ni retroceda por intentos fallidos anteriores
+**Summary**: Unifica la conciliacion, protege estados terminales, verifica el retorno, agrega reintentos y programa una recuperacion diaria.
+**Complexity**: L
+
 ---
 
 ## Out of Scope
 
 - Crear o aprobar la plantilla en Meta Business Manager.
 - Enviar alertas por email u otros canales.
-- Conciliar automaticamente pagos con Mercado Pago o ejecutar reembolsos.
+- Ejecutar reembolsos automaticos adicionales a los ya soportados.
 - Reemplazar comprobantes de transferencia desde esta edicion.
 - Cambiar campos, validaciones o logica del carrito y del formulario de medicacion.
 - Cambiar filtros, busqueda, contadores de no leidos o contenido de los mensajes del chat.
 - Cambiar el orden de mensajes o usar su actividad para reordenar pedidos.
+- Combinar varios documentos en un unico PDF.
+- Cambiar la emision electronica PAMI/IOMA o el flujo de reemplazo posterior a la emision.
 
 ---
 
 ## DevOps Notes
-**DevOps Required: NO**
+**DevOps Required: YES**
 
-El esquema existente de configuracion ya admite ajustes flexibles y no requiere migracion.
+No requiere migracion ni infraestructura local adicional. Produccion debe configurar `MP_WEBHOOK_SECRET` y `CRON_SECRET`; Vercel registra el cron diario desde `vercel.json` al desplegar.

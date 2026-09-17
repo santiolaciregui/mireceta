@@ -40,6 +40,7 @@ import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 import ConfirmDeleteModal from '../../common/ConfirmDeleteModal';
 import { PatientOrdersSkeleton } from '../../common/OrdersSkeleton';
+import { getOrderRecipeFiles } from '../../../utils/recipeFiles';
 
 interface PatientStatusProps {
   orders: MedicalOrder[];
@@ -484,6 +485,7 @@ export default function PatientStatus({
             const isPending = order.status === 'Pendiente';
             const isInReview = order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información';
             const isRejected = order.status === 'Rechazada';
+            const recipeFiles = getOrderRecipeFiles(order);
 
             // Check if this order is for titular or a dependent
             const isDependent = Boolean(order.isForDependent) || (order.patientDni || '').trim().replace(/\s/g, '').toLowerCase() !== titularDni;
@@ -618,7 +620,7 @@ export default function PatientStatus({
                         title="Descargar receta firmada"
                       >
                         <Download className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Descargar Receta</span>
+                        <span className="hidden sm:inline">{recipeFiles.length > 1 ? `${recipeFiles.length} Recetas` : 'Descargar Receta'}</span>
                       </a>
                     )}
 
@@ -1001,16 +1003,26 @@ export default function PatientStatus({
                         )}
                       </div>
 
-                      {/* PDF Download Button */}
-                      {isEmitida && order.recipePdfUrl && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
-                        <a
-                          href={order.recipePdfUrl.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
-                          download={order.recipePdfName || `receta-${order.id}.pdf`}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-5 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer ml-auto"
-                        >
-                          <Download className="h-4 w-4" />
-                          <span>Descargar Receta Oficial</span>
-                        </a>
+                      {/* Recipe download buttons */}
+                      {isEmitida && recipeFiles.length > 0 && (
+                        <div className="flex flex-wrap justify-end gap-2 ml-auto">
+                          {recipeFiles.map((recipe, index) => (
+                            <a
+                              key={`${recipe.name}-${index}`}
+                              href={recipe.url.startsWith('data:')
+                                ? recipe.url
+                                : index === 0
+                                  ? `/api/orders/public/${order.id}/pdf`
+                                  : `/api/orders/public/${order.id}/pdf/${index}`}
+                              download={recipe.name}
+                              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
+                              title={recipe.name}
+                            >
+                              <Download className="h-4 w-4" />
+                              <span>Receta {index + 1}</span>
+                            </a>
+                          ))}
+                        </div>
                       )}
                     </div>
 

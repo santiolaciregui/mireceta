@@ -1,5 +1,12 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
+  "crons": [
+    {
+      "path": "/api/payments/reconcile-pending",
+      "schedule": "15 8 * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/(.*)",

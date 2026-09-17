@@ -25,6 +25,7 @@ test('builds a lightweight database projection that removes binary order fields'
       'medicationPhotos.url',
       'medicationPhotoUrl',
       'paymentReceiptUrl',
+      'recipeFiles.url',
       'messages.fileUrl',
     ]);
   } finally {
@@ -321,6 +322,64 @@ test('emits standard PDF recipe with valid fileType: pdf', async () => {
     auditLogService.log = origLog;
     notificationService.sendRecipeIssuedWhatsApp = origWa;
     notificationService.sendRecipeIssuedEmail = origEmail;
+  }
+});
+
+test('persists multiple recipe files and keeps the first file in legacy fields', async () => {
+  const origLog = auditLogService.log;
+  auditLogService.log = async () => undefined;
+
+  try {
+    const service: any = new OrderService();
+    const existingOrder: any = {
+      id: 'ORD-MULTI',
+      tenantId: 'TEN-123',
+      patientName: 'Ana',
+      patientLastName: 'Diaz',
+      patientDni: '45678901',
+      patientPhone: '',
+      patientEmail: '',
+      obraSocial: 'OSDE',
+      status: 'En revisión',
+      messages: [],
+      auditLog: [],
+    };
+
+    let savedOrder: any;
+    service.orderRepo = {
+      findById: async () => existingOrder,
+      update: async (_id: string, order: any) => {
+        savedOrder = order;
+        return order;
+      },
+    };
+    service.patientRepo = { findByDni: async () => null };
+    service.refreshPendingOrderLimitAlert = async () => undefined;
+
+    await service.updateOrder(
+      'ORD-MULTI',
+      {
+        status: 'Emitida',
+        recipePdfUrl: 'https://files.example.test/recipe-1.pdf',
+        recipePdfName: 'recipe-1.pdf',
+        recipeFiles: [
+          { url: 'https://files.example.test/recipe-1.pdf', name: 'recipe-1.pdf' },
+          { url: 'https://files.example.test/recipe-2.pdf', name: 'recipe-2.pdf' },
+        ],
+      },
+      { role: 'colaborador', name: 'Carla', lastName: 'Operadora', tenantId: 'TEN-123' }
+    );
+
+    assert.equal(savedOrder.recipeFiles.length, 2);
+    assert.deepEqual(savedOrder.recipeFiles[1], {
+      url: 'https://files.example.test/recipe-2.pdf',
+      name: 'recipe-2.pdf',
+    });
+    assert.equal(savedOrder.recipePdfUrl, savedOrder.recipeFiles[0].url);
+    assert.equal(savedOrder.recipePdfName, savedOrder.recipeFiles[0].name);
+    assert.match(savedOrder.auditLog.at(-1).notes, /2 documentos/);
+  } finally {
+    auditLogService.log = origLog;
   }
 });
 

@@ -388,7 +388,8 @@ export function useMedicalOrders() {
     newStatus: OrderStatus,
     doctorNotes?: string,
     recipePdfUrl?: string,
-    recipePdfName?: string
+    recipePdfName?: string,
+    recipeFiles?: MedicalOrder['recipeFiles']
   ): Promise<{ success: boolean; error?: string; order?: MedicalOrder }> => {
     try {
       const res = await fetch(`/api/orders/${orderId}`, {
@@ -399,6 +400,7 @@ export function useMedicalOrders() {
           doctorNotes,
           recipePdfUrl,
           recipePdfName,
+          recipeFiles,
         }),
       });
       const data = await res.json();

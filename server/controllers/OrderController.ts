@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { OrderService } from '../services/OrderService.js';
 import { getCurrentUser } from '../utils/httpHelpers.js';
 import { storageService } from '../services/storage/StorageService.js';
+import { getOrderRecipeFiles } from '../utils/recipeFiles.js';
 
 const orderService = new OrderService();
 
@@ -62,11 +63,15 @@ export class OrderController {
     try {
       const { id } = req.params;
       const order: any = await orderService.getOrderById(id);
-      if (!order || !order.recipePdfUrl) {
+      const recipeFiles = order ? getOrderRecipeFiles(order) : [];
+      const fileIndex = req.params.index === undefined ? 0 : Number(req.params.index);
+      if (!order || !Number.isInteger(fileIndex) || fileIndex < 0 || !recipeFiles[fileIndex]) {
         return res.status(404).send('Receta no encontrada o pendiente de emisión.');
       }
 
-      const pdfUrl = order.recipePdfUrl;
+      const selectedFile = recipeFiles[fileIndex];
+      const pdfUrl = selectedFile.url;
+      const safeFileName = selectedFile.name.replace(/[\r\n"]/g, '_');
 
       // Prevent caching so modified/replaced files are immediately reflected through the same URL
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -86,7 +91,7 @@ export class OrderController {
         else if (mimeType.includes('webp')) ext = 'webp';
 
         res.setHeader('Content-Type', mimeType);
-        res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.${ext}"`);
+        res.setHeader('Content-Disposition', `inline; filename="${safeFileName || `receta_${order.id}.${ext}`}"`);
         res.setHeader('Content-Length', fileBuffer.length);
         return res.end(fileBuffer);
       } else if (pdfUrl.startsWith('http://') || pdfUrl.startsWith('https://')) {
@@ -101,11 +106,11 @@ export class OrderController {
           else if (fileData.mimeType.includes('jpg')) ext = 'jpg';
           else if (fileData.mimeType.includes('webp')) ext = 'webp';
 
-          res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.${ext}"`);
+          res.setHeader('Content-Disposition', `inline; filename="${safeFileName || `receta_${order.id}.${ext}`}"`);
           return res.send(fileData.buffer);
         }
         res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `inline; filename="receta_${order.id}.pdf"`);
+        res.setHeader('Content-Disposition', `inline; filename="${safeFileName || `receta_${order.id}.pdf`}"`);
         return res.send(pdfUrl);
       }
     } catch (err: any) {

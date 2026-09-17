@@ -46,4 +46,23 @@ export class PaymentController {
       res.status(400).json({ error: err.message });
     }
   };
+
+  reconcilePending = async (req: Request, res: Response, next: NextFunction) => {
+    const cronSecret = process.env.CRON_SECRET;
+    if (!cronSecret) {
+      return res.status(503).json({ error: 'Payment reconciliation is not configured.' });
+    }
+    if (req.get('authorization') !== `Bearer ${cronSecret}`) {
+      return res.status(401).json({ error: 'Unauthorized.' });
+    }
+
+    try {
+      const rawLimit = Number(req.query.limit || 100);
+      const limit = Number.isFinite(rawLimit) ? rawLimit : 100;
+      const result = await paymentService.reconcilePendingPayments(limit);
+      res.json(result);
+    } catch (err: any) {
+      next(err);
+    }
+  };
 }

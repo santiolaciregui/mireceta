@@ -6,6 +6,7 @@ const router = Router();
 const controller = new OrderController();
 
 // Public PDF inline view endpoint (Unauthenticated for direct WhatsApp link access)
+router.get('/public/:id/pdf/:index', controller.streamPublicPdf);
 router.get('/public/:id/pdf', controller.streamPublicPdf);
 
 router.use(authenticateToken);

@@ -7,7 +7,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PatientForm from '../PatientForm';
 import NewOrderForm from '../NewOrderForm';
-import { MedicalOrder, OrderStatus, PaymentInformationUpdate } from '../../../types';
+import { MedicalOrder, OrderStatus, PaymentInformationUpdate, RecipeFile } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { useFloatingPrescriptionWindow } from '../../../hooks/useFloatingPrescriptionWindow';
 import FloatingPrescriptionWidget from '../../common/FloatingPrescriptionWidget';
@@ -63,7 +63,12 @@ import {
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 import { formatOrderCreatedAt, sortOrdersNewestFirst } from '../../../utils/orderInbox';
+import { getOrderRecipeFiles } from '../../../utils/recipeFiles';
 import { DoctorOrdersSkeleton, DoctorDetailSkeleton } from '../../common/OrdersSkeleton';
+
+const MAX_RECIPE_FILE_SIZE_BYTES = 15 * 1024 * 1024;
+const MAX_RECIPE_TOTAL_SIZE_BYTES = 35 * 1024 * 1024;
+
 interface DoctorDashboardProps {
   orders: MedicalOrder[];
   isOrdersLoading?: boolean;
@@ -74,7 +79,8 @@ interface DoctorDashboardProps {
     status: OrderStatus, 
     doctorNotes?: string, 
     recipePdfUrl?: string, 
-    recipePdfName?: string
+    recipePdfName?: string,
+    recipeFiles?: RecipeFile[]
   ) => Promise<{ success: boolean; error?: string; order?: MedicalOrder }> | void;
   onUpdateRecipeFile?: (
     orderId: string,
@@ -188,7 +194,7 @@ export default function DoctorDashboard({
   // Doctor Action Inputs
   const [doctorNotes, setDoctorNotes] = useState('');
   const [prescriptionType, setPrescriptionType] = useState<'RCTA' | 'PAMI' | 'IOMA'>('RCTA');
-  const [uploadedRecipe, setUploadedRecipe] = useState<{ url: string; name: string; size?: number } | null>(null);
+  const [uploadedRecipes, setUploadedRecipes] = useState<Array<RecipeFile & { size?: number }>>([]);
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
@@ -681,7 +687,7 @@ export default function DoctorDashboard({
       currentLoadedOrderIdRef.current = null;
       setDoctorNotes('');
       setPrescriptionType('RCTA');
-      setUploadedRecipe(null);
+      setUploadedRecipes([]);
       setPdfUploadError(null);
       setShowModifyFileModal(false);
       setNewModifyFile(null);
@@ -696,7 +702,7 @@ export default function DoctorDashboard({
       return;
     }
 
-    // Protect against background polling (every 6s) wiping out uploadedRecipe, notes, or active tab
+    // Protect against background polling (every 6s) wiping out uploaded recipes, notes, or active tab
     if (selectedOrder && currentLoadedOrderIdRef.current !== selectedOrderId) {
       currentLoadedOrderIdRef.current = selectedOrderId;
       setActiveDetailTab('rx');
@@ -704,17 +710,14 @@ export default function DoctorDashboard({
       if (selectedOrder.recipePdfUrl) {
         if (selectedOrder.recipePdfUrl === 'PAMI' || selectedOrder.recipePdfUrl === 'IOMA') {
           setPrescriptionType(selectedOrder.recipePdfUrl as 'PAMI' | 'IOMA');
-          setUploadedRecipe(null);
+          setUploadedRecipes([]);
         } else {
           setPrescriptionType('RCTA');
-          setUploadedRecipe({
-            url: selectedOrder.recipePdfUrl,
-            name: selectedOrder.recipePdfName || 'receta_cargada.pdf'
-          });
+          setUploadedRecipes(getOrderRecipeFiles(selectedOrder));
         }
       } else {
         setPrescriptionType('RCTA');
-        setUploadedRecipe(null);
+        setUploadedRecipes([]);
       }
       setPdfUploadError(null);
       setShowModifyFileModal(false);
@@ -784,38 +787,43 @@ export default function DoctorDashboard({
   };
 
   // Helper to validate and process recipe files (PDF or Images)
-  const processPdfFile = (file: File) => {
+  const processPdfFiles = async (files: File[]) => {
     setPdfUploadError(null);
-
-    // Validate MIME type and extension
     const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     const allowedExtensions = ['.pdf', '.png', '.jpg', '.jpeg', '.webp'];
-    const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
-    
-    const isValid = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension);
-    if (!isValid) {
-      setPdfUploadError('Formato no válido. Se admiten archivos PDF o imágenes (PNG, JPG, JPEG, WEBP).');
-      showToast('Error: Formato no soportado. Use PDF o imágenes.');
-      return;
-    }
+    const validFiles: File[] = [];
+    const rejectedFiles: string[] = [];
+    let accumulatedSize = uploadedRecipes.reduce((total, file) => total + (file.size || 0), 0);
 
-    if (file.size > 15 * 1024 * 1024) {
-      setPdfUploadError('El archivo excede el tamaño máximo permitido (15 MB).');
-      showToast('Error: El archivo no puede superar los 15 MB.');
-      return;
-    }
-
-    compressImageAndGetBase64(file).then((base64String) => {
-      setUploadedRecipe({
-        url: base64String,
-        name: file.name,
-        size: file.size
-      });
-      showToast(`Archivo "${file.name}" adjuntado correctamente.`);
-    }).catch(err => {
-      setPdfUploadError('Error al leer el archivo seleccionado.');
-      showToast('Error al leer el archivo.');
+    files.forEach((file) => {
+      const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
+      const isValid = allowedTypes.includes(file.type) || allowedExtensions.includes(fileExtension);
+      if (!isValid || file.size > MAX_RECIPE_FILE_SIZE_BYTES || accumulatedSize + file.size > MAX_RECIPE_TOTAL_SIZE_BYTES) {
+        rejectedFiles.push(file.name);
+      } else {
+        validFiles.push(file);
+        accumulatedSize += file.size;
+      }
     });
+
+    if (rejectedFiles.length > 0) {
+      setPdfUploadError(`No se agregaron archivos inválidos, mayores a 15 MB o que superan 35 MB en total: ${rejectedFiles.join(', ')}.`);
+    }
+    if (validFiles.length === 0) return;
+
+    try {
+      const processedFiles = await Promise.all(validFiles.map(async (file) => ({
+        url: await compressImageAndGetBase64(file),
+        name: file.name,
+        size: file.size,
+      })));
+      setUploadedRecipes((current) => [...current, ...processedFiles]);
+      showToast(`${processedFiles.length} ${processedFiles.length === 1 ? 'archivo adjuntado' : 'archivos adjuntados'} correctamente.`);
+    } catch (error) {
+      console.error(error);
+      setPdfUploadError('Error al leer uno de los archivos seleccionados.');
+      showToast('Error al leer los archivos.');
+    }
   };
 
   const handlePdfDragOver = (e: React.DragEvent) => {
@@ -835,17 +843,18 @@ export default function DoctorDashboard({
     e.stopPropagation();
     setIsDraggingPdf(false);
 
-    const file = e.dataTransfer.files?.[0];
-    if (file) {
-      processPdfFile(file);
+    const files = Array.from(e.dataTransfer.files || []) as File[];
+    if (files.length > 0) {
+      void processPdfFiles(files);
     }
   };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      processPdfFile(file);
+    const files = Array.from(e.target.files || []) as File[];
+    if (files.length > 0) {
+      void processPdfFiles(files);
     }
+    e.target.value = '';
   };
 
   // Helper to validate and process modified recipe files for emitted orders
@@ -863,7 +872,7 @@ export default function DoctorDashboard({
       return;
     }
 
-    if (file.size > 15 * 1024 * 1024) {
+    if (file.size > MAX_RECIPE_FILE_SIZE_BYTES) {
       setModifyFileError('El archivo excede el tamaño máximo permitido (15 MB).');
       showToast('Error: El archivo no puede superar los 15 MB.');
       return;
@@ -948,11 +957,11 @@ export default function DoctorDashboard({
         }
       }
 
-      setUploadedRecipe({
+      setUploadedRecipes([{
         url: newModifyFile.url,
         name: newModifyFile.name,
         size: newModifyFile.size
-      });
+      }]);
 
       showToast('¡Archivo modificado con éxito! El enlace público permanente se mantiene idéntico.');
       setShowModifyFileModal(false);
@@ -970,16 +979,16 @@ export default function DoctorDashboard({
   const handleGenerateSimulatedRecipe = (order: MedicalOrder) => {
     const digitalPdfUrl = 'RECIPE_PDF_GENERATED';
     const digitalPdfName = `receta_emitida_${order.patientLastName.toLowerCase()}_${order.id}.pdf`;
-    setUploadedRecipe({
+    setUploadedRecipes([{
       url: digitalPdfUrl,
       name: digitalPdfName
-    });
+    }]);
   };
 
   // Submit complete co-signed recipe back to Patient
   const handleCompletePrescription = async (e: React.FormEvent, orderId: string) => {
     e.preventDefault();
-    if (!uploadedRecipe) {
+    if (uploadedRecipes.length === 0) {
       showToast('Por favor, selecciona un archivo de receta digital o haz clic en "Simular Receta PDF" para continuar.');
       return;
     }
@@ -990,8 +999,9 @@ export default function DoctorDashboard({
         orderId, 
         'Emitida', 
         doctorNotes.trim() || 'Receta digital oficial firmada por el médico de cabecera.',
-        uploadedRecipe.url,
-        uploadedRecipe.name
+        uploadedRecipes[0].url,
+        uploadedRecipes[0].name,
+        uploadedRecipes
       );
 
       if (res && !res.success) {
@@ -2383,83 +2393,72 @@ export default function DoctorDashboard({
                                   <span className="text-[11px] text-slate-400 font-normal">Formatos admitidos: PDF o Imágenes (.png, .jpg, .jpeg, .webp)</span>
                                 </label>
 
-                                {uploadedRecipe ? (
-                                  <div className="bg-white border-2 border-[#14BE99] rounded-xl p-3.5 flex items-center justify-between gap-3 shadow-xs">
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      {uploadedRecipe.name.toLowerCase().match(/\.(png|jpg|jpeg|webp)$/) ? (
-                                        <img src={uploadedRecipe.url} className="h-10 w-10 object-cover rounded-lg shrink-0 border border-slate-200" alt="Vista previa receta" />
-                                      ) : (
-                                        <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
-                                          <FileText className="h-5 w-5" />
-                                        </div>
-                                      )}
-                                      <div className="min-w-0">
-                                        <p className="font-bold text-slate-900 text-xs truncate">{uploadedRecipe.name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5">
-                                          <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
-                                            <Check className="h-3 w-3" /> Documento Listo para emisión oficial
-                                          </span>
-                                          {uploadedRecipe.size && (
-                                            <span className="text-[10px] text-slate-400 font-mono">
-                                              ({(uploadedRecipe.size / 1024).toFixed(0)} KB)
-                                            </span>
+                                {uploadedRecipes.length > 0 && (
+                                  <div className="space-y-2 mb-3">
+                                    {uploadedRecipes.map((recipe, index) => (
+                                      <div key={`${recipe.name}-${index}`} className="bg-white border border-[#14BE99]/60 rounded-xl p-3 flex items-center justify-between gap-3 shadow-xs">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          {recipe.name.toLowerCase().match(/\.(png|jpg|jpeg|webp)$/) ? (
+                                            <img src={recipe.url} className="h-10 w-10 object-cover rounded-lg shrink-0 border border-slate-200" alt={`Vista previa receta ${index + 1}`} />
+                                          ) : (
+                                            <div className="h-10 w-10 rounded-lg bg-[#14BE99]/10 text-[#14BE99] flex items-center justify-center shrink-0 border border-[#14BE99]/20">
+                                              <FileText className="h-5 w-5" />
+                                            </div>
                                           )}
+                                          <div className="min-w-0">
+                                            <p className="font-bold text-slate-900 text-xs truncate">Receta {index + 1}: {recipe.name}</p>
+                                            <span className="text-[11px] font-bold text-[#14BE99] flex items-center gap-1">
+                                              <Check className="h-3 w-3" /> Lista para emisión
+                                              {recipe.size ? ` · ${(recipe.size / 1024).toFixed(0)} KB` : ''}
+                                            </span>
+                                          </div>
                                         </div>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setUploadedRecipes((current) => current.filter((_, recipeIndex) => recipeIndex !== index));
+                                            setPdfUploadError(null);
+                                          }}
+                                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0"
+                                          title={`Quitar ${recipe.name}`}
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </button>
                                       </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      <button
-                                        type="button"
-                                        onClick={() => pdfInputRef.current?.click()}
-                                        className="text-xs font-bold text-[#1661E1] hover:text-[#1E6EFB] bg-[#1661E1]/10 hover:bg-[#1661E1]/20 px-3 py-1.5 rounded-lg border border-[#1661E1]/20 transition-colors cursor-pointer"
-                                      >
-                                        Cambiar
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setUploadedRecipe(null);
-                                          setPdfUploadError(null);
-                                        }}
-                                        className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer"
-                                        title="Quitar archivo"
-                                      >
-                                        <Trash2 className="h-4 w-4" />
-                                      </button>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div
-                                    onDragOver={handlePdfDragOver}
-                                    onDragLeave={handlePdfDragLeave}
-                                    onDrop={handlePdfDrop}
-                                    onClick={() => pdfInputRef.current?.click()}
-                                    className={`border-2 border-dashed rounded-2xl p-6 text-center transition-all cursor-pointer select-none ${
-                                      pdfUploadError
-                                        ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
-                                        : isDraggingPdf
-                                        ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
-                                        : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
-                                    }`}
-                                  >
-                                    <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
-                                      pdfUploadError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
-                                    }`}>
-                                      <FileUp className="h-5 w-5" />
-                                    </div>
-                                    <p className={`text-xs font-bold ${pdfUploadError ? 'text-rose-900' : 'text-slate-800'}`}>
-                                      {isDraggingPdf ? 'Suelte el archivo aquí' : 'Arrastre y suelte la receta (PDF o Imagen) aquí *'}
-                                    </p>
-                                    <p className="text-[11px] text-slate-500 mt-0.5">
-                                      o haga clic para seleccionar desde su equipo (PDF o imágenes PNG, JPG, JPEG, WEBP)
-                                    </p>
+                                    ))}
                                   </div>
                                 )}
+
+                                <div
+                                  onDragOver={handlePdfDragOver}
+                                  onDragLeave={handlePdfDragLeave}
+                                  onDrop={handlePdfDrop}
+                                  onClick={() => pdfInputRef.current?.click()}
+                                  className={`border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer select-none ${
+                                    pdfUploadError
+                                      ? 'border-rose-400 bg-rose-50/40 ring-4 ring-rose-500/15'
+                                      : isDraggingPdf
+                                      ? 'border-[#1661E1] bg-[#1661E1]/5 scale-[1.01] ring-4 ring-[#1E6EFB]/15'
+                                      : 'border-slate-300 hover:border-[#1661E1] bg-white hover:bg-slate-50/50'
+                                  }`}
+                                >
+                                  <div className={`h-10 w-10 mx-auto rounded-full flex items-center justify-center mb-2 ${
+                                    pdfUploadError ? 'bg-rose-100 text-rose-600' : 'bg-[#1661E1]/10 text-[#1661E1]'
+                                  }`}>
+                                    <FileUp className="h-5 w-5" />
+                                  </div>
+                                  <p className={`text-xs font-bold ${pdfUploadError ? 'text-rose-900' : 'text-slate-800'}`}>
+                                    {isDraggingPdf ? 'Suelte los archivos aquí' : uploadedRecipes.length > 0 ? 'Agregar más recetas' : 'Arrastre una o varias recetas aquí *'}
+                                  </p>
+                                  <p className="text-[11px] text-slate-500 mt-0.5">
+                                    Puede seleccionar varios PDF o imágenes a la vez (15 MB por archivo, 35 MB en total)
+                                  </p>
+                                </div>
 
                                 <input
                                   ref={pdfInputRef}
                                   type="file"
+                                  multiple
                                   accept="application/pdf,.pdf,image/png,.png,image/jpeg,.jpeg,image/jpg,.jpg,image/webp,.webp"
                                   onChange={handleFileInputChange}
                                   className="hidden"
@@ -2478,22 +2477,23 @@ export default function DoctorDashboard({
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <button
                                 onClick={async () => {
-                                  if (prescriptionType === 'RCTA' && !uploadedRecipe) {
-                                    setPdfUploadError('Debe adjuntar el archivo (PDF o Imagen) de la receta oficial firmada antes de emitir.');
-                                    showToast('Error: Debe adjuntar la receta oficial.');
+                                  if (prescriptionType === 'RCTA' && uploadedRecipes.length === 0) {
+                                    setPdfUploadError('Debe adjuntar al menos un archivo (PDF o Imagen) de receta oficial firmada antes de emitir.');
+                                    showToast('Error: Debe adjuntar al menos una receta oficial.');
                                     return;
                                   }
                                   
-                                  const finalUrl = prescriptionType === 'RCTA' ? uploadedRecipe?.url : prescriptionType;
-                                  const finalName = prescriptionType === 'RCTA' ? uploadedRecipe?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
+                                  const finalUrl = prescriptionType === 'RCTA' ? uploadedRecipes[0]?.url : prescriptionType;
+                                  const finalName = prescriptionType === 'RCTA' ? uploadedRecipes[0]?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
+                                  const finalFiles = prescriptionType === 'RCTA' ? uploadedRecipes : undefined;
 
                                   setIsSubmittingEmit(true);
                                   try {
-                                    const res = await onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, finalUrl, finalName);
+                                    const res = await onUpdateStatus(selectedOrder.id, 'Emitida', doctorNotes, finalUrl, finalName, finalFiles);
                                     if (res && !res.success) {
                                       showToast(`Error: ${res.error || 'No se pudo emitir la receta.'}`);
                                     } else {
-                                      showToast('Receta emitida y enviada con éxito.');
+                                      showToast(`${uploadedRecipes.length > 1 ? 'Recetas emitidas' : 'Receta emitida'} y enviada con éxito.`);
                                     }
                                   } catch (err: any) {
                                     showToast(`Error: ${err.message || 'No se pudo emitir la receta.'}`);
@@ -2559,14 +2559,21 @@ export default function DoctorDashboard({
                             <p className="text-xs text-[#0F6C7D]/80 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
                             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
                               {selectedOrder.recipePdfUrl && selectedOrder.recipePdfUrl !== 'PAMI' && selectedOrder.recipePdfUrl !== 'IOMA' ? (
-                                <a
-                                  href={selectedOrder.recipePdfUrl}
-                                  download={selectedOrder.recipePdfName || 'receta.pdf'}
-                                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  <span>Descargar Receta Emitida</span>
-                                </a>
+                                getOrderRecipeFiles(selectedOrder).map((recipe, index) => (
+                                  <a
+                                    key={`${recipe.name}-${index}`}
+                                    href={recipe.url.startsWith('data:')
+                                      ? recipe.url
+                                      : index === 0
+                                        ? `/api/orders/public/${selectedOrder.id}/pdf`
+                                        : `/api/orders/public/${selectedOrder.id}/pdf/${index}`}
+                                    download={recipe.name}
+                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                    <span>Descargar Receta {index + 1}</span>
+                                  </a>
+                                ))
                               ) : selectedOrder.recipePdfUrl ? (
                                 <div className="px-5 py-2.5 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#1661E1] rounded-xl text-xs font-bold">
                                   Emitida Electrónicamente vía {selectedOrder.recipePdfUrl} (Afiliado: {selectedOrder.obraSocialNumber || 'Sin cargar'})

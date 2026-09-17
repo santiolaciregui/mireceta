@@ -36,6 +36,11 @@ export interface MedicationPhoto {
   comments?: string;
 }
 
+export interface RecipeFile {
+  url: string;
+  name: string;
+}
+
 export interface AuditLogEntry {
   action: string;      // e.g., 'Creada', 'Inició revisión', 'Solicitó más información', 'Aprobada', 'Rechazada', 'Emitida', 'Enviada', 'Devolución de pago'
   user: string;        // e.g., 'Operador Juan Perez', 'Dr. Gómez', 'Paciente (Autogestión)'
@@ -98,6 +103,7 @@ export interface MedicalOrder {
   updatedAt?: string;
 
   // Added by doctor
+  recipeFiles?: RecipeFile[];
   recipePdfUrl: string | null;
   recipePdfName: string | null;
   doctorNotes?: string;

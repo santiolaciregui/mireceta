@@ -52,6 +52,7 @@ import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 import { fileToBase64, compressImageAndGetBase64 } from '../../../utils/file';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import { trackInitiatePrescription, trackCompletePrescription } from '../../../services/metaPixelService';
+import { syncMercadoPagoReturn } from '../../../services/paymentService';
 
 
 interface PatientFormProps {
@@ -208,19 +209,14 @@ export default function PatientForm({
         setCreatedOrderId(orderId);
         setStep('confirmation');
 
-        // Active server synchronization to immediately confirm payment in MongoDB
-        fetch('/api/payments/sync-return', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
+        // Retry the official server-side verification for short provider propagation delays.
+        syncMercadoPagoReturn({
             orderId,
             payment,
             collection_id: collectionId,
             payment_id: collectionId,
             preference_id: preferenceId,
           })
-        })
-        .then(res => res.json())
         .then(data => {
           if (data && data.order) {
             setReturnedOrder(data.order);

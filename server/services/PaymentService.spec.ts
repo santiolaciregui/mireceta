@@ -228,7 +228,7 @@ test('processes merchant_order webhook and prioritizes approved payment when ear
     assert.equal(updatedOrder.paymentStatus, 'approved');
     assert.equal(updatedOrder.paymentId, '178318740803');
     assert.equal(updatedOrder.status, 'En revisión');
-    assert.ok(updatedOrder.auditLog.some((e: any) => e.action === 'Mercado Pago Webhook: approved'));
+    assert.ok(updatedOrder.auditLog.some((e: any) => e.action === 'Pago acreditado (Mercado Pago)'));
   } finally {
     (MerchantOrder.prototype as any).get = originalMerchantOrderGet;
   }
@@ -277,3 +277,148 @@ test('synchronizes a pending order prioritizing the approved payment over earlie
   }
 });
 
+test('keeps the order pending when checkout return parameters cannot be verified with Mercado Pago', async () => {
+  const originalSearch = (Payment.prototype as any).search;
+  const originalMerchantOrderSearch = (MerchantOrder.prototype as any).search;
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'REC-UNVERIFIED',
+    tenantId: 'TEN-123',
+    patientName: 'Test',
+    patientLastName: 'Patient',
+    paymentMethod: 'mp',
+    paymentStatus: 'pending',
+    paymentId: 'MP-TEMP',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+
+  (Payment.prototype as any).search = async () => ({ results: [] });
+  (MerchantOrder.prototype as any).search = async () => ({ elements: [] });
+  service.orderRepo = {
+    findById: async () => order,
+    update: async () => assert.fail('An unverified return must not update the order'),
+  };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+
+  try {
+    const result = await service.syncReturn('REC-UNVERIFIED', {
+      payment: 'approved',
+      payment_id: 'MP-TEMP',
+    });
+
+    assert.equal(result.paymentStatus, 'pending');
+    assert.equal(result.verifiedWithApi, false);
+    assert.equal(result.verificationPending, true);
+    assert.equal(order.auditLog.length, 0);
+  } finally {
+    (Payment.prototype as any).search = originalSearch;
+    (MerchantOrder.prototype as any).search = originalMerchantOrderSearch;
+  }
+});
+
+test('does not downgrade an approved order when a late rejected webhook arrives', async () => {
+  const originalGet = (Payment.prototype as any).get;
+  const originalAccessToken = process.env.MP_ACCESS_TOKEN;
+  const originalWebhookSecret = process.env.MP_WEBHOOK_SECRET;
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'REC-APPROVED',
+    tenantId: 'TEN-123',
+    patientName: 'Test',
+    patientLastName: 'Patient',
+    paymentMethod: 'mp',
+    paymentStatus: 'approved',
+    paymentId: '100',
+    paymentAmount: '10000',
+    status: 'En revisión',
+    auditLog: [],
+  };
+  let updateCalls = 0;
+
+  process.env.MP_ACCESS_TOKEN = 'TEST-token';
+  delete process.env.MP_WEBHOOK_SECRET;
+  (Payment.prototype as any).get = async () => ({
+    id: 101,
+    status: 'rejected',
+    external_reference: 'REC-APPROVED',
+    transaction_amount: 10000,
+  });
+  service.orderRepo = {
+    findById: async () => order,
+    update: async () => {
+      updateCalls += 1;
+      return order;
+    },
+  };
+
+  try {
+    const result = await service.processWebhook({ type: 'payment', id: '101' }, {}, {});
+
+    assert.equal(result.status, 'rejected');
+    assert.equal(order.paymentStatus, 'approved');
+    assert.equal(order.paymentId, '100');
+    assert.equal(updateCalls, 0);
+    assert.equal(order.auditLog.length, 0);
+  } finally {
+    (Payment.prototype as any).get = originalGet;
+    if (originalAccessToken === undefined) delete process.env.MP_ACCESS_TOKEN;
+    else process.env.MP_ACCESS_TOKEN = originalAccessToken;
+    if (originalWebhookSecret === undefined) delete process.env.MP_WEBHOOK_SECRET;
+    else process.env.MP_WEBHOOK_SECRET = originalWebhookSecret;
+  }
+});
+
+test('requires a valid signature when MP_WEBHOOK_SECRET is configured', async () => {
+  const originalWebhookSecret = process.env.MP_WEBHOOK_SECRET;
+  const service = new PaymentService();
+  process.env.MP_WEBHOOK_SECRET = 'webhook-secret';
+
+  try {
+    const result = await service.processWebhook({ type: 'payment', id: '123' }, {}, {});
+    assert.deepEqual(result, { received: false, error: 'Firma de webhook inválida' });
+  } finally {
+    if (originalWebhookSecret === undefined) delete process.env.MP_WEBHOOK_SECRET;
+    else process.env.MP_WEBHOOK_SECRET = originalWebhookSecret;
+  }
+});
+
+test('reconciles a bounded batch of pending Mercado Pago orders', async () => {
+  const service: any = new PaymentService();
+  const order: any = {
+    id: 'REC-CRON',
+    tenantId: 'TEN-123',
+    patientName: 'Test',
+    patientLastName: 'Patient',
+    paymentMethod: 'mp',
+    paymentStatus: 'pending',
+    paymentId: 'MP-TEMP',
+    paymentAmount: '10000',
+    status: 'Pendiente',
+    auditLog: [],
+  };
+  service.orderRepo = {
+    findPendingMercadoPago: async (limit: number) => {
+      assert.equal(limit, 25);
+      return [order];
+    },
+    update: async (_id: string, updatedOrder: any) => updatedOrder,
+  };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+  service.fetchBestPaymentForOrder = async () => ({
+    id: 500,
+    status: 'approved',
+    external_reference: 'REC-CRON',
+    transaction_amount: 10000,
+    date_approved: '2026-09-17T10:00:00Z',
+  });
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+
+  const result = await service.reconcilePendingPayments(25);
+
+  assert.deepEqual(result, { checked: 1, updated: 1, unresolved: 0, failed: 0 });
+  assert.equal(order.paymentStatus, 'approved');
+  assert.equal(order.paymentId, '500');
+  assert.equal(order.paymentDate, '2026-09-17T10:00:00.000Z');
+});
