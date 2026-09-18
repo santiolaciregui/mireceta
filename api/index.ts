@@ -1,5 +1,5 @@
 import express from 'express';
-import { connectDB } from '../server/config/db.js';
+import { connectDB, getDBState } from '../server/config/db.js';
 import routes from '../server/routes/index.js';
 import { errorHandler } from '../server/middlewares/error.middleware.js';
 
@@ -17,14 +17,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// Fast DB Connect Middleware
-app.use(async (req, res, next) => {
+// Lightweight health endpoint that does not depend on a successful DB connection.
+app.get(['/health', '/api/health'], (_req, res) => {
+  const db = getDBState();
+  res.status(db.readyState === 1 ? 200 : 503).json({
+    status: db.readyState === 1 ? 'ok' : 'degraded',
+    database: db.status,
+  });
+});
+
+// Database connection middleware.
+// Fail fast with a retryable 503 instead of leaving the request hanging on a long socket timeout.
+app.use(async (_req, res, next) => {
   try {
     await connectDB();
     next();
   } catch (e: any) {
-    console.error('DB connect error:', e);
-    return res.status(503).json({ error: 'Error de conexión con la base de datos MongoDB Atlas. Verifique la variable MONGODB_URI en Vercel y los permisos de IP en Network Access (0.0.0.0/0).' });
+    console.error('DB connect error:', {
+      name: e?.name,
+      message: e?.message,
+      database: getDBState().status,
+    });
+    res.setHeader('Retry-After', '5');
+    return res.status(503).json({
+      error: 'La base de datos no está disponible temporalmente.',
+      code: 'DATABASE_UNAVAILABLE',
+      retryable: true,
+    });
   }
 });
 
