@@ -727,7 +727,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
         </button>
 
         <a
-          href="https://wa.me/5491161341741"
+          href="https://wa.me/5492926493342"
           target="_blank"
           rel="noopener noreferrer"
           title="Contacto vía WhatsApp"
