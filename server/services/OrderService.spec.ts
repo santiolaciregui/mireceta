@@ -121,6 +121,82 @@ test('requires a receipt before accepting a bank transfer', async () => {
   );
 });
 
+test('does not reuse an existing checkout when confirmed coverage changed', async () => {
+  const service: any = new OrderService();
+  const originalLog = auditLogService.log;
+  let logged: any;
+  auditLogService.log = async (entry: any) => { logged = entry; };
+  service.orderRepo = {
+    findByClientRequestId: async () => ({
+      id: 'ORD-EXISTING',
+      tenantId: 'TEN-123',
+      obraSocial: 'PAMI (Inssjp)',
+      obraSocialNumber: '105/00',
+      paymentStatus: 'pending',
+    }),
+  };
+
+  try {
+    await assert.rejects(() => service.createOrder({
+      clientRequestId: 'request-1',
+      obraSocial: 'FEMEDICA - PLAN 3000',
+      obraSocialNumber: '01-123',
+      coverageConfirmation: {
+        source: 'patient_form',
+        obraSocial: 'FEMEDICA - PLAN 3000',
+        obraSocialNumber: '01-123',
+        confirmedAt: '2026-10-08T01:40:00.000Z',
+        draftRestored: true,
+      },
+    }, { role: 'paciente', tenantId: 'TEN-123' }), /cobertura cambió después de crear/);
+    assert.equal(logged.action, 'ORDER_COVERAGE_MISMATCH');
+    assert.equal(logged.changes.persistedCoverage.obraSocial, 'PAMI (Inssjp)');
+    assert.equal(logged.changes.attemptedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
+  } finally {
+    auditLogService.log = originalLog;
+  }
+});
+
+test('records submitted, persisted and client-confirmed coverage when creating an order', async () => {
+  const service: any = new OrderService();
+  const originalLog = auditLogService.log;
+  let logged: any;
+  let persisted: any;
+  service.orderRepo = {
+    findByClientRequestId: async () => null,
+    findByTenant: async () => [],
+    create: async (order: any) => { persisted = order; return order; },
+  };
+  service.tenantRepo = { findById: async () => ({ pricePerPrescription: 10000 }) };
+  service.refreshPendingOrderLimitAlert = async () => undefined;
+  auditLogService.log = async (entry: any) => { logged = entry; };
+
+  try {
+    await service.createOrder({
+      clientRequestId: 'request-2',
+      patientName: 'Sara', patientLastName: 'Test', patientDni: '12345678',
+      obraSocial: 'FEMEDICA - PLAN 3000', obraSocialNumber: '01-123',
+      medicationItems: [{ nombreComercial: 'Medicamento', cantidadCajas: 1 }],
+      paymentMethod: 'mp', paymentStatus: 'pending', paymentAmount: '10000',
+      coverageConfirmation: {
+        source: 'patient_form', obraSocial: 'FEMEDICA - PLAN 3000',
+        obraSocialNumber: '01-123', confirmedAt: '2026-10-08T01:40:00.000Z',
+        draftRestored: true,
+        history: [{ event: 'draft_restored', at: '2026-10-08T01:30:00.000Z', obraSocial: 'PAMI', obraSocialNumber: '105/00' }],
+      },
+    }, { role: 'paciente', tenantId: 'TEN-123', identifier: '12345678', obraSocial: 'FEMEDICA - PLAN 3000' });
+
+    assert.equal(logged.action, 'ORDER_CREATE');
+    assert.equal(logged.changes.submittedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
+    assert.equal(logged.changes.persistedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
+    assert.equal(logged.changes.clientConfirmation.history[0].obraSocial, 'PAMI');
+    assert.ok(persisted.auditLog.some((entry: any) => entry.action === 'Cobertura confirmada antes del pago'));
+    assert.match(persisted.auditLog.find((entry: any) => entry.action === 'Cobertura confirmada antes del pago').notes, /draft_restored: PAMI/);
+  } finally {
+    auditLogService.log = originalLog;
+  }
+});
+
 test('replaces a rejected Mercado Pago attempt with the submitted transfer receipt', async () => {
   const service: any = new OrderService();
   const existingOrder: any = {

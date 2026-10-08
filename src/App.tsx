@@ -383,6 +383,7 @@ export default function App() {
 
                       <PatientForm
                         onSubmitOrder={createOrder}
+                        onLoadOrderDetails={loadOrderDetails}
                         onSuccess={handleOrderSubmitted}
                         recentDni={currentPatientDni}
                         onSetDni={() => {}} // readonly for authenticated session

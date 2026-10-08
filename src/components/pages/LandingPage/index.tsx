@@ -136,15 +136,15 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
       {/* Header / Navbar */}
       <header className="bg-[#0F172A] border-b border-slate-800 sticky top-0 z-50 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-20">
+          <div className="flex justify-between items-center gap-3 h-20">
             
             {/* Brand Logo */}
-            <div className="flex items-center cursor-pointer" onClick={scrollToTop}>
+            <div className="flex shrink-0 items-center cursor-pointer" onClick={scrollToTop}>
               <Logo variant="full" size="md" theme="dark" />
             </div>
 
             {/* Navigation links (Desktop) */}
-            <nav className="hidden md:flex items-center space-x-8 text-sm font-semibold text-slate-300">
+            <nav className="hidden min-[960px]:flex shrink-0 items-center gap-1 lg:gap-2 xl:gap-4 2xl:gap-8 whitespace-nowrap text-xs lg:text-sm font-semibold text-slate-300">
               <button onClick={scrollToTop} className="text-white border-b-2 border-[#1661E1] pb-1 font-bold cursor-pointer transition-colors">
                 Inicio
               </button>
@@ -163,7 +163,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
             </nav>
 
             {/* User actions & Mobile menu toggle */}
-            <div className="flex items-center gap-3">
+            <div className="flex shrink-0 items-center gap-3">
               <button 
                 onClick={() => onGoToLogin('login')}
                 className="bg-[#1661E1] hover:bg-[#0141BC] text-white text-base font-extrabold px-5 sm:px-6 py-2.5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center gap-2 cursor-pointer"
@@ -182,7 +182,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
               {/* Mobile hamburger button */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-hidden"
+                className="min-[960px]:hidden p-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors focus:outline-hidden"
                 aria-label="Abrir menú"
               >
                 {mobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
@@ -194,7 +194,7 @@ export default function LandingPage({ onGoToLogin }: LandingPageProps) {
 
         {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[#0F172A] border-b border-slate-800 px-4 pt-2 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
+          <div className="min-[960px]:hidden bg-[#0F172A] border-b border-slate-800 px-4 pt-2 pb-6 space-y-3 shadow-2xl animate-in slide-in-from-top-2 duration-200">
             <nav className="flex flex-col space-y-2 text-base font-semibold text-slate-300">
               <button 
                 onClick={scrollToTop} 

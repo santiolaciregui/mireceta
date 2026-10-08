@@ -353,6 +353,13 @@ export function useMedicalOrders() {
     }
     
     const newOrder = await res.json();
+
+    if (orderData.coverageConfirmation && (
+      newOrder.obraSocial?.trim() !== orderData.coverageConfirmation.obraSocial?.trim() ||
+      (newOrder.obraSocialNumber || '').trim() !== (orderData.coverageConfirmation.obraSocialNumber || '').trim()
+    )) {
+      throw new Error(`La cobertura guardada en la solicitud ${newOrder.id} no coincide con la confirmada. No se inició el pago.`);
+    }
     
     // Update state locally and trigger bg refresh (deduplicating by id)
     setOrders((prev) => {

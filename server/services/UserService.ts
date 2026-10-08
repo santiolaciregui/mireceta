@@ -5,6 +5,7 @@ import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generateUserId } from '../utils/idGenerator.js';
+import { coverageChange, coverageSnapshot } from './coverageAudit.js';
 
 export class UserService {
   private userRepo: UserRepository;
@@ -120,7 +121,8 @@ export class UserService {
       action: 'USER_CREATE',
       entity: 'User',
       entityId: newId,
-      details: `Creado usuario ${newUser.name} ${newUser.lastName} con rol ${newUser.role}`
+      details: `Creado usuario ${newUser.name} ${newUser.lastName} con rol ${newUser.role}`,
+      changes: newUser.role === 'paciente' ? { initialCoverage: coverageSnapshot(newUser) } : undefined,
     });
 
     if (newUser.email) {
@@ -135,6 +137,7 @@ export class UserService {
     const isAdmin = currentUser.role === 'admin' || currentUser.role === 'superadmin';
     const targetUser = await this.userRepo.findById(id);
     if (!targetUser) throw new Error('Usuario no encontrado');
+    const previousCoverage = { obraSocial: targetUser.obraSocial, obraSocialNumber: targetUser.obraSocialNumber };
 
     const isStaffUpdatingPatient = 
       (currentUser.role === 'colaborador' || currentUser.role === 'medico') && 
@@ -168,6 +171,19 @@ export class UserService {
     }
 
     const updatedUser = await this.userRepo.update(id, safeUpdateData);
+    const changedCoverage = updatedUser ? coverageChange(previousCoverage, updatedUser) : null;
+
+    await auditLogService.log({
+      tenantId: currentUser.tenantId || 'TEN-0001',
+      currentUser,
+      action: 'USER_UPDATE',
+      entity: 'User',
+      entityId: id,
+      details: changedCoverage
+        ? `Actualizada cobertura del usuario ${id}: ${changedCoverage.before.obraSocial || 'sin cobertura'} → ${changedCoverage.after.obraSocial || 'sin cobertura'}`
+        : `Actualizados datos del usuario ${id}`,
+      changes: changedCoverage ? { coverage: changedCoverage } : undefined,
+    });
 
     if (updatedUser && updatedUser.role === 'paciente') {
       await this.patientService.createOrUpdatePatient({
@@ -183,15 +199,6 @@ export class UserService {
         userId: updatedUser.id
       }, currentUser);
     }
-
-    await auditLogService.log({
-      tenantId: currentUser.tenantId || 'TEN-0001',
-      currentUser,
-      action: 'USER_UPDATE',
-      entity: 'User',
-      entityId: id,
-      details: `Actualizados datos del usuario ${id}`
-    });
 
     return updatedUser;
   }

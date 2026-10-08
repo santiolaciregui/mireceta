@@ -7,6 +7,7 @@ import { PatientRepository } from '../repositories/PatientRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { auditLogService } from './AuditLogService.js';
+import { coverageChange, coverageSnapshot } from './coverageAudit.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generatePatientId } from '../utils/idGenerator.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
@@ -46,6 +47,7 @@ export class PatientService {
     let existing = await this.repo.findByDni(dni, tenantId);
 
     if (existing) {
+      const previousCoverage = { obraSocial: existing.obraSocial, obraSocialNumber: existing.obraSocialNumber };
       const updated = await this.repo.update(existing.id, {
         name: patientData.name || existing.name,
         lastName: patientData.lastName || existing.lastName,
@@ -55,6 +57,7 @@ export class PatientService {
         obraSocial: patientData.obraSocial || existing.obraSocial,
         obraSocialNumber: patientData.obraSocialNumber || existing.obraSocialNumber
       });
+      const changedCoverage = updated ? coverageChange(previousCoverage, updated) : null;
 
       await auditLogService.log({
         tenantId,
@@ -62,7 +65,8 @@ export class PatientService {
         action: 'PATIENT_UPDATE',
         entity: 'Patient',
         entityId: existing.id,
-        details: `Actualizados datos clínicos del paciente ${patientData.name} ${patientData.lastName}`
+        details: `Actualizados datos clínicos del paciente ${patientData.name} ${patientData.lastName}`,
+        changes: changedCoverage ? { coverage: changedCoverage } : undefined,
       });
 
       return updated;
@@ -92,7 +96,8 @@ export class PatientService {
       action: 'PATIENT_CREATE',
       entity: 'Patient',
       entityId: newId,
-      details: `Registrado nuevo paciente ${patientData.name} ${patientData.lastName} (DNI: ${dni})`
+      details: `Registrado nuevo paciente ${patientData.name} ${patientData.lastName} (DNI: ${dni})`,
+      changes: { initialCoverage: coverageSnapshot(newPatient) },
     });
 
     return newPatient;
@@ -134,6 +139,7 @@ export class PatientService {
     }
 
     const oldDni = patient.dni;
+    const previousCoverage = { obraSocial: patient.obraSocial, obraSocialNumber: patient.obraSocialNumber };
     const normalized = validateAndNormalizePatientInformation(updateData, patient.toObject ? patient.toObject() : patient);
     const changeSummary = getPatientChangeSummary(patient.toObject ? patient.toObject() : patient, normalized);
 
@@ -150,6 +156,7 @@ export class PatientService {
       obraSocial: normalized.obraSocial,
       obraSocialNumber: normalized.obraSocialNumber,
     });
+    const changedCoverage = updatedPatient ? coverageChange(previousCoverage, updatedPatient) : null;
 
     // 2. Synchronize linked User account if it exists
     try {
@@ -225,6 +232,7 @@ export class PatientService {
       action: 'PATIENT_UPDATE',
       entity: 'Patient',
       entityId: patient.id,
+      changes: changedCoverage ? { coverage: changedCoverage } : undefined,
       details: `Ficha del paciente ${normalized.name} ${normalized.lastName} (DNI: ${normalized.dni}) actualizada por ${operatorLabel}: ${changeSummary}`
     });
 

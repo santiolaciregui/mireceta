@@ -5,6 +5,7 @@ import { UserRepository } from '../repositories/UserRepository.js';
 import { config } from '../config/env.js';
 import { auditLogService } from './AuditLogService.js';
 import { PatientService } from './PatientService.js';
+import { coverageSnapshot } from './coverageAudit.js';
 import { cleanDni, obfuscateEmail, obfuscatePhone } from '../utils/formatters.js';
 import { generateUserId } from '../utils/idGenerator.js';
 import { sendPasswordResetEmail } from '../utils/mailer.js';
@@ -126,7 +127,8 @@ export class AuthService {
       action: 'PATIENT_REGISTER',
       entity: 'User',
       entityId: newUser.id,
-      details: `Registro de nuevo paciente autogestionado ${newUser.name} ${newUser.lastName}`
+      details: `Registro de nuevo paciente autogestionado ${newUser.name} ${newUser.lastName}`,
+      changes: { initialCoverage: coverageSnapshot(newUser) },
     });
 
     const tokenPayload = {
@@ -394,4 +396,3 @@ export class AuthService {
     return { success: true, message: '¡Contraseña actualizada con éxito! Ya podés iniciar sesión.' };
   }
 }
-

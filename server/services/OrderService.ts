@@ -23,6 +23,7 @@ import {
 } from './patientInformationUpdate.js';
 import { PatientService } from './PatientService.js';
 import { getOrderRecipeFiles, validateRecipeFiles } from '../utils/recipeFiles.js';
+import { coverageChange, coverageSnapshot, validateCoverageConfirmation } from './coverageAudit.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
@@ -134,6 +135,8 @@ export class OrderService {
       throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
     }
 
+    const coverageConfirmation = validateCoverageConfirmation(orderData.coverageConfirmation, orderData);
+
     const newId = generateOrderId();
 
     const tenantIdToUse = currentUser?.tenantId || orderData.tenantId || 'TEN-0001';
@@ -146,6 +149,23 @@ export class OrderService {
       if (existingOrder) {
         if (existingOrder.tenantId !== tenantIdToUse) {
           throw new Error('La solicitud no pertenece al centro médico actual.');
+        }
+
+        if (coverageConfirmation && coverageChange(existingOrder, orderData)) {
+          await auditLogService.log({
+            tenantId: tenantIdToUse,
+            currentUser,
+            action: 'ORDER_COVERAGE_MISMATCH',
+            entity: 'Order',
+            entityId: existingOrder.id,
+            details: `Se bloqueó un nuevo intento de pago porque la cobertura confirmada no coincide con la solicitud ${existingOrder.id}.`,
+            changes: {
+              persistedCoverage: coverageSnapshot(existingOrder),
+              attemptedCoverage: coverageSnapshot(orderData),
+              clientConfirmation: coverageConfirmation,
+            },
+          });
+          throw new Error('La cobertura cambió después de crear esta solicitud. No se inició otro pago; solicitá la corrección de la solicitud existente.');
         }
 
         const isReplacingRejectedCheckout =
@@ -353,6 +373,15 @@ export class OrderService {
       auditLogCreationDetails
     );
 
+    addAuditLogEntry(
+      newOrder,
+      coverageConfirmation ? 'Cobertura confirmada antes del pago' : 'Cobertura recibida sin confirmación de formulario',
+      creatorName,
+      coverageConfirmation
+        ? `El formulario informó que mostró y confirmó ${coverageConfirmation.obraSocial} (afiliado: ${coverageConfirmation.obraSocialNumber || 'sin número'}). Borrador restaurado: ${coverageConfirmation.draftRestored ? 'sí' : 'no'}. Confirmación informada: ${coverageConfirmation.confirmedAt}. Historial reciente informado: ${coverageConfirmation.history.slice(-8).map((entry) => `${entry.at} ${entry.event}: ${entry.obraSocial || 'sin cobertura'} (${entry.obraSocialNumber || 'sin número'})`).join('; ') || 'sin cambios previos registrados'}.`
+        : `Cobertura enviada al crear la solicitud: ${newOrder.obraSocial || 'sin cobertura'} (afiliado: ${newOrder.obraSocialNumber || 'sin número'}). No se recibió constancia de confirmación del formulario.`,
+    );
+
     if (newOrder.paymentStatus === 'approved') {
       addAuditLogEntry(
         newOrder,
@@ -401,7 +430,13 @@ export class OrderService {
       action: 'ORDER_CREATE',
       entity: 'Order',
       entityId: newId,
-      details: `Creada receta ${newId} para paciente ${newOrder.patientName} ${newOrder.patientLastName}`
+      details: `Creada receta ${newId} para paciente ${newOrder.patientName} ${newOrder.patientLastName}`,
+      changes: {
+        submittedCoverage: coverageSnapshot(orderData),
+        persistedCoverage: coverageSnapshot(createdOrder),
+        clientConfirmation: coverageConfirmation,
+        clientSessionCoverage: coverageSnapshot(currentUser || {}),
+      },
     });
 
     await this.refreshPendingOrderLimitAlert(newOrder.tenantId);
@@ -592,6 +627,7 @@ export class OrderService {
         obraSocial: normalizedPatient.obraSocial,
         obraSocialNumber: normalizedPatient.obraSocialNumber || order.obraSocialNumber,
       };
+      const coverageFieldsChanged = coverageChange(order, patientOrderFields);
       if (normalizedPatient.deliveryMethod) {
         patientOrderFields.deliveryMethod = normalizedPatient.deliveryMethod;
       }
@@ -617,6 +653,7 @@ export class OrderService {
           entity: 'Order',
           entityId: id,
           details: `Datos del paciente corregidos en solicitud ${id} por ${operatorName}: ${patientChangeSummary}`,
+          changes: coverageFieldsChanged ? { coverage: coverageFieldsChanged } : undefined,
         });
 
         try {

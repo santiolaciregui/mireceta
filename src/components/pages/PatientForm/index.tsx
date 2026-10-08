@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MedicationItem, DependentPatient, MedicationPhoto } from '../../../types';
+import { MedicationItem, DependentPatient, MedicationPhoto, MedicalOrder } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { copyToClipboard } from '../../../utils/clipboard';
 import Toast from '../../common/Toast';
@@ -57,6 +57,7 @@ import { syncMercadoPagoReturn } from '../../../services/paymentService';
 
 interface PatientFormProps {
   onSubmitOrder: (data: any) => Promise<string>;
+  onLoadOrderDetails: (orderId: string) => Promise<MedicalOrder>;
   onSuccess: (orderId: string) => void;
   recentDni: string;
   onSetDni: (dni: string) => void;
@@ -88,6 +89,7 @@ const BANK_DETAILS = {
 
 export default function PatientForm({
   onSubmitOrder,
+  onLoadOrderDetails,
   onSuccess,
   recentDni,
   onSetDni,
@@ -139,6 +141,14 @@ export default function PatientForm({
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
+  const [confirmedCoverageKey, setConfirmedCoverageKey] = useState<string | null>(null);
+  const [coverageConfirmedAt, setCoverageConfirmedAt] = useState<string | null>(null);
+  const coverageHistoryRef = useRef<Array<{
+    event: 'selection_changed' | 'draft_restored';
+    at: string;
+    obraSocial: string;
+    obraSocialNumber: string;
+  }>>([]);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [returnedOrder, setReturnedOrder] = useState<any>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
@@ -220,10 +230,17 @@ export default function PatientForm({
         .then(data => {
           if (data && data.order) {
             setReturnedOrder(data.order);
+          } else {
+            onLoadOrderDetails(orderId).then(setReturnedOrder).catch(err => {
+              console.warn('[Payment Return Order Load Warning]:', err);
+            });
           }
         })
         .catch(err => {
           console.warn('[Payment Return Sync Warning]:', err);
+          onLoadOrderDetails(orderId).then(setReturnedOrder).catch(loadError => {
+            console.warn('[Payment Return Order Load Warning]:', loadError);
+          });
         });
       } else if (payment === 'rejected' || payment === 'failure' || payment === 'cancelled') {
         setCreatedOrderId(orderId);
@@ -285,6 +302,30 @@ export default function PatientForm({
   });
 
   const [selectedCardId, setSelectedCardId] = useState<string>('titular');
+  const coverageKey = JSON.stringify([selectedObraSocial.trim(), obraSocialNumber.trim(), selectedCardId]);
+  const coverageIsConfirmed = confirmedCoverageKey === coverageKey;
+  const coverageConfirmation = () => ({
+    source: 'patient_form' as const,
+    obraSocial: selectedObraSocial.trim(),
+    obraSocialNumber: obraSocialNumber.trim(),
+    confirmedAt: coverageConfirmedAt || '',
+    draftRestored,
+    history: [...coverageHistoryRef.current],
+  });
+  useEffect(() => {
+    const snapshot = { obraSocial: selectedObraSocial.trim(), obraSocialNumber: obraSocialNumber.trim() };
+    const last = coverageHistoryRef.current.at(-1);
+    if (last?.obraSocial === snapshot.obraSocial && last?.obraSocialNumber === snapshot.obraSocialNumber) return;
+    coverageHistoryRef.current = [...coverageHistoryRef.current, {
+      ...snapshot,
+      event: 'selection_changed',
+      at: new Date().toISOString(),
+    }].slice(-25);
+  }, [selectedObraSocial, obraSocialNumber]);
+  useEffect(() => {
+    setConfirmedCoverageKey(null);
+    setCoverageConfirmedAt(null);
+  }, [coverageKey]);
   const [showAddDependentModal, setShowAddDependentModal] = useState<boolean>(false);
 
   // New/Edit Patient Modal State
@@ -926,6 +967,15 @@ export default function PatientForm({
 
     const draft = loadDraft();
     if (draft) {
+      if ((draft.selectedObraSocial || draft.obraSocialNumber)
+        && !coverageHistoryRef.current.some((entry) => entry.event === 'draft_restored')) {
+        coverageHistoryRef.current = [...coverageHistoryRef.current, {
+          event: 'draft_restored',
+          at: new Date().toISOString(),
+          obraSocial: (draft.selectedObraSocial || '').trim(),
+          obraSocialNumber: (draft.obraSocialNumber || '').trim(),
+        }].slice(-25);
+      }
       if (draft.step && draft.step !== 'confirmation') {
         setStep(draft.step);
       }
@@ -1314,6 +1364,10 @@ export default function PatientForm({
 
   const processMercadoPagoPayment = async () => {
     if (isSubmittingRef.current) return;
+    if (!coverageIsConfirmed) {
+      setError('Confirmá la obra social y el número de afiliado antes de iniciar el pago.');
+      return;
+    }
     isSubmittingRef.current = true;
     setError(null);
 
@@ -1364,6 +1418,7 @@ export default function PatientForm({
           deliveryMethod,
           obraSocial: selectedObraSocial,
           obraSocialNumber: obraSocialNumber.trim() || undefined,
+          coverageConfirmation: coverageConfirmation(),
           isForDependent,
           dependentRelationship,
           requestedByTitularName,
@@ -1401,6 +1456,13 @@ export default function PatientForm({
         setCreatedOrderId(orderId);
       }
 
+      const savedOrder = await onLoadOrderDetails(orderId);
+      if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
+        || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
+        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de la confirmada. No se inició el pago; solicitá la corrección de esa solicitud.`);
+      }
+      setReturnedOrder(savedOrder);
+
       // 2. Create Mercado Pago checkout preference using generated orderId
       const res = await fetch('/api/payments/create-preference', {
         method: 'POST',
@@ -1436,6 +1498,11 @@ export default function PatientForm({
     e.preventDefault();
     if (isSubmittingRef.current || submitting || mpProcessing) return;
     if (step !== 'payment') return;
+
+    if (!coverageIsConfirmed) {
+      setError('Confirmá la obra social y el número de afiliado antes de enviar la solicitud.');
+      return;
+    }
 
     setError(null);
 
@@ -1505,6 +1572,7 @@ export default function PatientForm({
       deliveryMethod,
       obraSocial: selectedObraSocial,
       obraSocialNumber: obraSocialNumber.trim() || undefined,
+      coverageConfirmation: coverageConfirmation(),
       isForDependent,
       dependentRelationship,
       requestedByTitularName,
@@ -1562,6 +1630,12 @@ export default function PatientForm({
 
     try {
       const orderId = await onSubmitOrder(fullOrderPayload);
+      const savedOrder = await onLoadOrderDetails(orderId);
+      if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
+        || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
+        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de la confirmada. Revisá la solicitud antes de continuar.`);
+      }
+      setReturnedOrder(savedOrder);
       trackCompletePrescription({
         orderId,
         value: paymentAmount || currentTenant?.pricePerPrescription || 10000,
@@ -1587,8 +1661,8 @@ export default function PatientForm({
     const displayPatientName = patientName || matchedOrder?.patientName || currentUser?.name || 'Paciente';
     const displayPatientLastName = patientLastName || matchedOrder?.patientLastName || currentUser?.lastName || '';
     const displayPatientDni = patientDni || matchedOrder?.patientDni || currentUser?.identifier || '';
-    const displayObraSocial = selectedObraSocial || matchedOrder?.obraSocial || currentUser?.obraSocial || 'Particular';
-    const displayObraSocialNumber = obraSocialNumber || matchedOrder?.obraSocialNumber || currentUser?.obraSocialNumber || '';
+    const displayObraSocial = createdOrderId ? (matchedOrder?.obraSocial || '') : selectedObraSocial;
+    const displayObraSocialNumber = createdOrderId ? (matchedOrder?.obraSocialNumber || '') : obraSocialNumber;
     const displayDeliveryMethod = deliveryMethod || matchedOrder?.deliveryMethod || 'both';
     const displayMedicationItems = (medicationItems && medicationItems.length > 0)
       ? medicationItems
@@ -1620,6 +1694,10 @@ export default function PatientForm({
     const handlePrint = () => {
       window.print();
     };
+
+    if (createdOrderId && !matchedOrder) {
+      return <div className="p-6 text-center text-slate-700">Cargando la solicitud guardada para mostrar el comprobante...</div>;
+    }
 
     return (
       <>
@@ -2645,13 +2723,13 @@ export default function PatientForm({
 
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
-                          <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{titularData.obraSocial || 'Sin especificar'}</span>
+                          <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{selectedCardId === 'titular' ? (selectedObraSocial || 'Sin especificar') : (titularData.obraSocial || 'Sin especificar')}</span>
                         </div>
 
-                        {titularData.obraSocialNumber && (
+                        {(selectedCardId === 'titular' ? obraSocialNumber : titularData.obraSocialNumber) && (
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
-                            <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.obraSocialNumber}</span>
+                            <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{selectedCardId === 'titular' ? obraSocialNumber : titularData.obraSocialNumber}</span>
                           </div>
                         )}
 
@@ -2748,13 +2826,13 @@ export default function PatientForm({
 
                             <div className="flex items-center justify-between gap-2">
                               <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
-                              <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{dep.obraSocial || 'Sin especif.'}</span>
+                              <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{isSelected ? (selectedObraSocial || 'Sin especif.') : (dep.obraSocial || 'Sin especif.')}</span>
                             </div>
 
-                            {dep.obraSocialNumber && (
+                            {(isSelected ? obraSocialNumber : dep.obraSocialNumber) && (
                               <div className="flex items-center justify-between gap-2">
                                 <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
-                                <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.obraSocialNumber}</span>
+                                <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{isSelected ? obraSocialNumber : dep.obraSocialNumber}</span>
                               </div>
                             )}
 
@@ -3599,6 +3677,28 @@ export default function PatientForm({
           const isExemptOrder = paymentAmount === '0';
           return (
           <div className="space-y-4 animate-fadeIn">
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4 space-y-3 text-sm text-slate-800">
+              <p className="font-extrabold text-blue-900">Revisá la cobertura de esta solicitud antes de pagar</p>
+              <p><strong>Obra social:</strong> {selectedObraSocial || 'Sin especificar'}</p>
+              <p><strong>Número de afiliado:</strong> {obraSocialNumber || 'Sin número'}</p>
+              {selectedCardId === 'titular' &&
+                (selectedObraSocial !== titularData.obraSocial || obraSocialNumber !== titularData.obraSocialNumber) && (
+                  <p className="text-amber-800 font-semibold">Estos datos son distintos de los guardados en la ficha del titular. Volvé a Datos si querés corregirlos.</p>
+                )}
+              {draftRestored && <p className="text-slate-600">Se recuperó un borrador. Revisá especialmente la cobertura antes de continuar.</p>}
+              <label className="flex items-start gap-2 cursor-pointer font-semibold">
+                <input
+                  type="checkbox"
+                  checked={coverageIsConfirmed}
+                  onChange={(event) => {
+                    setConfirmedCoverageKey(event.target.checked ? coverageKey : null);
+                    setCoverageConfirmedAt(event.target.checked ? new Date().toISOString() : null);
+                  }}
+                  className="mt-1"
+                />
+                <span>Confirmo que esta obra social y este número de afiliado son los que deben figurar en la solicitud.</span>
+              </label>
+            </div>
             
             {/* Elegant calculation card */}
             <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-3xl p-5 border border-slate-800 space-y-4 shadow-xl">
@@ -3909,7 +4009,7 @@ export default function PatientForm({
               <button
                 id="btn-submit-order"
                 type="submit"
-                disabled={submitting || (!isExemptOrder && mpProcessing)}
+                disabled={!coverageIsConfirmed || submitting || (!isExemptOrder && mpProcessing)}
                 className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
                   isExemptOrder
                     ? 'bg-emerald-600 hover:bg-emerald-700'
