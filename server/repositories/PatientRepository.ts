@@ -18,6 +18,15 @@ export class PatientRepository {
     return Patient.findOne(query);
   }
 
+  async findSummaryByDni(dni: string, tenantId?: string): Promise<IPatient | null> {
+    const clean = cleanDni(dni);
+    const query: Record<string, unknown> = {
+      $or: [{ dni }, { dni: clean }]
+    };
+    if (tenantId) query.tenantId = tenantId;
+    return Patient.findOne(query, { 'messages.fileUrl': 0 }).lean() as unknown as IPatient | null;
+  }
+
   async findByPhone(phone: string, tenantId?: string): Promise<IPatient[]> {
     let clean = cleanPhone(phone);
     if (clean.startsWith('549')) clean = clean.slice(3);

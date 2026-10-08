@@ -79,6 +79,7 @@ export default function PatientDoctorChat({
 
   const [serverConversations, setServerConversations] = useState<any[]>([]);
   const serverConversationsRef = useRef<any[]>([]);
+  const patientDetailsRef = useRef(new Map<string, { signature: string; conversation: any }>());
   const [optimisticMessagesByDni, setOptimisticMessagesByDni] = useState<Record<string, OptimisticChatMessage[]>>({});
 
   const isFetchingConversationsRef = useRef(false);
@@ -87,15 +88,54 @@ export default function PatientDoctorChat({
     if (isFetchingConversationsRef.current) return;
     isFetchingConversationsRef.current = true;
     try {
-      const res = await fetch('/api/chat/conversations', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
-          'Content-Type': 'application/json'
-        }
+      const authHeaders = {
+        'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
+        'Content-Type': 'application/json'
+      };
+      const res = await fetch('/api/chat/conversations?summary=1', {
+        headers: authHeaders
       });
       if (res.ok) {
         const data = await res.json();
         if (Array.isArray(data)) {
+          let detailUpdated = false;
+          if (isPatient && data.length > 0) {
+            const activeSummary = data[0];
+            const dni = activeSummary.cleanDni || cleanDni(activeSummary.patientDni);
+            const messages = activeSummary.messages || [];
+            const lastMessage = messages[messages.length - 1];
+            const signature = `${messages.length}:${lastMessage?.id || ''}:${lastMessage?.timestamp || ''}`;
+            const cached = patientDetailsRef.current.get(dni);
+
+            if (dni && cached?.signature !== signature) {
+              try {
+                const detailRes = await fetch(`/api/chat/${encodeURIComponent(dni)}`, { headers: authHeaders });
+                if (detailRes.ok) {
+                  const conversation = await detailRes.json();
+                  patientDetailsRef.current.set(dni, { signature, conversation });
+                  detailUpdated = true;
+                }
+              } catch {
+                // Keep the lightweight conversation available and retry its media on the next poll.
+              }
+            }
+
+            const detail = patientDetailsRef.current.get(dni)?.conversation;
+            if (detail) {
+              // The polling response has no file URLs; retain media from the detail response.
+              const detailedMessages = new Map<string, ChatMessage>(
+                (detail.messages || []).map((message: ChatMessage): [string, ChatMessage] => [message.id, message])
+              );
+              data[0] = {
+                ...activeSummary,
+                messages: messages.map((message: ChatMessage) => ({
+                  ...message,
+                  fileUrl: detailedMessages.get(message.id)?.fileUrl
+                }))
+              };
+            }
+          }
+
           // Compare signature to prevent unnecessary state update and re-renders
           const prevSig = JSON.stringify(serverConversationsRef.current.map(c => ({
             id: c.cleanDni || c.dni,
@@ -108,7 +148,7 @@ export default function PatientDoctorChat({
             cnt: c.messages?.length || c.messagesCount || 0
           })));
 
-          if (prevSig !== nextSig) {
+          if (prevSig !== nextSig || detailUpdated) {
             serverConversationsRef.current = data;
             setServerConversations(data);
           }

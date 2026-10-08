@@ -47,7 +47,7 @@ export class ChatService {
   /**
    * Aggregates and returns unique patient conversations for doctors/admins.
    */
-  async getConversations(currentUser: any) {
+  async getConversations(currentUser: any, summary = false) {
     const tenantId = currentUser?.tenantId || 'TEN-0001';
     const isPatient = currentUser?.role === 'paciente';
 
@@ -61,13 +61,13 @@ export class ChatService {
       const convos = [];
       for (const d of allDnis) {
         try {
-          const c = await this.getPatientChat(d, currentUser);
+          const c = await this.getPatientChat(d, currentUser, summary);
           if (c) convos.push(c);
         } catch (e) {
           // ignore if no conversation yet
         }
       }
-      return convos.length > 0 ? convos : [await this.getPatientChat(patientDniClean, currentUser)];
+      return convos.length > 0 ? convos : [await this.getPatientChat(patientDniClean, currentUser, summary)];
     }
 
     // Staff view: Fetch lightweight order and patient summaries (excluding large base64 attachments)
@@ -200,7 +200,7 @@ export class ChatService {
   /**
    * Retrieves unified chat history for a specific patient DNI.
    */
-  async getPatientChat(dni: string, currentUser: any) {
+  async getPatientChat(dni: string, currentUser: any, summary = false) {
     const clean = cleanDni(dni);
     if (!clean) throw new Error('DNI del paciente es requerido');
 
@@ -216,11 +216,13 @@ export class ChatService {
     }
 
     const tenantId = currentUser?.tenantId || 'TEN-0001';
-    const patientDoc = await this.patientRepo.findByDni(clean, tenantId);
+    const patientDoc = summary
+      ? await this.patientRepo.findSummaryByDni(clean, tenantId)
+      : await this.patientRepo.findByDni(clean, tenantId);
     const candidateDnis = Array.from(new Set([clean, dni].filter(Boolean)));
-    const orders = typeof this.orderRepo.findByPatientDnis === 'function'
-      ? await this.orderRepo.findByPatientDnis(tenantId, candidateDnis)
-      : await this.orderRepo.findByTenant(tenantId);
+    const orders = summary
+      ? await this.orderRepo.findSummariesByPatientDnis(tenantId, candidateDnis)
+      : await this.orderRepo.findByPatientDnis(tenantId, candidateDnis);
     const patientOrders = orders.filter((o) => cleanDni(o.patientDni) === clean);
 
     let allMessages: any[] = [];
@@ -236,22 +238,40 @@ export class ChatService {
     const dedupedMessages = this.dedupeAndSortMessages(allMessages);
     const latestOrder = patientOrders[0];
 
-    let maskedMessages = dedupedMessages;
-    if (currentUser?.role === 'paciente') {
-      maskedMessages = dedupedMessages.map((m) => {
-        const isFromPatient = m.sender === 'paciente';
-        return {
-          ...m,
-          senderName: isFromPatient ? m.senderName : 'mireceta.online',
-          senderId: isFromPatient ? m.senderId : 'mireceta.online',
-          senderRole: isFromPatient ? m.senderRole : 'mireceta.online',
-          replyTo: m.replyTo ? {
-            ...m.replyTo,
-            senderName: m.replyTo.senderName === 'Paciente' || m.replyTo.senderName === 'paciente' ? m.replyTo.senderName : 'mireceta.online'
-          } : undefined
-        };
-      });
-    }
+    const maskedMessages = dedupedMessages.map((message) => {
+      // Mongoose subdocuments carry references to their parent and sibling messages.
+      // Spreading one into a response makes JSON serialization grow quadratically.
+      const m = typeof message.toObject === 'function' ? message.toObject() : message;
+      const isFromPatient = m.sender === 'paciente';
+      const maskSender = currentUser?.role === 'paciente' && !isFromPatient;
+      const replyTo = m.replyTo
+        ? {
+            id: m.replyTo.id,
+            senderName: currentUser?.role === 'paciente' && m.replyTo.senderName !== 'Paciente' && m.replyTo.senderName !== 'paciente'
+              ? 'mireceta.online'
+              : m.replyTo.senderName,
+            text: m.replyTo.text
+          }
+        : undefined;
+
+      const result: ChatMessageDto = {
+        id: m.id,
+        sender: m.sender,
+        senderName: maskSender ? 'mireceta.online' : m.senderName,
+        senderRole: maskSender ? 'mireceta.online' : m.senderRole,
+        senderId: maskSender ? 'mireceta.online' : m.senderId,
+        text: m.text,
+        fileUrl: summary ? undefined : m.fileUrl,
+        fileName: m.fileName,
+        fileType: m.fileType,
+        mimeType: m.mimeType,
+        audioDuration: m.audioDuration,
+        timestamp: m.timestamp,
+        status: m.status,
+        replyTo
+      };
+      return result;
+    });
 
     return {
       patientDni: dni,

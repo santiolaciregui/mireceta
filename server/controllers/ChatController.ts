@@ -5,7 +5,7 @@ import { getCurrentUser } from '../utils/httpHelpers.js';
 export class ChatController {
   getConversations = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const conversations = await chatService.getConversations(getCurrentUser(req));
+      const conversations = await chatService.getConversations(getCurrentUser(req), req.query.summary === '1');
       res.json(conversations);
     } catch (err: any) {
       if (err.message === 'Acceso no autorizado.') {
