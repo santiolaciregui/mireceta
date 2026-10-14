@@ -83,13 +83,26 @@ test('serializes patient chat messages without Mongoose parent references or rep
     }))
   });
   const service: any = new ChatService();
+  const repositoryCalls: string[] = [];
   service.patientRepo = {
-    findByDni: async () => patient,
-    findSummaryByDni: async () => patient
+    findByDni: async () => {
+      repositoryCalls.push('patient-detail');
+      return patient;
+    },
+    findSummaryByDni: async () => {
+      repositoryCalls.push('patient-summary');
+      return patient;
+    }
   };
   service.orderRepo = {
-    findByPatientDnis: async () => [],
-    findSummariesByPatientDnis: async () => []
+    findByPatientDnis: async () => {
+      repositoryCalls.push('orders-detail');
+      return [];
+    },
+    findSummariesByPatientDnis: async () => {
+      repositoryCalls.push('orders-summary');
+      return [];
+    }
   };
   const user = { role: 'paciente', identifier: '12345678', tenantId: 'TEN-TEST', dependents: [] };
 
@@ -106,4 +119,11 @@ test('serializes patient chat messages without Mongoose parent references or rep
   assert.equal(summaries[0].messages.length, 8);
   assert.equal(summaryJson.includes(attachment), false);
   assert.equal(summaryJson.includes('fileUrl'), false);
+  assert.deepEqual(repositoryCalls, [
+    'patient-detail', 'orders-detail', 'patient-summary', 'orders-summary'
+  ]);
+  await assert.rejects(
+    service.getPatientChat('87654321', user, true),
+    /No tienes autorización/
+  );
 });

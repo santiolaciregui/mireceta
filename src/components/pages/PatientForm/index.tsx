@@ -13,7 +13,6 @@ import { CustomDatePicker } from '../../common/CustomDatePicker';
 import { 
   User, 
   Users,
-  Heart,
   FileText, 
   CreditCard, 
   Upload, 
@@ -35,7 +34,6 @@ import {
   Download,
   Clock,
   CheckCircle2,
-  Edit3,
   Lock,
   Unlock,
   Copy,
@@ -47,6 +45,7 @@ import {
   RotateCcw,
   Loader2
 } from 'lucide-react';
+import PatientSelectionCard from './PatientSelectionCard';
 import MercadoPagoIcon from '../../MercadoPagoIcon';
 import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 import { fileToBase64, compressImageAndGetBase64 } from '../../../utils/file';
@@ -141,14 +140,6 @@ export default function PatientForm({
   }>({});
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
-  const [confirmedCoverageKey, setConfirmedCoverageKey] = useState<string | null>(null);
-  const [coverageConfirmedAt, setCoverageConfirmedAt] = useState<string | null>(null);
-  const coverageHistoryRef = useRef<Array<{
-    event: 'selection_changed' | 'draft_restored';
-    at: string;
-    obraSocial: string;
-    obraSocialNumber: string;
-  }>>([]);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
   const [returnedOrder, setReturnedOrder] = useState<any>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
@@ -157,7 +148,16 @@ export default function PatientForm({
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const { toast, showToast } = useToast();
   const cartSectionRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
+  const previousStepRef = useRef(step);
   const isSubmittingRef = useRef(false);
+
+  useEffect(() => {
+    if (previousStepRef.current !== step && window.matchMedia('(max-width: 639px)').matches) {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    previousStepRef.current = step;
+  }, [step]);
 
   const scrollToCart = () => {
     setTimeout(() => {
@@ -302,30 +302,6 @@ export default function PatientForm({
   });
 
   const [selectedCardId, setSelectedCardId] = useState<string>('titular');
-  const coverageKey = JSON.stringify([selectedObraSocial.trim(), obraSocialNumber.trim(), selectedCardId]);
-  const coverageIsConfirmed = confirmedCoverageKey === coverageKey;
-  const coverageConfirmation = () => ({
-    source: 'patient_form' as const,
-    obraSocial: selectedObraSocial.trim(),
-    obraSocialNumber: obraSocialNumber.trim(),
-    confirmedAt: coverageConfirmedAt || '',
-    draftRestored,
-    history: [...coverageHistoryRef.current],
-  });
-  useEffect(() => {
-    const snapshot = { obraSocial: selectedObraSocial.trim(), obraSocialNumber: obraSocialNumber.trim() };
-    const last = coverageHistoryRef.current.at(-1);
-    if (last?.obraSocial === snapshot.obraSocial && last?.obraSocialNumber === snapshot.obraSocialNumber) return;
-    coverageHistoryRef.current = [...coverageHistoryRef.current, {
-      ...snapshot,
-      event: 'selection_changed',
-      at: new Date().toISOString(),
-    }].slice(-25);
-  }, [selectedObraSocial, obraSocialNumber]);
-  useEffect(() => {
-    setConfirmedCoverageKey(null);
-    setCoverageConfirmedAt(null);
-  }, [coverageKey]);
   const [showAddDependentModal, setShowAddDependentModal] = useState<boolean>(false);
 
   // New/Edit Patient Modal State
@@ -967,15 +943,6 @@ export default function PatientForm({
 
     const draft = loadDraft();
     if (draft) {
-      if ((draft.selectedObraSocial || draft.obraSocialNumber)
-        && !coverageHistoryRef.current.some((entry) => entry.event === 'draft_restored')) {
-        coverageHistoryRef.current = [...coverageHistoryRef.current, {
-          event: 'draft_restored',
-          at: new Date().toISOString(),
-          obraSocial: (draft.selectedObraSocial || '').trim(),
-          obraSocialNumber: (draft.obraSocialNumber || '').trim(),
-        }].slice(-25);
-      }
       if (draft.step && draft.step !== 'confirmation') {
         setStep(draft.step);
       }
@@ -1364,10 +1331,6 @@ export default function PatientForm({
 
   const processMercadoPagoPayment = async () => {
     if (isSubmittingRef.current) return;
-    if (!coverageIsConfirmed) {
-      setError('Confirmá la obra social y el número de afiliado antes de iniciar el pago.');
-      return;
-    }
     isSubmittingRef.current = true;
     setError(null);
 
@@ -1418,7 +1381,6 @@ export default function PatientForm({
           deliveryMethod,
           obraSocial: selectedObraSocial,
           obraSocialNumber: obraSocialNumber.trim() || undefined,
-          coverageConfirmation: coverageConfirmation(),
           isForDependent,
           dependentRelationship,
           requestedByTitularName,
@@ -1459,7 +1421,7 @@ export default function PatientForm({
       const savedOrder = await onLoadOrderDetails(orderId);
       if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
         || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
-        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de la confirmada. No se inició el pago; solicitá la corrección de esa solicitud.`);
+        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de los datos mostrados. No se inició el pago; solicitá la corrección de esa solicitud.`);
       }
       setReturnedOrder(savedOrder);
 
@@ -1498,11 +1460,6 @@ export default function PatientForm({
     e.preventDefault();
     if (isSubmittingRef.current || submitting || mpProcessing) return;
     if (step !== 'payment') return;
-
-    if (!coverageIsConfirmed) {
-      setError('Confirmá la obra social y el número de afiliado antes de enviar la solicitud.');
-      return;
-    }
 
     setError(null);
 
@@ -1572,7 +1529,6 @@ export default function PatientForm({
       deliveryMethod,
       obraSocial: selectedObraSocial,
       obraSocialNumber: obraSocialNumber.trim() || undefined,
-      coverageConfirmation: coverageConfirmation(),
       isForDependent,
       dependentRelationship,
       requestedByTitularName,
@@ -1633,7 +1589,7 @@ export default function PatientForm({
       const savedOrder = await onLoadOrderDetails(orderId);
       if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
         || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
-        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de la confirmada. Revisá la solicitud antes de continuar.`);
+        throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de los datos mostrados. Revisá la solicitud antes de continuar.`);
       }
       setReturnedOrder(savedOrder);
       trackCompletePrescription({
@@ -2587,7 +2543,7 @@ export default function PatientForm({
       )}
 
       {/* Form Content */}
-      <form onSubmit={handleSubmitAll} className="p-4 sm:p-6" noValidate>
+      <form ref={formRef} onSubmit={handleSubmitAll} className="p-4 sm:p-6" noValidate>
         
         {/* STEP 0: INFO */}
         {step === 'info' && (
@@ -2654,7 +2610,7 @@ export default function PatientForm({
                       ¿Para quién es la receta?
                     </h4>
                     <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                      Seleccioná la tarjeta del paciente titular o a tu cargo. Podés editar o agregar nuevos familiares.
+                      Elegí al paciente con “Seleccionar”. Podés ver sus datos, editar o agregar familiares.
                     </p>
                   </div>
                   <button
@@ -2667,202 +2623,43 @@ export default function PatientForm({
                   </button>
                 </div>
 
-                {/* GRID DE CARDS CON DATOS COMPLETOS Y BOTÓN EDITAR */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {/* CARD TITULAR */}
-                  <div
-                    onClick={() => handleSelectCard('titular')}
-                    className={`relative rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
-                      selectedCardId === 'titular'
-                        ? 'p-[17px] bg-blue-50/60 border-2 border-[#1661E1] ring-4 ring-[#1E6EFB]/15 shadow-md'
-                        : 'p-[18px] bg-white border border-slate-250 hover:border-slate-350 hover:shadow-xs'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between gap-2 mb-3">
-                        <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-[#1661E1]/10 text-[#1661E1] border border-[#1661E1]/20">
-                          <User className="h-3.5 w-3.5" />
-                          Titular (Yo)
-                        </span>
+                {/* Selección compacta: datos principales visibles y el resto a demanda */}
+                <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  <PatientSelectionCard
+                    name={`${titularData.name || 'Titular'} ${titularData.lastName || ''}`.trim()}
+                    relationship="Titular (Yo)"
+                    dni={titularData.dni}
+                    phone={titularData.phone}
+                    obraSocial={selectedCardId === 'titular' ? selectedObraSocial : titularData.obraSocial}
+                    obraSocialNumber={selectedCardId === 'titular' ? obraSocialNumber : titularData.obraSocialNumber}
+                    birthDate={titularData.birthDate}
+                    email={titularData.email}
+                    city={titularData.city}
+                    province={titularData.province}
+                    selected={selectedCardId === 'titular'}
+                    onSelect={() => handleSelectCard('titular')}
+                    onEdit={(event) => handleOpenEditModal(event, 'titular')}
+                  />
 
-                        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenEditModal(e, 'titular')}
-                            className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#1661E1] hover:bg-[#1661E1]/10 border border-slate-200 hover:border-[#1661E1]/30 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                            title="Editar datos del titular"
-                          >
-                            <Edit3 className="h-3.5 w-3.5 text-[#1661E1]" />
-                            <span>Editar</span>
-                          </button>
-
-                          {selectedCardId === 'titular' && (
-                            <span className="h-8 w-8 rounded-full bg-[#14BE99] text-white flex items-center justify-center shadow-md border-2 border-white ring-1 ring-[#14BE99]/20 animate-scaleUp">
-                              <Check className="h-5 w-5 stroke-[3.5]" />
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      <h5 className="font-black text-[#0141BC] text-base leading-tight">
-                        {titularData.name || 'Titular'} {titularData.lastName || ''}
-                      </h5>
-                      
-                      <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-slate-400 shrink-0">DNI:</span>
-                          <span className="font-mono font-bold text-[#0141BC] truncate flex-1 min-w-0 text-right">{titularData.dni || 'Sin registrar'}</span>
-                        </div>
-
-                        {titularData.birthDate && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-400 shrink-0">F. Nacimiento:</span>
-                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.birthDate}</span>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
-                          <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{selectedCardId === 'titular' ? (selectedObraSocial || 'Sin especificar') : (titularData.obraSocial || 'Sin especificar')}</span>
-                        </div>
-
-                        {(selectedCardId === 'titular' ? obraSocialNumber : titularData.obraSocialNumber) && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
-                            <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{selectedCardId === 'titular' ? obraSocialNumber : titularData.obraSocialNumber}</span>
-                          </div>
-                        )}
-
-                        {titularData.phone && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-400 shrink-0">WhatsApp:</span>
-                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.phone}</span>
-                          </div>
-                        )}
-
-                        {titularData.email && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-400 shrink-0">Email:</span>
-                            <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{titularData.email}</span>
-                          </div>
-                        )}
-
-                        {(titularData.city || titularData.province) && (
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="font-semibold text-slate-400 shrink-0">Ciudad/Prov:</span>
-                            <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">
-                              {titularData.city || '—'}{titularData.province ? `, ${titularData.province}` : ''}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CARDS DEPENDIENTES */}
-                  {dependents.map((dep) => {
-                    const isSelected = selectedCardId === dep.id;
-                    return (
-                      <div
-                        key={dep.id}
-                        onClick={() => handleSelectCard(dep.id)}
-                        className={`relative rounded-2xl transition-all cursor-pointer flex flex-col justify-between ${
-                          isSelected
-                            ? 'p-[17px] bg-blue-50/60 border-2 border-[#1661E1] ring-4 ring-[#1E6EFB]/15 shadow-md'
-                            : 'p-[18px] bg-white border border-slate-250 hover:border-slate-350 hover:shadow-xs'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-2 mb-3">
-                            <span className="inline-flex items-center gap-1.5 text-xs font-extrabold px-3 py-1 rounded-full bg-[#0F6C7D]/10 text-[#0F6C7D] border border-[#0F6C7D]/20">
-                              <Heart className="h-3.5 w-3.5" />
-                              {dep.relationship || 'A Cargo'}
-                            </span>
-
-                            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                type="button"
-                                onClick={(e) => handleOpenEditModal(e, dep.id)}
-                                className="px-2 py-1 rounded-lg text-slate-500 hover:text-[#1661E1] hover:bg-[#1661E1]/10 border border-slate-200 hover:border-[#1661E1]/30 transition-all cursor-pointer flex items-center gap-1 text-[11px] font-bold"
-                                title="Editar datos del paciente"
-                              >
-                                <Edit3 className="h-3.5 w-3.5 text-[#1661E1]" />
-                                <span>Editar</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={(e) => handleRemoveDependentCard(e, dep.id)}
-                                className="p-1 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
-                                title="Eliminar paciente"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-
-                              {isSelected && (
-                                <span className="h-8 w-8 rounded-full bg-[#14BE99] text-white flex items-center justify-center shadow-md border-2 border-white ring-1 ring-[#14BE99]/20 animate-scaleUp">
-                                  <Check className="h-5 w-5 stroke-[3.5]" />
-                                </span>
-                              )}
-                            </div>
-                          </div>
-
-                          <h5 className="font-black text-[#0141BC] text-base leading-tight">
-                            {dep.name} {dep.lastName}
-                          </h5>
-
-                          <div className="pt-2.5 mt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-semibold text-slate-400 shrink-0">DNI:</span>
-                              <span className="font-mono font-bold text-[#0141BC] truncate flex-1 min-w-0 text-right">{dep.dni || 'Sin registrar'}</span>
-                            </div>
-
-                            {dep.birthDate && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-400 shrink-0">F. Nacimiento:</span>
-                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.birthDate}</span>
-                              </div>
-                            )}
-
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="font-semibold text-slate-400 shrink-0">Obra Social:</span>
-                              <span className="font-bold text-[#0F6C7D] truncate flex-1 min-w-0 text-right">{isSelected ? (selectedObraSocial || 'Sin especif.') : (dep.obraSocial || 'Sin especif.')}</span>
-                            </div>
-
-                            {(isSelected ? obraSocialNumber : dep.obraSocialNumber) && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-400 shrink-0">Credencial N°:</span>
-                                <span className="font-mono font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{isSelected ? obraSocialNumber : dep.obraSocialNumber}</span>
-                              </div>
-                            )}
-
-                            {dep.phone && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-400 shrink-0">WhatsApp:</span>
-                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">{dep.phone}</span>
-                              </div>
-                            )}
-
-                            {dep.email && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-400 shrink-0">Email:</span>
-                                <span className="font-medium text-slate-700 truncate flex-1 min-w-0 text-right">{dep.email}</span>
-                              </div>
-                            )}
-
-                            {(dep.city || dep.province) && (
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="font-semibold text-slate-400 shrink-0">Ciudad/Prov:</span>
-                                <span className="font-bold text-slate-700 truncate flex-1 min-w-0 text-right">
-                                  {dep.city || '—'}{dep.province ? `, ${dep.province}` : ''}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                  {dependents.map((dep) => (
+                    <PatientSelectionCard
+                      key={dep.id}
+                      name={`${dep.name} ${dep.lastName}`.trim()}
+                      relationship={dep.relationship || 'A cargo'}
+                      dni={dep.dni}
+                      phone={dep.phone}
+                      obraSocial={selectedCardId === dep.id ? selectedObraSocial : dep.obraSocial}
+                      obraSocialNumber={selectedCardId === dep.id ? obraSocialNumber : dep.obraSocialNumber}
+                      birthDate={dep.birthDate}
+                      email={dep.email}
+                      city={dep.city}
+                      province={dep.province}
+                      selected={selectedCardId === dep.id}
+                      onSelect={() => handleSelectCard(dep.id)}
+                      onEdit={(event) => handleOpenEditModal(event, dep.id)}
+                      onRemove={(event) => handleRemoveDependentCard(event, dep.id)}
+                    />
+                  ))}
 
                   {/* BOTÓN NUEVO DEPENDIENTE EN GRID */}
                   <button
@@ -3686,18 +3483,6 @@ export default function PatientForm({
                   <p className="text-amber-800 font-semibold">Estos datos son distintos de los guardados en la ficha del titular. Volvé a Datos si querés corregirlos.</p>
                 )}
               {draftRestored && <p className="text-slate-600">Se recuperó un borrador. Revisá especialmente la cobertura antes de continuar.</p>}
-              <label className="flex items-start gap-2 cursor-pointer font-semibold">
-                <input
-                  type="checkbox"
-                  checked={coverageIsConfirmed}
-                  onChange={(event) => {
-                    setConfirmedCoverageKey(event.target.checked ? coverageKey : null);
-                    setCoverageConfirmedAt(event.target.checked ? new Date().toISOString() : null);
-                  }}
-                  className="mt-1"
-                />
-                <span>Confirmo que esta obra social y este número de afiliado son los que deben figurar en la solicitud.</span>
-              </label>
             </div>
             
             {/* Elegant calculation card */}
@@ -4009,7 +3794,7 @@ export default function PatientForm({
               <button
                 id="btn-submit-order"
                 type="submit"
-                disabled={!coverageIsConfirmed || submitting || (!isExemptOrder && mpProcessing)}
+                disabled={submitting || (!isExemptOrder && mpProcessing)}
                 className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
                   isExemptOrder
                     ? 'bg-emerald-600 hover:bg-emerald-700'

@@ -367,10 +367,10 @@ export default function App() {
                       </div>
                     </header>
 
-                    <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-white via-[#F7FBFF] to-[#EDF6FF]">
+                    <div className="flex-1 overflow-y-auto px-0 py-3 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 bg-gradient-to-b from-white via-[#F7FBFF] to-[#EDF6FF]">
                       {/* Notification alert of successful submission */}
                       {successSubmissionId && (
-                        <div className="max-w-6xl mx-auto bg-[#14BE99] text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
+                        <div className="mx-3 sm:mx-auto max-w-6xl bg-[#14BE99] text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-lg border border-white/30 space-y-2 animate-scaleUp">
                           <div className="flex items-center gap-2">
                             <ShieldCheck className="h-5 w-5 sm:h-5.5 sm:w-5.5 text-white shrink-0" />
                             <h4 className="font-bold text-xs sm:text-sm">¡Pedido cargado correctamente!</h4>

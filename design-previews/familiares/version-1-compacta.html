@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Familiares · Versión compacta</title>
+  <style>
+    :root{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#1d2e4c;background:#f4f7fb;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0}button{font:inherit;cursor:pointer}button:focus-visible,summary:focus-visible{outline:3px solid #1385ec;outline-offset:3px}
+    .shell{max-width:490px;min-height:100dvh;margin:auto;background:#f8faff;padding:28px 18px 48px}
+    .eyebrow{margin:0 0 5px;color:#587095;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}h1{margin:0;color:#073eab;font-size:30px;line-height:1.15;letter-spacing:-.035em}.intro{margin:10px 0 22px;color:#5c6e88;font-size:15px;line-height:1.45}
+    .list{display:grid;gap:11px}.person{overflow:hidden;border:1px solid #dbe4f0;border-radius:20px;background:#fff;box-shadow:0 5px 20px #143c8510}.person.selected{border:2px solid #1563e8;background:#f7faff;box-shadow:0 0 0 4px #1563e817}
+    .top{padding:18px 18px 16px}.name-row{display:flex;align-items:start;justify-content:space-between;gap:10px}.name{margin:0;color:#0b45bd;font-size:20px;line-height:1.2;letter-spacing:-.025em}.state{flex:none;border:0;border-radius:99px;padding:7px 10px;background:#e6f6ef;color:#08734d;font-size:12px;font-weight:800}.state:not(.active){background:#eef3fa;color:#395c88}.role{display:block;margin-top:5px;color:#59708f;font-size:13px;font-weight:700}
+    .facts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}.fact{min-width:0}.fact small{display:block;margin-bottom:3px;color:#71829e;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em}.fact strong{display:block;overflow-wrap:anywhere;font-size:14px;font-weight:700;line-height:1.25}
+    details{border-top:1px solid #e5ebf4}summary{list-style:none;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;color:#1259ca;font-size:14px;font-weight:800;cursor:pointer}summary::-webkit-details-marker{display:none}summary .chevron{transition:transform .2s}details[open] summary .chevron{transform:rotate(180deg)}.more{padding:3px 18px 18px}.detail-grid{display:grid;gap:0}.detail-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid #edf1f7;font-size:13px}.detail-row span{color:#6a7d98}.detail-row strong{text-align:right;overflow-wrap:anywhere}.actions{display:flex;gap:8px;margin-top:17px}.actions button{min-height:44px;padding:0 16px;border-radius:11px;font-size:14px;font-weight:800}.edit{border:1px solid #c9d8ee;background:#fff;color:#1456c1}.delete{border:0;background:transparent;color:#b33b46}
+    .note{margin:22px 2px 0;color:#71829e;font-size:13px;line-height:1.45}.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#21334e;color:#fff;border-radius:12px;padding:11px 16px;font-size:13px;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
+    @media(max-width:360px){.shell{padding-inline:12px}.name{font-size:18px}.facts{gap:8px}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <p class="eyebrow">Mi Receta Online</p>
+    <h1>Mis familiares</h1>
+    <p class="intro">Elegí para quién necesitás una receta.</p>
+    <section class="list" aria-label="Personas disponibles">
+      <article class="person selected">
+        <div class="top">
+          <div class="name-row"><div><h2 class="name">María Pérez</h2><span class="role">Titular · Yo</span></div><button class="state active" type="button" aria-pressed="true" onclick="selectPerson(this)">✓ Seleccionado</button></div>
+          <div class="facts"><div class="fact"><small>DNI</small><strong>00.000.001</strong></div><div class="fact"><small>Teléfono</small><strong>11 0000 0001</strong></div><div class="fact"><small>Obra social</small><strong>PAMI</strong></div><div class="fact"><small>Credencial</small><strong>000001</strong></div></div>
+        </div>
+        <details><summary>Ver todos los datos <span class="chevron" aria-hidden="true">⌄</span></summary><div class="more">
+          <div class="detail-grid"><div class="detail-row"><span>Fecha de nacimiento</span><strong>01/01/1990</strong></div><div class="detail-row"><span>Email</span><strong>maria@ejemplo.com</strong></div><div class="detail-row"><span>Ciudad / provincia</span><strong>Ciudad de ejemplo, Buenos Aires</strong></div></div>
+          <div class="actions"><button class="edit" type="button" onclick="showToast('Editar datos · vista de diseño')">Editar datos</button></div>
+        </div></details>
+      </article>
+      <article class="person">
+        <div class="top">
+          <div class="name-row"><div><h2 class="name">Tomás Pérez</h2><span class="role">Hermano</span></div><button class="state" type="button" aria-pressed="false" onclick="selectPerson(this)">Seleccionar</button></div>
+          <div class="facts"><div class="fact"><small>DNI</small><strong>00.000.002</strong></div><div class="fact"><small>Teléfono</small><strong>11 0000 0002</strong></div><div class="fact"><small>Obra social</small><strong>IOMA</strong></div><div class="fact"><small>Credencial</small><strong>000002</strong></div></div>
+        </div>
+        <details><summary>Ver todos los datos <span class="chevron" aria-hidden="true">⌄</span></summary><div class="more">
+          <div class="detail-grid"><div class="detail-row"><span>Fecha de nacimiento</span><strong>02/02/2010</strong></div><div class="detail-row"><span>Email</span><strong>tomas@ejemplo.com</strong></div><div class="detail-row"><span>Ciudad / provincia</span><strong>Ciudad de ejemplo, Buenos Aires</strong></div></div>
+          <div class="actions"><button class="edit" type="button" onclick="showToast('Editar datos · vista de diseño')">Editar datos</button><button class="delete" type="button" onclick="showToast('Eliminar familiar · vista de diseño')">Eliminar familiar</button></div>
+        </div></details>
+      </article>
+      <article class="person">
+        <div class="top">
+          <div class="name-row"><div><h2 class="name">Lucía Pérez</h2><span class="role">Hermana</span></div><button class="state" type="button" aria-pressed="false" onclick="selectPerson(this)">Seleccionar</button></div>
+          <div class="facts"><div class="fact"><small>DNI</small><strong>00.000.003</strong></div><div class="fact"><small>Teléfono</small><strong>11 0000 0003</strong></div><div class="fact"><small>Obra social</small><strong>IOMA</strong></div><div class="fact"><small>Credencial</small><strong>000003</strong></div></div>
+        </div>
+        <details><summary>Ver todos los datos <span class="chevron" aria-hidden="true">⌄</span></summary><div class="more">
+          <div class="detail-grid"><div class="detail-row"><span>Fecha de nacimiento</span><strong>03/03/2013</strong></div><div class="detail-row"><span>Email</span><strong>lucia@ejemplo.com</strong></div><div class="detail-row"><span>Ciudad / provincia</span><strong>Ciudad de ejemplo, Buenos Aires</strong></div></div>
+          <div class="actions"><button class="edit" type="button" onclick="showToast('Editar datos · vista de diseño')">Editar datos</button><button class="delete" type="button" onclick="showToast('Eliminar familiar · vista de diseño')">Eliminar familiar</button></div>
+        </div></details>
+      </article>
+    </section>
+    <p class="note">Prototipo visual · Los botones de edición y eliminación muestran una demostración, sin modificar datos.</p>
+  </main>
+  <div class="toast" role="status" aria-live="polite"></div>
+  <script>
+    function selectPerson(button){document.querySelectorAll('.person').forEach(card=>{const current=card.querySelector('.state');const active=current===button;card.classList.toggle('selected',active);current.classList.toggle('active',active);current.setAttribute('aria-pressed',String(active));current.textContent=active?'✓ Seleccionado':'Seleccionar'})}
+    let timer;function showToast(message){const toast=document.querySelector('.toast');toast.textContent=message;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2300)}
+  </script>
+</body>
+</html>

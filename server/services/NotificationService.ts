@@ -8,6 +8,7 @@ import { PatientRepository } from '../repositories/PatientRepository.js';
 import { auditLogService } from './AuditLogService.js';
 import { generatePatientId, generateMessageId } from '../utils/idGenerator.js';
 import { formatWhatsAppPhone } from '../utils/formatters.js';
+import { describeInboundWhatsAppMessage } from './notification/InboundWhatsAppMessage.js';
 import {
   getPendingOrderAlertTransition,
   normalizePendingOrderAlertSettings,
@@ -440,7 +441,23 @@ export class NotificationService {
             const mediaType = this.getInboundMediaType(msg.type);
             const media = mediaType ? (msg[msg.type] || (mediaType === 'audio' ? (msg.audio || msg.voice) : undefined)) : undefined;
             const mediaData = media?.id ? await this.downloadInboundWhatsAppMedia(media.id, 'TEN-0001') : null;
-            const textContent = msg.text?.body || media?.caption || this.getInboundMediaLabel(mediaType, media?.filename);
+            const { text: textContent, diagnostics } = describeInboundWhatsAppMessage(
+              msg,
+              mediaType ? this.getInboundMediaLabel(mediaType, media?.filename) : undefined,
+              media?.caption
+            );
+            const inboundDiagnostics = {
+              ...diagnostics,
+              ...(mediaType ? {
+                media: {
+                  id: media?.id,
+                  downloadStatus: mediaData ? 'downloaded' : media?.id ? 'unavailable' : 'missing_media_id'
+                }
+              } : {})
+            };
+            if (diagnostics.fallbackReason || (mediaType && !mediaData)) {
+              console.warn('[WhatsApp Webhook Inbound] Content could not be fully interpreted', inboundDiagnostics);
+            }
 
             console.log(`[WhatsApp Webhook Inbound] Mensaje recibido de ${senderPhone} (${contactName}): "${textContent}"`);
 
@@ -509,7 +526,8 @@ export class NotificationService {
               action: 'WHATSAPP_INBOUND_MESSAGE',
               entity: 'Patient',
               entityId: targetPatient?.id || senderPhone,
-              details: `Mensaje de WhatsApp recibido de ${contactName} (${senderPhone}): "${textContent.substring(0, 80)}"`
+              details: `Mensaje de WhatsApp recibido de ${contactName} (${senderPhone}): "${textContent.substring(0, 80)}"`,
+              changes: { inboundWhatsApp: inboundDiagnostics }
             });
 
             // 4. Si el mensaje recibido es un audio o nota de voz, responder automáticamente que no se procesan audios
