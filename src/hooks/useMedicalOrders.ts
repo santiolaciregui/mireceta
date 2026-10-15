@@ -729,7 +729,7 @@ export function useMedicalOrders() {
     try {
       const cleanTargetDni = (dniOrOrderId || '').replace(/\D/g, '');
       const matchesTarget = (order: MedicalOrder) => {
-        const orderConversationDni = (order.requestedByTitularDni || order.patientDni || '').replace(/\D/g, '');
+        const orderConversationDni = (currentUser?.role === 'paciente' ? order.requestedByTitularDni || order.patientDni || '' : order.patientDni || '').replace(/\D/g, '');
         return order.id === dniOrOrderId || Boolean(cleanTargetDni && orderConversationDni === cleanTargetDni);
       };
       const matchingOrders = orders.filter(matchesTarget);

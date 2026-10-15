@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { MedicalOrder, SystemUser, PatientInformationUpdate } from '../../../types';
 import PatientDetailModal, { PatientRecord } from './PatientDetailModal';
 import { 
@@ -34,6 +34,9 @@ import {
 } from 'lucide-react';
 
 interface PatientListViewProps {
+  initialPatientDni?: string | null;
+  onClearInitialPatientDni?: () => void;
+  conversations?: any[];
   orders: MedicalOrder[];
   users: SystemUser[];
   currentUser?: {
@@ -51,6 +54,9 @@ interface PatientListViewProps {
 export default function PatientListView({
   orders,
   users,
+  initialPatientDni,
+  onClearInitialPatientDni,
+  conversations = [],
   currentUser,
   onUpdatePatient,
   onSelectOrder,
@@ -193,6 +199,33 @@ export default function PatientListView({
   }, [users, orders]);
 
   const allPatients = useMemo(() => Array.from(patientsMap.values()), [patientsMap]);
+
+  useEffect(() => {
+    if (!initialPatientDni) return;
+    const dni = initialPatientDni.replace(/\D/g, '');
+    let patient = patientsMap.get(dni);
+    if (!patient) {
+      const conversation = conversations.find(item => (item.cleanDni || item.patientDni || '').replace(/\D/g, '') === dni);
+      if (conversation) {
+        patient = {
+          id: dni,
+          dni: conversation.patientDni || dni,
+          name: conversation.patientName || 'Paciente',
+          lastName: conversation.patientLastName || '',
+          phone: conversation.patientPhone,
+          email: conversation.patientEmail,
+          obraSocial: conversation.obraSocial,
+          obraSocialNumber: conversation.obraSocialNumber,
+          status: 'Activo',
+          orders: orders.filter(order => (order.patientDni || '').replace(/\D/g, '') === dni),
+        };
+      }
+    }
+    if (!patient) return;
+    setSelectedPatient(patient);
+    setIsModalOpen(true);
+    onClearInitialPatientDni?.();
+  }, [initialPatientDni, patientsMap, conversations, orders, onClearInitialPatientDni]);
 
   // Extract unique Obra Social list for filter dropdown
   const uniqueObrasSociales = useMemo(() => {

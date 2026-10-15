@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useMedicalOrders } from './hooks/useMedicalOrders';
+import { useChatInbox } from './hooks/useChatInbox';
 import Navbar from './components/Navbar';
 import PatientForm from './components/pages/PatientForm';
 import PatientStatus from './components/pages/PatientStatus';
@@ -144,6 +145,7 @@ export default function App() {
     document.addEventListener('scroll', handleScroll, { passive: true, capture: true });
     return () => document.removeEventListener('scroll', handleScroll, { capture: true });
   }, []);
+  const [patientRecordDni, setPatientRecordDni] = useState<string | null>(null);
   const [chatSelectedOrderId, setChatSelectedOrderId] = useState<string | null>(null);
 
   // Sub-tabs for Patient interface (Legacy compatibility)
@@ -217,36 +219,7 @@ export default function App() {
   // Quick stats for the navbar
   const pendingOrdersCount = orders.filter((o) => o.paymentStatus === 'pending').length;
   const completedOrdersCount = orders.filter((o) => o.status === 'Emitida' || o.status === 'Enviada').length;
-  const chatCount = React.useMemo(() => {
-    const patientLastMessages = new Map<string, { sender: string; timestamp: number }>();
-    
-    orders.forEach((o) => {
-      if (!o.messages || o.messages.length === 0) return;
-      
-      const cleanDni = (o.requestedByTitularDni || o.patientDni || '').replace(/\D/g, '');
-      if (!cleanDni) return;
-      
-      o.messages.forEach(m => {
-        if (!m) return;
-        const ts = new Date(m.timestamp).getTime();
-        const current = patientLastMessages.get(cleanDni);
-        if (!current || ts > current.timestamp) {
-          patientLastMessages.set(cleanDni, { sender: m.sender, timestamp: ts });
-        }
-      });
-    });
-
-    let count = 0;
-    patientLastMessages.forEach((lastMsg) => {
-      if (activeRole === 'paciente') {
-        if (lastMsg.sender !== 'paciente') count++;
-      } else {
-        if (lastMsg.sender === 'paciente') count++;
-      }
-    });
-    
-    return count;
-  }, [orders, activeRole]);
+  const { conversations: chatConversations, isLoaded: chatInboxLoaded, refreshConversations: refreshChatConversations, chatCount } = useChatInbox(currentUser, orders);
 
   const handleOrderSubmitted = (orderId: string) => {
     setSuccessSubmissionId(orderId);
@@ -445,6 +418,9 @@ export default function App() {
                         orders={orders}
                         currentUser={currentUser}
                         onSendMessage={sendChatMessage}
+                        conversations={chatConversations}
+                        inboxLoaded={chatInboxLoaded}
+                        onRefreshConversations={refreshChatConversations}
                         initialSelectedOrderId={chatSelectedOrderId}
                         onClearInitialOrderId={() => setChatSelectedOrderId(null)}
                       />
@@ -512,13 +488,24 @@ export default function App() {
                         orders={orders}
                         currentUser={currentUser}
                         onSendMessage={sendChatMessage}
+                        conversations={chatConversations}
+                        inboxLoaded={chatInboxLoaded}
+                        onRefreshConversations={refreshChatConversations}
                         initialSelectedOrderId={chatSelectedOrderId}
                         onClearInitialOrderId={() => setChatSelectedOrderId(null)}
+                        onOpenPatientRecord={(dni) => {
+                          setPatientRecordDni(dni);
+                          setActiveCategory('padron');
+                          setActiveSubcategory('pacientes');
+                        }}
                       />
                     </div>
                   </div>
                 ) : activeSubcategory === 'pacientes' ? (
                   <PatientListView
+                    initialPatientDni={patientRecordDni}
+                    onClearInitialPatientDni={() => setPatientRecordDni(null)}
+                    conversations={chatConversations}
                     orders={orders}
                     users={users}
                     currentUser={currentUser}

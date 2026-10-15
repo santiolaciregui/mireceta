@@ -39,11 +39,16 @@ import {
   reconcileOptimisticMessages,
 } from './optimisticMessages';
 import type { OptimisticChatMessage } from './optimisticMessages';
+import { CHAT_READ_EVENT, CHAT_READ_KEY, compareChatConversations, getUnreadMessageCount, readChatTimestamps, resolveChatTarget } from '../../../utils/chatInbox';
 
 interface PatientDoctorChatProps {
   orders: MedicalOrder[];
   currentUser: SystemUser;
   onSendMessage: (patientDniOrOrderId: string, message: any) => Promise<void>;
+  conversations: any[];
+  inboxLoaded: boolean;
+  onRefreshConversations: () => Promise<void>;
+  onOpenPatientRecord?: (dni: string) => void;
   initialSelectedOrderId?: string | null;
   onClearInitialOrderId?: () => void;
 }
@@ -72,106 +77,64 @@ export default function PatientDoctorChat({
   currentUser, 
   onSendMessage,
   initialSelectedOrderId,
-  onClearInitialOrderId
+  onClearInitialOrderId,
+  conversations,
+  inboxLoaded,
+  onRefreshConversations,
+  onOpenPatientRecord
 }: PatientDoctorChatProps) {
   const isPatient = currentUser.role === 'paciente';
   const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
 
-  const [serverConversations, setServerConversations] = useState<any[]>([]);
-  const serverConversationsRef = useRef<any[]>([]);
+  const [hydratedConversations, setServerConversations] = useState<any[]>([]);
+  const serverConversations = isPatient ? hydratedConversations : conversations;
   const patientDetailsRef = useRef(new Map<string, { signature: string; conversation: any }>());
   const [optimisticMessagesByDni, setOptimisticMessagesByDni] = useState<Record<string, OptimisticChatMessage[]>>({});
 
-  const isFetchingConversationsRef = useRef(false);
-
-  const fetchConversations = async () => {
-    if (isFetchingConversationsRef.current) return;
-    isFetchingConversationsRef.current = true;
-    try {
-      const authHeaders = {
-        'Authorization': `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}`,
-        'Content-Type': 'application/json'
-      };
-      const res = await fetch('/api/chat/conversations?summary=1', {
-        headers: authHeaders
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data)) {
-          let detailUpdated = false;
-          if (isPatient && data.length > 0) {
-            const activeSummary = data[0];
-            const dni = activeSummary.cleanDni || cleanDni(activeSummary.patientDni);
-            const messages = activeSummary.messages || [];
-            const lastMessage = messages[messages.length - 1];
-            const signature = `${messages.length}:${lastMessage?.id || ''}:${lastMessage?.timestamp || ''}`;
-            const cached = patientDetailsRef.current.get(dni);
-
-            if (dni && cached?.signature !== signature) {
-              try {
-                const detailRes = await fetch(`/api/chat/${encodeURIComponent(dni)}`, { headers: authHeaders });
-                if (detailRes.ok) {
-                  const conversation = await detailRes.json();
-                  patientDetailsRef.current.set(dni, { signature, conversation });
-                  detailUpdated = true;
-                }
-              } catch {
-                // Keep the lightweight conversation available and retry its media on the next poll.
-              }
+  useEffect(() => {
+    if (!isPatient) return;
+    let cancelled = false;
+    const hydratePatientMedia = async () => {
+      const data = conversations.map(conversation => ({ ...conversation }));
+      const activeSummary = data[0];
+      if (activeSummary) {
+        const dni = activeSummary.cleanDni || cleanDni(activeSummary.patientDni);
+        const messages = activeSummary.messages || [];
+        const lastMessage = messages[messages.length - 1];
+        const signature = `${messages.length}:${lastMessage?.id || ''}:${lastMessage?.timestamp || ''}`;
+        const cached = patientDetailsRef.current.get(dni);
+        if (dni && cached?.signature !== signature) {
+          try {
+            const response = await fetch(`/api/chat/${encodeURIComponent(dni)}`, {
+              headers: { Authorization: `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}` },
+            });
+            if (response.ok && !cancelled) {
+              const conversation = await response.json();
+              if (!cancelled) patientDetailsRef.current.set(dni, { signature, conversation });
             }
-
-            const detail = patientDetailsRef.current.get(dni)?.conversation;
-            if (detail) {
-              // The polling response has no file URLs; retain media from the detail response.
-              const detailedMessages = new Map<string, ChatMessage>(
-                (detail.messages || []).map((message: ChatMessage): [string, ChatMessage] => [message.id, message])
-              );
-              data[0] = {
-                ...activeSummary,
-                messages: messages.map((message: ChatMessage) => ({
-                  ...message,
-                  fileUrl: detailedMessages.get(message.id)?.fileUrl
-                }))
-              };
-            }
-          }
-
-          // Compare signature to prevent unnecessary state update and re-renders
-          const prevSig = JSON.stringify(serverConversationsRef.current.map(c => ({
-            id: c.cleanDni || c.dni,
-            ts: c.lastMessageAt || c.lastTimestamp,
-            cnt: c.messages?.length || c.messagesCount || 0
-          })));
-          const nextSig = JSON.stringify(data.map(c => ({
-            id: c.cleanDni || c.dni,
-            ts: c.lastMessageAt || c.lastTimestamp,
-            cnt: c.messages?.length || c.messagesCount || 0
-          })));
-
-          if (prevSig !== nextSig || detailUpdated) {
-            serverConversationsRef.current = data;
-            setServerConversations(data);
+          } catch {
+            // Keep summaries available and retry media on the next inbox refresh.
           }
         }
+        const detail = patientDetailsRef.current.get(dni)?.conversation;
+        if (detail) {
+          const detailedMessages = new Map<string, ChatMessage>(
+            (detail.messages || []).map((message: ChatMessage) => [message.id, message])
+          );
+          data[0] = {
+            ...activeSummary,
+            messages: messages.map((message: ChatMessage) => ({
+              ...message,
+              fileUrl: detailedMessages.get(message.id)?.fileUrl,
+            })),
+          };
+        }
       }
-    } catch {
-      // quiet
-    } finally {
-      isFetchingConversationsRef.current = false;
-    }
-  };
-
-  useEffect(() => {
-    fetchConversations();
-
-    const intervalId = setInterval(() => {
-      if (!document.hidden) {
-        fetchConversations();
-      }
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, []);
+      if (!cancelled) setServerConversations(data);
+    };
+    void hydratePatientMedia();
+    return () => { cancelled = true; };
+  }, [conversations, isPatient]);
 
   // Group orders and messages by unique Patient DNI
   const patientConversations = useMemo(() => {
@@ -240,22 +203,22 @@ export default function PatientDoctorChat({
       : orders;
 
     for (const ord of sourceOrders) {
-      const clean = cleanDni(ord.requestedByTitularDni || ord.patientDni);
+      const clean = cleanDni(isPatient ? ord.requestedByTitularDni || ord.patientDni : ord.patientDni);
       if (!clean) continue;
 
       let conv = map.get(clean);
       if (!conv) {
-        // The conversation is grouped by the titular's DNI for WhatsApp threading.
-        // We keep both titular contact data AND the real patient data for display.
-        const isForDep = Boolean(ord.isForDependent && ord.requestedByTitularName);
+        // Staff threads follow the patient DNI used by the chat API.
+        // The patient portal retains the titular view for dependent requests.
+        const isForDep = Boolean(isPatient && ord.isForDependent && ord.requestedByTitularName);
         conv = {
-          dni: ord.requestedByTitularDni || ord.patientDni,
+          dni: isPatient ? ord.requestedByTitularDni || ord.patientDni : ord.patientDni,
           cleanDni: clean,
           // Titular name/contact — used for avatar initials and WhatsApp link
-          name: ord.requestedByTitularName || ord.patientName,
-          lastName: ord.requestedByTitularName ? '' : ord.patientLastName,
-          phone: ord.requestedByTitularPhone || ord.patientPhone || '',
-          email: ord.requestedByTitularEmail || ord.patientEmail || '',
+          name: isPatient ? ord.requestedByTitularName || ord.patientName : ord.patientName,
+          lastName: isPatient && ord.requestedByTitularName ? '' : ord.patientLastName,
+          phone: (isPatient ? ord.requestedByTitularPhone : '') || ord.patientPhone || '',
+          email: (isPatient ? ord.requestedByTitularEmail : '') || ord.patientEmail || '',
           obraSocial: ord.obraSocial || '',
           ordersCount: 0,
           latestOrderId: ord.id,
@@ -335,16 +298,8 @@ export default function PatientDoctorChat({
       };
     });
 
-    // Sort conversations with most recent message / activity on top
-    result.sort((a, b) => {
-      const activityOrder = compareActivityTimestampsDesc(a.lastTimestamp, b.lastTimestamp);
-      if (activityOrder !== 0) return activityOrder;
-
-      // Deterministic fallback for equal or missing activity timestamps.
-      const aName = `${a.lastName || ''} ${a.name || ''}`.trim();
-      const bName = `${b.lastName || ''} ${b.name || ''}`.trim();
-      return aName.localeCompare(bName, 'es-AR');
-    });
+    // Keep empty, merely initiated threads below conversations with messages.
+    result.sort(compareChatConversations);
     return result;
   }, [orders, serverConversations, optimisticMessagesByDni, isPatient, currentUser.identifier]);
 
@@ -368,7 +323,7 @@ export default function PatientDoctorChat({
     }
 
     for (const order of orders) {
-      addConfirmedMessages(order.requestedByTitularDni || order.patientDni, order.messages);
+      addConfirmedMessages(isPatient ? order.requestedByTitularDni || order.patientDni : order.patientDni, order.messages);
     }
 
     setOptimisticMessagesByDni((previous) => {
@@ -421,56 +376,30 @@ export default function PatientDoctorChat({
   const [showQuickTemplates, setShowQuickTemplates] = useState(false);
 
   // Read status tracking per conversation or order
-  const [readTimestamps, setReadTimestamps] = useState<Record<string, number>>(() => {
-    try {
-      const saved = localStorage.getItem('chat_read_timestamps');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [readTimestamps, setReadTimestamps] = useState(readChatTimestamps);
+
+  useEffect(() => {
+    const update = () => setReadTimestamps(readChatTimestamps());
+    window.addEventListener(CHAT_READ_EVENT, update);
+    window.addEventListener('storage', update);
+    return () => {
+      window.removeEventListener(CHAT_READ_EVENT, update);
+      window.removeEventListener('storage', update);
+    };
+  }, []);
 
   const markAsRead = (key: string) => {
-    if (!key) return;
-    const now = Date.now();
-    setReadTimestamps(prev => {
-      const updated = { ...prev, [key]: now };
-      try {
-        localStorage.setItem('chat_read_timestamps', JSON.stringify(updated));
-      } catch {}
-      return updated;
-    });
+    if (!key || document.hidden) return;
+    const updated = { ...readChatTimestamps(), [key]: Date.now() };
+    setReadTimestamps(updated);
+    try {
+      localStorage.setItem(CHAT_READ_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event(CHAT_READ_EVENT));
+    } catch {}
   };
 
-  const getConversationUnreadCount = (conv: any): number => {
-    if (selectedPatientDni === conv.cleanDni) return 0;
-
-    const readTimestamp = readTimestamps[conv.cleanDni];
-    const messages = conv.messages || [];
-
-    if (readTimestamp) {
-      return messages.filter((m: any) => {
-        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
-        return isIncoming && new Date(m.timestamp).getTime() > readTimestamp;
-      }).length;
-    }
-
-    if (messages.length > 0) {
-      let unread = 0;
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const m = messages[i];
-        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
-        if (isIncoming) {
-          unread++;
-        } else {
-          break;
-        }
-      }
-      return unread;
-    }
-
-    return conv.hasPatientReplied ? 1 : 0;
-  };
+  const getConversationUnreadCount = (conv: any): number =>
+    getUnreadMessageCount(conv.messages || [], readTimestamps[conv.cleanDni], isPatient);
 
   const getSolicitudUnreadCount = (item: any): number => {
     const isSelected = selectedOrderId === item.orderId || (selectedPatientDni === item.cleanDni && !selectedOrderId);
@@ -480,28 +409,7 @@ export default function PatientDoctorChat({
     const readTimestamp = readTimestamps[key] || readTimestamps[item.cleanDni];
     const msgs = item.order?.messages || (item.lastMessage ? [item.lastMessage] : []);
 
-    if (readTimestamp) {
-      return msgs.filter((m: any) => {
-        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
-        return isIncoming && new Date(m.timestamp).getTime() > readTimestamp;
-      }).length;
-    }
-
-    if (msgs.length > 0) {
-      let unread = 0;
-      for (let i = msgs.length - 1; i >= 0; i--) {
-        const m = msgs[i];
-        const isIncoming = isPatient ? m.sender !== 'paciente' : m.sender === 'paciente';
-        if (isIncoming) {
-          unread++;
-        } else {
-          break;
-        }
-      }
-      return unread;
-    }
-
-    return item.hasPatientReplied ? 1 : 0;
+    return getUnreadMessageCount(msgs, readTimestamp, isPatient);
   };
 
   // Grouped list for Solicitudes (Order mode)
@@ -538,7 +446,7 @@ export default function PatientDoctorChat({
       if (!ord.id || seen.has(ord.id)) continue;
       seen.add(ord.id);
 
-      const clean = cleanDni(ord.requestedByTitularDni || ord.patientDni);
+      const clean = cleanDni(isPatient ? ord.requestedByTitularDni || ord.patientDni : ord.patientDni);
       const msgs = Array.isArray(ord.messages) ? ord.messages : [];
       const lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : null;
       const ts = getLatestActivityTimestamp(lastMsg?.timestamp, ord.createdAt);
@@ -547,10 +455,10 @@ export default function PatientDoctorChat({
         id: ord.id,
         orderId: ord.id,
         cleanDni: clean,
-        patientName: ord.requestedByTitularName || ord.patientName,
-        patientLastName: ord.requestedByTitularName ? '' : ord.patientLastName,
-        patientDni: ord.requestedByTitularDni || ord.patientDni,
-        phone: ord.patientPhone || '',
+        patientName: isPatient ? ord.requestedByTitularName || ord.patientName : ord.patientName,
+        patientLastName: isPatient && ord.requestedByTitularName ? '' : ord.patientLastName,
+        patientDni: isPatient ? ord.requestedByTitularDni || ord.patientDni : ord.patientDni,
+        phone: ord.patientPhone || ord.requestedByTitularPhone || '',
         obraSocial: ord.obraSocial || '',
         medicationText: ord.medicationText || '',
         status: ord.status || 'Pendiente',
@@ -628,30 +536,28 @@ export default function PatientDoctorChat({
     ? (patientConversations.length > 0 ? patientConversations[0] : null)
     : (patientConversations.find(p => p.cleanDni === selectedPatientDni) || null);
 
-  // Sync initial selection from external trigger (e.g. DoctorDashboard "Chatear con Paciente")
+  // Wait for the inbox before consuming a request/DNI navigation target.
   useEffect(() => {
-    if (initialSelectedOrderId) {
-      const matchOrder = orders.find(o => o.id === initialSelectedOrderId);
-      if (matchOrder) {
-        const orderCleanDni = cleanDni(matchOrder.requestedByTitularDni || matchOrder.patientDni);
-        setSelectedPatientDni(orderCleanDni);
-      }
-      if (onClearInitialOrderId) {
-        onClearInitialOrderId();
-      }
-    }
-  }, [initialSelectedOrderId, orders, onClearInitialOrderId]);
+    if (!initialSelectedOrderId || !inboxLoaded) return;
+    const match = resolveChatTarget(initialSelectedOrderId, orders, patientConversations);
+    if (!match) return;
+    setViewMode('conversacion');
+    setSelectedOrderId(null);
+    setSelectedPatientDni(match.cleanDni);
+    hasAutoSelectedRef.current = true;
+    onClearInitialOrderId?.();
+  }, [initialSelectedOrderId, inboxLoaded, orders, patientConversations, onClearInitialOrderId]);
 
   // Preselect first conversation ONLY once on initial large screen render if no selection
   const hasAutoSelectedRef = useRef(false);
   useEffect(() => {
-    if (!isPatient && !hasAutoSelectedRef.current && !selectedPatientDni && patientConversations.length > 0) {
+    if (inboxLoaded && !initialSelectedOrderId && !isPatient && !hasAutoSelectedRef.current && !selectedPatientDni && patientConversations.length > 0) {
       if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
         setSelectedPatientDni(patientConversations[0].cleanDni);
       }
       hasAutoSelectedRef.current = true;
     }
-  }, [patientConversations, selectedPatientDni, isPatient]);
+  }, [patientConversations, selectedPatientDni, isPatient, initialSelectedOrderId, inboxLoaded]);
 
   // Intelligent auto-scroll: smooth scroll ONLY if conversation changes or new messages arrive while user is near bottom
   useEffect(() => {
@@ -690,13 +596,25 @@ export default function PatientDoctorChat({
 
   // Mark active chat / order as read on select or when new messages arrive while viewing
   useEffect(() => {
-    if (selectedPatientDni) {
-      markAsRead(selectedPatientDni);
+    if (selectedPatientDni || (isPatient && activeConversation)) {
+      markAsRead(selectedPatientDni || activeConversation!.cleanDni);
     }
     if (selectedOrderId) {
       markAsRead(selectedOrderId);
     }
   }, [selectedPatientDni, selectedOrderId, activeConversation?.messages?.length]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (!document.hidden) {
+        const dni = selectedPatientDni || (isPatient ? activeConversation?.cleanDni : null);
+        if (dni) markAsRead(dni);
+        if (selectedOrderId) markAsRead(selectedOrderId);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, [selectedPatientDni, selectedOrderId, isPatient, activeConversation?.cleanDni]);
 
   // Audio recording timer
   useEffect(() => {
@@ -878,7 +796,7 @@ export default function PatientDoctorChat({
 
     try {
       await onSendMessage(conversationDni, message);
-      await fetchConversations();
+      await onRefreshConversations();
     } catch (error) {
       console.error('Error sending chat message:', error);
       setOptimisticMessagesByDni((previous) => ({
@@ -1397,6 +1315,15 @@ export default function PatientDoctorChat({
 
               {/* Action Toolbar */}
               <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                {!isPatient && onOpenPatientRecord && (
+                  <button
+                    onClick={() => onOpenPatientRecord(activeConversation.dni)}
+                    className="px-2 sm:px-3 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-[#075E54] text-xs font-bold border border-slate-200 flex items-center gap-1 shrink-0"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    Ir a ficha
+                  </button>
+                )}
                 {!isPatient && activeConversation.phone && (
                   <a
                     href={`https://wa.me/${formatWaPhoneLink(activeConversation.phone)}`}
