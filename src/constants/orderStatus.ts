@@ -39,6 +39,7 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   'Solicita más información': 'Solicita Info',
   Aprobada: 'Aprobada',
   Rechazada: 'Rechazada',
+  Cancelada: 'Cancelada',
   Emitida: 'Emitida',
   Enviada: 'Enviada',
 };

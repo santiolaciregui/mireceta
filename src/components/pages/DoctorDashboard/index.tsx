@@ -63,7 +63,7 @@ import {
   ClipboardPaste
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
-import { formatOrderCreatedAt, sortOrdersNewestFirst } from '../../../utils/orderInbox';
+import { formatOrderCreatedAt, getOrderInbox, sortOrdersNewestFirst } from '../../../utils/orderInbox';
 import { getOrderRecipeFiles } from '../../../utils/recipeFiles';
 import { DoctorOrdersSkeleton, DoctorDetailSkeleton } from '../../common/OrdersSkeleton';
 
@@ -498,11 +498,11 @@ export default function DoctorDashboard({
   // Filters logic
   const filteredOrders = sortOrdersNewestFirst(orders.filter(order => {
     // Status Filter
-    if (filter === 'Pendientes' && order.paymentStatus !== 'pending') return false;
-    if (filter === 'Pago Pendiente' && order.paymentStatus !== 'pending') return false;
-    if (filter === 'En revisión' && order.status !== 'En revisión' && order.status !== 'Aprobada' && order.status !== 'Solicita más información') return false;
-    if (filter === 'Listos' && order.status !== 'Emitida' && order.status !== 'Enviada') return false;
-    if (filter === 'Rechazadas' && order.status !== 'Rechazada') return false;
+    const inbox = getOrderInbox(order);
+    if ((filter === 'Pendientes' || filter === 'Pago Pendiente') && inbox !== 'pending') return false;
+    if (filter === 'En revisión' && inbox !== 'review') return false;
+    if (filter === 'Listos' && inbox !== 'completed') return false;
+    if (filter === 'Rechazadas' && inbox !== 'closed') return false;
 
     // Operator Filter
     if (selectedOperatorFilter !== 'Todos') {
@@ -767,9 +767,9 @@ export default function DoctorDashboard({
     }
   }, [selectedOrderId, selectedOrder, onLoadOrderDetails]);
 
-  const pendingCount = orders.filter(o => o.status === 'Pendiente').length;
-  const inProcessCount = orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length;
-  const completedCount = orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
+  const pendingCount = orders.filter(o => getOrderInbox(o) === 'pending').length;
+  const inProcessCount = orders.filter(o => getOrderInbox(o) === 'review').length;
+  const completedCount = orders.filter(o => getOrderInbox(o) === 'completed').length;
 
   // Handler to mark an order as "En revisión"
   const handleMarkInProcess = async (id: string) => {
@@ -1162,9 +1162,9 @@ export default function DoctorDashboard({
   // Statistics calculations for operators list
   const operatorStats = operatorsList.map(name => {
     const operatorOrders = orders.filter(o => o.createdByOperatorName === name);
-    const completed = operatorOrders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
-    const pending = operatorOrders.filter(o => o.status === 'Pendiente').length;
-    const inProcess = operatorOrders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length;
+    const completed = operatorOrders.filter(o => getOrderInbox(o) === 'completed').length;
+    const pending = operatorOrders.filter(o => getOrderInbox(o) === 'pending').length;
+    const inProcess = operatorOrders.filter(o => getOrderInbox(o) === 'review').length;
     return {
       name,
       totalCreated: operatorOrders.length,
@@ -1287,7 +1287,7 @@ export default function DoctorDashboard({
                       <option value="Pendientes">Pendientes de pago</option>
                       <option value="En revisión">En revisión</option>
                       <option value="Listos">Emitidas</option>
-                      <option value="Rechazadas">Rechazadas</option>
+                      <option value="Rechazadas">Rechazadas y canceladas</option>
                     </select>
                     <select
                       value={selectedOperatorFilter}
@@ -2839,7 +2839,7 @@ export default function DoctorDashboard({
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {operatorsList.map(operator => {
                     const operatorOrders = orders.filter(o => o.createdByOperatorName === operator);
-                    const approvedCount = operatorOrders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
+                    const approvedCount = operatorOrders.filter(o => getOrderInbox(o) === 'completed').length;
                     const pendingOpCount = operatorOrders.length - approvedCount;
                     const totalPayout = approvedCount * payoutRate;
 

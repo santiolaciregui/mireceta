@@ -36,3 +36,5 @@
 | 2026-09-17T10:34:00-03:00 | Developer | Implemented tasks T-001 through T-005 for US-009 | Shared reconciliation policy, webhook/return/manual/cron paths, bounded frontend retries and regression tests |
 | 2026-09-17T10:40:00-03:00 | QA | Approved US-009 | 88/88 tests passed; reconciliation module 96.47% line coverage; typecheck, build and diff check passed |
 | 2026-09-17T10:42:00-03:00 | Cost Controller | Completed US-009 cost review | Estimated cost ~$0.23; budget status green; deployment and live provider verification remain pending |
+
+| 2026-10-14 | Developer / QA | US-010: shared inbox routing and audited payment-to-review transition | 222 tests pass; routing coverage 100%; overall 78.82%; lint/build pass; no live DB/deploy. |

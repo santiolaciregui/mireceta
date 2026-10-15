@@ -1,3 +1,3 @@
-# Active Spec: US-009 - Sincronizacion resiliente con Mercado Pago
+# Active Spec: US-010 — Complete request inbox routing
 
-Implementar exactamente `shared/specs/US-009.md` en la aplicacion existente. DevOps Required: YES.
+Implement shared/specs/US-010.md in the existing application. DevOps Required: NO.

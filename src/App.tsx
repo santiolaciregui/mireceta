@@ -25,6 +25,7 @@ import SettlementMetricsView from './components/pages/SettlementMetricsView';
 import PatientListView from './components/pages/PatientListView';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ResetPassword from './components/pages/ResetPassword';
+import { getOrderInbox } from './utils/orderInbox';
 
 import { 
   PlusCircle, 
@@ -217,8 +218,8 @@ export default function App() {
   }, [activeRole]);
 
   // Quick stats for the navbar
-  const pendingOrdersCount = orders.filter((o) => o.paymentStatus === 'pending').length;
-  const completedOrdersCount = orders.filter((o) => o.status === 'Emitida' || o.status === 'Enviada').length;
+  const pendingOrdersCount = orders.filter((o) => getOrderInbox(o) === 'pending').length;
+  const completedOrdersCount = orders.filter((o) => getOrderInbox(o) === 'completed').length;
   const { conversations: chatConversations, isLoaded: chatInboxLoaded, refreshConversations: refreshChatConversations, chatCount } = useChatInbox(currentUser, orders);
 
   const handleOrderSubmitted = (orderId: string) => {
@@ -315,9 +316,9 @@ export default function App() {
         }}
         onLogout={logout}
         pendingCount={pendingOrdersCount}
-        inRevisionCount={orders.filter(o => o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length}
-        completedCount={orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length}
-        rejectedCount={orders.filter(o => o.status === 'Rechazada').length}
+        inRevisionCount={orders.filter(o => getOrderInbox(o) === 'review').length}
+        completedCount={completedOrdersCount}
+        rejectedCount={orders.filter(o => getOrderInbox(o) === 'closed').length}
         chatCount={chatCount}
       />
 
@@ -513,17 +514,13 @@ export default function App() {
                     onSelectOrder={(orderId) => {
                       const ord = orders.find(o => o.id === orderId);
                       setActiveCategory('solicitudes');
-                      if (ord?.status === 'Pendiente') {
-                        setActiveSubcategory('pendientes');
-                      } else if (ord?.status === 'En revisión' || ord?.status === 'Aprobada' || ord?.status === 'Solicita más información') {
-                        setActiveSubcategory('revision');
-                      } else if (ord?.status === 'Emitida' || ord?.status === 'Enviada') {
-                        setActiveSubcategory('completadas');
-                      } else if (ord?.status === 'Rechazada') {
-                        setActiveSubcategory('rechazadas');
-                      } else {
-                        setActiveSubcategory('pendientes');
-                      }
+                      const subviewByInbox = {
+                        pending: 'pendientes',
+                        review: 'revision',
+                        completed: 'completadas',
+                        closed: 'rechazadas',
+                      };
+                      setActiveSubcategory(ord ? subviewByInbox[getOrderInbox(ord)] : 'pendientes');
                     }}
                     onNavigateToChat={(orderIdOrDni) => {
                       setActiveCategory('mensajeria');

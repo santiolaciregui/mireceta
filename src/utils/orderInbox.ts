@@ -6,6 +6,17 @@
  */
 
 import { ActivityTimestamp, getActivityTime } from './activityOrdering';
+import type { MedicalOrder } from '../types';
+
+export type OrderInbox = 'pending' | 'review' | 'completed' | 'closed';
+
+/** Terminal clinical states take priority; active requests require a settled payment. */
+export function getOrderInbox(order: Pick<MedicalOrder, 'status' | 'paymentStatus'>): OrderInbox {
+  if (order.status === 'Emitida' || order.status === 'Enviada') return 'completed';
+  if (order.status === 'Rechazada' || order.status === 'Cancelada') return 'closed';
+  if (order.paymentStatus === 'approved' || order.paymentStatus === 'exempt') return 'review';
+  return 'pending';
+}
 
 export interface OrderInboxItem {
   id: string;

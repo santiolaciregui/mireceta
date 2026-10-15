@@ -154,7 +154,7 @@ export default function Sidebar({
             { id: 'pendientes', label: 'Pendientes de Pago', icon: Clock, count: pendingCount, countColor: 'bg-amber-500 text-white' },
             { id: 'revision', label: 'En Revisión Médica', icon: Layers, count: inRevisionCount, countColor: 'bg-[#1E6EFB] text-white' },
             { id: 'completadas', label: 'Recetas Emitidas', icon: FileText, count: completedCount, countColor: 'bg-[#14BE99] text-white' },
-            { id: 'rechazadas', label: 'Solicitudes Rechazadas', icon: XCircle, count: rejectedCount, countColor: 'bg-rose-600 text-white' },
+            { id: 'rechazadas', label: 'Rechazadas y canceladas', icon: XCircle, count: rejectedCount, countColor: 'bg-rose-600 text-white' },
           ]
         },
         {

@@ -9,6 +9,7 @@ export type OrderStatus =
   | 'Solicita más información' 
   | 'Aprobada' 
   | 'Rechazada' 
+  | 'Cancelada'
   | 'Emitida' 
   | 'Enviada';
 

@@ -589,6 +589,15 @@ export class OrderService {
 
       if (changedFields.length > 0) {
         Object.assign(order, normalizedPayment as PaymentInformationUpdate);
+        if (order.status === 'Pendiente' && (order.paymentStatus === 'approved' || order.paymentStatus === 'exempt')) {
+          order.status = 'En revisión';
+          addAuditLogEntry(
+            order,
+            'Cambio de estado: En revisión',
+            operatorName,
+            'Solicitud habilitada para revisión médica tras la aprobación o exención del pago.'
+          );
+        }
         const changeSummary = changedFields
           .map(([field, value]) => `${field}: ${String(value || 'vacío')}`)
           .join(', ');

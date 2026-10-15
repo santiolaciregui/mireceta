@@ -114,6 +114,8 @@ test('persists and audits a collaborator payment correction without provider cal
     assert.equal(persisted.paymentMethod, 'transfer');
     assert.equal(persisted.paymentAmount, '12500');
     assert.equal(persisted.paymentStatus, 'approved');
+    assert.equal(persisted.status, 'En revisión');
+    assert.ok(persisted.auditLog.some((entry: any) => entry.action === 'Cambio de estado: En revisión'));
     assert.equal(persisted.paymentId, 'TR-123');
     assert.equal(persisted.paymentDate, '2026-09-16T15:30:00.000Z');
     assert.equal(persisted.auditLog.at(-1).action, 'Información de pago actualizada');
@@ -122,3 +124,34 @@ test('persists and audits a collaborator payment correction without provider cal
     auditLogService.log = originalAuditLog;
   }
 });
+
+for (const status of ['Pendiente', 'En revisión', 'Solicita más información', 'Aprobada', 'Emitida', 'Enviada', 'Rechazada', 'Cancelada']) {
+  for (const paymentStatus of ['approved', 'exempt', 'pending', 'rejected', 'refunded']) {
+    test(`payment correction ${paymentStatus} preserves clinical progress from ${status}`, async () => {
+      const service: any = new OrderService();
+      const order: any = {
+        id: 'ORD-MATRIX', tenantId: 'TEN-123', status,
+        paymentStatus: 'pending', paymentMethod: 'transfer', paymentAmount: '10000',
+        auditLog: [],
+      };
+      service.orderRepo = { findById: async () => order, update: async (_id: string, value: any) => value };
+      service.refreshPendingOrderLimitAlert = async () => undefined;
+      service.paymentService = new Proxy({}, { get: () => () => { throw new Error('Unexpected provider operation'); } });
+      const originalLog = auditLogService.log;
+      auditLogService.log = async () => undefined;
+      try {
+        const updated = await service.updateOrder(order.id, { paymentStatus }, {
+          id: 'COL-1', role: 'colaborador', name: 'Carla', lastName: 'Operadora', tenantId: 'TEN-123',
+        });
+        const shouldAdvance = status === 'Pendiente' && ['approved', 'exempt'].includes(paymentStatus);
+        assert.equal(updated.status, shouldAdvance ? 'En revisión' : status);
+        assert.equal(updated.paymentStatus, paymentStatus);
+        assert.equal(updated.recipePdfUrl, undefined);
+        assert.equal(updated.recipeFiles, undefined);
+        assert.equal(updated.auditLog.some((entry: any) => entry.action === 'Cambio de estado: En revisión'), shouldAdvance);
+      } finally {
+        auditLogService.log = originalLog;
+      }
+    });
+  }
+}
