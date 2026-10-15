@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { getPatientOrderCategory } from '../../../utils/orderInbox';
 import React, { useState, useMemo, useEffect } from 'react';
 import { MedicalOrder, SystemUser, PatientInformationUpdate } from '../../../types';
 import PatientDetailModal, { PatientRecord } from './PatientDetailModal';
@@ -241,7 +242,7 @@ export default function PatientListView({
   // Summary Metrics calculations
   const totalPatientsCount = allPatients.length;
   const patientsWithPendingOrders = allPatients.filter(p => 
-    p.orders.some(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Solicita más información')
+    p.orders.some(o => getPatientOrderCategory(o) === 'pending')
   ).length;
   const totalCompletedOrdersAcrossPatients = orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
   const patientsWithDependentsCount = allPatients.filter(p => p.dependents && p.dependents.length > 0).length;
@@ -283,7 +284,7 @@ export default function PatientListView({
 
         // Activity filter
         if (selectedActivityFilter === 'with_pending') {
-          const hasPending = p.orders.some(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Solicita más información');
+          const hasPending = p.orders.some(o => getPatientOrderCategory(o) === 'pending');
           if (!hasPending) return false;
         } else if (selectedActivityFilter === 'with_completed') {
           const hasCompleted = p.orders.some(o => o.status === 'Emitida' || o.status === 'Enviada');
@@ -603,7 +604,7 @@ export default function PatientListView({
                     const initials = `${patient.name.charAt(0)}${patient.lastName.charAt(0)}`.toUpperCase();
                     const age = calculateAge(patient.birthDate);
                     const latestOrder = patient.orders[0];
-                    const pendingOrders = patient.orders.filter(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Solicita más información').length;
+                    const pendingOrders = patient.orders.filter(o => getPatientOrderCategory(o) === 'pending').length;
                     const completedOrders = patient.orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
 
                     return (

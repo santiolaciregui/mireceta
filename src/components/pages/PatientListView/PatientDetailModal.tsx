@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { getPatientOrderCategory } from '../../../utils/orderInbox';
 import { createPortal } from 'react-dom';
 import { MedicalOrder, PatientInformationUpdate } from '../../../types';
 import { 
@@ -213,8 +214,8 @@ export default function PatientDetailModal({
 
   const dependentsOrders = patient.orders.filter(o => o.isForDependent);
 
-  // Filter orders according to member filter and status tab
-  const filteredOrders = patient.orders.filter(order => {
+  // Use the same household member subset for status tabs and their counts.
+  const memberOrders = patient.orders.filter(order => {
     // 1. Member filter
     if (selectedMemberFilter !== 'all') {
       if (selectedMemberFilter === 'titular') {
@@ -228,22 +229,28 @@ export default function PatientDetailModal({
       }
     }
 
+    return true;
+  });
+
+  const filteredOrders = memberOrders.filter(order => {
     // 2. Status filter
     if (selectedOrderTab === 'pending') {
-      return order.status === 'Pendiente' || order.status === 'En revisión' || order.status === 'Solicita más información';
+      return getPatientOrderCategory(order) === 'pending';
     }
     if (selectedOrderTab === 'completed') {
-      return order.status === 'Emitida' || order.status === 'Enviada';
+      return getPatientOrderCategory(order) === 'completed';
     }
     if (selectedOrderTab === 'rejected') {
-      return order.status === 'Rechazada';
+      return getPatientOrderCategory(order) === 'closed';
     }
     return true;
   });
 
-  const pendingCount = patient.orders.filter(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Solicita más información').length;
-  const completedCount = patient.orders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
-  const rejectedCount = patient.orders.filter(o => o.status === 'Rechazada').length;
+  const pendingCount = patient.orders.filter(o => getPatientOrderCategory(o) === 'pending').length;
+  const completedCount = patient.orders.filter(o => getPatientOrderCategory(o) === 'completed').length;
+  const memberPendingCount = memberOrders.filter(o => getPatientOrderCategory(o) === 'pending').length;
+  const memberCompletedCount = memberOrders.filter(o => getPatientOrderCategory(o) === 'completed').length;
+  const memberClosedCount = memberOrders.filter(o => getPatientOrderCategory(o) === 'closed').length;
 
   const initials = `${patient.name.charAt(0)}${patient.lastName.charAt(0)}`.toUpperCase();
 
@@ -777,8 +784,8 @@ export default function PatientDetailModal({
                       const oCleanDni = (o.patientDni || '').replace(/\D/g, '');
                       return oCleanDni === depCleanDni;
                     });
-                    const depCompletedCount = depOrders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
-                    const depPendingCount = depOrders.filter(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Solicita más información').length;
+                    const depCompletedCount = depOrders.filter(o => getPatientOrderCategory(o) === 'completed').length;
+                    const depPendingCount = depOrders.filter(o => getPatientOrderCategory(o) === 'pending').length;
 
                     return (
                       <div 
@@ -943,7 +950,7 @@ export default function PatientDetailModal({
                       selectedOrderTab === 'all' ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Todas ({patient.orders.length})
+                    Todas ({memberOrders.length})
                   </button>
                   <button
                     type="button"
@@ -952,7 +959,7 @@ export default function PatientDetailModal({
                       selectedOrderTab === 'pending' ? 'bg-white text-amber-700 shadow-xs font-bold' : 'text-slate-600 hover:text-amber-800'
                     }`}
                   >
-                    Pendientes ({pendingCount})
+                    Pendientes ({memberPendingCount})
                   </button>
                   <button
                     type="button"
@@ -961,9 +968,9 @@ export default function PatientDetailModal({
                       selectedOrderTab === 'completed' ? 'bg-white text-[#0F6C7D] shadow-xs font-bold' : 'text-slate-600 hover:text-[#0141BC]'
                     }`}
                   >
-                    Emitidas ({completedCount})
+                    Emitidas ({memberCompletedCount})
                   </button>
-                  {rejectedCount > 0 && (
+                  {memberClosedCount > 0 && (
                     <button
                       type="button"
                       onClick={() => setSelectedOrderTab('rejected')}
@@ -971,7 +978,7 @@ export default function PatientDetailModal({
                         selectedOrderTab === 'rejected' ? 'bg-white text-rose-700 shadow-xs font-bold' : 'text-slate-600 hover:text-rose-800'
                       }`}
                     >
-                      Rechazadas ({rejectedCount})
+                      Rechazadas y canceladas ({memberClosedCount})
                     </button>
                   )}
                 </div>
@@ -1043,7 +1050,7 @@ export default function PatientDetailModal({
                   {filteredOrders.map((order) => {
                     const isExpanded = expandedOrderId === order.id;
                     const isCompleted = order.status === 'Emitida' || order.status === 'Enviada';
-                    const isPending = order.status === 'Pendiente' || order.status === 'En revisión' || order.status === 'Solicita más información';
+                    const isPending = getPatientOrderCategory(order) === 'pending';
                     const isDependentOrder = order.isForDependent;
 
                     return (

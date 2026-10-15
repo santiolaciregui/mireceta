@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
+import { getPatientOrderCategory } from '../../../utils/orderInbox';
 import { copyToClipboard } from '../../../utils/clipboard';
 import { 
   Check,
@@ -92,7 +93,7 @@ export default function PatientStatus({
     setIsCancellingOrder(true);
     try {
       await onCancelOrder(orderToCancel.id);
-      showToast('Solicitud cancelada y eliminada correctamente');
+      showToast('Solicitud cancelada. Se conserva en tu historial.');
       setOrderToCancel(null);
     } catch (err: any) {
       showToast(err.message || 'Error al cancelar la solicitud');
@@ -202,16 +203,10 @@ export default function PatientStatus({
   // Filter by status and search query
   const filteredOrders = useMemo(() => {
     return personFilteredOrders.filter(order => {
-      // Status filter
-      if (statusFilter === 'pending') {
-        const isPending = order.status === 'Pendiente' || order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información';
-        if (!isPending) return false;
-      } else if (statusFilter === 'ready') {
-        const isReady = order.status === 'Emitida' || order.status === 'Enviada';
-        if (!isReady) return false;
-      } else if (statusFilter === 'rejected') {
-        if (order.status !== 'Rechazada') return false;
-      }
+      const category = getPatientOrderCategory(order);
+      if (statusFilter === 'pending' && category !== 'pending') return false;
+      if (statusFilter === 'ready' && category !== 'completed') return false;
+      if (statusFilter === 'rejected' && category !== 'closed') return false;
 
       // Search filter (by ID, medication name, or patient name)
       if (searchTerm.trim()) {
@@ -230,9 +225,9 @@ export default function PatientStatus({
   }, [personFilteredOrders, statusFilter, searchTerm]);
 
   // Status counts for tabs
-  const pendingCount = personFilteredOrders.filter(o => o.status === 'Pendiente' || o.status === 'En revisión' || o.status === 'Aprobada' || o.status === 'Solicita más información').length;
-  const readyCount = personFilteredOrders.filter(o => o.status === 'Emitida' || o.status === 'Enviada').length;
-  const rejectedCount = personFilteredOrders.filter(o => o.status === 'Rechazada').length;
+  const pendingCount = personFilteredOrders.filter(o => getPatientOrderCategory(o) === 'pending').length;
+  const readyCount = personFilteredOrders.filter(o => getPatientOrderCategory(o) === 'completed').length;
+  const rejectedCount = personFilteredOrders.filter(o => getPatientOrderCategory(o) === 'closed').length;
 
   const allExpanded = filteredOrders.length > 0 && filteredOrders.every(o => expandedOrderIds[o.id]);
 
@@ -415,7 +410,7 @@ export default function PatientStatus({
               }`}
             >
               <AlertTriangle className="h-3 w-3" />
-              <span>Rechazadas ({rejectedCount})</span>
+              <span>Rechazadas y canceladas ({rejectedCount})</span>
             </button>
           )}
         </div>
@@ -485,6 +480,7 @@ export default function PatientStatus({
             const isPending = order.status === 'Pendiente';
             const isInReview = order.status === 'En revisión' || order.status === 'Aprobada' || order.status === 'Solicita más información';
             const isRejected = order.status === 'Rechazada';
+            const isClosed = getPatientOrderCategory(order) === 'closed';
             const recipeFiles = getOrderRecipeFiles(order);
 
             // Check if this order is for titular or a dependent
@@ -516,13 +512,13 @@ export default function PatientStatus({
                     <div className={`h-10 w-10 rounded-xl flex items-center justify-center shrink-0 border ${
                       isEmitida
                         ? 'bg-[#14BE99]/10 text-[#14BE99] border-[#14BE99]/30'
-                        : isRejected
+                        : isClosed
                         ? 'bg-rose-50 text-rose-600 border-rose-200'
                         : isInReview
                         ? 'bg-[#1661E1]/10 text-[#1661E1] border-[#1661E1]/20'
                         : 'bg-amber-50 text-amber-600 border-amber-200'
                     }`}>
-                      {isEmitida ? <CheckCircle2 className="h-5 w-5" /> : isRejected ? <AlertTriangle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
+                      {isEmitida ? <CheckCircle2 className="h-5 w-5" /> : isClosed ? <AlertTriangle className="h-5 w-5" /> : <Clock className="h-5 w-5" />}
                     </div>
 
                     {/* Order Information */}
@@ -556,7 +552,7 @@ export default function PatientStatus({
                         <span className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider ${
                           isEmitida
                             ? 'bg-[#14BE99] text-white'
-                            : isRejected
+                            : isClosed
                             ? 'bg-rose-600 text-white'
                             : isInReview
                             ? 'bg-[#1661E1] text-white'
@@ -603,10 +599,10 @@ export default function PatientStatus({
                           setOrderToCancel(order);
                         }}
                         className="bg-white hover:bg-rose-50 text-rose-600 hover:text-rose-700 border border-rose-200/80 hover:border-rose-300 text-xs font-bold px-2.5 py-1.5 rounded-xl shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer"
-                        title="Eliminar solicitud pendiente"
+                        title="Cancelar solicitud pendiente"
                       >
                         <Trash2 className="h-3.5 w-3.5 text-rose-600" />
-                        <span className="hidden sm:inline">Eliminar</span>
+                        <span className="hidden sm:inline">Cancelar</span>
                       </button>
                     )}
 
@@ -660,19 +656,19 @@ export default function PatientStatus({
                           <div className={`mx-auto h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold shadow-xs ${
                             isEmitida
                               ? 'bg-[#14BE99] text-white'
-                              : isRejected
+                              : isClosed
                               ? 'bg-rose-600 text-white'
                               : 'bg-[#1661E1] text-white animate-pulse'
                           }`}>
-                            {isEmitida ? <Check className="h-3.5 w-3.5" /> : isRejected ? <X className="h-3.5 w-3.5" /> : '2'}
+                            {isEmitida ? <Check className="h-3.5 w-3.5" /> : isClosed ? <X className="h-3.5 w-3.5" /> : '2'}
                           </div>
                           <p className={`text-[11px] font-bold ${
-                            isEmitida ? 'text-slate-800' : isRejected ? 'text-rose-600' : 'text-[#1661E1]'
+                            isEmitida ? 'text-slate-800' : isClosed ? 'text-rose-600' : 'text-[#1661E1]'
                           }`}>
                             2. Auditoría Médica
                           </p>
                           <p className="text-[9px] text-slate-400">
-                            {isRejected ? 'Rechazado' : isEmitida ? 'Completada' : 'En evaluación'}
+                            {isClosed ? order.status : isEmitida ? 'Completada' : 'En evaluación'}
                           </p>
                         </div>
 
@@ -998,7 +994,7 @@ export default function PatientStatus({
                             className="bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5 text-rose-600" />
-                            <span>Eliminar Solicitud</span>
+                            <span>Cancelar Solicitud</span>
                           </button>
                         )}
                       </div>
@@ -1070,8 +1066,8 @@ export default function PatientStatus({
         }}
         onConfirm={handleCancelConfirm}
         isLoading={isCancellingOrder}
-        title="¿Eliminar Solicitud Pendiente?"
-        description="Esta acción eliminará de forma permanente tu solicitud pendiente del sistema. Si ya realizaste un pago, el mismo será procesado según las políticas de reembolso."
+        title="¿Cancelar Solicitud Pendiente?"
+        description="La solicitud quedará cancelada y conservará sus datos en el historial. Esta acción no reintegra pagos automáticamente; si ya pagaste, contactá al equipo para gestionar la devolución."
         itemSummary={orderToCancel ? {
           id: orderToCancel.id,
           title: `${orderToCancel.patientLastName}, ${orderToCancel.patientName}`,
@@ -1079,8 +1075,8 @@ export default function PatientStatus({
           tag: 'Pendiente',
           extra: `Fecha: ${new Date(orderToCancel.createdAt).toLocaleDateString('es-AR')}`
         } : undefined}
-        confirmLabel="Sí, eliminar solicitud"
-        cancelLabel="Cancelar"
+        confirmLabel="Sí, cancelar solicitud"
+        cancelLabel="Volver"
       />
 
     </div>

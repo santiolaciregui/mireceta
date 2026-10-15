@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { canCancelOrder } from '../../../utils/orderCancellation';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PatientForm from '../PatientForm';
@@ -415,10 +416,10 @@ export default function DoctorDashboard({
       if (selectedOrderId === orderToDelete.id) {
         setSelectedOrderId(null);
       }
-      showToast('Solicitud eliminada correctamente');
+      showToast('Solicitud cancelada. Se conserva en el historial.');
       setOrderToDelete(null);
     } catch (err: any) {
-      showToast(err.message || 'Error al eliminar la solicitud');
+      showToast(err.message || 'Error al cancelar la solicitud');
     } finally {
       setIsDeletingOrder(false);
     }
@@ -1329,7 +1330,7 @@ export default function DoctorDashboard({
                           <span>{order.id.split('-')[0]}-{order.id.substring(order.id.length-4)}</span>
                           <div className="flex items-center gap-1.5">
                             <span>{formatOrderCreatedAt(order.createdAt)}</span>
-                            {onDeleteOrder && (
+                            {onDeleteOrder && canCancelOrder(order, currentUser?.role) && (
                               <span
                                 role="button"
                                 tabIndex={0}
@@ -1344,7 +1345,7 @@ export default function DoctorDashboard({
                                   }
                                 }}
                                 className="opacity-70 hover:opacity-100 p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all cursor-pointer inline-flex items-center"
-                                title="Eliminar solicitud"
+                                title="Cancelar solicitud"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </span>
@@ -1480,15 +1481,15 @@ export default function DoctorDashboard({
                           </button>
                         )}
 
-                        {onDeleteOrder && (
+                        {onDeleteOrder && canCancelOrder(selectedOrder, currentUser?.role) && (
                           <button
                             type="button"
                             onClick={() => setOrderToDelete(selectedOrder)}
                             className="bg-white hover:bg-rose-50 text-rose-600 border border-rose-200/90 hover:border-rose-300 px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
-                            title="Eliminar esta solicitud"
+                            title="Cancelar esta solicitud"
                           >
                             <Trash2 className="h-4 w-4 text-rose-600" />
-                            <span>Eliminar</span>
+                            <span>Cancelar</span>
                           </button>
                         )}
                       </div>
@@ -2352,16 +2353,16 @@ export default function DoctorDashboard({
                   <div className="mt-6 pt-6 border-t border-slate-200/80">
                     {currentUser?.role === 'admin' ? (
                       <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-600 text-xs font-medium">
-                        <span>Modo solo lectura (Administrador). Los administradores pueden visualizar solicitudes y gestionar su eliminación.</span>
-                        {onDeleteOrder && (
+                        <span>Modo solo lectura (Administrador). Podés consultar las solicitudes y su historial.</span>
+                        {onDeleteOrder && canCancelOrder(selectedOrder, currentUser?.role) && (
                           <button
                             type="button"
                             onClick={() => setOrderToDelete(selectedOrder)}
                             className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-xs shrink-0"
-                            title="Eliminar esta solicitud"
+                            title="Cancelar esta solicitud"
                           >
                             <Trash2 className="h-4 w-4 text-rose-600" />
-                            <span>Eliminar Solicitud</span>
+                            <span>Cancelar Solicitud</span>
                           </button>
                         )}
                       </div>
@@ -2401,15 +2402,15 @@ export default function DoctorDashboard({
                               >
                                 Rechazar
                               </button>
-                              {onDeleteOrder && (
+                              {onDeleteOrder && canCancelOrder(selectedOrder, currentUser?.role) && (
                                 <button
                                   type="button"
                                   onClick={() => setOrderToDelete(selectedOrder)}
                                   className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-4 py-3 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center justify-center gap-1.5 shadow-xs"
-                                  title="Eliminar permanentemente esta solicitud pendiente"
+                                  title="Cancelar esta solicitud pendiente"
                                 >
                                   <Trash2 className="h-4 w-4 text-rose-600" />
-                                  <span>Eliminar Solicitud</span>
+                                  <span>Cancelar Solicitud</span>
                                 </button>
                               )}
                             </div>
@@ -2639,15 +2640,15 @@ export default function DoctorDashboard({
                               >
                                 RECHAZAR SOLICITUD
                               </button>
-                              {onDeleteOrder && (
+                              {onDeleteOrder && canCancelOrder(selectedOrder, currentUser?.role) && (
                                 <button
                                   type="button"
                                   onClick={() => setOrderToDelete(selectedOrder)}
                                   className="bg-white hover:bg-rose-50 border border-rose-200 hover:border-rose-300 text-rose-700 px-5 py-3.5 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-xs"
-                                  title="Eliminar permanentemente esta solicitud"
+                                  title="Cancelar esta solicitud"
                                 >
                                   <Trash2 className="h-4 w-4 text-rose-600" />
-                                  <span>ELIMINAR SOLICITUD</span>
+                                  <span>CANCELAR SOLICITUD</span>
                                 </button>
                               )}
                             </div>
@@ -2726,16 +2727,16 @@ export default function DoctorDashboard({
                               <h4 className="font-bold text-rose-900 text-base">Solicitud Rechazada</h4>
                               <p className="text-xs text-rose-700 mt-1">{selectedOrder.doctorNotes || 'La solicitud fue desestimada tras evaluación clínica.'}</p>
                             </div>
-                            {onDeleteOrder && (
+                            {onDeleteOrder && canCancelOrder(selectedOrder, currentUser?.role) && (
                               <div className="pt-2">
                                 <button
                                   type="button"
                                   onClick={() => setOrderToDelete(selectedOrder)}
                                   className="inline-flex items-center gap-1.5 px-4 py-2 bg-white hover:bg-rose-100 border border-rose-300 text-rose-700 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-                                  title="Eliminar permanentemente esta solicitud rechazada"
+                                  title="Cancelar esta solicitud"
                                 >
                                   <Trash2 className="h-3.5 w-3.5" />
-                                  <span>Eliminar Solicitud Rechazada</span>
+                                  <span>Cancelar Solicitud</span>
                                 </button>
                               </div>
                             )}
@@ -3398,12 +3399,8 @@ export default function DoctorDashboard({
         }}
         onConfirm={handleDeleteConfirm}
         isLoading={isDeletingOrder}
-        title={orderToDelete?.status === 'Pendiente' ? "¿Eliminar Solicitud Pendiente?" : "¿Eliminar Solicitud Médica?"}
-        description={
-          orderToDelete?.status === 'Pendiente'
-            ? "Esta acción eliminará de forma permanente esta solicitud pendiente, sus datos cargados y su historial. Esta acción no se puede deshacer."
-            : "Esta acción eliminará de forma permanente la solicitud médica seleccionada, sus comprobantes y su historial. Esta acción no se puede deshacer."
-        }
+        title="¿Cancelar Solicitud?"
+        description="La solicitud quedará cancelada y conservará sus datos e historial. Esta acción no reintegra pagos automáticamente; las devoluciones se gestionan por separado."
         itemSummary={orderToDelete ? {
           id: orderToDelete.id,
           title: `${orderToDelete.patientLastName}, ${orderToDelete.patientName}`,
@@ -3411,8 +3408,8 @@ export default function DoctorDashboard({
           tag: orderToDelete.status,
           extra: `Fecha: ${new Date(orderToDelete.createdAt).toLocaleDateString('es-AR')}`
         } : undefined}
-        confirmLabel="Sí, eliminar solicitud"
-        cancelLabel="Cancelar"
+        confirmLabel="Sí, cancelar solicitud"
+        cancelLabel="Volver"
       />
     </div>
   );

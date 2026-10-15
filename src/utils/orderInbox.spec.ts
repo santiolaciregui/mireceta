@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { MedicalOrder, OrderStatus } from '../types';
-import { getOrderInbox } from './orderInbox';
+import { getOrderInbox, getPatientOrderCategory } from './orderInbox';
 
 const clinicalStatuses: OrderStatus[] = [
   'Pendiente', 'En revisión', 'Solicita más información', 'Aprobada',
@@ -30,3 +30,14 @@ test('routes a historical paid pending request without mutating the persisted st
   assert.equal(getOrderInbox(order), 'review');
   assert.equal(order.status, 'Pendiente');
 });
+
+for (const status of clinicalStatuses) {
+  for (const paymentStatus of paymentStatuses) {
+    test(`patient categories include ${status} / ${paymentStatus ?? 'missing payment'}`, () => {
+      const category = getPatientOrderCategory({ status, paymentStatus });
+      const expected = ['Emitida', 'Enviada'].includes(status) ? 'completed'
+        : ['Rechazada', 'Cancelada'].includes(status) ? 'closed' : 'pending';
+      assert.equal(category, expected);
+    });
+  }
+}

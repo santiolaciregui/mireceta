@@ -1,9 +1,9 @@
 {
-  "project": "Mi Receta - sincronizacion resiliente con Mercado Pago",
+  "project": "Mi Receta - historial y secciones de solicitudes",
   "status": "qa_done",
   "current_phase": "complete",
   "current_milestone": "M9",
-  "current_story": "US-010",
+  "current_story": "US-011",
   "pending_stories": [],
   "completed_stories": [
     "US-001",
@@ -15,10 +15,11 @@
     "US-007",
     "US-008",
     "US-009",
-    "US-010"
+    "US-010",
+    "US-011"
   ],
   "open_questions": [],
   "last_agent": "qa",
   "qa_verdict": "conditional",
-  "qa_note": "Acceptance criteria pass; overall line coverage 78.82%, below 80% guide threshold."
+  "qa_note": "US-011 accepted: 300 tests pass; changed routing/cancellation helpers 100% coverage; overall lines 79.47%. Final TypeScript/build pass. No production changes or deployment. Legacy PUT cancellation unchanged."
 }

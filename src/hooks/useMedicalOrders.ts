@@ -628,11 +628,13 @@ export function useMedicalOrders() {
         headers: fetchHeaders(),
       });
       if (res.ok) {
-        setOrders((prev) => prev.filter((o) => o.id !== orderId));
+        const data = await res.json();
+        if (!data.success || !data.order) throw new Error('No se pudo confirmar la cancelación. Actualizá la bandeja.');
+        setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, ...data.order } : o));
         return true;
       }
       const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Error al eliminar la solicitud');
+      throw new Error(data.error || 'Error al cancelar la solicitud');
     } catch (err) {
       console.error('deleteOrder error:', err);
       throw err;

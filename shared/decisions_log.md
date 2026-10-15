@@ -38,3 +38,6 @@
 | 2026-09-17T10:42:00-03:00 | Cost Controller | Completed US-009 cost review | Estimated cost ~$0.23; budget status green; deployment and live provider verification remain pending |
 
 | 2026-10-14 | Developer / QA | US-010: shared inbox routing and audited payment-to-review transition | 222 tests pass; routing coverage 100%; overall 78.82%; lint/build pass; no live DB/deploy. |
+
+| 2026-10-15 | Developer | US-011: preserve cancellation history and complete patient categories | No production writes, migration or deploy; atomic cancellation; focused tests pass |
+| 2026-10-15 | QA/Orchestrator | US-011 validated | 300 tests; lint/build/diff pass; conditional global coverage 79.47%, changed helpers 100%; accepted without unrelated coverage expansion; production unchanged |

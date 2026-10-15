@@ -1,3 +1,4 @@
+import { cancellableOrderStatuses } from '../../src/utils/orderCancellation.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { TenantRepository } from '../repositories/TenantRepository.js';
@@ -879,9 +880,11 @@ export class OrderService {
       throw new Error('Solicitud no encontrada.');
     }
 
-    // Tenant check
-    if (currentUser?.role !== 'superadmin' && order.tenantId && currentUser?.tenantId && order.tenantId !== currentUser.tenantId) {
-      throw new Error('No tiene permisos para eliminar solicitudes de otro centro médico.');
+    const statuses = cancellableOrderStatuses(currentUser?.role);
+    if (statuses.length === 0) throw new Error('No tiene permisos para cancelar solicitudes.');
+
+    if (currentUser?.role !== 'superadmin' && (order.tenantId || 'TEN-0001') !== (currentUser?.tenantId || 'TEN-0001')) {
+      throw new Error('No tiene permisos para cancelar solicitudes de otro centro médico.');
     }
 
     // Patient check: can only delete/cancel their own order
@@ -893,32 +896,41 @@ export class OrderService {
       const orderDniClean = cleanDni(order.patientDni);
       const titularDniClean = cleanDni(order.requestedByTitularDni);
 
-      const isOwner = 
-        orderDniClean === patientDniClean || 
-        dependentDnis.includes(orderDniClean) || 
-        titularDniClean === patientDniClean ||
-        (order.patientEmail && order.patientEmail === currentUser.email);
+      const isOwner = Boolean(
+        (patientDniClean && (orderDniClean === patientDniClean || titularDniClean === patientDniClean)) ||
+        dependentDnis.includes(orderDniClean) ||
+        (order.patientEmail && currentUser.email && order.patientEmail === currentUser.email)
+      );
       if (!isOwner) {
-        throw new Error('No tiene permiso para eliminar esta solicitud.');
+        throw new Error('No tiene permiso para cancelar esta solicitud.');
       }
     }
 
-    const result = await this.orderRepo.delete(id);
+    if (order.status === 'Cancelada') return { success: true, id, order };
+    if (!statuses.includes(order.status)) {
+      throw new Error('Esta solicitud ya no admite cancelación. Se conserva en el historial.');
+    }
+
+    const previousStatus = order.status;
+    const updatedOrder = await this.orderRepo.cancelIfActive(id, statuses, {
+      action: 'Cancelada',
+      user: `${currentUser.name || ''} ${currentUser.lastName || ''}`.trim() || currentUser.role,
+      timestamp: new Date().toISOString(),
+      notes: 'Solicitud cancelada conservando sus datos e historial. Los pagos se gestionan por separado.',
+    });
+    if (!updatedOrder) throw new Error('La solicitud cambió de estado. Actualizá la bandeja antes de continuar.');
 
     await auditLogService.log({
       tenantId: order.tenantId || currentUser?.tenantId || 'TEN-0001',
       currentUser,
-      action: 'ORDER_DELETE',
+      action: 'ORDER_CANCEL',
       entity: 'Order',
       entityId: id,
-      details: `Eliminó la orden ${id} del paciente ${order.patientName || ''} ${order.patientLastName || ''} (DNI: ${order.patientDni || ''})`
+      details: `Canceló la solicitud ${id} conservando sus datos e historial.`,
+      changes: { status: { from: previousStatus, to: 'Cancelada' } },
     });
-
-    if (result) {
-      await this.refreshPendingOrderLimitAlert(order.tenantId || currentUser?.tenantId || 'TEN-0001');
-    }
-
-    return { success: result, id };
+    await this.refreshPendingOrderLimitAlert(order.tenantId || currentUser?.tenantId || 'TEN-0001');
+    return { success: true, id, order: updatedOrder };
   }
 
   async sendRecipeLink(

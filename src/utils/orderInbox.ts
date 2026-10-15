@@ -46,3 +46,9 @@ export function formatOrderCreatedAt(value: ActivityTimestamp): string {
     hour12: false,
   });
 }
+
+/** US-011: patient views combine payment and review into one in-process category. */
+export function getPatientOrderCategory(order: Pick<MedicalOrder, 'status' | 'paymentStatus'>): 'pending' | 'completed' | 'closed' {
+  const inbox = getOrderInbox(order);
+  return inbox === 'review' ? 'pending' : inbox;
+}

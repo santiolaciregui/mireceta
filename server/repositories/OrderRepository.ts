@@ -1,4 +1,4 @@
-import { Order, IMedicalOrder } from '../models/Order.js';
+import { Order, IMedicalOrder, IAuditLogEntry } from '../models/Order.js';
 import { cleanPhone } from '../utils/formatters.js';
 
 export class OrderRepository {
@@ -134,8 +134,11 @@ export class OrderRepository {
     return order.save();
   }
 
-  async delete(id: string): Promise<boolean> {
-    const result = await Order.deleteOne({ id });
-    return result.deletedCount > 0;
+  async cancelIfActive(id: string, statuses: IMedicalOrder['status'][], entry: IAuditLogEntry): Promise<IMedicalOrder | null> {
+    return Order.findOneAndUpdate(
+      { id, status: { $in: statuses } },
+      { $set: { status: 'Cancelada', updatedAt: entry.timestamp }, $push: { auditLog: { $each: [entry] } } },
+      { new: true, runValidators: true }
+    );
   }
 }
