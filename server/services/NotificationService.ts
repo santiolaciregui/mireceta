@@ -25,6 +25,7 @@ export interface SendDirectNotificationDto {
   templateCode?: string;
   templateLanguage?: string;
   strictTemplate?: boolean;
+  templateImageId?: string;
   variables?: Record<string, string | number | boolean>;
 }
 
@@ -155,6 +156,7 @@ export class NotificationService {
         templateCode,
         templateLanguage: dto.templateLanguage,
         strictTemplate: dto.strictTemplate,
+        templateImageId: dto.templateImageId,
         variables
       },
       credentials
@@ -637,6 +639,25 @@ export class NotificationService {
       }
 
       const waConfig = await this.getConfig(tenantId, 'whatsapp');
+      if (media) {
+        if (media.fileType !== 'image') {
+          return { success: false, error: 'Este tipo de archivo requiere una respuesta reciente del paciente en WhatsApp.' };
+        }
+        const imageId = await this.uploadWhatsAppMedia(tenantId, media);
+        return await this.sendNotification({
+          tenantId,
+          channel: 'whatsapp',
+          to: patientPhone,
+          templateCode: String(waConfig?.credentials?.doctorInquiryImageTemplateCode || 'consulta_medica_imagen'),
+          templateLanguage: String(waConfig?.credentials?.doctorInquiryImageTemplateLanguage || 'es_AR'),
+          templateImageId: imageId,
+          strictTemplate: true,
+          variables: {
+            messagePreview: messageText.length > 1000 ? `${messageText.substring(0, 997)}...` : messageText
+          },
+          body: messageText
+        });
+      }
       const templateCode = (waConfig?.credentials?.doctorInquiryTemplateCode || waConfig?.credentials?.templateCode || 'primer_mensaje') as string;
 
       return await this.sendNotification({
@@ -708,16 +729,17 @@ export class NotificationService {
     }
   }
 
-  private async sendWhatsAppMedia(tenantId: string, patientPhone: string, media: ChatMediaPayload, caption: string): Promise<SendNotificationResult> {
+  // US-012: Share the upload between direct media and approved IMAGE templates.
+  private async uploadWhatsAppMedia(tenantId: string, media: ChatMediaPayload): Promise<string> {
     const accessToken = await this.getWhatsAppAccessToken(tenantId);
     const config = await this.getWhatsAppConfig(tenantId);
     const phoneNumberId = String(config?.credentials?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || '').trim();
-    if (!accessToken || !phoneNumberId) return { success: false, error: 'WhatsApp no configurado para enviar archivos.' };
+    if (!accessToken || !phoneNumberId) throw new Error('WhatsApp no configurado para enviar archivos.');
     const match = media.dataUrl.match(/^data:([^;,]+);base64,(.+)$/s);
-    if (!match) return { success: false, error: 'El archivo adjunto no tiene un formato válido.' };
-    const mimeType = media.mimeType || match[1];
+    if (!match) throw new Error('El archivo adjunto no tiene un formato válido.');
+    const mimeType = match[1];
     const buffer = Buffer.from(match[2], 'base64');
-    if (buffer.byteLength > MAX_PERSISTED_CHAT_MEDIA_BYTES) return { success: false, error: 'El archivo excede el límite de 8 MB.' };
+    if (buffer.byteLength > MAX_PERSISTED_CHAT_MEDIA_BYTES) throw new Error('El archivo excede el límite de 8 MB.');
     const apiVersion = process.env.WHATSAPP_API_VERSION || 'v21.0';
     const uploadBody = new FormData();
     uploadBody.set('messaging_product', 'whatsapp');
@@ -726,12 +748,21 @@ export class NotificationService {
       method: 'POST', headers: { Authorization: `Bearer ${accessToken}` }, body: uploadBody
     });
     const upload = await uploadResponse.json() as { id?: string; error?: { message?: string } };
-    if (!uploadResponse.ok || !upload.id) return { success: false, error: upload.error?.message || 'No se pudo cargar el archivo en WhatsApp.' };
+    if (!uploadResponse.ok || !upload.id) throw new Error(upload.error?.message || 'No se pudo cargar el archivo en WhatsApp.');
+    return upload.id;
+  }
+
+  private async sendWhatsAppMedia(tenantId: string, patientPhone: string, media: ChatMediaPayload, caption: string): Promise<SendNotificationResult> {
+    const accessToken = await this.getWhatsAppAccessToken(tenantId);
+    const config = await this.getWhatsAppConfig(tenantId);
+    const phoneNumberId = String(config?.credentials?.phoneNumberId || process.env.WHATSAPP_PHONE_NUMBER_ID || process.env.META_PHONE_NUMBER_ID || '').trim();
+    const apiVersion = process.env.WHATSAPP_API_VERSION || 'v21.0';
+    const mediaId = await this.uploadWhatsAppMedia(tenantId, media);
     const type = media.fileType === 'pdf' ? 'document' : media.fileType;
     const recipient = formatWhatsAppPhone(patientPhone, String(config?.credentials?.defaultCountryCode || process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54'));
     if (!recipient) return { success: false, error: 'Número de teléfono de destino inválido.' };
     const payload: any = { messaging_product: 'whatsapp', recipient_type: 'individual', to: recipient, type };
-    payload[type || 'document'] = { id: upload.id };
+    payload[type || 'document'] = { id: mediaId };
     if (type === 'document' && media.fileName) payload.document.filename = media.fileName;
     if (caption && (type === 'image' || type === 'video' || type === 'document')) payload[type].caption = caption;
     const sendResponse = await fetch(`https://graph.facebook.com/${apiVersion}/${phoneNumberId}/messages`, {

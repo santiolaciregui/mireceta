@@ -25,6 +25,21 @@ const optimisticMessage: OptimisticChatMessage = {
 };
 
 describe('optimistic chat messages', () => {
+  it('keeps an outgoing image when its server summary arrives before media details', () => {
+    const outgoing = { ...optimisticMessage, fileType: 'image' as const, fileUrl: 'data:image/jpeg;base64,AA==' };
+    const summary = { ...confirmedMessage, id: outgoing.id, fileType: 'image' as const };
+    const result = mergeChatMessages([summary], [outgoing]);
+    assert.equal(result[0].fileUrl, outgoing.fileUrl);
+    assert.equal((result[0] as Partial<OptimisticChatMessage>).localDeliveryState, undefined);
+    assert.equal(reconcileOptimisticMessages([outgoing], new Set([outgoing.id]), new Set()).length, 1);
+    assert.equal(reconcileOptimisticMessages([outgoing], new Set([outgoing.id]), new Set([outgoing.id])).length, 0);
+  });
+
+  it('does not overwrite media details with a duplicate order summary', () => {
+    const detailed = { ...confirmedMessage, fileUrl: 'photo-url' };
+    assert.equal(mergeChatMessages([detailed, confirmedMessage], [])[0].fileUrl, 'photo-url');
+  });
+
   it('keeps an outgoing message visible while the server has not confirmed it', () => {
     const result = mergeChatMessages([confirmedMessage], [optimisticMessage]);
 

@@ -39,6 +39,7 @@ import {
   reconcileOptimisticMessages,
 } from './optimisticMessages';
 import type { OptimisticChatMessage } from './optimisticMessages';
+import { mergeChatMedia } from './chatMedia';
 import { CHAT_READ_EVENT, CHAT_READ_KEY, compareChatConversations, getUnreadMessageCount, readChatTimestamps, resolveChatTarget } from '../../../utils/chatInbox';
 
 interface PatientDoctorChatProps {
@@ -86,55 +87,53 @@ export default function PatientDoctorChat({
   const isPatient = currentUser.role === 'paciente';
   const cleanDni = (dni: string) => (dni || '').replace(/\D/g, '');
 
-  const [hydratedConversations, setServerConversations] = useState<any[]>([]);
-  const serverConversations = isPatient ? hydratedConversations : conversations;
-  const patientDetailsRef = useRef(new Map<string, { signature: string; conversation: any }>());
+  const [selectedPatientDni, setSelectedPatientDni] = useState<string | null>(null);
+  const [mediaRevision, setMediaRevision] = useState(0);
+  const mediaScope = `${currentUser.tenantId}:${currentUser.id}:${currentUser.role}:${currentUser.identifier}`;
+  const patientDetailsRef = useRef(new Map<string, { signature: string; messages: ChatMessage[] }>());
   const [optimisticMessagesByDni, setOptimisticMessagesByDni] = useState<Record<string, OptimisticChatMessage[]>>({});
 
+  // US-012: Enrich summaries from the active conversation cache for every role.
+  const serverConversations = useMemo(() => conversations.map(conversation => {
+    const dni = conversation.cleanDni || cleanDni(conversation.patientDni || conversation.dni);
+    const cached = patientDetailsRef.current.get(`${mediaScope}:${dni}`);
+    return cached ? {
+      ...conversation,
+      messages: mergeChatMedia(conversation.messages || [], cached.messages),
+    } : conversation;
+  }), [conversations, mediaRevision, mediaScope]);
+
   useEffect(() => {
-    if (!isPatient) return;
-    let cancelled = false;
-    const hydratePatientMedia = async () => {
-      const data = conversations.map(conversation => ({ ...conversation }));
-      const activeSummary = data[0];
-      if (activeSummary) {
-        const dni = activeSummary.cleanDni || cleanDni(activeSummary.patientDni);
-        const messages = activeSummary.messages || [];
-        const lastMessage = messages[messages.length - 1];
-        const signature = `${messages.length}:${lastMessage?.id || ''}:${lastMessage?.timestamp || ''}`;
-        const cached = patientDetailsRef.current.get(dni);
-        if (dni && cached?.signature !== signature) {
-          try {
-            const response = await fetch(`/api/chat/${encodeURIComponent(dni)}`, {
-              headers: { Authorization: `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}` },
-            });
-            if (response.ok && !cancelled) {
-              const conversation = await response.json();
-              if (!cancelled) patientDetailsRef.current.set(dni, { signature, conversation });
-            }
-          } catch {
-            // Keep summaries available and retry media on the next inbox refresh.
-          }
-        }
-        const detail = patientDetailsRef.current.get(dni)?.conversation;
-        if (detail) {
-          const detailedMessages = new Map<string, ChatMessage>(
-            (detail.messages || []).map((message: ChatMessage) => [message.id, message])
-          );
-          data[0] = {
-            ...activeSummary,
-            messages: messages.map((message: ChatMessage) => ({
-              ...message,
-              fileUrl: detailedMessages.get(message.id)?.fileUrl,
-            })),
-          };
-        }
+    const summary = isPatient ? conversations[0] : conversations.find(conversation =>
+      (conversation.cleanDni || cleanDni(conversation.patientDni || conversation.dni)) === selectedPatientDni
+    );
+    if (!summary) return;
+    const dni = summary.cleanDni || cleanDni(summary.patientDni || summary.dni);
+    const messages: ChatMessage[] = summary.messages || [];
+    if (!dni || !messages.some(message => message.fileType && !message.fileUrl)) return;
+    const lastMessage = messages[messages.length - 1];
+    const signature = `${messages.length}:${lastMessage?.id || ''}:${lastMessage?.timestamp || ''}`;
+    const cacheKey = `${mediaScope}:${dni}`;
+    if (patientDetailsRef.current.get(cacheKey)?.signature === signature) return;
+    const controller = new AbortController();
+    const hydrateMedia = async () => {
+      try {
+        const response = await fetch(`/api/chat/${encodeURIComponent(dni)}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('mi-receta-jwt') || ''}` },
+          signal: controller.signal,
+        });
+        if (!response.ok || controller.signal.aborted) return;
+        const detail = await response.json();
+        if (controller.signal.aborted || !Array.isArray(detail.messages)) return;
+        patientDetailsRef.current.set(cacheKey, { signature, messages: detail.messages });
+        setMediaRevision(revision => revision + 1);
+      } catch {
+        // Keep cached attachments and retry failed requests on the next refresh.
       }
-      if (!cancelled) setServerConversations(data);
     };
-    void hydratePatientMedia();
-    return () => { cancelled = true; };
-  }, [conversations, isPatient]);
+    void hydrateMedia();
+    return () => controller.abort();
+  }, [conversations, isPatient, selectedPatientDni, mediaScope]);
 
   // Group orders and messages by unique Patient DNI
   const patientConversations = useMemo(() => {
@@ -305,13 +304,17 @@ export default function PatientDoctorChat({
 
   useEffect(() => {
     const confirmedIdsByDni = new Map<string, Set<string>>();
-    const addConfirmedMessages = (dni: string, messages: ChatMessage[] | undefined) => {
+    const confirmedMediaByDni = new Map<string, Set<string>>();
+    const addConfirmedMessages = (dni: string, messages: ChatMessage[] | undefined, confirmMedia = true) => {
       const clean = cleanDni(dni);
       if (!clean || !Array.isArray(messages)) return;
       const confirmedIds = confirmedIdsByDni.get(clean) || new Set<string>();
+      const mediaIds = confirmedMediaByDni.get(clean) || new Set<string>();
       for (const message of messages) {
         if (message?.id) confirmedIds.add(message.id);
+        if (confirmMedia && message?.id && message.fileUrl) mediaIds.add(message.id);
       }
+      confirmedMediaByDni.set(clean, mediaIds);
       confirmedIdsByDni.set(clean, confirmedIds);
     };
 
@@ -323,7 +326,8 @@ export default function PatientDoctorChat({
     }
 
     for (const order of orders) {
-      addConfirmedMessages(isPatient ? order.requestedByTitularDni || order.patientDni : order.patientDni, order.messages);
+      // Order summaries may discard attachments on their next poll. Wait for chat details.
+      addConfirmedMessages(isPatient ? order.requestedByTitularDni || order.patientDni : order.patientDni, order.messages, false);
     }
 
     setOptimisticMessagesByDni((previous) => {
@@ -333,7 +337,8 @@ export default function PatientDoctorChat({
       for (const [dni, messages] of Object.entries(previous) as Array<[string, OptimisticChatMessage[]]>) {
         const remaining = reconcileOptimisticMessages(
           messages,
-          confirmedIdsByDni.get(dni) || new Set<string>()
+          confirmedIdsByDni.get(dni) || new Set<string>(),
+          confirmedMediaByDni.get(dni) || new Set<string>()
         );
         if (remaining.length !== messages.length) changed = true;
         if (remaining.length > 0) next[dni] = remaining;
@@ -367,7 +372,6 @@ export default function PatientDoctorChat({
   };
 
   const [viewMode, setViewMode] = useState<'conversacion' | 'solicitud'>('conversacion');
-  const [selectedPatientDni, setSelectedPatientDni] = useState<string | null>(null);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [inputText, setInputText] = useState('');
   const [inboxSearchQuery, setInboxSearchQuery] = useState('');

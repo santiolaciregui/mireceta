@@ -1,16 +1,14 @@
-# US-011 — Preserve request history and complete patient categories
+# US-012 — Send approved image templates and preserve chat attachments
 Date: 2026-10-15
 
-Fix the existing application. No dependencies, migrations, production writes, recovery of deleted records, or deployment.
+Fix the existing React/Express application in its existing source directories; the user's requested repair takes precedence over the generic skill's output/NestJS scaffold. No dependencies, migrations, database maintenance, real messages, deployment, or commits.
 
 Acceptance criteria:
-- The existing DELETE order endpoint cancels eligible active requests without removing documents, files, payments, or audit history. Return the retained order so the client updates it instead of filtering it out.
-- Issued, sent, rejected requests cannot be deleted/cancelled by this operation. Already cancelled requests are idempotent. Patients may cancel only their own/dependent pending or in-review requests; staff with existing clinical permissions may cancel active requests within their tenant. Administrators retain read-only clinical permissions.
-- Cancellation updates atomically only if the request remains in an eligible state; preserve concurrent issuance. Log cancellation in embedded and global audit. Do not call payment/refund providers as a new side effect; communicate that payment handling is separate.
-- Remove destructive UI actions for terminal requests. Cancellation copy explains that the request remains in history.
-- Patient status and patient detail categories share a pure category helper: active requests (including Aprobada) in process, Emitida/Enviada completed, Rechazada/Cancelada closed. Filters and counts agree.
-- Fix the patient list active request count to include Aprobada. Keep existing tenant and person/search boundaries; do not broaden access.
-- Regression tests cover the clinical/payment matrix, cancellation persistence, authorization, idempotency, terminal protection and races; TypeScript checks and build pass.
+- Staff images outside the customer service window upload to Meta and use the user-confirmed approved `consulta_medica_imagen` template with an IMAGE header and the existing single body variable. Default language es_AR, consistent with the supplied Spanish ARG template; allow configuration overrides.
+- Images inside the window keep direct media delivery. Text-only messages retain their configured existing template. Upload/template failure must never downgrade an image to a successful text-only message. Unsupported attachments outside the window return an explicit failure.
+- Return WhatsApp dispatch failures separately from successful chat persistence and show a warning without retrying/persisting the message again.
+- Load full media only for the active conversation for both staff and patients. Preserve cached and outgoing attachments across summary polling; ignore stale fetches on selection/account changes. Keep polling lightweight and existing access boundaries.
+- Unit tests mock network/repositories and cover image payloads, upload/send failures, text compatibility, and summary/detail attachment merging. Run TypeScript checks and build.
 
-Tasks: T-001 history-preserving cancellation; T-002 consistent categories and UI; T-003 local QA.
+Tasks: T-001 image template dispatch; T-002 active chat hydration and preservation; T-003 local verification.
 DevOps Required: NO.

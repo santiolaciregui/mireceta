@@ -9,6 +9,37 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ChatService } from './ChatService.js';
 import { Patient } from '../models/Patient.js';
+import { auditLogService } from './AuditLogService.js';
+
+test('keeps the saved image and exposes WhatsApp rejection without persisting twice', async t => {
+  t.mock.method(auditLogService, 'log', async () => undefined);
+  let saves = 0;
+  let dispatches = 0;
+  const patient = {
+    dni: '12345678', phone: '5491112345678', name: 'Test', messages: [] as any[],
+    save: async () => { saves++; },
+  };
+  const service: any = new ChatService();
+  service.patientRepo = { findByDni: async () => patient };
+  service.orderRepo = { findByPatientDnis: async () => [] };
+  service.notificationService = {
+    sendDoctorInquiryWhatsApp: async (params: any) => {
+      dispatches++;
+      assert.equal(params.media.fileType, 'image');
+      assert.equal(params.media.dataUrl, 'data:image/jpeg;base64,AA==');
+      return { success: false, error: 'Template rejected' };
+    },
+  };
+  const result = await service.sendMessage('12345678', {
+    id: 'outgoing-image', fileType: 'image', fileUrl: 'data:image/jpeg;base64,AA==',
+  }, { role: 'medico', tenantId: 'TEN-TEST', name: 'Doctor' });
+  assert.deepEqual(result.whatsAppDispatch, { success: false, error: 'Template rejected' });
+  assert.equal(result.messages[0].fileUrl, 'data:image/jpeg;base64,AA==');
+  assert.equal(patient.messages.length, 1);
+  assert.equal(saves, 1);
+  assert.equal(dispatches, 1);
+  assert.equal(patient.messages[0].whatsAppDispatch, undefined);
+});
 
 test('orders a newer request without messages before a conversation with an older message', async () => {
   const service: any = new ChatService();

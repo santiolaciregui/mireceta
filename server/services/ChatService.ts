@@ -2,6 +2,7 @@ import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { UserRepository } from '../repositories/UserRepository.js';
 import { notificationService } from './NotificationService.js';
+import type { SendNotificationResult } from './notification/adapters/NotificationAdapter.js';
 import { auditLogService } from './AuditLogService.js';
 import { cleanDni } from '../utils/formatters.js';
 import { generateMessageId } from '../utils/idGenerator.js';
@@ -370,6 +371,7 @@ export class ChatService {
       });
     }
 
+    let whatsAppDispatch: SendNotificationResult | undefined;
     // 3. WhatsApp dispatch logic via centralized NotificationService
     if (currentUser.role !== 'paciente') {
       const recipientPhone = patientDoc?.phone || patientOrders[0]?.patientPhone || targetOrder?.patientPhone;
@@ -393,6 +395,7 @@ export class ChatService {
           } : undefined,
           interactionRecord: patientDoc || patientOrders[0]
         });
+        whatsAppDispatch = waResult;
 
         if (waResult && !waResult.success) {
           console.warn(`[ChatService] WhatsApp no pudo ser entregado a ${recipientPhone}: ${waResult.error}`);
@@ -406,6 +409,7 @@ export class ChatService {
           });
         }
       } else {
+        whatsAppDispatch = { success: false, error: 'El paciente no tiene un teléfono registrado.' };
         console.warn(`[ChatService] Paciente DNI ${clean} no tiene número de teléfono registrado.`);
         await auditLogService.log({
           tenantId,
@@ -474,7 +478,8 @@ export class ChatService {
       }
     }
 
-    return this.getPatientChat(clean, currentUser);
+    const conversation = await this.getPatientChat(clean, currentUser);
+    return { ...conversation, ...(whatsAppDispatch ? { whatsAppDispatch } : {}) };
   }
 
   private dedupeAndSortMessages(messages: any[]): any[] {

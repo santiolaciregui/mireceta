@@ -756,6 +756,9 @@ export function useMedicalOrders() {
             })
           );
         }
+        if (chatData?.whatsAppDispatch?.success === false) {
+          window.alert(`El mensaje quedó guardado en la conversación, pero no se pudo enviar por WhatsApp. ${chatData.whatsAppDispatch.error || ''}`);
+        }
       } else {
         // 2. Fallback to order-level chat endpoint /api/orders/:id/chat
         const orderIdToCall = matchingOrders[0]?.id || dniOrOrderId;

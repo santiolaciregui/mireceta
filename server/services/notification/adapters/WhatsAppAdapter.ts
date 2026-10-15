@@ -118,6 +118,12 @@ export class WhatsAppAdapter implements NotificationAdapter {
 
       const buildTemplatePayload = (lang: string, includeButton: boolean = true) => {
         const components: any[] = [];
+        if (payload.templateImageId) {
+          components.push({
+            type: 'header',
+            parameters: [{ type: 'image', image: { id: payload.templateImageId } }]
+          });
+        }
         if (payload.variables && Object.keys(payload.variables).length > 0) {
           components.push({
             type: 'body',
@@ -226,7 +232,7 @@ export class WhatsAppAdapter implements NotificationAdapter {
       }
 
       // If template send still failed, retry with direct text
-      if (!response.ok && payload.templateCode && payload.body && !payload.strictTemplate) {
+      if (!response.ok && payload.templateCode && payload.body && !payload.strictTemplate && !payload.templateImageId) {
         console.warn(`[WhatsAppAdapter] Plantilla "${metaTemplateName}" falló (${responseData?.error?.message}). Reintentando con texto directo...`);
         bodyPayload = buildDirectTextPayload();
 
