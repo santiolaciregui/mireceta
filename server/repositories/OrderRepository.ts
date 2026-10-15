@@ -1,9 +1,10 @@
+import type { ClientSession } from 'mongoose';
 import { Order, IMedicalOrder, IAuditLogEntry } from '../models/Order.js';
-import { cleanPhone } from '../utils/formatters.js';
+import { cleanDni, cleanPhone } from '../utils/formatters.js';
 
 export class OrderRepository {
-  async findById(id: string): Promise<IMedicalOrder | null> {
-    return Order.findOne({ id });
+  async findById(id: string, session?: ClientSession): Promise<IMedicalOrder | null> {
+    return Order.findOne({ id }).session(session || null);
   }
 
   async findByClientRequestId(clientRequestId: string): Promise<IMedicalOrder | null> {
@@ -18,15 +19,19 @@ export class OrderRepository {
     return this.findSummaries({ tenantId });
   }
 
-  async findByPatientDnis(tenantId: string, dnis: string[]): Promise<IMedicalOrder[]> {
+  async findByPatientDnis(tenantId: string, dnis: string[], session?: ClientSession): Promise<IMedicalOrder[]> {
     if (!dnis || dnis.length === 0) return [];
+    const patterns = dnis.map(cleanDni).filter(Boolean).map(dni =>
+      new RegExp(`^[.\\s-]*${dni.split('').join('[.\\s-]*')}[.\\s-]*$`));
+    if (!patterns.length) return [];
     return Order.find({
       tenantId,
       $or: [
-        { patientDni: { $in: dnis } },
-        { requestedByTitularDni: { $in: dnis } }
+        { patientDni: { $in: patterns } },
+        { requestedByTitularDni: { $in: patterns } }
       ]
     })
+      .session(session || null)
       .sort({ createdAt: -1 })
       .lean() as unknown as IMedicalOrder[];
   }
@@ -127,11 +132,11 @@ export class OrderRepository {
     return newOrder.save();
   }
 
-  async update(id: string, updateData: Partial<IMedicalOrder>): Promise<IMedicalOrder | null> {
-    const order = await this.findById(id);
+  async update(id: string, updateData: Partial<IMedicalOrder>, session?: ClientSession): Promise<IMedicalOrder | null> {
+    const order = await this.findById(id, session);
     if (!order) return null;
     Object.assign(order, updateData);
-    return order.save();
+    return order.save({ session });
   }
 
   async cancelIfActive(id: string, statuses: IMedicalOrder['status'][], entry: IAuditLogEntry): Promise<IMedicalOrder | null> {

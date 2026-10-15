@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { applyPatientRecordToOrder } from '../../../utils/patientRecordUpdate';
 import { getPatientOrderCategory } from '../../../utils/orderInbox';
 import React, { useState, useMemo, useEffect } from 'react';
 import { MedicalOrder, SystemUser, PatientInformationUpdate } from '../../../types';
@@ -759,16 +760,18 @@ export default function PatientListView({
               if (!prev) return null;
               return {
                 ...prev,
+                id: res.patient.id,
+                orders: prev.orders.map(order => applyPatientRecordToOrder(order, res.patient)),
                 name: res.patient.name || prev.name,
                 lastName: res.patient.lastName || prev.lastName,
                 dni: res.patient.dni || prev.dni,
-                phone: res.patient.phone !== undefined ? res.patient.phone : prev.phone,
-                email: res.patient.email !== undefined ? res.patient.email : prev.email,
-                birthDate: res.patient.birthDate !== undefined ? res.patient.birthDate : prev.birthDate,
-                city: res.patient.city !== undefined ? res.patient.city : prev.city,
-                province: res.patient.province !== undefined ? res.patient.province : prev.province,
-                obraSocial: res.patient.obraSocial !== undefined ? res.patient.obraSocial : prev.obraSocial,
-                obraSocialNumber: res.patient.obraSocialNumber !== undefined ? res.patient.obraSocialNumber : prev.obraSocialNumber,
+                phone: res.patient.phone,
+                email: res.patient.email,
+                birthDate: res.patient.birthDate,
+                city: res.patient.city,
+                province: res.patient.province,
+                obraSocial: res.patient.obraSocial,
+                obraSocialNumber: res.patient.obraSocialNumber,
               };
             });
           }

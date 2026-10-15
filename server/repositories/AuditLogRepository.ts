@@ -1,14 +1,15 @@
+import type { ClientSession } from 'mongoose';
 import { AuditLog, IAuditLog } from '../models/AuditLog.js';
 import { generateLogId } from '../utils/idGenerator.js';
 
 export class AuditLogRepository {
-  async create(logData: Partial<IAuditLog>): Promise<IAuditLog> {
+  async create(logData: Partial<IAuditLog>, session?: ClientSession): Promise<IAuditLog> {
     const log = new AuditLog({
       id: logData.id || generateLogId(),
       timestamp: new Date(),
       ...logData
     });
-    return log.save();
+    return log.save({ session });
   }
 
   async findByTenant(tenantId: string, limit = 100): Promise<IAuditLog[]> {

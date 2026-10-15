@@ -1,9 +1,18 @@
+import type { ClientSession } from 'mongoose';
 import { User, IUser } from '../models/User.js';
 import { cleanDni } from '../utils/formatters.js';
 
 export class UserRepository {
-  async findById(id: string): Promise<IUser | null> {
-    return User.findOne({ id });
+  async findById(id: string, session?: ClientSession): Promise<IUser | null> {
+    return User.findOne({ id }).session(session || null);
+  }
+
+  // Match numeric identifiers only; email lookup must not resolve a patient's DNI.
+  async findByDni(dni: string, session?: ClientSession): Promise<IUser | null> {
+    const digits = cleanDni(dni);
+    if (!digits) return null;
+    const pattern = `^[.\\s-]*${digits.split('').join('[.\\s-]*')}[.\\s-]*$`;
+    return User.findOne({ identifier: { $regex: new RegExp(pattern) } }).session(session || null);
   }
 
   async findByIdentifier(identifierOrEmail: string): Promise<IUser | null> {
@@ -44,11 +53,11 @@ export class UserRepository {
     return newUser.save();
   }
 
-  async update(id: string, updateData: Partial<IUser>): Promise<IUser | null> {
-    const user = await this.findById(id);
+  async update(id: string, updateData: Partial<IUser>, session?: ClientSession): Promise<IUser | null> {
+    const user = await this.findById(id, session);
     if (!user) return null;
     Object.assign(user, updateData);
-    return user.save();
+    return user.save({ session });
   }
 
   async findByResetToken(token: string): Promise<IUser | null> {

@@ -1,3 +1,6 @@
+import mongoose, { type ClientSession } from 'mongoose';
+import type { IUser } from '../models/User.js';
+import { randomUUID } from 'node:crypto';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -103,139 +106,133 @@ export class PatientService {
     return newPatient;
   }
 
+  private runTransaction<T>(work: (session: ClientSession) => Promise<T>): Promise<T> {
+    return mongoose.connection.transaction(work);
+  }
+
   async updatePatient(idOrDni: string, updateData: PatientInformationPayload, currentUser: any) {
     if (!currentUser || !isAuthorizedToEditPatient(currentUser.role)) {
       throw new Error('No autorizado para modificar datos de la ficha del paciente.');
     }
 
     const tenantId = currentUser.tenantId || 'TEN-0001';
-    let patient = await this.repo.findById(idOrDni);
-    if (!patient) {
-      patient = await this.repo.findByDni(cleanDni(idOrDni), tenantId);
-    }
-
-    // If patient document not yet created in Patient collection, check User collection
-    if (!patient) {
-      const cleanTargetDni = cleanDni(idOrDni);
-      const user = await this.userRepo.findByIdentifier(cleanTargetDni);
-      if (user && user.role === 'paciente') {
-        patient = await this.createOrUpdatePatient({
-          dni: user.identifier,
-          name: user.name,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          birthDate: user.birthDate,
-          obraSocial: user.obraSocial,
-          obraSocialNumber: user.obraSocialNumber,
-          tenantId: user.tenantId,
-          userId: user.id
-        }, currentUser);
+    const assertTenant = (record: { tenantId?: string } | null) => {
+      if (record && (record.tenantId || 'TEN-0001') !== tenantId) {
+        throw new Error('Paciente no encontrado.');
       }
-    }
+    };
 
-    if (!patient) {
-      throw new Error('Paciente no encontrado.');
-    }
-
-    const oldDni = patient.dni;
-    const previousCoverage = { obraSocial: patient.obraSocial, obraSocialNumber: patient.obraSocialNumber };
-    const normalized = validateAndNormalizePatientInformation(updateData, patient.toObject ? patient.toObject() : patient);
-    const changeSummary = getPatientChangeSummary(patient.toObject ? patient.toObject() : patient, normalized);
-
-    // 1. Update Patient record
-    const updatedPatient = await this.repo.update(patient.id, {
-      name: normalized.name,
-      lastName: normalized.lastName,
-      dni: normalized.dni,
-      birthDate: normalized.birthDate,
-      phone: normalized.phone,
-      email: normalized.email,
-      city: normalized.city,
-      province: normalized.province,
-      obraSocial: normalized.obraSocial,
-      obraSocialNumber: normalized.obraSocialNumber,
-    });
-    const changedCoverage = updatedPatient ? coverageChange(previousCoverage, updatedPatient) : null;
-
-    // 2. Synchronize linked User account if it exists
     try {
-      let userToSync = patient.userId ? await this.userRepo.findById(patient.userId) : null;
-      if (!userToSync) {
-        userToSync = await this.userRepo.findByIdentifier(cleanDni(oldDni));
-      }
-      if (userToSync && userToSync.role === 'paciente') {
-        await this.userRepo.update(userToSync.id, {
-          name: normalized.name,
-          lastName: normalized.lastName,
-          identifier: normalized.dni,
-          birthDate: normalized.birthDate,
-          phone: normalized.phone,
-          email: normalized.email,
-          city: normalized.city,
-          province: normalized.province,
-          obraSocial: normalized.obraSocial,
-          obraSocialNumber: normalized.obraSocialNumber,
-        });
-      }
-    } catch (userSyncErr) {
-      console.error('[PatientService] Error sincronizando usuario vinculado:', userSyncErr);
-    }
-
-    // 3. Synchronize orders for this patient
-    try {
-      const patientDnisToSearch = Array.from(new Set([cleanDni(oldDni), normalized.dni].filter(Boolean)));
-      const relatedOrders = await this.orderRepo.findByPatientDnis(tenantId, patientDnisToSearch);
-      const operatorName = `${currentUser.name || ''} ${currentUser.lastName || ''} (${currentUser.role})`.trim();
-
-      for (const order of relatedOrders) {
-        const isTitularOrder = !order.isForDependent || cleanDni(order.patientDni) === cleanDni(oldDni);
-        if (isTitularOrder) {
-          const orderUpdates: Record<string, unknown> = {
-            patientName: normalized.name,
-            patientLastName: normalized.lastName,
-            patientDni: normalized.dni,
-            patientBirthDate: normalized.birthDate || order.patientBirthDate,
-            patientPhone: normalized.phone || order.patientPhone,
-            patientEmail: normalized.email || order.patientEmail,
-            patientCity: normalized.city || order.patientCity,
-            patientProvince: normalized.province || order.patientProvince,
-            obraSocial: normalized.obraSocial,
-            obraSocialNumber: normalized.obraSocialNumber || order.obraSocialNumber,
-          };
-          if (normalized.deliveryMethod) {
-            orderUpdates.deliveryMethod = normalized.deliveryMethod;
+      return await this.runTransaction(async (session) => {
+        // Resolve identity using the original reference, never the requested new DNI.
+        let patient = await this.repo.findById(idOrDni, session);
+        assertTenant(patient);
+        let user: IUser | null = null;
+        if (!patient) {
+          user = await this.userRepo.findById(idOrDni, session);
+          assertTenant(user);
+          if (user && user.role !== 'paciente') throw new Error('Paciente no encontrado.');
+          if (user) {
+            patient = await this.repo.findByUserId(user.id, tenantId, session)
+              || await this.repo.findByDni(user.identifier, tenantId, session);
+          } else if (/^[\d.\s-]+$/.test(idOrDni)) {
+            patient = await this.repo.findByDni(idOrDni, tenantId, session);
+            if (!patient) user = await this.userRepo.findByDni(idOrDni, session);
           }
-
-          addAuditLogEntry(
-            order,
-            'Ficha del paciente actualizada',
-            operatorName,
-            `Corrección administrativa de ficha: ${changeSummary}`
-          );
-
-          await this.orderRepo.update(order.id, {
-            ...orderUpdates,
-            auditLog: order.auditLog,
-          });
         }
+        if (patient) {
+          user = user || (patient.userId ? await this.userRepo.findById(patient.userId, session) : null);
+          if (!user) user = await this.userRepo.findByDni(patient.dni, session);
+        }
+        assertTenant(user);
+        if (user && user.role !== 'paciente') throw new Error('Paciente no encontrado.');
+        if (!patient && !user) throw new Error('Paciente no encontrado.');
+        if (patient && user && ((patient.userId && patient.userId !== user.id)
+          || cleanDni(patient.dni) !== cleanDni(user.identifier))) {
+          throw new Error('La cuenta y la ficha tienen datos de identidad inconsistentes. Revisá su vinculación.');
+        }
+
+        const before = patient ? patient.toObject() : { ...user.toObject(), dni: user.identifier };
+        const oldDni = cleanDni(before.dni);
+        const normalized = validateAndNormalizePatientInformation(updateData, before);
+        const conflictingUser = await this.userRepo.findByDni(normalized.dni, session);
+        const conflictingPatient = await this.repo.findByDni(normalized.dni, tenantId, session);
+        if ((conflictingUser && conflictingUser.id !== user?.id)
+          || (conflictingPatient && conflictingPatient.id !== patient?.id)) {
+          throw new Error('El DNI ingresado ya pertenece a otra cuenta o ficha de paciente.');
+        }
+
+        const { deliveryMethod, ...patientFields } = normalized;
+        const patientId = patient?.id || `PAT-${randomUUID()}`;
+        const updatedPatient = patient
+          ? await this.repo.update(patientId, { ...patientFields, ...(user ? { userId: user.id } : {}) }, session)
+          : await this.repo.create({ ...patientFields, id: patientId, userId: user.id, tenantId, status: 'Activo' }, session);
+        if (!updatedPatient) throw new Error('No se pudo actualizar la ficha del paciente.');
+
+        if (user) {
+          const { dni, ...userFields } = patientFields;
+          const updatedUser = await this.userRepo.update(user.id, { ...userFields, identifier: dni }, session);
+          if (!updatedUser) throw new Error('No se pudo actualizar la cuenta del paciente.');
+        }
+
+        // Select only the original identity: never absorb orders belonging to the new DNI.
+        const relatedOrders = await this.orderRepo.findByPatientDnis(tenantId, [oldDni], session);
+        const operatorLabel = `${currentUser.name || ''} ${currentUser.lastName || ''} (${currentUser.role})`.trim();
+        const changeSummary = getPatientChangeSummary(before, normalized);
+        for (const order of relatedOrders) {
+          if (order.tenantId !== tenantId) throw new Error('Paciente no encontrado.');
+          const orderUpdates: Record<string, unknown> = {};
+          if (cleanDni(order.patientDni) === oldDni) {
+            Object.assign(orderUpdates, {
+              patientName: normalized.name,
+              patientLastName: normalized.lastName,
+              patientDni: normalized.dni,
+              patientBirthDate: normalized.birthDate,
+              patientPhone: normalized.phone,
+              patientEmail: normalized.email,
+              patientCity: normalized.city,
+              patientProvince: normalized.province,
+              obraSocial: normalized.obraSocial,
+              obraSocialNumber: normalized.obraSocialNumber,
+              ...(deliveryMethod ? { deliveryMethod } : {}),
+            });
+          }
+          if (cleanDni(order.requestedByTitularDni) === oldDni) {
+            Object.assign(orderUpdates, {
+              requestedByTitularDni: normalized.dni,
+              requestedByTitularName: `${normalized.name} ${normalized.lastName}`,
+              requestedByTitularEmail: normalized.email,
+              requestedByTitularPhone: normalized.phone,
+            });
+          }
+          if (!Object.keys(orderUpdates).length) continue;
+          addAuditLogEntry(order, 'Ficha del paciente actualizada', operatorLabel,
+            `Corrección administrativa de ficha: ${changeSummary}`);
+          const updatedOrder = await this.orderRepo.update(order.id, { ...orderUpdates, auditLog: order.auditLog }, session);
+          if (!updatedOrder) throw new Error('No se pudieron sincronizar las solicitudes del paciente.');
+        }
+
+        const changedCoverage = coverageChange(before, updatedPatient);
+        await auditLogService.log({
+          tenantId,
+          currentUser,
+          action: 'PATIENT_UPDATE',
+          entity: 'Patient',
+          entityId: patientId,
+          changes: {
+            ...(changedCoverage ? { coverage: changedCoverage } : {}),
+            ...(oldDni !== normalized.dni ? { dni: { before: oldDni, after: normalized.dni } } : {}),
+          },
+          details: `Ficha del paciente ${normalized.name} ${normalized.lastName} actualizada por ${operatorLabel}: ${changeSummary}`,
+        }, session);
+
+        return { ...updatedPatient.toObject(), previousDni: oldDni };
+      });
+    } catch (err) {
+      if ((err as { code?: number }).code === 11000) {
+        throw new Error('El DNI ingresado ya pertenece a otra cuenta o ficha de paciente.');
       }
-    } catch (orderSyncErr) {
-      console.error('[PatientService] Error sincronizando solicitudes asociadas:', orderSyncErr);
+      throw err;
     }
-
-    // 4. Global Audit Log
-    const operatorLabel = `${currentUser.name || ''} ${currentUser.lastName || ''} (${currentUser.role})`.trim();
-    await auditLogService.log({
-      tenantId,
-      currentUser,
-      action: 'PATIENT_UPDATE',
-      entity: 'Patient',
-      entityId: patient.id,
-      changes: changedCoverage ? { coverage: changedCoverage } : undefined,
-      details: `Ficha del paciente ${normalized.name} ${normalized.lastName} (DNI: ${normalized.dni}) actualizada por ${operatorLabel}: ${changeSummary}`
-    });
-
-    return updatedPatient || patient;
   }
 }

@@ -1,3 +1,4 @@
+import type { ClientSession } from 'mongoose';
 import { AuditLogRepository } from '../repositories/AuditLogRepository.js';
 import { IAuditLog } from '../models/AuditLog.js';
 
@@ -18,7 +19,7 @@ export class AuditLogService {
     this.repo = new AuditLogRepository();
   }
 
-  async log(params: LogParams): Promise<void> {
+  async log(params: LogParams, session?: ClientSession): Promise<void> {
     try {
       const tenantId = params.tenantId || params.currentUser?.tenantId || 'TEN-0001';
       const userId = params.currentUser?.id || 'SYSTEM';
@@ -37,8 +38,9 @@ export class AuditLogService {
         entityId: params.entityId,
         details: params.details,
         changes: params.changes
-      });
+      }, session);
     } catch (err) {
+      if (session) throw err;
       console.error('AuditLogService log error:', err);
     }
   }

@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { applyPatientRecordToOrder } from '../utils/patientRecordUpdate';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MedicalOrder, OrderStatus, PaymentInformationUpdate, PatientInformationUpdate, SystemUser, UserRole } from '../types';
 
@@ -537,49 +538,26 @@ export function useMedicalOrders() {
       // 1. Update users list if user account exists
       setUsers((prev) =>
         prev.map((u) => {
-          if (u.id === data.userId || u.identifier === patientIdOrDni || u.identifier === data.dni) {
+          if (u.id === data.userId || (!data.userId && u.id === patientIdOrDni)) {
             return {
               ...u,
               name: data.name,
               lastName: data.lastName,
               identifier: data.dni,
-              phone: data.phone || u.phone,
-              email: data.email || u.email,
-              birthDate: data.birthDate || u.birthDate,
-              obraSocial: data.obraSocial || u.obraSocial,
-              obraSocialNumber: data.obraSocialNumber || u.obraSocialNumber,
-              city: data.city || u.city,
-              province: data.province || u.province,
+              phone: data.phone,
+              email: data.email,
+              birthDate: data.birthDate,
+              obraSocial: data.obraSocial,
+              obraSocialNumber: data.obraSocialNumber,
+              city: data.city,
+              province: data.province,
             };
           }
           return u;
         })
       );
 
-      // 2. Update orders list for orders belonging to this patient
-      const oldDniClean = patientIdOrDni.replace(/\D/g, '');
-      const newDniClean = (data.dni || '').replace(/\D/g, '');
-      setOrders((prev) =>
-        prev.map((order) => {
-          const ordDni = (order.patientDni || '').replace(/\D/g, '');
-          if (ordDni === oldDniClean || ordDni === newDniClean) {
-            return {
-              ...order,
-              patientName: data.name,
-              patientLastName: data.lastName,
-              patientDni: data.dni,
-              patientPhone: data.phone || order.patientPhone,
-              patientEmail: data.email || order.patientEmail,
-              patientBirthDate: data.birthDate || order.patientBirthDate,
-              obraSocial: data.obraSocial || order.obraSocial,
-              obraSocialNumber: data.obraSocialNumber || order.obraSocialNumber,
-              patientCity: data.city || order.patientCity,
-              patientProvince: data.province || order.patientProvince,
-            };
-          }
-          return order;
-        })
-      );
+      setOrders((prev) => prev.map(order => applyPatientRecordToOrder(order, data)));
 
       return { success: true, patient: data };
     } catch (err: any) {

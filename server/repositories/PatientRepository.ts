@@ -1,21 +1,23 @@
+import type { ClientSession } from 'mongoose';
 import { Patient, IPatient } from '../models/Patient.js';
 import { cleanDni, cleanPhone } from '../utils/formatters.js';
 
 export class PatientRepository {
-  async findById(id: string): Promise<IPatient | null> {
-    return Patient.findOne({ id });
+  async findById(id: string, session?: ClientSession): Promise<IPatient | null> {
+    return Patient.findOne({ id }).session(session || null);
   }
 
-  async findByDni(dni: string, tenantId?: string): Promise<IPatient | null> {
+  async findByDni(dni: string, tenantId?: string, session?: ClientSession): Promise<IPatient | null> {
     const clean = cleanDni(dni);
-    const query: Record<string, unknown> = {
-      $or: [
-        { dni },
-        { dni: clean }
-      ]
-    };
+    if (!clean) return null;
+    const pattern = `^[.\\s-]*${clean.split('').join('[.\\s-]*')}[.\\s-]*$`;
+    const query: Record<string, unknown> = { dni: { $regex: new RegExp(pattern) } };
     if (tenantId) query.tenantId = tenantId;
-    return Patient.findOne(query);
+    return Patient.findOne(query).session(session || null);
+  }
+
+  async findByUserId(userId: string, tenantId: string, session?: ClientSession): Promise<IPatient | null> {
+    return Patient.findOne({ userId, tenantId }).session(session || null);
   }
 
   async findSummaryByDni(dni: string, tenantId?: string): Promise<IPatient | null> {
@@ -59,16 +61,16 @@ export class PatientRepository {
     return Patient.find({ tenantId }).sort({ lastName: 1, name: 1 }).lean() as unknown as IPatient[];
   }
 
-  async create(patientData: Partial<IPatient>): Promise<IPatient> {
+  async create(patientData: Partial<IPatient>, session?: ClientSession): Promise<IPatient> {
     const patient = new Patient(patientData);
-    return patient.save();
+    return patient.save({ session });
   }
 
-  async update(id: string, updateData: Partial<IPatient>): Promise<IPatient | null> {
-    const patient = await this.findById(id);
+  async update(id: string, updateData: Partial<IPatient>, session?: ClientSession): Promise<IPatient | null> {
+    const patient = await this.findById(id, session);
     if (!patient) return null;
     Object.assign(patient, updateData);
-    return patient.save();
+    return patient.save({ session });
   }
 
   async delete(id: string): Promise<boolean> {
