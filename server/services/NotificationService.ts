@@ -809,7 +809,9 @@ export class NotificationService {
         }
 
         const waConfig = await this.getConfig(tenantId, 'whatsapp');
-        const electronicTemplateCode = (waConfig?.credentials?.electronicTemplateCode || 'receta_pami_ioma') as string;
+        const electronicTemplateCode = recipePdfUrl === 'IOMA'
+          ? 'receta_ioma'
+          : (waConfig?.credentials?.electronicTemplateCode || 'receta_pami_ioma') as string;
 
         return await this.sendNotification({
           tenantId,
