@@ -808,10 +808,9 @@ export class NotificationService {
           });
         }
 
-        const waConfig = await this.getConfig(tenantId, 'whatsapp');
         const electronicTemplateCode = recipePdfUrl === 'IOMA'
           ? 'receta_ioma'
-          : (waConfig?.credentials?.electronicTemplateCode || 'receta_pami_ioma') as string;
+          : 'receta_pami_ioma';
 
         return await this.sendNotification({
           tenantId,
