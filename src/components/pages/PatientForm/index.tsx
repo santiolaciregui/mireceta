@@ -52,6 +52,7 @@ import { fileToBase64, compressImageAndGetBase64 } from '../../../utils/file';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import { trackInitiatePrescription, trackCompletePrescription } from '../../../services/metaPixelService';
 import { syncMercadoPagoReturn } from '../../../services/paymentService';
+import { loadRepeatableOrderData } from '../NewOrderForm/orderMethods';
 
 
 interface PatientFormProps {
@@ -732,6 +733,7 @@ export default function PatientForm({
 
   // B. Photo Carga
   const [medicationPhotos, setMedicationPhotos] = useState<MedicationPhoto[]>([]);
+  const [isLoadingPastOrder, setIsLoadingPastOrder] = useState(false);
   
   // Mandatory Diagnosis
   const [diagnostic, setDiagnostic] = useState('');
@@ -858,57 +860,39 @@ export default function PatientForm({
     }
   }, [patientOrders.length, draftRestored]);
 
-  const handleRepeatLastOrder = () => {
-    if (!lastOrder) return;
-    setMedicationMethod('new_manual');
-    if (lastOrder.medicationItems) {
-      setMedicationItems(JSON.parse(JSON.stringify(lastOrder.medicationItems)));
-    } else {
-      setMedicationItems([]);
+  const repeatOrder = async (order: MedicalOrder) => {
+    if (isLoadingPastOrder) return;
+    setIsLoadingPastOrder(true);
+    setError(null);
+    try {
+      const data = await loadRepeatableOrderData(order, onLoadOrderDetails);
+      setMedicationItems(data.medicationItems);
+      setMedicationPhotos(data.medicationPhotos);
+      setDiagnostic(data.diagnostic);
+      setComments(data.comments);
+      setLastConsultationTime(data.lastConsultationTime || '');
+      setLastConsultationDoctor(data.lastConsultationDoctor || '');
+      setMedicationMethod('new_manual');
+      setFieldErrors(prev => ({ ...prev, medicationList: undefined }));
+      setNotificationMsg('¡Se copiaron los medicamentos, el diagnóstico y los comentarios de la solicitud al carrito!');
+      showToast('¡Medicamentos de la solicitud previa agregados al carrito!');
+      scrollToCart();
+      setTimeout(() => setNotificationMsg(null), 6000);
+    } catch (err) {
+      console.error('Could not repeat order:', err);
+      setError('No se pudo cargar la solicitud anterior completa. Intentá nuevamente.');
+    } finally {
+      setIsLoadingPastOrder(false);
     }
-    if (lastOrder.medicationPhotos) {
-      setMedicationPhotos(JSON.parse(JSON.stringify(lastOrder.medicationPhotos)));
-    } else {
-      setMedicationPhotos([]);
-    }
-    setDiagnostic(lastOrder.diagnostic || '');
-    setComments(lastOrder.comments || '');
-    setLastConsultationTime(lastOrder.lastConsultationTime || '');
-    setLastConsultationDoctor(lastOrder.lastConsultationDoctor || '');
-    
-    setNotificationMsg('¡Se copiaron con éxito todos los medicamentos, el diagnóstico que dio origen al tratamiento y los comentarios adicionales de su última solicitud al Carrito!');
-    showToast('¡Medicamentos de la última solicitud agregados al carrito!');
-    scrollToCart();
-    setTimeout(() => {
-      setNotificationMsg(null);
-    }, 6000);
   };
 
-  const handleRepeatPastOrder = (orderId: string) => {
+  const handleRepeatLastOrder = async () => {
+    if (lastOrder) await repeatOrder(lastOrder);
+  };
+
+  const handleRepeatPastOrder = async (orderId: string) => {
     const order = patientOrders.find((o: any) => o.id === orderId);
-    if (!order) return;
-    setMedicationMethod('new_manual');
-    if (order.medicationItems) {
-      setMedicationItems(JSON.parse(JSON.stringify(order.medicationItems)));
-    } else {
-      setMedicationItems([]);
-    }
-    if (order.medicationPhotos) {
-      setMedicationPhotos(JSON.parse(JSON.stringify(order.medicationPhotos)));
-    } else {
-      setMedicationPhotos([]);
-    }
-    setDiagnostic(order.diagnostic || '');
-    setComments(order.comments || '');
-    setLastConsultationTime(order.lastConsultationTime || '');
-    setLastConsultationDoctor(order.lastConsultationDoctor || '');
-    
-    setNotificationMsg(`¡Se copiaron con éxito todos los medicamentos, el diagnóstico que dio origen al tratamiento y los comentarios adicionales de la solicitud del ${new Date(order.createdAt).toLocaleDateString('es-AR')} al Carrito!`);
-    showToast(`¡Medicamentos de la solicitud previa agregados al carrito!`);
-    scrollToCart();
-    setTimeout(() => {
-      setNotificationMsg(null);
-    }, 6000);
+    if (order) await repeatOrder(order);
   };
 
   // Calculate costs based on medications count
@@ -3295,10 +3279,11 @@ export default function PatientForm({
                         <button
                           type="button"
                           onClick={handleRepeatLastOrder}
+                          disabled={isLoadingPastOrder}
                           className="flex items-center justify-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl transition-all shadow-sm shrink-0 cursor-pointer"
                         >
-                          <Copy className="h-3.5 w-3.5" />
-                          <span>Repetir Último Pedido Completo</span>
+                          {isLoadingPastOrder ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Copy className="h-3.5 w-3.5" />}
+                          <span>{isLoadingPastOrder ? 'Cargando solicitud...' : 'Repetir Último Pedido Completo'}</span>
                         </button>
                       </div>
 
@@ -3365,6 +3350,7 @@ export default function PatientForm({
                                 <button
                                   type="button"
                                   onClick={() => handleRepeatPastOrder(selectedPastOrderId)}
+                                  disabled={isLoadingPastOrder}
                                   className="flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
                                 >
                                   <Copy className="h-3 w-3" />

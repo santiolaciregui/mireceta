@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 import {
   filterPatientOrders,
   getRepeatableOrderData,
+  loadRepeatableOrderData,
   getPastOrderDisplaySummary,
 } from './orderMethods.js';
 
@@ -121,5 +122,57 @@ describe('NewOrderForm order methods and repeating past orders', () => {
     const summaryPhoto = getPastOrderDisplaySummary(sampleOrders[2]);
     assert.match(summaryPhoto, /Asma bronquial/);
     assert.match(summaryPhoto, /1 receta\/foto/);
+  });
+
+  it('loads full photo and PDF attachments before repeating a history summary', async () => {
+    const fullOrder = {
+      ...sampleOrders[2],
+      lastConsultationTime: 'Hace un mes',
+      lastConsultationDoctor: 'Doctor de prueba',
+      medicationPhotos: [
+        ...sampleOrders[2].medicationPhotos!,
+        { url: 'data:application/pdf;base64,sample', name: 'receta.pdf', cantidadCajas: 2 },
+      ],
+    };
+    const summary = {
+      ...fullOrder,
+      _isSummary: true,
+      medicationPhotos: fullOrder.medicationPhotos.map(({ url, ...photo }) => photo),
+    };
+    // This is the exact render operation that crashed when summary URLs were copied.
+    assert.throws(() => (summary.medicationPhotos[0] as any).url.startsWith('data:application/pdf'), TypeError);
+    const requestedIds: string[] = [];
+    const data = await loadRepeatableOrderData(summary, async id => {
+      requestedIds.push(id);
+      return fullOrder;
+    });
+    assert.deepEqual(requestedIds, [fullOrder.id]);
+    assert.equal(data.medicationPhotos[0].url.startsWith('data:application/pdf'), false);
+    assert.equal(data.medicationPhotos[1].url.startsWith('data:application/pdf'), true);
+    assert.equal(data.lastConsultationDoctor, fullOrder.lastConsultationDoctor);
+    data.medicationPhotos[1].cantidadCajas = 9;
+    assert.equal(fullOrder.medicationPhotos[1].cantidadCajas, 2);
+    assert.equal((summary.medicationPhotos[0] as any).url, undefined);
+  });
+
+  it('copies full manual orders without an extra request', async () => {
+    const data = await loadRepeatableOrderData(sampleOrders[1], async () => {
+      throw new Error('Unexpected detail request');
+    });
+    assert.equal(data.medicationItems.length, 2);
+    assert.equal(data.diagnostic, sampleOrders[1].diagnostic);
+  });
+
+  it('fetches details for photos with missing URLs even without a summary flag', async () => {
+    const data = await loadRepeatableOrderData({ id: 'REC-003', medicationPhotos: [{ name: 'receta.png' }] }, async () => sampleOrders[2]);
+    assert.equal(data.medicationPhotos[0].url, sampleOrders[2].medicationPhotos![0].url);
+  });
+
+  it('rejects failed or incomplete detail loads instead of copying unusable attachments', async () => {
+    const summary = { id: 'REC-003', _isSummary: true };
+    await assert.rejects(loadRepeatableOrderData(summary, async () => { throw new Error('Network error'); }), /Network error/);
+    for (const result of [null, summary, { medicationPhotos: [{ name: 'receta.png' }] }]) {
+      await assert.rejects(loadRepeatableOrderData(summary, async () => result), /attachments could not be loaded/);
+    }
   });
 });

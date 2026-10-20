@@ -77,6 +77,24 @@ export function getRepeatableOrderData(order: any): RepeatableOrderData {
   };
 }
 
+/** Load attachments omitted from history summaries before copying an order. */
+export async function loadRepeatableOrderData(
+  order: any,
+  loadOrderDetails: (orderId: string) => Promise<any>,
+): Promise<RepeatableOrderData> {
+  const hasMissingPhotoUrl = (value: any) => Array.isArray(value.medicationPhotos)
+    && value.medicationPhotos.some((photo: any) => typeof photo?.url !== 'string' || !photo.url.trim());
+  const fullOrder = order._isSummary || hasMissingPhotoUrl(order)
+    ? await loadOrderDetails(order.id)
+    : order;
+
+  if (!fullOrder || fullOrder._isSummary || hasMissingPhotoUrl(fullOrder)) {
+    throw new Error('Order attachments could not be loaded');
+  }
+
+  return getRepeatableOrderData(fullOrder);
+}
+
 /**
  * Format a concise summary text describing a past order for labels and selectors.
  */
