@@ -51,8 +51,11 @@ import OfficialOrderReceipt from '../../OfficialOrderReceipt';
 import { fileToBase64, compressImageAndGetBase64 } from '../../../utils/file';
 import { useFormDraft } from '../../../hooks/useFormDraft';
 import { trackInitiatePrescription, trackCompletePrescription } from '../../../services/metaPixelService';
+import { getAuthHeaders } from '../../../services/api';
+import { CheckoutAttempt, readCheckoutAttempt, clearCheckoutAttempt, createOrResumeCheckout, findCheckoutOrder, checkoutFingerprint, withCheckoutLock } from '../../../services/checkoutAttempt';
 import { syncMercadoPagoReturn } from '../../../services/paymentService';
 import { loadRepeatableOrderData } from '../NewOrderForm/orderMethods';
+import { createOrderFlowTrace } from '../../../services/orderFlowTrace';
 
 
 interface PatientFormProps {
@@ -107,7 +110,10 @@ export default function PatientForm({
 }: PatientFormProps) {
   const isThirdPartyUser = Boolean(isOficio || (currentUser && currentUser.role !== 'paciente'));
   const userKey = currentUser?.id || currentUser?.identifier || recentDni;
-  const { saveDraft, loadDraft, clearDraft } = useFormDraft(userKey);
+  const flowRef = useRef<ReturnType<typeof createOrderFlowTrace> | null>(null);
+  if (!flowRef.current) flowRef.current = createOrderFlowTrace(userKey);
+  const flow = flowRef.current;
+  const { saveDraft, loadDraft, clearDraft } = useFormDraft(userKey, flow.storageFailure, flow.draftLoaded);
 
   // Wizard steps: 'info' -> 'identification' -> 'medication' -> 'payment' -> 'confirmation'
   const [step, setStep] = useState<'info' | 'identification' | 'medication' | 'payment' | 'confirmation'>('info');
@@ -142,6 +148,11 @@ export default function PatientForm({
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
+  const checkoutScope = `${currentUser?.tenantId || currentTenant?.id || 'TEN-0001'}:${userKey}`;
+  const [linkedCheckout, setLinkedCheckout] = useState<CheckoutAttempt | null>(null);
+  const [showLinkedCheckout, setShowLinkedCheckout] = useState(false);
+  const [reviewedCheckout, setReviewedCheckout] = useState<MedicalOrder | null>(null);
+  const [checkoutStorageError, setCheckoutStorageError] = useState(false);
   const [returnedOrder, setReturnedOrder] = useState<any>(null);
   const [copiedOrderId, setCopiedOrderId] = useState(false);
   const [isEditMode, setIsEditMode] = useState(isThirdPartyUser);
@@ -173,9 +184,10 @@ export default function PatientForm({
 
   // Reset Mercado Pago loading state on page focus / bfcache restoration (back button navigation)
   useEffect(() => {
-    const handlePageShow = () => {
+    const handlePageShow = (event: PageTransitionEvent) => {
       setMpProcessing(false);
       isSubmittingRef.current = false;
+      if (event.persisted) flow.event('page_restored', { bfcache: true });
     };
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
@@ -199,6 +211,25 @@ export default function PatientForm({
     };
   }, []);
 
+  useEffect(() => {
+    const restoreCheckout = () => {
+      try {
+        const attempt = readCheckoutAttempt(checkoutScope);
+        setLinkedCheckout(attempt);
+        setReviewedCheckout(null);
+        setShowLinkedCheckout(!!attempt);
+        setCheckoutStorageError(false);
+        if (attempt) {
+          setClientRequestId(attempt.clientRequestId);
+          setCreatedOrderId(attempt.orderId || null);
+        }
+      } catch { setCheckoutStorageError(true); }
+    };
+    restoreCheckout();
+    window.addEventListener('storage', restoreCheckout);
+    return () => window.removeEventListener('storage', restoreCheckout);
+  }, [checkoutScope]);
+
   // Check URL query parameters for Mercado Pago payment return
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -208,6 +239,9 @@ export default function PatientForm({
     const preferenceId = params.get('preference_id');
 
     if (payment && orderId) {
+      const returnRequestId = loadDraft()?.clientRequestId || clientRequestId;
+      const returnTrace = flow.snapshot(returnRequestId, orderId);
+      flow.event('payment_return', { ...returnTrace, payment });
       setMpProcessing(false);
       if (payment === 'approved' || payment === 'pending') {
         trackCompletePrescription({
@@ -216,6 +250,7 @@ export default function PatientForm({
           currency: 'ARS',
         });
         clearDraft();
+        flow.event('draft_cleared', { reason: 'payment_return' });
         setDraftRestored(false);
         setCreatedOrderId(orderId);
         setStep('confirmation');
@@ -227,8 +262,14 @@ export default function PatientForm({
             collection_id: collectionId,
             payment_id: collectionId,
             preference_id: preferenceId,
-          })
+          }, { onAttempt: result => flow.event('return_sync_attempt', {
+            ...returnTrace, ...result,
+          }) })
         .then(data => {
+          flow.event('return_sync_result', {
+            ...returnTrace,
+            verifiedWithApi: !!data?.verifiedWithApi, paymentStatus: data?.paymentStatus,
+          });
           if (data && data.order) {
             setReturnedOrder(data.order);
           } else {
@@ -238,6 +279,7 @@ export default function PatientForm({
           }
         })
         .catch(err => {
+          flow.event('return_sync_failed', { ...returnTrace, failureStage: 'sync_return' });
           console.warn('[Payment Return Sync Warning]:', err);
           onLoadOrderDetails(orderId).then(setReturnedOrder).catch(loadError => {
             console.warn('[Payment Return Order Load Warning]:', loadError);
@@ -926,6 +968,13 @@ export default function PatientForm({
     if (isThirdPartyUser) return;
 
     const draft = loadDraft();
+    const navigation = (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)?.type || 'unknown';
+    flow.event('form_opened', {
+      ...flow.snapshot(draft?.clientRequestId || clientRequestId),
+      draftRestored: !!draft, navigation,
+      host: window.location.hostname === 'www.mireceta.online' ? 'www'
+        : window.location.hostname === 'mireceta.online' ? 'apex' : 'other',
+    });
     if (draft) {
       if (draft.step && draft.step !== 'confirmation') {
         setStep(draft.step);
@@ -981,7 +1030,7 @@ export default function PatientForm({
       medicationPhotos.length > 0;
 
     if (hasMeaningfulData) {
-      saveDraft({
+      const saved = saveDraft({
         step,
         patientDni,
         patientName,
@@ -1011,6 +1060,7 @@ export default function PatientForm({
         paymentAmount,
         clientRequestId,
       });
+      flow.draftSaved(saved);
     }
   }, [
     isThirdPartyUser,
@@ -1046,8 +1096,20 @@ export default function PatientForm({
   ]);
 
   // 3. Reset form and discard draft
-  const handleResetForm = () => {
+  const handleResetForm = async () => {
+    try { await clearCheckoutAttempt(checkoutScope); } catch (err: any) { setError(err.message); return; }
+    setLinkedCheckout(null);
+    setReviewedCheckout(null);
+    setShowLinkedCheckout(false);
+    setCheckoutStorageError(false);
+    setCreatedOrderId(null);
+    setReturnedOrder(null);
+    setMpProcessing(false);
+    setMpTransactionId('');
+    isSubmittingRef.current = false;
+    flow.event('form_reset', flow.snapshot(clientRequestId, createdOrderId));
     clearDraft();
+    flow.event('draft_cleared', { reason: 'form_reset' });
     setClientRequestId(createClientRequestId());
     setDraftRestored(false);
     setStep('info');
@@ -1319,6 +1381,11 @@ export default function PatientForm({
     setError(null);
 
     setMpProcessing(true);
+    const trace = flow.snapshot(clientRequestId, createdOrderId);
+    flow.event('checkout_started', trace);
+    flow.remember(clientRequestId, createdOrderId);
+    let failureStage = 'create_order';
+    let checkoutHttpStatus: number | undefined;
 
     try {
       // Build medication summary text
@@ -1351,8 +1418,8 @@ export default function PatientForm({
       const requestedByTitularPhone = isForDependent ? titularData.phone : undefined;
 
       // 1. Create order in database with pending payment status (or reuse existing if retrying)
-      let orderId = createdOrderId;
-      if (!orderId) {
+      let orderId: string;
+      {
         const fullOrderPayload = {
           patientName: patientName.trim(),
           patientLastName: patientLastName.trim(),
@@ -1381,6 +1448,7 @@ export default function PatientForm({
           medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
           paymentMethod: 'mp',
           clientRequestId,
+          flowContext: trace,
           paymentAmount,
           paymentDate: new Date().toISOString(),
           paymentStatus: 'pending',
@@ -1398,10 +1466,25 @@ export default function PatientForm({
           }
         };
 
-        orderId = await onSubmitOrder(fullOrderPayload);
+        const attempt = await createOrResumeCheckout({
+          scope: checkoutScope, clientRequestId, payload: fullOrderPayload, create: onSubmitOrder,
+        });
+        orderId = attempt.orderId;
+        setClientRequestId(attempt.clientRequestId);
+        setLinkedCheckout(attempt);
         setCreatedOrderId(orderId);
+        flow.event('order_created', flow.snapshot(clientRequestId, orderId));
+        flow.remember(attempt.clientRequestId, orderId);
+        if (attempt.reused) {
+          setReviewedCheckout(null);
+          setShowLinkedCheckout(true);
+          setMpProcessing(false);
+          isSubmittingRef.current = false;
+          return;
+        }
       }
 
+      failureStage = 'load_order';
       const savedOrder = await onLoadOrderDetails(orderId);
       if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
         || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
@@ -1410,30 +1493,46 @@ export default function PatientForm({
       setReturnedOrder(savedOrder);
 
       // 2. Create Mercado Pago checkout preference using generated orderId
+      failureStage = 'create_preference';
       const res = await fetch('/api/payments/create-preference', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           orderId,
           patientName: `${patientName} ${patientLastName}`.trim(),
           patientEmail,
           patientDni,
           origin: window.location.origin,
+          flowContext: flow.snapshot(clientRequestId, orderId),
         }),
       });
 
+      checkoutHttpStatus = res.status;
       const data = await res.json();
       if (!res.ok) {
         throw new Error(data.error || 'Error al conectar con Mercado Pago');
       }
 
-      if (data.initPoint) {
+      if (data.alreadyPaid) {
+        setReturnedOrder(data.order);
+        setCreatedOrderId(orderId);
+        setStep('confirmation');
+        setMpProcessing(false);
+        isSubmittingRef.current = false;
+      } else if (data.initPoint) {
+        flow.event('checkout_redirect', flow.snapshot(clientRequestId, orderId));
         // 3. Redirect to official Mercado Pago Checkout
         window.location.href = data.initPoint;
       } else {
         throw new Error('No se pudo generar el enlace de cobro oficial.');
       }
     } catch (err: any) {
+      flow.event('checkout_failed', { ...trace, failureStage, httpStatus: checkoutHttpStatus });
+      try {
+        const attempt = readCheckoutAttempt(checkoutScope);
+        setLinkedCheckout(attempt);
+        setShowLinkedCheckout(!!attempt);
+      } catch { setCheckoutStorageError(true); }
       setError(err.message || 'Error al comunicarse con Mercado Pago');
       setMpProcessing(false);
       isSubmittingRef.current = false;
@@ -1529,6 +1628,7 @@ export default function PatientForm({
       medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
       paymentMethod: isExempt ? 'bonificado' : paymentMethod,
       clientRequestId,
+      flowContext: flow.snapshot(clientRequestId, createdOrderId),
       paymentRetryOrderId: createdOrderId || undefined,
       
       // Payment details
@@ -1569,7 +1669,16 @@ export default function PatientForm({
     };
 
     try {
-      const orderId = await onSubmitOrder(fullOrderPayload);
+      const orderId = await withCheckoutLock(checkoutScope, async () => {
+        const attempt = readCheckoutAttempt(checkoutScope);
+        if (!attempt) return onSubmitOrder(fullOrderPayload);
+        if (attempt.fingerprint !== await checkoutFingerprint(fullOrderPayload)) {
+          throw new Error('Los datos cambiaron después de iniciar el pago. Continuá la solicitud vinculada o creá una nueva.');
+        }
+        const retryOrderId = attempt.orderId || await findCheckoutOrder(attempt.clientRequestId);
+        return onSubmitOrder({ ...fullOrderPayload, clientRequestId: attempt.clientRequestId,
+          paymentRetryOrderId: retryOrderId || undefined });
+      });
       const savedOrder = await onLoadOrderDetails(orderId);
       if (savedOrder.obraSocial?.trim() !== selectedObraSocial.trim()
         || (savedOrder.obraSocialNumber || '').trim() !== obraSocialNumber.trim()) {
@@ -1584,6 +1693,7 @@ export default function PatientForm({
         deliveryMethod,
       });
       clearDraft();
+      flow.event('draft_cleared', { reason: 'submitted' });
       setDraftRestored(false);
       setCreatedOrderId(orderId);
       setStep('confirmation');
@@ -1595,25 +1705,96 @@ export default function PatientForm({
     }
   };
 
+  const continueLinkedCheckout = async () => {
+    if (!linkedCheckout || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setMpProcessing(true);
+    setError(null);
+    try {
+      const orderId = linkedCheckout.orderId || await findCheckoutOrder(linkedCheckout.clientRequestId);
+      if (!orderId) {
+        // No committed order yet: retry with the durable identity and original draft.
+        setClientRequestId(linkedCheckout.clientRequestId);
+        setShowLinkedCheckout(false);
+        return;
+      }
+      const saved = await onLoadOrderDetails(orderId);
+      setCreatedOrderId(orderId);
+      setReturnedOrder(saved);
+      setReviewedCheckout(saved);
+      if (reviewedCheckout?.id !== orderId) return;
+      if (saved.status !== 'Pendiente' || saved.paymentMethod !== 'mp'
+        || !['pending', 'rejected'].includes(saved.paymentStatus)) {
+        setStep('confirmation');
+        return;
+      }
+      const response = await fetch('/api/payments/create-preference', {
+        method: 'POST', headers: getAuthHeaders(),
+        body: JSON.stringify({ orderId, origin: window.location.origin }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'No se pudo continuar el pago.');
+      if (data.alreadyPaid) {
+        setReturnedOrder(data.order);
+        setStep('confirmation');
+      } else if (data.initPoint) {
+        window.location.href = data.initPoint;
+      } else throw new Error('No se pudo generar el enlace de pago.');
+    } catch (err: any) {
+      setError(err.message || 'No se pudo consultar la solicitud. Reintentá más tarde.');
+    } finally {
+      setMpProcessing(false);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  if (step !== 'confirmation' && (showLinkedCheckout || checkoutStorageError)) {
+    return (
+      <section className="mx-auto max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 space-y-5">
+        <h2 className="text-xl font-bold text-slate-900">Continuar tu solicitud</h2>
+        <p className="text-slate-600">{linkedCheckout?.orderId
+          ? `Tenés vinculada la solicitud ${linkedCheckout.orderId}. Podés consultar su estado y continuar el pago si sigue disponible.`
+          : 'Hay un intento de pago guardado. Revisalo antes de enviar otra solicitud.'}</p>
+        {reviewedCheckout && <div className="rounded-xl bg-slate-50 p-4 text-slate-700 space-y-1">
+          <p className="font-semibold">{reviewedCheckout.id} · {reviewedCheckout.patientName} {reviewedCheckout.patientLastName}</p>
+          <p>Estado: {reviewedCheckout.status}</p>
+          <p>Pago: {reviewedCheckout.paymentStatus === 'approved' ? 'Aprobado' : reviewedCheckout.paymentStatus === 'pending' ? 'Pendiente' : reviewedCheckout.paymentStatus === 'rejected' ? 'Rechazado' : reviewedCheckout.paymentStatus === 'refunded' ? 'Reintegrado' : 'Bonificado'} · ${reviewedCheckout.paymentAmount}</p>
+        </div>}
+        <p className="text-sm text-slate-500">Crear una nueva solicitud inicia un formulario vacío y conserva la anterior en tu historial.</p>
+        {error && <p role="alert" className="text-red-600">{error}</p>}
+        {checkoutStorageError && <p role="alert" className="text-red-600">No se pudo leer el intento guardado. Habilitá el almacenamiento o iniciá una nueva solicitud de forma explícita.</p>}
+        <div className="flex flex-wrap gap-3">
+          <button type="button" disabled={mpProcessing || checkoutStorageError} onClick={continueLinkedCheckout}
+            className="rounded-xl bg-teal-600 px-4 py-3 font-semibold text-white disabled:opacity-50">
+            {mpProcessing ? 'Consultando solicitud…' : !reviewedCheckout ? 'Revisar solicitud'
+              : reviewedCheckout.status === 'Pendiente' && reviewedCheckout.paymentMethod === 'mp'
+                && ['pending', 'rejected'].includes(reviewedCheckout.paymentStatus)
+                ? `Continuar pago de ${reviewedCheckout.id}` : 'Ver estado de la solicitud'}
+          </button>
+          <button type="button" disabled={mpProcessing} onClick={async () => {
+            if (window.confirm('¿Crear una nueva solicitud? La anterior se conserva y no se cancela.')) await handleResetForm();
+          }} className="rounded-xl border border-slate-300 px-4 py-3 font-semibold text-slate-700 disabled:opacity-50">Crear nueva solicitud</button>
+        </div>
+      </section>
+    );
+  }
+
   // --- Render Confirmation View ---
   if (step === 'confirmation') {
     const matchedOrder = returnedOrder || orders.find((o: any) => o.id === createdOrderId);
-    const displayPatientName = patientName || matchedOrder?.patientName || currentUser?.name || 'Paciente';
-    const displayPatientLastName = patientLastName || matchedOrder?.patientLastName || currentUser?.lastName || '';
-    const displayPatientDni = patientDni || matchedOrder?.patientDni || currentUser?.identifier || '';
+    const displayPatientName = matchedOrder ? matchedOrder.patientName : patientName || currentUser?.name || 'Paciente';
+    const displayPatientLastName = matchedOrder ? matchedOrder.patientLastName : patientLastName || currentUser?.lastName || '';
+    const displayPatientDni = matchedOrder ? matchedOrder.patientDni : patientDni || currentUser?.identifier || '';
     const displayObraSocial = createdOrderId ? (matchedOrder?.obraSocial || '') : selectedObraSocial;
     const displayObraSocialNumber = createdOrderId ? (matchedOrder?.obraSocialNumber || '') : obraSocialNumber;
-    const displayDeliveryMethod = deliveryMethod || matchedOrder?.deliveryMethod || 'both';
-    const displayMedicationItems = (medicationItems && medicationItems.length > 0)
-      ? medicationItems
-      : (matchedOrder?.medicationItems || []);
-    const displayMedicationPhotos = (medicationPhotos && medicationPhotos.length > 0)
-      ? medicationPhotos
-      : (matchedOrder?.medicationPhotos || []);
+    const displayDeliveryMethod = matchedOrder ? matchedOrder.deliveryMethod : deliveryMethod;
+    const displayMedicationItems = matchedOrder ? (matchedOrder.medicationItems || []) : medicationItems;
+    const displayMedicationPhotos = matchedOrder ? (matchedOrder.medicationPhotos || []) : medicationPhotos;
     const displayMedicationText = matchedOrder?.medicationText || '';
-    const displayDiagnostic = diagnostic || matchedOrder?.diagnostic || '';
-    const displayComments = comments || matchedOrder?.comments || '';
-    const displayPaymentAmount = paymentAmount || matchedOrder?.paymentAmount || '';
+    const displayDiagnostic = matchedOrder ? (matchedOrder.diagnostic || '') : diagnostic;
+    const displayComments = matchedOrder ? (matchedOrder.comments || '') : comments;
+    const displayPaymentAmount = matchedOrder ? matchedOrder.paymentAmount : paymentAmount;
+    const displayPaymentMethod = matchedOrder ? matchedOrder.paymentMethod : paymentMethod;
 
     const isForDependent = matchedOrder?.isForDependent ?? (!isThirdPartyUser && selectedCardId !== 'titular');
     const selectedDep = isForDependent ? dependents.find((d) => d.id === selectedCardId) : null;
@@ -1649,9 +1830,9 @@ export default function PatientForm({
             patientName={displayPatientName}
             patientLastName={displayPatientLastName}
             patientDni={displayPatientDni}
-            patientBirthDate={patientBirthDate || matchedOrder?.patientBirthDate}
-            patientEmail={patientEmail || matchedOrder?.patientEmail}
-            patientPhone={patientPhone || matchedOrder?.patientPhone}
+            patientBirthDate={matchedOrder ? matchedOrder.patientBirthDate : patientBirthDate}
+            patientEmail={matchedOrder ? matchedOrder.patientEmail : patientEmail}
+            patientPhone={matchedOrder ? matchedOrder.patientPhone : patientPhone}
             obraSocial={displayObraSocial}
             obraSocialNumber={displayObraSocialNumber}
             deliveryMethod={displayDeliveryMethod}
@@ -1661,7 +1842,7 @@ export default function PatientForm({
             diagnostic={displayDiagnostic}
             comments={displayComments}
             paymentAmount={displayPaymentAmount}
-            paymentMethod={paymentMethod}
+            paymentMethod={displayPaymentMethod}
             paymentId={matchedOrder?.paymentId || (paymentMethod === 'cash_desk' ? 'Cobro en ventanilla' : paymentMethod === 'mp' ? mpTransactionId : 'Transferencia')}
             paymentStatus={matchedOrder?.paymentStatus || 'approved'}
             status={matchedOrder?.status || 'En revisión'}
@@ -1790,17 +1971,20 @@ export default function PatientForm({
                       {displayDeliveryMethod === 'both' ? 'WhatsApp y Email' : displayDeliveryMethod === 'whatsapp' ? 'WhatsApp' : 'Correo Electrónico'}
                     </p>
                     <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      {patientPhone || patientEmail || 'Canal confirmado'}
+                      {(matchedOrder ? matchedOrder.patientPhone || matchedOrder.patientEmail : patientPhone || patientEmail) || 'Canal confirmado'}
                     </p>
                   </div>
 
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
                     <p className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">Arancel de Gestión</p>
                     <p className="font-mono font-extrabold text-slate-900 text-sm mt-0.5">
-                      {paymentAmount ? `$${paymentAmount} ARS` : 'Bonificado'}
+                      {Number(displayPaymentAmount) > 0 ? `$${displayPaymentAmount} ARS` : 'Bonificado'}
                     </p>
                     <p className="text-[11px] text-[#14BE99] font-bold mt-0.5 flex items-center gap-1">
-                      <Check className="h-3 w-3" /> Pago Confirmado
+                      <Check className="h-3 w-3" /> {matchedOrder?.paymentStatus === 'approved' ? 'Pago confirmado'
+                        : matchedOrder?.paymentStatus === 'exempt' ? 'Arancel bonificado'
+                        : matchedOrder?.paymentStatus === 'refunded' ? 'Pago reintegrado'
+                        : matchedOrder?.paymentStatus === 'rejected' ? 'Pago rechazado' : 'Pago pendiente de confirmación'}
                     </p>
                   </div>
                 </div>

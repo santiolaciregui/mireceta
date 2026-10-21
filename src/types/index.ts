@@ -38,6 +38,7 @@ export interface MedicationPhoto {
 }
 
 export interface RecipeFile {
+  kind?: 'link';
   url: string;
   name: string;
 }

@@ -3,10 +3,47 @@ import { OrderService } from '../services/OrderService.js';
 import { getCurrentUser } from '../utils/httpHelpers.js';
 import { storageService } from '../services/storage/StorageService.js';
 import { getOrderRecipeFiles } from '../utils/recipeFiles.js';
+import { CLIENT_FLOW_EVENTS, sanitizeFlowContext, writeFlowAudit } from '../services/orderFlowAudit.js';
+import { auditLogService } from '../services/AuditLogService.js';
 
 const orderService = new OrderService();
 
 export class OrderController {
+  recordFlowEvent = async (req: Request, res: Response) => {
+    const event = req.body?.event;
+    if (!CLIENT_FLOW_EVENTS.has(event)) return res.status(400).json({ error: 'Invalid flow event.' });
+    const currentUser = getCurrentUser(req);
+    if (!currentUser?.id) return res.status(401).json({ error: 'Authentication required.' });
+    const context = sanitizeFlowContext(req.body?.context);
+    try {
+      for (const orderId of new Set([context.orderId, context.previousOrderId].filter(Boolean))) {
+        await orderService.getOrderForUser(String(orderId), currentUser, true);
+      }
+    } catch {
+      return res.status(403).json({ error: 'Order is not accessible.' });
+    }
+    try {
+      await auditLogService.log({
+        currentUser, action: 'ORDER_FLOW_CLIENT', entity: 'Order',
+        entityId: context.orderId as string | undefined,
+        details: `Client-reported order flow: ${event}`,
+        changes: { evidenceSource: 'client_reported', event, context },
+      });
+      return res.status(202).json({ received: true });
+    } catch {
+      return res.status(503).json({ error: 'Diagnostic storage unavailable.' });
+    }
+  };
+
+  getCheckoutAttempt = async (req: Request, res: Response) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(await orderService.getCheckoutAttempt(req.params.clientRequestId, getCurrentUser(req)));
+    } catch {
+      res.status(403).json({ error: 'No se pudo acceder al intento de pago.' });
+    }
+  };
+
   getOrders = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const summaryOnly = req.query.summary === '1' || req.query.summary === 'true';
@@ -33,10 +70,17 @@ export class OrderController {
   };
 
   createOrder = async (req: Request, res: Response, next: NextFunction) => {
+    const currentUser = getCurrentUser(req);
+    const context = sanitizeFlowContext(req.body?.flowContext);
+    await writeFlowAudit(currentUser?.tenantId, 'create_requested', undefined, { clientReported: context }, currentUser);
     try {
-      const order = await orderService.createOrder(req.body, getCurrentUser(req));
+      const order = await orderService.createOrder(req.body, currentUser);
+      await writeFlowAudit(order.tenantId, 'create_returned', order.id, {
+        clientReported: context, clientRequestId: order.clientRequestId,
+      }, currentUser);
       res.status(201).json(order);
     } catch (err: any) {
+      await writeFlowAudit(currentUser?.tenantId, 'create_failed', undefined, { clientReported: context }, currentUser);
       next(err);
     }
   };

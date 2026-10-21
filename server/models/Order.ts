@@ -27,6 +27,7 @@ export interface INotificationEntry {
 }
 
 export interface IRecipeFile {
+  kind?: 'link';
   url: string;
   name: string;
 }
@@ -141,6 +142,7 @@ const notificationEntrySchema = new Schema<INotificationEntry>({
 }, { _id: false });
 
 const recipeFileSchema = new Schema<IRecipeFile>({
+  kind: { type: String, enum: ['link'], required: false },
   url: { type: String, required: true },
   name: { type: String, required: true },
 }, { _id: false });

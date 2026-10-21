@@ -24,6 +24,7 @@ interface PaymentReturnSyncOptions {
   delayMs?: number;
   fetchImpl?: typeof fetch;
   sleep?: (delayMs: number) => Promise<void>;
+  onAttempt?: (result: { attempt: number; outcome: 'verified' | 'pending' | 'http_error' | 'network_error'; httpStatus?: number }) => void;
 }
 
 export async function syncMercadoPagoReturn(
@@ -35,21 +36,28 @@ export async function syncMercadoPagoReturn(
   const fetchImpl = options.fetchImpl || fetch;
   const sleep = options.sleep || ((ms: number) => new Promise((resolve) => setTimeout(resolve, ms)));
   let lastResponse: any = null;
+  const report = (result: Parameters<NonNullable<PaymentReturnSyncOptions['onAttempt']>>[0]) => {
+    try { options.onAttempt?.(result); } catch { /* Diagnostics must not alter retries. */ }
+  };
 
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    let httpStatus: number | undefined;
     try {
       const response = await fetchImpl('/api/payments/sync-return', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+      httpStatus = response.status;
       if (!response.ok) {
         throw new Error(`Payment synchronization failed with HTTP ${response.status}.`);
       }
 
       lastResponse = await response.json();
+      report({ attempt, outcome: lastResponse?.verificationPending ? 'pending' : 'verified', httpStatus });
       if (!lastResponse?.verificationPending) return lastResponse;
     } catch (error) {
+      report({ attempt, outcome: httpStatus ? 'http_error' : 'network_error', httpStatus });
       console.warn(`[Payment Return Sync] Attempt ${attempt} failed:`, error);
     }
 

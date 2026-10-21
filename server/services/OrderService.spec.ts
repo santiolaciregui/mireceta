@@ -129,6 +129,7 @@ test('does not reuse an existing checkout when confirmed coverage changed', asyn
   service.orderRepo = {
     findByClientRequestId: async () => ({
       id: 'ORD-EXISTING',
+      patientDni: '12345678',
       tenantId: 'TEN-123',
       obraSocial: 'PAMI (Inssjp)',
       obraSocialNumber: '105/00',
@@ -148,7 +149,7 @@ test('does not reuse an existing checkout when confirmed coverage changed', asyn
         confirmedAt: '2026-10-08T01:40:00.000Z',
         draftRestored: true,
       },
-    }, { role: 'paciente', tenantId: 'TEN-123' }), /cobertura cambió después de crear/);
+    }, { id: 'USR-1', identifier: '12345678', role: 'paciente', tenantId: 'TEN-123' }), /cobertura cambió después de crear/);
     assert.equal(logged.action, 'ORDER_COVERAGE_MISMATCH');
     assert.equal(logged.changes.persistedCoverage.obraSocial, 'PAMI (Inssjp)');
     assert.equal(logged.changes.attemptedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
@@ -174,6 +175,7 @@ test('records submitted, persisted and client-confirmed coverage when creating a
   try {
     await service.createOrder({
       clientRequestId: 'request-2',
+      flowContext: { formId: 'form-1', clientRequestId: 'request-2', previousClientRequestId: 'request-1', token: 'secret' },
       patientName: 'Sara', patientLastName: 'Test', patientDni: '12345678',
       obraSocial: 'FEMEDICA - PLAN 3000', obraSocialNumber: '01-123',
       medicationItems: [{ nombreComercial: 'Medicamento', cantidadCajas: 1 }],
@@ -187,6 +189,9 @@ test('records submitted, persisted and client-confirmed coverage when creating a
     }, { role: 'paciente', tenantId: 'TEN-123', identifier: '12345678', obraSocial: 'FEMEDICA - PLAN 3000' });
 
     assert.equal(logged.action, 'ORDER_CREATE');
+    assert.equal(logged.changes.clientReportedFlow.previousClientRequestId, 'request-1');
+    assert.equal(logged.changes.clientReportedFlow.token, undefined);
+    assert.equal(persisted.flowContext, undefined);
     assert.equal(logged.changes.submittedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
     assert.equal(logged.changes.persistedCoverage.obraSocial, 'FEMEDICA - PLAN 3000');
     assert.equal(logged.changes.clientConfirmation.history[0].obraSocial, 'PAMI');
@@ -201,6 +206,7 @@ test('replaces a rejected Mercado Pago attempt with the submitted transfer recei
   const service: any = new OrderService();
   const existingOrder: any = {
     id: 'ORD-123',
+    patientDni: '12345678',
     tenantId: 'TEN-123',
     paymentMethod: 'mp',
     paymentStatus: 'rejected',
@@ -212,9 +218,9 @@ test('replaces a rejected Mercado Pago attempt with the submitted transfer recei
   let persistedOrder: any;
   service.orderRepo = {
     findByClientRequestId: async () => existingOrder,
-    update: async (_id: string, order: any) => {
-      persistedOrder = order;
-      return order;
+    updateCheckoutPayment: async (_id: string, _expected: any, changes: any) => {
+      persistedOrder = Object.assign(existingOrder, changes);
+      return existingOrder;
     },
   };
   service.refreshPendingOrderLimitAlert = async () => undefined;
@@ -227,7 +233,7 @@ test('replaces a rejected Mercado Pago attempt with the submitted transfer recei
       paymentReceiptUrl: 'https://files.example.test/receipt.png',
       paymentReceiptName: 'receipt.png',
     },
-    { role: 'paciente', tenantId: 'TEN-123' }
+    { id: 'USR-1', identifier: '12345678', role: 'paciente', tenantId: 'TEN-123' }
   );
 
   assert.equal(result, existingOrder);

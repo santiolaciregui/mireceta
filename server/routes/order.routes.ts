@@ -11,7 +11,9 @@ router.get('/public/:id/pdf', controller.streamPublicPdf);
 
 router.use(authenticateToken);
 
+router.post('/flow-events', controller.recordFlowEvent);
 router.get('/', controller.getOrders);
+router.get('/checkout-attempt/:clientRequestId', controller.getCheckoutAttempt);
 router.get('/:id', controller.getOrder);
 router.post('/', controller.createOrder);
 router.put('/:id', controller.updateOrder);

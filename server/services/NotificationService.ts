@@ -830,7 +830,7 @@ export class NotificationService {
           tenantId,
           channel: 'whatsapp',
           to: patientPhone,
-          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder y descargar tu receta en formato PDF directamente aquí:\n${recipeLink}`
+          body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida exitosamente por el profesional médico.\n\nPuedes acceder a tu receta aquí:\n${recipeLink}`
         });
       }
 
@@ -847,7 +847,7 @@ export class NotificationService {
           orderId,
           recipeLink
         },
-        body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder y descargar tu archivo PDF ingresando aquí: ${recipeLink}`
+        body: `¡Hola ${patientName}! Tu receta #${orderId} ha sido emitida por el profesional médico. Podés acceder a tu receta ingresando aquí: ${recipeLink}`
       });
     } catch (err: any) {
       console.error('Error enviando notificación de receta emitida:', err);
@@ -950,7 +950,7 @@ export class NotificationService {
           <tr>
             <td align="center">
               <a href="${recipeLink}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: #2563eb; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 700; padding: 14px 28px; border-radius: 12px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
-                Descargar Receta en PDF 📄
+                Abrir Receta 📄
               </a>
             </td>
           </tr>

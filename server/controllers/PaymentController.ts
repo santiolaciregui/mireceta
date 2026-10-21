@@ -1,14 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/PaymentService.js';
-import { getTenantId } from '../utils/httpHelpers.js';
+import { getTenantId, getCurrentUser } from '../utils/httpHelpers.js';
+import { writeFlowAudit, providerErrorEvidence } from '../services/orderFlowAudit.js';
 
 const paymentService = new PaymentService();
 
 export class PaymentController {
   createPreference = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const tenantId = req.body.tenantId || getTenantId(req);
-      const result = await paymentService.createPreference(tenantId, req.body);
+      const tenantId = getTenantId(req);
+      const result = await paymentService.createPreference(tenantId, req.body, getCurrentUser(req));
       res.json(result);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
@@ -20,6 +21,9 @@ export class PaymentController {
       const result = await paymentService.processWebhook(req.query, req.body, req.headers);
       res.status(200).json(result);
     } catch (err: any) {
+      await writeFlowAudit(undefined, 'webhook_failed', undefined, {
+        ...providerErrorEvidence(err), reason: 'controller_error', tenantUnresolved: true,
+      });
       res.status(200).json({ received: true });
     }
   };

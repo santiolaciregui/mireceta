@@ -25,6 +25,8 @@ import {
 import { PatientService } from './PatientService.js';
 import { getOrderRecipeFiles, validateRecipeFiles } from '../utils/recipeFiles.js';
 import { coverageChange, coverageSnapshot, validateCoverageConfirmation } from './coverageAudit.js';
+import { sanitizeFlowContext, writeFlowAudit } from './orderFlowAudit.js';
+import { assertCheckoutAccess, assertCheckoutPayable } from './checkoutAccess.js';
 
 export class OrderService {
   private orderRepo: OrderRepository;
@@ -104,8 +106,10 @@ export class OrderService {
       : this.orderRepo.findByTenant(tenantId);
   }
 
-  async getOrderForUser(id: string, currentUser: any) {
-    const order: any = await this.orderRepo.findById(id);
+  async getOrderForUser(id: string, currentUser: any, accessOnly = false) {
+    const order: any = accessOnly
+      ? await this.orderRepo.findAccessSnapshot(id)
+      : await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
 
     const tenantId = currentUser?.tenantId || 'TEN-0001';
@@ -131,7 +135,18 @@ export class OrderService {
     return order;
   }
 
+  async getCheckoutAttempt(clientRequestId: string, currentUser: any) {
+    if (!/^[a-zA-Z0-9_-]{1,120}$/.test(clientRequestId)) throw new Error('Identificador inválido.');
+    const order = await this.orderRepo.findByClientRequestId(clientRequestId);
+    if (!order) return { orderId: null };
+    assertCheckoutAccess(order, currentUser);
+    return { orderId: order.id };
+  }
+
   async createOrder(orderData: any, currentUser: any) {
+    const flowContext = sanitizeFlowContext(orderData.flowContext);
+    const { flowContext: _discardedTrace, ...businessData } = orderData;
+    orderData = businessData;
     if (currentUser?.role === 'admin') {
       throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
     }
@@ -152,6 +167,12 @@ export class OrderService {
           throw new Error('La solicitud no pertenece al centro médico actual.');
         }
 
+        assertCheckoutAccess(existingOrder, currentUser);
+
+        if (cleanDni(existingOrder.patientDni || '') !== cleanDni(orderData.patientDni || currentUser?.identifier || '')) {
+          throw new Error('Este intento pertenece a otro paciente. Revisá la solicitud existente.');
+        }
+
         if (coverageConfirmation && coverageChange(existingOrder, orderData)) {
           await auditLogService.log({
             tenantId: tenantIdToUse,
@@ -169,6 +190,12 @@ export class OrderService {
           throw new Error('La cobertura cambió después de crear esta solicitud. No se inició otro pago; solicitá la corrección de la solicitud existente.');
         }
 
+        for (const field of ['obraSocial', 'obraSocialNumber', 'medicationText', 'diagnostic', 'comments']) {
+          if (orderData[field] !== undefined && String(orderData[field] || '').trim() !== String(existingOrder[field] || '').trim()) {
+            throw new Error(`Los datos cambiaron después de crear la solicitud ${existingOrder.id}. Revisá la solicitud existente o iniciá una nueva.`);
+          }
+        }
+
         const isReplacingRejectedCheckout =
           orderData.paymentRetryOrderId === existingOrder.id &&
           orderData.paymentMethod === 'transfer' &&
@@ -176,6 +203,7 @@ export class OrderService {
           !['approved', 'exempt', 'refunded'].includes(existingOrder.paymentStatus);
 
         if (isReplacingRejectedCheckout) {
+          assertCheckoutPayable(existingOrder);
           if (!orderData.paymentReceiptUrl) {
             throw new Error('Debe adjuntar el comprobante de transferencia bancaria para continuar.');
           }
@@ -191,6 +219,8 @@ export class OrderService {
             }
           }
 
+          const checkoutSnapshot = { status: existingOrder.status, paymentStatus: existingOrder.paymentStatus,
+            paymentId: existingOrder.paymentId, paymentAmount: existingOrder.paymentAmount };
           existingOrder.paymentMethod = 'transfer';
           existingOrder.paymentReceiptUrl = paymentReceiptUrl;
           existingOrder.paymentReceiptName = orderData.paymentReceiptName || 'comprobante_transferencia';
@@ -206,11 +236,20 @@ export class OrderService {
             'El intento de Mercado Pago fue reemplazado por una transferencia bancaria con comprobante adjunto. Pendiente de validación.'
           );
 
-          const updatedOrder = await this.orderRepo.update(existingOrder.id, existingOrder);
+          const updatedOrder = await this.orderRepo.updateCheckoutPayment(existingOrder.id, checkoutSnapshot, {
+            paymentMethod: 'transfer', paymentReceiptUrl: existingOrder.paymentReceiptUrl,
+            paymentReceiptName: existingOrder.paymentReceiptName, paymentId: existingOrder.paymentId,
+            paymentStatus: 'pending', paymentStage: 'awaiting_validation', status: 'Pendiente',
+            paymentDate: existingOrder.paymentDate,
+          }, existingOrder.auditLog[existingOrder.auditLog.length - 1]);
+          if (!updatedOrder) throw new Error('La solicitud cambió durante el reintento. Revisá su estado antes de continuar.');
           await this.refreshPendingOrderLimitAlert(existingOrder.tenantId);
           return updatedOrder;
         }
 
+        if (Object.keys(flowContext).length) await writeFlowAudit(tenantIdToUse, 'create_reused', existingOrder.id, {
+          clientReported: flowContext, reason: 'same_client_request_id',
+        }, currentUser);
         return existingOrder;
       }
     }
@@ -243,25 +282,6 @@ export class OrderService {
     const calculatedPaymentStatus = isExempt
       ? 'exempt'
       : (orderData.paymentMethod === 'transfer' ? 'pending' : (orderData.paymentStatus || 'pending'));
-
-    // Guard against rapid duplicate submissions (within 15s) from same patient with identical medication text or arancel
-    if (currentUser?.role === 'paciente') {
-      const patientDniClean = cleanDni(orderData.patientDni || currentUser.identifier);
-      const recentThreshold = new Date(Date.now() - 15 * 1000).toISOString();
-      const existingRecentOrders = await this.orderRepo.findByTenant(tenantIdToUse);
-      const duplicate = existingRecentOrders.find((o: any) => {
-        return (
-          cleanDni(o.patientDni) === patientDniClean &&
-          o.status === 'Pendiente' &&
-          o.createdAt && o.createdAt >= recentThreshold &&
-          (o.medicationText === (orderData.medicationText || '') || o.paymentAmount === pricing.amountFormatted)
-        );
-      });
-      if (duplicate) {
-        console.log(`[OrderService] Prevented duplicate order creation for DNI ${patientDniClean}. Returning existing order ${duplicate.id}`);
-        return duplicate;
-      }
-    }
 
     // Payment method & ID resolution
     let finalPaymentMethod = orderData.paymentMethod || 'mp';
@@ -420,7 +440,14 @@ export class OrderService {
     } catch (error: any) {
       if (error?.code === 11000 && clientRequestId) {
         const existingOrder = await this.orderRepo.findByClientRequestId(clientRequestId);
-        if (existingOrder) return existingOrder;
+        if (existingOrder) {
+          assertCheckoutAccess(existingOrder, currentUser);
+          if (cleanDni(existingOrder.patientDni || '') !== cleanDni(orderData.patientDni || currentUser?.identifier || '')) throw new Error('Este intento pertenece a otro paciente.');
+          if (Object.keys(flowContext).length) await writeFlowAudit(tenantIdToUse, 'create_reused', existingOrder.id, {
+            clientReported: flowContext, reason: 'unique_index_race',
+          }, currentUser);
+          return existingOrder;
+        }
       }
       throw error;
     }
@@ -437,6 +464,8 @@ export class OrderService {
         persistedCoverage: coverageSnapshot(createdOrder),
         clientConfirmation: coverageConfirmation,
         clientSessionCoverage: coverageSnapshot(currentUser || {}),
+        clientReportedFlow: flowContext,
+        clientRequestId,
       },
     });
 
@@ -541,6 +570,11 @@ export class OrderService {
     const includesPatientInformation = hasPatientInformationUpdate(updateData);
     if (includesPatientInformation && !isAuthorizedToEditPatient(currentUser?.role)) {
       throw new Error('Solo los colaboradores, médicos y administradores pueden editar los datos del paciente.');
+    }
+
+    // Validate external links before changing status or recording emission side effects.
+    if (Array.isArray(updateData.recipeFiles) && updateData.recipeFiles.some(file => file?.kind === 'link')) {
+      validateRecipeFiles(updateData.recipeFiles);
     }
 
     // 3. Medic & Collaborator modifications
@@ -705,7 +739,7 @@ export class OrderService {
             }]);
 
         const savedRecipeFiles = await Promise.all(incomingRecipeFiles.map(async (file) => {
-          if (!file.url.startsWith('data:') && file.url.length <= 500) return file;
+          if (file.kind === 'link' || (!file.url.startsWith('data:') && file.url.length <= 500)) return file;
 
           try {
             const savedUrl = await storageService.saveRecipePdf(file.name, file.url);
@@ -787,9 +821,12 @@ export class OrderService {
         ? `${currentUser.name} ${currentUser.lastName || ''}`.trim()
         : 'Equipo Médico';
 
+      const isExternalLink = getOrderRecipeFiles(order)[0]?.kind === 'link';
       const isElectronic = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
       let chatText = '';
-      if (shouldNotifyUpdatedFile) {
+      if (isExternalLink) {
+        chatText = `¡Hola ${order.patientName}! Tu receta digital #${order.id} está disponible. Podés abrirla aquí:\n${recipeLink}`;
+      } else if (shouldNotifyUpdatedFile) {
         chatText = `¡Hola ${order.patientName}! Tu profesional médico ha actualizado el archivo de tu receta digital #${order.id}.\n\nPuedes acceder y descargar la versión actualizada en el mismo enlace:\n${recipeLink}`;
       } else {
         chatText = isElectronic
@@ -805,7 +842,7 @@ export class OrderService {
         timestamp: new Date().toISOString(),
         status: 'sent',
         text: chatText,
-        ...(!isElectronic ? {
+        ...(!isElectronic && !isExternalLink ? {
           fileUrl: order.recipePdfUrl || recipeLink,
           fileName: order.recipePdfName || `receta_${order.id}.pdf`,
           fileType: 'pdf'
@@ -1017,10 +1054,11 @@ export class OrderService {
 
     // Persist resend event as chat message in patient conversation
     const channelText = channel === 'both' ? 'WhatsApp y Correo electrónico' : channel === 'whatsapp' ? 'WhatsApp' : 'Correo electrónico';
+    const isExternalLinkResend = getOrderRecipeFiles(order)[0]?.kind === 'link';
     const isElectronicResend = order.recipePdfUrl === 'PAMI' || order.recipePdfUrl === 'IOMA';
     const resendText = isElectronicResend
       ? `Se han enviado los detalles de tu receta electrónica #${order.id} mediante ${channelText}.\n\nLos medicamentos están listos para ser retirados en la farmacia bajo la cobertura de ${order.recipePdfUrl} con tu número de obra social: ${order.obraSocialNumber || 'No ingresado'}.`
-      : `Se ha enviado el enlace de tu receta digital #${order.id} mediante ${channelText}.\n\nEnlace de descarga directa del PDF:\n${recipeLink}`;
+      : `Se ha enviado el enlace de tu receta digital #${order.id} mediante ${channelText}.\n\n${isExternalLinkResend ? 'Abrir receta:' : 'Enlace de descarga directa del PDF:'}\n${recipeLink}`;
 
     const resendChatMessage: any = {
       id: generateMessageId(),
@@ -1030,7 +1068,7 @@ export class OrderService {
       timestamp: new Date().toISOString(),
       status: 'sent',
       text: resendText,
-      ...(!isElectronicResend ? {
+      ...(!isElectronicResend && !isExternalLinkResend ? {
         fileUrl: order.recipePdfUrl || recipeLink,
         fileName: order.recipePdfName || `receta_${order.id}.pdf`,
         fileType: 'pdf'

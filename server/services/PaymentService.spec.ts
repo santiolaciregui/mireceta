@@ -1,7 +1,66 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
-import { Payment, MerchantOrder } from 'mercadopago';
+import test, { beforeEach, afterEach } from 'node:test';
+import { Payment, MerchantOrder, Preference } from 'mercadopago';
 import { PaymentService } from './PaymentService.js';
+import { auditLogService } from './AuditLogService.js';
+
+const originalAuditLog = auditLogService.log;
+beforeEach(() => { auditLogService.log = async () => undefined; });
+afterEach(() => { auditLogService.log = originalAuditLog; });
+
+test('retains signature rejection evidence without the secret or signature payload', async () => {
+  const logs: any[] = [];
+  auditLogService.log = async entry => { logs.push(entry); };
+  const originalSecret = process.env.MP_WEBHOOK_SECRET;
+  process.env.MP_WEBHOOK_SECRET = 'secret-not-for-audit';
+  try {
+    await new PaymentService().processWebhook({ id: '123', type: 'payment' }, {}, {
+      'x-signature': 'invalid-signature', 'x-request-id': 'private-request-id',
+    });
+    assert.equal(logs[0].changes.event, 'webhook_rejected');
+    assert.equal(logs[0].changes.reason, 'invalid_signature');
+    assert.equal(logs[0].changes.providerPaymentId, '123');
+    assert.equal(logs[0].tenantId, 'SYSTEM-PAYMENTS');
+    assert.ok(!JSON.stringify(logs).includes('secret-not-for-audit'));
+    assert.ok(!JSON.stringify(logs).includes('invalid-signature'));
+  } finally {
+    if (originalSecret === undefined) delete process.env.MP_WEBHOOK_SECRET;
+    else process.env.MP_WEBHOOK_SECRET = originalSecret;
+  }
+});
+
+test('records checkout preference failures with sanitized flow context', async () => {
+  const logs: any[] = [];
+  auditLogService.log = async entry => { logs.push(entry); };
+  const originalCreate = Preference.prototype.create;
+  Preference.prototype.create = async () => { throw Object.assign(new Error('sensitive provider error'), { status: 503 }); };
+  const service: any = new PaymentService();
+  service.orderRepo = { findById: async () => ({ id: 'REC-1', tenantId: 'TEN-1', patientDni: '12345678', status: 'Pendiente', paymentMethod: 'mp', paymentStatus: 'pending', paymentAmount: '10000' }) };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-private' }) };
+  service.fetchBestPaymentForOrder = async () => null;
+  try {
+    await assert.rejects(() => service.createPreference('TEN-1', {
+      orderId: 'REC-1', origin: 'https://www.mireceta.online',
+      flowContext: { clientRequestId: 'request-1', token: 'secret' },
+    }, { id: 'USR-1', role: 'paciente', tenantId: 'TEN-1', identifier: '12345678' }));
+    assert.equal(logs[0].changes.event, 'preference_failed');
+    assert.equal(logs[0].changes.httpStatus, 503);
+    assert.deepEqual(logs[0].changes.clientReported, { clientRequestId: 'request-1' });
+    assert.ok(!JSON.stringify(logs).includes('sensitive provider error'));
+  } finally { Preference.prototype.create = originalCreate; }
+});
+
+test('does not record payment persistence as successful when the business write fails', async () => {
+  const logs: any[] = [];
+  auditLogService.log = async entry => { logs.push(entry); };
+  const service: any = new PaymentService();
+  service.orderRepo = { update: async () => { throw new Error('database failure'); } };
+  const order = { id: 'REC-1', tenantId: 'TEN-1', paymentStatus: 'pending', status: 'Pendiente', paymentAmount: '10000', auditLog: [] };
+  await assert.rejects(() => service.applyProviderPayment(order, {
+    id: '123', external_reference: 'REC-1', status: 'approved', transaction_amount: 10000,
+  }, 'test'));
+  assert.deepEqual(logs.map(entry => entry.changes.event), ['payment_persist_failed']);
+});
 
 test('refunds an approved Checkout payment that belongs to the order', async () => {
   const originalGet = (Payment.prototype as any).get;

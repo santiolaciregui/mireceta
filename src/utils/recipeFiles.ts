@@ -22,3 +22,21 @@ export function getOrderRecipeFiles(
     name: order.recipePdfName || 'receta.pdf',
   }];
 }
+
+export function normalizeRecipeLink(value: string): string {
+  const url = value.trim();
+  if (!url || url.length > 8192 || /[\s\u0000-\u001f\u007f]/.test(url) || !/^https?:\/\//i.test(url)) {
+    throw new Error('Ingresá un enlace válido que comience con https:// o http://.');
+  }
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname || parsed.username || parsed.password) throw new Error('Invalid URL');
+  } catch {
+    throw new Error('Ingresá un enlace válido, sin usuario ni contraseña.');
+  }
+  return url;
+}
+
+export function buildRecipeLink(value: string): RecipeFile {
+  return { url: normalizeRecipeLink(value), name: 'Enlace a receta', kind: 'link' };
+}

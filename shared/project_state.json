@@ -1,11 +1,13 @@
 {
-  "project": "Mi Receta - imagenes de chat y WhatsApp",
+  "project": "Mi Receta - order and payment diagnostic traces",
   "status": "dev_ready",
   "current_phase": "local_validation_complete",
   "current_milestone": "M10",
-  "current_story": "US-012",
+  "current_story": "US-014",
   "pending_stories": [
-    "US-012"
+    "US-012",
+    "US-013",
+    "US-014"
   ],
   "completed_stories": [
     "US-001",
@@ -23,5 +25,5 @@
   "open_questions": [],
   "last_agent": "developer",
   "qa_verdict": "not_independently_reviewed",
-  "qa_note": "US-012 implementation validated locally: 314 tests pass, TypeScript/build/diff checks pass. Mocked Meta requests only; no production database access, real messages, deployment, or independent QA review."
+  "qa_note": "US-014: 393/393 mocked unit tests pass; TypeScript, production build and diff checks pass. Overall tested-file line coverage 82.87%; checkoutAccess 100%; checkoutAttempt 95.45%. No independent review, manual browser QA, deployment, production data changes or real payments."
 }

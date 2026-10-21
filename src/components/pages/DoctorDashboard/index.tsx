@@ -65,7 +65,7 @@ import {
 } from 'lucide-react';
 import { compressImageAndGetBase64 } from '../../../utils/file';
 import { formatOrderCreatedAt, getOrderInbox, sortOrdersNewestFirst } from '../../../utils/orderInbox';
-import { getOrderRecipeFiles } from '../../../utils/recipeFiles';
+import { buildRecipeLink, getOrderRecipeFiles } from '../../../utils/recipeFiles';
 import { DoctorOrdersSkeleton, DoctorDetailSkeleton } from '../../common/OrdersSkeleton';
 
 const MAX_RECIPE_FILE_SIZE_BYTES = 15 * 1024 * 1024;
@@ -198,6 +198,8 @@ export default function DoctorDashboard({
   const [doctorNotes, setDoctorNotes] = useState('');
   const [prescriptionType, setPrescriptionType] = useState<'RCTA' | 'PAMI' | 'IOMA'>('RCTA');
   const [uploadedRecipes, setUploadedRecipes] = useState<Array<RecipeFile & { size?: number }>>([]);
+  const [recipeInputMode, setRecipeInputMode] = useState<'file' | 'link'>('file');
+  const [recipeLink, setRecipeLink] = useState('');
   const [isDraggingPdf, setIsDraggingPdf] = useState(false);
   const [pdfUploadError, setPdfUploadError] = useState<string | null>(null);
   const [isPastingClipboard, setIsPastingClipboard] = useState(false);
@@ -530,6 +532,7 @@ export default function DoctorDashboard({
 
   // Compute selected order reference (strictly scoped to currently filtered list)
   const selectedOrder = filteredOrders.find(o => o.id === selectedOrderId) || null;
+  const selectedRecipeFiles = selectedOrder ? getOrderRecipeFiles(selectedOrder) : [];
 
   const toPaymentDateInput = (dateValue?: string) => {
     if (!dateValue) return '';
@@ -690,6 +693,8 @@ export default function DoctorDashboard({
     if (!selectedOrderId) {
       currentLoadedOrderIdRef.current = null;
       setDoctorNotes('');
+      setRecipeInputMode('file');
+      setRecipeLink('');
       setPrescriptionType('RCTA');
       setUploadedRecipes([]);
       setPdfUploadError(null);
@@ -711,13 +716,16 @@ export default function DoctorDashboard({
       currentLoadedOrderIdRef.current = selectedOrderId;
       setActiveDetailTab('rx');
       setDoctorNotes(selectedOrder.doctorNotes || '');
+      const existingLink = getOrderRecipeFiles(selectedOrder).find(recipe => recipe.kind === 'link');
+      setRecipeInputMode(existingLink ? 'link' : 'file');
+      setRecipeLink(existingLink?.url || '');
       if (selectedOrder.recipePdfUrl) {
         if (selectedOrder.recipePdfUrl === 'PAMI' || selectedOrder.recipePdfUrl === 'IOMA') {
           setPrescriptionType(selectedOrder.recipePdfUrl as 'PAMI' | 'IOMA');
           setUploadedRecipes([]);
         } else {
           setPrescriptionType('RCTA');
-          setUploadedRecipes(getOrderRecipeFiles(selectedOrder));
+          setUploadedRecipes(getOrderRecipeFiles(selectedOrder).filter(recipe => recipe.kind !== 'link'));
         }
       } else {
         setPrescriptionType('RCTA');
@@ -2469,6 +2477,38 @@ export default function DoctorDashboard({
                               </div>
                             ) : (
                               <div>
+                                <div className="flex gap-2 mb-4" role="group" aria-label="Cómo entregar la receta RCTA">
+                                  {(['file', 'link'] as const).map(mode => (
+                                    <button
+                                      key={mode}
+                                      type="button"
+                                      aria-pressed={recipeInputMode === mode}
+                                      onClick={() => { setRecipeInputMode(mode); setPdfUploadError(null); }}
+                                      className={`flex-1 py-2 text-xs font-bold rounded-xl border cursor-pointer ${recipeInputMode === mode ? 'bg-blue-50 border-blue-300 text-[#1661E1]' : 'bg-white border-slate-200 text-slate-600'}`}
+                                    >
+                                      {mode === 'file' ? 'Subir archivo' : 'Pegar enlace'}
+                                    </button>
+                                  ))}
+                                </div>
+                                {recipeInputMode === 'link' ? (
+                                  <div>
+                                    <label htmlFor="rcta-recipe-link" className="block text-xs font-bold text-slate-700 mb-1.5">Enlace a la receta *</label>
+                                    <input
+                                      id="rcta-recipe-link"
+                                      type="url"
+                                      value={recipeLink}
+                                      onChange={event => { setRecipeLink(event.target.value); setPdfUploadError(null); }}
+                                      placeholder="https://..."
+                                      maxLength={8192}
+                                      aria-invalid={Boolean(pdfUploadError)}
+                                      aria-describedby={pdfUploadError ? 'rcta-link-error' : 'rcta-link-help'}
+                                      className="w-full bg-white border border-slate-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1661E1]/40"
+                                    />
+                                    <p id="rcta-link-help" className="text-[11px] text-slate-500 mt-2">Pegá el enlace que te dio el sistema de emisión. El paciente podrá abrir la receta desde ese enlace.</p>
+                                    {pdfUploadError && <p id="rcta-link-error" role="alert" className="text-xs text-rose-600 font-semibold mt-2">{pdfUploadError}</p>}
+                                  </div>
+                                ) : (
+                                <div>
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
                                   <div>
                                     <label className="block text-xs font-bold text-slate-700">
@@ -2573,6 +2613,8 @@ export default function DoctorDashboard({
                                     <span>{pdfUploadError}</span>
                                   </p>
                                 )}
+                                </div>
+                                )}
                               </div>
                             )}
 
@@ -2580,15 +2622,23 @@ export default function DoctorDashboard({
                             <div className="flex flex-col sm:flex-row gap-3 pt-2">
                               <button
                                 onClick={async () => {
-                                  if (prescriptionType === 'RCTA' && uploadedRecipes.length === 0) {
+                                  if (prescriptionType === 'RCTA' && recipeInputMode === 'file' && uploadedRecipes.length === 0) {
                                     setPdfUploadError('Debe adjuntar al menos un archivo (PDF o Imagen) de receta oficial firmada antes de emitir.');
                                     showToast('Error: Debe adjuntar al menos una receta oficial.');
                                     return;
                                   }
                                   
-                                  const finalUrl = prescriptionType === 'RCTA' ? uploadedRecipes[0]?.url : prescriptionType;
-                                  const finalName = prescriptionType === 'RCTA' ? uploadedRecipes[0]?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
-                                  const finalFiles = prescriptionType === 'RCTA' ? uploadedRecipes : undefined;
+                                  let finalFiles: RecipeFile[] | undefined;
+                                  try {
+                                    finalFiles = prescriptionType === 'RCTA'
+                                      ? recipeInputMode === 'link' ? [buildRecipeLink(recipeLink)] : uploadedRecipes
+                                      : undefined;
+                                  } catch (error) {
+                                    setPdfUploadError(error instanceof Error ? error.message : 'Ingresá un enlace válido.');
+                                    return;
+                                  }
+                                  const finalUrl = finalFiles ? finalFiles[0]?.url : prescriptionType;
+                                  const finalName = finalFiles ? finalFiles[0]?.name : `receta_electronica_${prescriptionType.toLowerCase()}`;
 
                                   setIsSubmittingEmit(true);
                                   try {
@@ -2661,27 +2711,44 @@ export default function DoctorDashboard({
                             <h4 className="font-bold text-[#0F6C7D] text-base">Receta Digital Emitida</h4>
                             <p className="text-xs text-[#0F6C7D]/80 mt-1">El proceso ha concluido correctamente y el paciente ha sido notificado.</p>
                             <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
-                              {selectedOrder.recipePdfUrl && selectedOrder.recipePdfUrl !== 'PAMI' && selectedOrder.recipePdfUrl !== 'IOMA' ? (
-                                getOrderRecipeFiles(selectedOrder).map((recipe, index) => (
-                                  <a
-                                    key={`${recipe.name}-${index}`}
-                                    href={recipe.url.startsWith('data:')
-                                      ? recipe.url
-                                      : index === 0
-                                        ? `/api/orders/public/${selectedOrder.id}/pdf`
-                                        : `/api/orders/public/${selectedOrder.id}/pdf/${index}`}
-                                    download={recipe.name}
-                                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
-                                  >
-                                    <Download className="h-4 w-4" />
-                                    <span>Descargar Receta {index + 1}</span>
-                                  </a>
+                              {selectedRecipeFiles.length > 0 ? (
+                                selectedRecipeFiles.map((recipe, index) => (
+                                  <div key={`${recipe.name}-${index}`} className="flex flex-wrap items-center justify-center gap-2">
+                                    <a
+                                      href={`/api/orders/public/${encodeURIComponent(selectedOrder.id)}/pdf${index === 0 ? '' : `/${index}`}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                                    >
+                                      <Eye className="h-4 w-4" />
+                                      <span>Ver receta{selectedRecipeFiles.length > 1 ? ` ${index + 1}` : ''}</span>
+                                    </a>
+                                    {recipe.kind !== 'link' && (
+                                      <a
+                                        href={recipe.url.startsWith('data:')
+                                          ? recipe.url
+                                          : index === 0
+                                            ? `/api/orders/public/${selectedOrder.id}/pdf`
+                                            : `/api/orders/public/${selectedOrder.id}/pdf/${index}`}
+                                        download={recipe.kind === 'link' ? undefined : recipe.name}
+                                        target={recipe.kind === 'link' ? '_blank' : undefined}
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#14BE99] hover:bg-[#0fa685] active:scale-[0.99] text-white rounded-xl text-xs font-bold cursor-pointer transition-all shadow-sm"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                        <span>{recipe.kind === 'link' ? 'Abrir receta' : `Descargar Receta ${index + 1}`}</span>
+                                      </a>
+                                    )}
+                                  </div>
                                 ))
-                              ) : selectedOrder.recipePdfUrl ? (
+                              ) : selectedOrder.recipePdfUrl === 'PAMI' || selectedOrder.recipePdfUrl === 'IOMA' ? (
                                 <div className="px-5 py-2.5 bg-[#1661E1]/10 border border-[#1661E1]/20 text-[#1661E1] rounded-xl text-xs font-bold">
-                                  Emitida Electrónicamente vía {selectedOrder.recipePdfUrl} (Afiliado: {selectedOrder.obraSocialNumber || 'Sin cargar'})
+                                  <p>Emitida Electrónicamente vía {selectedOrder.recipePdfUrl} (Afiliado: {selectedOrder.obraSocialNumber || 'Sin cargar'})</p>
+                                  <p className="mt-1 font-medium">No hay un archivo de receta adjunto para visualizar. Para verla aquí, adjuntá la receta con “Modificar / Cambiar Archivo”.</p>
                                 </div>
-                              ) : null}
+                              ) : (
+                                <p className="text-xs text-[#0F6C7D]">No hay un archivo de receta adjunto para visualizar.</p>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => {

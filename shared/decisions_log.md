@@ -43,3 +43,8 @@
 | 2026-10-15 | QA/Orchestrator | US-011 validated | 300 tests; lint/build/diff pass; conditional global coverage 79.47%, changed helpers 100%; accepted without unrelated coverage expansion; production unchanged |
 
 | 2026-10-15 | Developer | US-012 T-001/T-002/T-003 | Approved consulta_medica_imagen template with dynamic IMAGE header, es_AR default, strict failure handling; preserve active chat media across summary polling. 314 tests, TypeScript/build/diff checks pass. No production operations. |
+
+| 2026-10-21 | Developer | US-013: persistent order/payment diagnostic traces | Existing auditlogs, sanitized client claims and server evidence, per-form/session/previous-attempt correlation, lightweight ownership checks. 366 tests; line coverage 81.57%; TypeScript/build/diff pass. No production writes/deploy or independent QA. |
+
+| 2026-10-21 | Developer | US-014 exact checkout continuation | Independent small browser journal + Web Locks; exact authenticated request lookup; no similarity reuse; explicit review/new-request actions; checkout ownership/state/provider checks; conditional atomic payment updates preserve concurrent medical changes. Existing historical requests untouched. |
+| 2026-10-21 | Local validation | US-014: 393/393 tests; TypeScript/build/diff pass | Tested-file line coverage 82.87%; no independent reviewer, browser QA or deployment. See docs/checkout-continuation.md. |

@@ -1,10 +1,13 @@
 import crypto from 'crypto';
+import type { IMedicalOrder } from '../models/Order.js';
+import { assertCheckoutAccess, assertCheckoutPayable } from './checkoutAccess.js';
 import { MercadoPagoConfig, Preference, Payment, MerchantOrder } from 'mercadopago';
 import { TenantRepository } from '../repositories/TenantRepository.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { addAuditLogEntry } from '../utils/orderUtils.js';
 import { generateOrderId } from '../utils/idGenerator.js';
 import { notificationService } from './NotificationService.js';
+import { diagnosticId, sanitizeFlowContext, writeFlowAudit, providerErrorEvidence } from './orderFlowAudit.js';
 import {
   buildMercadoPagoReconciliation,
   MercadoPagoPaymentLike,
@@ -56,11 +59,13 @@ export class PaymentService {
   private async fetchBestPaymentForOrder(
     order: any,
     accessToken: string,
-    preferredPaymentId?: string
+    preferredPaymentId?: string,
+    strict = false
   ): Promise<MercadoPagoPaymentLike | null> {
     const client = new MercadoPagoConfig({ accessToken });
     const paymentApi = new Payment(client);
     const candidates: MercadoPagoPaymentLike[] = [];
+    let lookupFailed = false;
     const numericPaymentId = String(preferredPaymentId || order.paymentId || '');
 
     if (/^\d+$/.test(numericPaymentId)) {
@@ -68,6 +73,10 @@ export class PaymentService {
         const exactPayment: any = await paymentApi.get({ id: numericPaymentId });
         if (exactPayment) candidates.push(exactPayment);
       } catch (error: any) {
+        lookupFailed = true;
+        await writeFlowAudit(order.tenantId, 'payment_lookup_failed', order.id, {
+          lookup: 'exact_payment', ...providerErrorEvidence(error),
+        });
         console.warn(`[PaymentService] Exact payment lookup failed for order ${order.id}:`, error?.message || error);
       }
     }
@@ -83,6 +92,10 @@ export class PaymentService {
         });
       }
     } catch (error: any) {
+      lookupFailed = true;
+      await writeFlowAudit(order.tenantId, 'payment_lookup_failed', order.id, {
+        lookup: 'payment_search', ...providerErrorEvidence(error),
+      });
       console.warn(`[PaymentService] Payment search failed for order ${order.id}:`, error?.message || error);
     }
 
@@ -91,7 +104,10 @@ export class PaymentService {
       order.id,
       Number(order.paymentAmount) || 0
     );
-    if (selected) return selected;
+    if (selected) {
+      if (strict && lookupFailed && selected.status !== 'approved') throw new Error('No se pudo verificar el pago anterior. Reintentá más tarde.');
+      return selected;
+    }
 
     try {
       const merchantOrderSearch: any = await new MerchantOrder(client).search({
@@ -110,24 +126,41 @@ export class PaymentService {
         Number(order.paymentAmount) || 0
       );
     } catch (error: any) {
+      lookupFailed = true;
+      await writeFlowAudit(order.tenantId, 'payment_lookup_failed', order.id, {
+        lookup: 'merchant_order_search', ...providerErrorEvidence(error),
+      });
       console.warn(`[PaymentService] Merchant order search failed for order ${order.id}:`, error?.message || error);
     }
 
+    if (strict && lookupFailed && selected?.status !== 'approved') throw new Error('No se pudo verificar el pago anterior. Reintentá más tarde.');
     return selected;
   }
 
   private async applyProviderPayment(order: any, payment: MercadoPagoPaymentLike, source: string) {
     const decision = buildMercadoPagoReconciliation(order, payment);
+    const evidence = {
+      source, providerPaymentId: diagnosticId(String(payment.id || '')),
+      providerStatus: decision.providerStatus, reason: decision.reason,
+      previousPaymentStatus: order.paymentStatus, nextPaymentStatus: decision.paymentStatus,
+      previousOrderStatus: order.status, nextOrderStatus: decision.orderStatus,
+    };
 
     if (decision.reason === 'unmatched') {
+      await writeFlowAudit(order.tenantId, 'payment_ignored', order.id, evidence);
       console.warn(`[PaymentService] Ignored unmatched Mercado Pago payment ${payment.id || 'unknown'} for order ${order.id}.`);
       return { updated: false, decision };
     }
 
     if (!decision.shouldPersist) {
+      await writeFlowAudit(order.tenantId, 'payment_unchanged', order.id, evidence);
       return { updated: false, decision };
     }
 
+    const checkoutSnapshot = {
+      status: order.status, paymentStatus: order.paymentStatus,
+      paymentId: order.paymentId, paymentAmount: order.paymentAmount,
+    };
     order.paymentStatus = decision.paymentStatus;
     order.paymentId = decision.paymentId;
     order.paymentDate = decision.paymentDate;
@@ -147,7 +180,23 @@ export class PaymentService {
       `Pago oficial #${decision.paymentId || 'sin ID'}, estado "${decision.providerStatus}", monto $${decision.paidAmount}. Estado de pago local: "${decision.paymentStatus}".`
     );
 
-    await this.orderRepo.update(order.id, order);
+    try {
+      if (source === 'Reintento de Checkout') {
+        const updated = await this.orderRepo.updateCheckoutPayment(order.id, checkoutSnapshot, {
+          paymentStatus: decision.paymentStatus, paymentId: decision.paymentId,
+          paymentDate: decision.paymentDate, status: decision.orderStatus as IMedicalOrder['status'],
+        }, order.auditLog[order.auditLog.length - 1]);
+        if (!updated) throw new Error('La solicitud cambió durante la verificación. Revisá su estado antes de continuar.');
+      } else {
+        await this.orderRepo.update(order.id, order);
+      }
+    } catch (error) {
+      await writeFlowAudit(order.tenantId, 'payment_persist_failed', order.id, {
+        ...evidence, ...providerErrorEvidence(error),
+      });
+      throw error;
+    }
+    await writeFlowAudit(order.tenantId, 'payment_persisted', order.id, evidence);
     await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
     return { updated: true, decision };
   }
@@ -225,7 +274,7 @@ export class PaymentService {
     }
   }
 
-  async createPreference(tenantId: string, orderData: any) {
+  async createPreference(tenantId: string, orderData: any, currentUser: any) {
     const orderId = orderData.orderId;
     if (!orderId) {
       throw new Error('El ID de solicitud (orderId) es obligatorio para iniciar el cobro con Mercado Pago.');
@@ -236,9 +285,9 @@ export class PaymentService {
       throw new Error(`Solicitud con ID ${orderId} no encontrada.`);
     }
 
-    if (order.paymentStatus === 'approved') {
-      throw new Error('Esta solicitud ya se encuentra abonada y aprobada.');
-    }
+    assertCheckoutAccess(order, currentUser);
+    if (order.paymentStatus === 'approved') return { orderId, alreadyPaid: true, order };
+    assertCheckoutPayable(order);
 
     if (order.paymentStatus === 'exempt' || String(order.paymentAmount) === '0') {
       throw new Error('Esta solicitud cuenta con arancel bonificado / exento y no requiere pago.');
@@ -252,6 +301,22 @@ export class PaymentService {
       throw new Error('Mercado Pago no está configurado para este centro médico. Contacte al administrador.');
     }
 
+    const previousPayment = await this.fetchBestPaymentForOrder(order, accessToken, undefined, true);
+    const latestOrder = await this.orderRepo.findById(orderId);
+    if (!latestOrder) throw new Error('Solicitud no encontrada.');
+    assertCheckoutAccess(latestOrder, currentUser);
+    if (latestOrder.paymentStatus === 'approved') return { orderId, alreadyPaid: true, order: latestOrder };
+    assertCheckoutPayable(latestOrder);
+    if (String(latestOrder.paymentAmount) !== String(order.paymentAmount)) throw new Error('El arancel cambió durante la consulta. Revisá la solicitud antes de continuar.');
+    if (previousPayment) {
+      await this.applyProviderPayment(latestOrder, previousPayment, 'Reintento de Checkout');
+      if (String(latestOrder.paymentStatus) === 'approved') return { orderId, alreadyPaid: true, order: latestOrder };
+      if (previousPayment.status === 'approved') throw new Error('Hay un pago acreditado con un importe distinto. Solicitá su revisión antes de volver a pagar.');
+      if (['pending', 'in_process', 'in_mediation'].includes(String(previousPayment.status))) {
+        throw new Error('El pago anterior está en proceso. Esperá su confirmación antes de reintentar.');
+      }
+      assertCheckoutPayable(latestOrder);
+    }
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 
@@ -302,7 +367,18 @@ export class PaymentService {
       },
     };
 
-    const result = await preference.create({ body: preferenceBody });
+    let result;
+    try {
+      result = await preference.create({ body: preferenceBody });
+      await writeFlowAudit(targetTenantId, 'preference_created', order.id, {
+        preferenceId: diagnosticId(result.id), clientReported: sanitizeFlowContext(orderData.flowContext),
+      });
+    } catch (error) {
+      await writeFlowAudit(targetTenantId, 'preference_failed', order.id, {
+        ...providerErrorEvidence(error), clientReported: sanitizeFlowContext(orderData.flowContext),
+      });
+      throw error;
+    }
 
     const isTestToken = accessToken.startsWith('TEST-');
     const redirectUrl = isTestToken
@@ -329,6 +405,7 @@ export class PaymentService {
     console.log(`[MercadoPago Webhook] Notification received. Topic: ${rawTopic}, ID: ${rawId}`);
 
     if (!rawId) {
+      await writeFlowAudit(undefined, 'webhook_ignored', undefined, { reason: 'missing_payment_id', tenantUnresolved: true });
       return { received: true, note: 'No payment ID provided' };
     }
 
@@ -336,6 +413,10 @@ export class PaymentService {
     if (webhookSecret) {
       const isValid = verifyWebhookSignature(xSignature, xRequestId, String(rawId), webhookSecret);
       if (!isValid) {
+        await writeFlowAudit(undefined, 'webhook_rejected', undefined, {
+          reason: 'invalid_signature', providerPaymentId: diagnosticId(String(rawId)),
+          hasSignature: !!xSignature, hasRequestId: !!xRequestId, tenantUnresolved: true,
+        });
         console.warn(`[MercadoPago Webhook Security] Missing or invalid signature for ID: ${rawId}`);
         return { received: false, error: 'Firma de webhook inválida' };
       }
@@ -349,6 +430,7 @@ export class PaymentService {
     }
 
     if (!accessToken) {
+      await writeFlowAudit(undefined, 'webhook_failed', undefined, { reason: 'missing_access_token', tenantUnresolved: true });
       console.warn('[MercadoPago Webhook] Warning: No MP_ACCESS_TOKEN configured in environment or database.');
       return { received: true, note: 'Webhook received but MP_ACCESS_TOKEN not configured' };
     }
@@ -433,6 +515,9 @@ export class PaymentService {
       }
 
       if (!paymentId && !status) {
+        await writeFlowAudit(undefined, 'webhook_ignored', undefined, {
+          reason: 'payment_not_resolved', providerPaymentId: diagnosticId(String(rawId)), tenantUnresolved: true,
+        });
         console.warn(`[MercadoPago Webhook] No payment details resolved for ID: ${rawId}`);
         return { received: true };
       }
@@ -442,6 +527,10 @@ export class PaymentService {
       if (orderId) {
         const order: any = await this.orderRepo.findById(orderId);
         if (order) {
+          await writeFlowAudit(order.tenantId, 'webhook_resolved', order.id, {
+            providerPaymentId: diagnosticId(String(paymentId || rawId)),
+            signatureChecked: !!webhookSecret,
+          });
           const reconciliation = await this.applyProviderPayment(order, {
             ...(resolvedPayment || {}),
             id: paymentId,
@@ -451,14 +540,23 @@ export class PaymentService {
           }, 'Mercado Pago Webhook');
           console.log(`[MercadoPago Webhook] Order ${orderId} reconciled: updated=${reconciliation.updated}, paymentStatus=${reconciliation.decision.paymentStatus}`);
         } else {
+          await writeFlowAudit(undefined, 'webhook_ignored', undefined, {
+            reason: 'order_not_found', orderReference: diagnosticId(orderId), tenantUnresolved: true,
+          });
           console.warn(`[MercadoPago Webhook] Order ${orderId} was not found for payment ${paymentId}.`);
         }
       } else {
+        await writeFlowAudit(undefined, 'webhook_ignored', undefined, {
+          reason: 'missing_order_reference', providerPaymentId: diagnosticId(String(paymentId || rawId)), tenantUnresolved: true,
+        });
         console.warn(`[MercadoPago Webhook] Payment ${paymentId} did not include an order reference.`);
       }
 
       return { received: true, paymentId, status, orderId };
     } catch (err: any) {
+      await writeFlowAudit(undefined, 'webhook_failed', undefined, {
+        ...providerErrorEvidence(err), providerPaymentId: diagnosticId(String(rawId)), tenantUnresolved: true,
+      });
       console.error(`[MercadoPago Webhook Error]:`, err.message || err);
       return { received: true, error: err.message };
     }
@@ -518,6 +616,7 @@ export class PaymentService {
           await this.applyProviderPayment(order, paymentInfo, 'Retorno de Checkout');
         }
       } catch (apiErr: any) {
+        await writeFlowAudit(order.tenantId, 'return_sync_failed', order.id, providerErrorEvidence(apiErr));
         console.warn('[PaymentService syncReturn API check warning]:', apiErr.message || apiErr);
       }
     }
@@ -525,6 +624,10 @@ export class PaymentService {
     if (!verifiedWithApi) {
       console.warn(`[PaymentService] Checkout return for order ${orderId} could not be verified with Mercado Pago.`);
     }
+
+    await writeFlowAudit(order.tenantId, verifiedWithApi ? 'return_verified' : 'return_unverified', order.id, {
+      paymentStatus: order.paymentStatus, providerPaymentId: diagnosticId(String(paymentId || '')),
+    });
 
     return {
       orderId: order.id,

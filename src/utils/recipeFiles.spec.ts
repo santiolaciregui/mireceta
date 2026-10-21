@@ -33,3 +33,17 @@ test('builds a recipe file from legacy single-file fields', () => {
 test('does not expose electronic prescriptions as downloadable files', () => {
   assert.deepEqual(getOrderRecipeFiles({ recipePdfUrl: 'PAMI', recipePdfName: 'electronic' }), []);
 });
+
+// RCTA external destinations are pages as well as PDF URLs.
+test('builds a trimmed external recipe link preserving signed query and fragment', async () => {
+  const { buildRecipeLink } = await import('./recipeFiles');
+  const url = 'https://prescriptions.example/view?token=abc%2F123#recipe';
+  assert.deepEqual(buildRecipeLink(`  ${url}  `), { url, name: 'Enlace a receta', kind: 'link' });
+});
+
+test('rejects empty, relative, executable and credential-bearing recipe links', async () => {
+  const { buildRecipeLink } = await import('./recipeFiles');
+  for (const value of ['', '/recipe.pdf', 'example.com/rx', 'javascript:alert(1)', 'data:text/html,test', 'https://', 'https://user:pass@example.com', 'https://example.com/a b', `https://example.com/${'a'.repeat(8192)}`]) {
+    assert.throws(() => buildRecipeLink(value), /enlace válido/);
+  }
+});

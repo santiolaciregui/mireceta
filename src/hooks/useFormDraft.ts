@@ -54,7 +54,10 @@ export function getDraftStorageKey(userIdentifier?: string): string {
   return `${STORAGE_KEY_PREFIX}${cleanId}`;
 }
 
-export function useFormDraft(userIdentifier?: string) {
+export function useFormDraft(userIdentifier?: string,
+  onStorageError?: (operation: 'read' | 'write' | 'remove') => void,
+  onDraftRead?: (outcome: 'restored' | 'missing' | 'expired' | 'invalid' | 'read_failed') => void,
+) {
   const storageKey = getDraftStorageKey(userIdentifier);
 
   const saveDraft = useCallback(
@@ -65,42 +68,50 @@ export function useFormDraft(userIdentifier?: string) {
           savedAt: new Date().toISOString(),
         };
         localStorage.setItem(storageKey, JSON.stringify(payload));
+        return true;
       } catch (err) {
+        onStorageError?.('write');
         console.warn('[useFormDraft] Could not save draft to localStorage:', err);
+        return false;
       }
     },
-    [storageKey]
+    [storageKey, onStorageError]
   );
 
   const loadDraft = useCallback((): PatientFormDraft | null => {
     try {
       const raw = localStorage.getItem(storageKey);
-      if (!raw) return null;
+      if (!raw) { onDraftRead?.('missing'); return null; }
 
       const parsed: PatientFormDraft = JSON.parse(raw);
-      if (!parsed || !parsed.savedAt) return null;
+      if (!parsed || !parsed.savedAt) { onDraftRead?.('invalid'); return null; }
 
       const draftAge = Date.now() - new Date(parsed.savedAt).getTime();
       if (draftAge > MAX_DRAFT_AGE_MS) {
         // Expired draft
         localStorage.removeItem(storageKey);
+        onDraftRead?.('expired');
         return null;
       }
 
+      onDraftRead?.('restored');
       return parsed;
     } catch (err) {
+      onStorageError?.('read');
+      onDraftRead?.('read_failed');
       console.warn('[useFormDraft] Error loading draft:', err);
       return null;
     }
-  }, [storageKey]);
+  }, [storageKey, onStorageError, onDraftRead]);
 
   const clearDraft = useCallback(() => {
     try {
       localStorage.removeItem(storageKey);
     } catch (err) {
+      onStorageError?.('remove');
       console.warn('[useFormDraft] Error clearing draft:', err);
     }
-  }, [storageKey]);
+  }, [storageKey, onStorageError]);
 
   return {
     saveDraft,

@@ -1,8 +1,12 @@
-import type { ClientSession } from 'mongoose';
+import type { ClientSession, QueryFilter, UpdateQuery } from 'mongoose';
 import { Order, IMedicalOrder, IAuditLogEntry } from '../models/Order.js';
 import { cleanDni, cleanPhone } from '../utils/formatters.js';
 
 export class OrderRepository {
+  async findAccessSnapshot(id: string) {
+    return Order.findOne({ id }).select('id tenantId patientDni requestedByTitularDni').lean();
+  }
+
   async findById(id: string, session?: ClientSession): Promise<IMedicalOrder | null> {
     return Order.findOne({ id }).session(session || null);
   }
@@ -130,6 +134,18 @@ export class OrderRepository {
   async create(orderData: Partial<IMedicalOrder>): Promise<IMedicalOrder> {
     const newOrder = new Order(orderData);
     return newOrder.save();
+  }
+
+  // US-014: a checkout retry must not overwrite a concurrent clinical/payment update.
+  async updateCheckoutPayment(id: string, expected: {
+    status: IMedicalOrder['status']; paymentStatus: IMedicalOrder['paymentStatus']; paymentId?: string; paymentAmount: string;
+  }, changes: Partial<IMedicalOrder>, entry: IAuditLogEntry): Promise<IMedicalOrder | null> {
+    const filter: QueryFilter<IMedicalOrder> = {
+      id, status: expected.status, paymentStatus: expected.paymentStatus,
+      paymentId: expected.paymentId ?? null, paymentAmount: expected.paymentAmount,
+    };
+    const update: UpdateQuery<IMedicalOrder> = { $set: changes, $push: { auditLog: { $each: [entry] } } };
+    return Order.findOneAndUpdate(filter, update, { new: true, runValidators: true });
   }
 
   async update(id: string, updateData: Partial<IMedicalOrder>, session?: ClientSession): Promise<IMedicalOrder | null> {

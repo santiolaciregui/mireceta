@@ -610,13 +610,15 @@ export default function PatientStatus({
                     {isEmitida && (order.recipePdfUrl || order._hasRecipePdf) && order.recipePdfUrl !== 'PAMI' && order.recipePdfUrl !== 'IOMA' && (
                       <a
                         href={order.recipePdfUrl?.startsWith('data:') ? order.recipePdfUrl : `/api/orders/public/${order.id}/pdf`}
-                        download={order.recipePdfName || `receta-${order.id}.pdf`}
+                        download={order.recipeFiles?.[0]?.kind === 'link' ? undefined : order.recipePdfName || `receta-${order.id}.pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={(e) => e.stopPropagation()}
                         className="bg-[#14BE99] hover:bg-[#0fa685] text-white text-xs font-bold px-3 py-1.5 rounded-xl shadow-xs transition-all flex items-center gap-1.5 cursor-pointer"
-                        title="Descargar receta firmada"
+                        title="Abrir receta"
                       >
                         <Download className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">{recipeFiles.length > 1 ? `${recipeFiles.length} Recetas` : 'Descargar Receta'}</span>
+                        <span className="hidden sm:inline">{order.recipeFiles?.[0]?.kind === 'link' ? 'Abrir receta' : recipeFiles.length > 1 ? `${recipeFiles.length} Recetas` : 'Ver receta'}</span>
                       </a>
                     )}
 
@@ -1010,12 +1012,14 @@ export default function PatientStatus({
                                 : index === 0
                                   ? `/api/orders/public/${order.id}/pdf`
                                   : `/api/orders/public/${order.id}/pdf/${index}`}
-                              download={recipe.name}
+                              download={recipe.kind === 'link' ? undefined : recipe.name}
+                              target={recipe.kind === 'link' ? '_blank' : undefined}
+                              rel="noopener noreferrer"
                               className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold px-4 py-2.5 rounded-xl shadow-md transition-all flex items-center gap-2 cursor-pointer"
                               title={recipe.name}
                             >
                               <Download className="h-4 w-4" />
-                              <span>Receta {index + 1}</span>
+                              <span>{recipe.kind === 'link' ? 'Abrir receta' : `Receta ${index + 1}`}</span>
                             </a>
                           ))}
                         </div>

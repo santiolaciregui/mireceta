@@ -5,7 +5,10 @@
  * Decisions: Keep legacy single-file orders readable while validating new writes strictly.
  */
 
+import { normalizeRecipeLink } from '../../src/utils/recipeFiles.js';
+
 export interface RecipeFileData {
+  kind?: 'link';
   url: string;
   name: string;
 }
@@ -51,6 +54,14 @@ export function validateRecipeFiles(value: unknown): RecipeFileData[] {
     const name = typeof candidate.name === 'string' ? candidate.name.trim() : '';
     if (!url || !name) {
       throw new Error(`El archivo de receta ${index + 1} debe incluir URL y nombre.`);
+    }
+
+    if (candidate.kind !== undefined && candidate.kind !== 'link') {
+      throw new Error('Tipo de receta no válido.');
+    }
+    if (candidate.kind === 'link') {
+      if (value.length !== 1) throw new Error('Ingresá un único enlace de receta, sin archivos adjuntos.');
+      return { url: normalizeRecipeLink(url), name, kind: 'link' as const };
     }
 
     const fileSize = getDataUrlSize(url);

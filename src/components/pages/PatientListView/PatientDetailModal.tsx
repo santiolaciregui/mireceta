@@ -1263,7 +1263,7 @@ export default function PatientDetailModal({
                                     className="px-3.5 py-1.5 bg-[#14BE99] hover:bg-[#109e7f] text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer shadow-3xs"
                                   >
                                     <Download className="h-3.5 w-3.5" />
-                                    <span>Ver Receta PDF</span>
+                                    <span>Ver Receta</span>
                                   </a>
                                 )}
                               </div>
