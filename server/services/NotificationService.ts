@@ -68,6 +68,31 @@ export class NotificationService {
     });
   }
 
+  /** Notify staff only for newly persisted orders; delivery failures must not block checkout. */
+  public async sendNewOrderSecretaryWhatsApp(tenantId: string): Promise<void> {
+    const rawPhone = process.env.SECRETARY_WHATSAPP_NUMBER?.trim();
+    if (!rawPhone) return;
+
+    try {
+      const to = formatWhatsAppPhone(rawPhone, process.env.WHATSAPP_DEFAULT_COUNTRY_CODE || '54');
+      if (!/^\d{8,15}$/.test(to) || rawPhone.replace(/\D/g, '').length < 8) {
+        throw new Error('Invalid secretary WhatsApp number.');
+      }
+      const result = await this.sendNotification({
+        tenantId,
+        channel: 'whatsapp',
+        to,
+        body: 'Ingresó una nueva solicitud de receta. Revisala en el panel de Mi Receta.',
+        templateCode: process.env.SECRETARY_WHATSAPP_TEMPLATE?.trim() || 'nueva_solicitud_receta',
+        templateLanguage: process.env.SECRETARY_WHATSAPP_TEMPLATE_LANGUAGE?.trim() || 'es_AR',
+        strictTemplate: true,
+      });
+      if (!result.success) console.error('[NotificationService] Secretary alert failed:', result.error);
+    } catch (error) {
+      console.error('[NotificationService] Secretary alert failed:', error);
+    }
+  }
+
   public async sendNotification(dto: SendDirectNotificationDto): Promise<SendNotificationResult> {
     const { tenantId, channel, to, variables = {} } = dto;
     let { subject, body, templateCode } = dto;

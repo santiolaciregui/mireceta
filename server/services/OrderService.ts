@@ -452,6 +452,8 @@ export class OrderService {
       throw error;
     }
 
+    await notificationService.sendNewOrderSecretaryWhatsApp(createdOrder.tenantId);
+
     await auditLogService.log({
       tenantId: newOrder.tenantId,
       currentUser,

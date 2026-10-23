@@ -160,6 +160,9 @@ test('does not reuse an existing checkout when confirmed coverage changed', asyn
 
 test('records submitted, persisted and client-confirmed coverage when creating an order', async () => {
   const service: any = new OrderService();
+  const originalSecretaryAlert = notificationService.sendNewOrderSecretaryWhatsApp;
+  const secretaryAlerts: string[] = [];
+  notificationService.sendNewOrderSecretaryWhatsApp = async tenantId => { secretaryAlerts.push(tenantId); };
   const originalLog = auditLogService.log;
   let logged: any;
   let persisted: any;
@@ -189,6 +192,7 @@ test('records submitted, persisted and client-confirmed coverage when creating a
     }, { role: 'paciente', tenantId: 'TEN-123', identifier: '12345678', obraSocial: 'FEMEDICA - PLAN 3000' });
 
     assert.equal(logged.action, 'ORDER_CREATE');
+    assert.deepEqual(secretaryAlerts, ['TEN-123']);
     assert.equal(logged.changes.clientReportedFlow.previousClientRequestId, 'request-1');
     assert.equal(logged.changes.clientReportedFlow.token, undefined);
     assert.equal(persisted.flowContext, undefined);
@@ -199,6 +203,25 @@ test('records submitted, persisted and client-confirmed coverage when creating a
     assert.match(persisted.auditLog.find((entry: any) => entry.action === 'Cobertura confirmada antes del pago').notes, /draft_restored: PAMI/);
   } finally {
     auditLogService.log = originalLog;
+    notificationService.sendNewOrderSecretaryWhatsApp = originalSecretaryAlert;
+  }
+});
+
+test('does not notify the secretary when reusing an existing checkout', async () => {
+  const service: any = new OrderService();
+  const originalAlert = notificationService.sendNewOrderSecretaryWhatsApp;
+  let alerts = 0;
+  const existing = { id: 'REC-existing', tenantId: 'TEN-123', patientDni: '12345678', paymentStatus: 'pending' };
+  service.orderRepo = { findByClientRequestId: async () => existing };
+  notificationService.sendNewOrderSecretaryWhatsApp = async () => { alerts++; };
+  try {
+    const result = await service.createOrder({ clientRequestId: 'request-existing' }, {
+      id: 'USR-1', role: 'paciente', tenantId: 'TEN-123', identifier: '12345678',
+    });
+    assert.equal(result, existing);
+    assert.equal(alerts, 0);
+  } finally {
+    notificationService.sendNewOrderSecretaryWhatsApp = originalAlert;
   }
 });
 
