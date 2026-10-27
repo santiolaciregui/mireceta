@@ -121,6 +121,32 @@ test('requires a receipt before accepting a bank transfer', async () => {
   );
 });
 
+for (const role of ['paciente', 'medico', 'colaborador']) {
+  test(`creates a transfer request directly in medical review for ${role} without approving payment`, async () => {
+    const service: any = new OrderService();
+    const originalLog = auditLogService.log;
+    const originalAlert = notificationService.sendNewOrderSecretaryWhatsApp;
+    service.orderRepo = { create: async (data: any) => data };
+    service.tenantRepo = { findById: async () => ({ pricePerPrescription: 10000 }) };
+    service.refreshPendingOrderLimitAlert = async () => {};
+    auditLogService.log = async () => {};
+    notificationService.sendNewOrderSecretaryWhatsApp = async () => {};
+    try {
+      const result = await service.createOrder({
+        paymentMethod: 'transfer', paymentStatus: 'approved', status: 'Pendiente',
+        paymentReceiptUrl: 'https://files.example.test/receipt.png', paymentAmount: '10000',
+      }, { role, tenantId: 'TEN-123', identifier: '12345678' });
+      assert.equal(result.status, 'En revisión');
+      assert.equal(result.paymentMethod, 'transfer');
+      assert.equal(result.paymentStatus, 'pending');
+      assert.equal(result.paymentReceiptUrl, 'https://files.example.test/receipt.png');
+    } finally {
+      auditLogService.log = originalLog;
+      notificationService.sendNewOrderSecretaryWhatsApp = originalAlert;
+    }
+  });
+}
+
 test('does not reuse an existing checkout when confirmed coverage changed', async () => {
   const service: any = new OrderService();
   const originalLog = auditLogService.log;
@@ -263,7 +289,7 @@ test('replaces a rejected Mercado Pago attempt with the submitted transfer recei
   assert.equal(persistedOrder.paymentMethod, 'transfer');
   assert.equal(persistedOrder.paymentReceiptUrl, 'https://files.example.test/receipt.png');
   assert.equal(persistedOrder.paymentStatus, 'pending');
-  assert.equal(persistedOrder.status, 'Pendiente');
+  assert.equal(persistedOrder.status, 'En revisión');
   assert.match(persistedOrder.paymentId, /^TRANS-\d{6}$/);
   assert.equal(persistedOrder.auditLog.at(-1).action, 'Método de pago actualizado');
 });

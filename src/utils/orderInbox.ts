@@ -10,11 +10,12 @@ import type { MedicalOrder } from '../types';
 
 export type OrderInbox = 'pending' | 'review' | 'completed' | 'closed';
 
-/** Terminal clinical states take priority; active requests require a settled payment. */
-export function getOrderInbox(order: Pick<MedicalOrder, 'status' | 'paymentStatus'>): OrderInbox {
+/** Transfers may enter medical review while their payment is awaiting validation. */
+export function getOrderInbox(order: Pick<MedicalOrder, 'status' | 'paymentStatus' | 'paymentMethod'>): OrderInbox {
   if (order.status === 'Emitida' || order.status === 'Enviada') return 'completed';
   if (order.status === 'Rechazada' || order.status === 'Cancelada') return 'closed';
   if (order.paymentStatus === 'approved' || order.paymentStatus === 'exempt') return 'review';
+  if (order.paymentMethod === 'transfer' && order.paymentStatus === 'pending' && order.status !== 'Pendiente') return 'review';
   return 'pending';
 }
 
@@ -48,7 +49,7 @@ export function formatOrderCreatedAt(value: ActivityTimestamp): string {
 }
 
 /** US-011: patient views combine payment and review into one in-process category. */
-export function getPatientOrderCategory(order: Pick<MedicalOrder, 'status' | 'paymentStatus'>): 'pending' | 'completed' | 'closed' {
+export function getPatientOrderCategory(order: Pick<MedicalOrder, 'status' | 'paymentStatus' | 'paymentMethod'>): 'pending' | 'completed' | 'closed' {
   const inbox = getOrderInbox(order);
   return inbox === 'review' ? 'pending' : inbox;
 }

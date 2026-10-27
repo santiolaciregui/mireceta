@@ -227,7 +227,7 @@ export class OrderService {
           existingOrder.paymentId = `TRANS-${Math.floor(100000 + Math.random() * 900000)}`;
           existingOrder.paymentStatus = 'pending';
           existingOrder.paymentStage = 'awaiting_validation';
-          existingOrder.status = 'Pendiente';
+          existingOrder.status = 'En revisión';
           existingOrder.paymentDate = new Date().toISOString();
           addAuditLogEntry(
             existingOrder,
@@ -239,7 +239,7 @@ export class OrderService {
           const updatedOrder = await this.orderRepo.updateCheckoutPayment(existingOrder.id, checkoutSnapshot, {
             paymentMethod: 'transfer', paymentReceiptUrl: existingOrder.paymentReceiptUrl,
             paymentReceiptName: existingOrder.paymentReceiptName, paymentId: existingOrder.paymentId,
-            paymentStatus: 'pending', paymentStage: 'awaiting_validation', status: 'Pendiente',
+            paymentStatus: 'pending', paymentStage: 'awaiting_validation', status: 'En revisión',
             paymentDate: existingOrder.paymentDate,
           }, existingOrder.auditLog[existingOrder.auditLog.length - 1]);
           if (!updatedOrder) throw new Error('La solicitud cambió durante el reintento. Revisá su estado antes de continuar.');
@@ -360,7 +360,7 @@ export class OrderService {
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
       paymentAmount: pricing.amountFormatted,
-      status: orderData.paymentMethod === 'transfer' ? 'Pendiente' : (orderData.status || 'Pendiente'),
+      status: orderData.paymentMethod === 'transfer' ? 'En revisión' : (orderData.status || 'Pendiente'),
       createdAt: new Date().toISOString(),
       auditLog: [],
       notificationsSent: [],

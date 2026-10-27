@@ -41,3 +41,19 @@ for (const status of clinicalStatuses) {
     });
   }
 }
+
+for (const status of clinicalStatuses) {
+  for (const paymentStatus of paymentStatuses) {
+    test(`routes transfer ${status} / ${paymentStatus ?? 'missing payment'} while preserving clinical and payment states`, () => {
+      const order = Object.freeze({ status, paymentStatus, paymentMethod: 'transfer' as const });
+      const expected = ['Emitida', 'Enviada'].includes(status) ? 'completed'
+        : ['Rechazada', 'Cancelada'].includes(status) ? 'closed'
+        : paymentStatus === 'approved' || paymentStatus === 'exempt'
+          || (paymentStatus === 'pending' && status !== 'Pendiente') ? 'review' : 'pending';
+      assert.equal(getOrderInbox(order), expected);
+      assert.equal(order.status, status);
+      assert.equal(order.paymentStatus, paymentStatus);
+      assert.equal(getPatientOrderCategory(order), expected === 'review' ? 'pending' : expected);
+    });
+  }
+}

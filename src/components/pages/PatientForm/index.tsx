@@ -1650,7 +1650,7 @@ export default function PatientForm({
             ? `EFECTIVO-${Math.floor(100000 + Math.random() * 900000)}`
             : (paymentMethod === 'mp' ? mpTransactionId : `TRANS-${Math.floor(100000 + Math.random() * 900000)}`)),
       paymentStatus: isExempt ? 'exempt' : (paymentMethod === 'transfer' ? 'pending' : 'approved'),
-      status: paymentMethod === 'transfer' ? 'Pendiente' : 'En revisión',
+      status: 'En revisión',
       createdByOperatorName: isThirdPartyUser ? (currentUser?.name ? `${currentUser.name} ${currentUser.lastName || ''}`.trim() : 'Personal Médico') : undefined,
 
       // Chronics
