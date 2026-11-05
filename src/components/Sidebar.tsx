@@ -141,6 +141,7 @@ export default function Sidebar({
           items: [
             { id: 'usuarios', label: 'Gestión de Usuarios', icon: Users },
             { id: 'auditoria', label: 'Historial de Cambios', icon: ShieldAlert },
+            ...(role === 'admin' ? [{ id: 'analitica', label: 'Analítica web', icon: TrendingUp }] : []),
           ]
         }
       ];

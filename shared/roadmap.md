@@ -130,3 +130,16 @@
 **DevOps Required: YES**
 
 No requiere migracion ni infraestructura local adicional. Produccion debe configurar `MP_WEBHOOK_SECRET` y `CRON_SECRET`; Vercel registra el cron diario desde `vercel.json` al desplegar.
+
+## Incremento propuesto — 29/10/2026
+
+### M11: Analítica propia de visitas, formulario y pagos
+
+**Estado:** especificado, pendiente de implementación. No modifica el estado de los hitos anteriores.
+**Historia:** US-015.
+**Como** responsable de MiReceta, **quiero** medir visitas estimadas, tiempo activo, avance del formulario y pagos **para** identificar interrupciones y descargar un Excel por períodos.
+**Complejidad:** L.
+**Spec:** [US-015](specs/US-015.md).
+**Orden:** persistencia/contratos → colector → navegador/formulario → hechos de negocio/conciliación → métricas → consulta/Excel → validación.
+**DevOps Required: YES**, acotado a configuración, índices exclusivamente nuevos y documentación de activación. Sin infraestructura externa nueva.
+**Límites:** no backfill, modificación de datos históricos, purgas ni despliegue de producción como parte de la preparación del spec. Meta permanece independiente.

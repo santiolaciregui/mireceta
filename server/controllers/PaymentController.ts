@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { PaymentService } from '../services/PaymentService.js';
+import {runAnalyticsMaintenance} from '../services/analyticsStore.js';
 import { getTenantId, getCurrentUser } from '../utils/httpHelpers.js';
 import { writeFlowAudit, providerErrorEvidence } from '../services/orderFlowAudit.js';
 
@@ -19,12 +20,14 @@ export class PaymentController {
   webhook = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const result = await paymentService.processWebhook(req.query, req.body, req.headers);
-      res.status(200).json(result);
+      if (result.retryable) res.setHeader('Retry-After', '60');
+      res.status(result.httpStatus || 200).json(result);
     } catch (err: any) {
       await writeFlowAudit(undefined, 'webhook_failed', undefined, {
         ...providerErrorEvidence(err), reason: 'controller_error', tenantUnresolved: true,
       });
-      res.status(200).json({ received: true });
+      res.setHeader('Retry-After', '60');
+      res.status(503).json({ received: false, retryable: true, error: 'Payment processing is temporarily unavailable.' });
     }
   };
 
@@ -64,6 +67,7 @@ export class PaymentController {
       const rawLimit = Number(req.query.limit || 100);
       const limit = Number.isFinite(rawLimit) ? rawLimit : 100;
       const result = await paymentService.reconcilePendingPayments(limit);
+      await runAnalyticsMaintenance();
       res.json(result);
     } catch (err: any) {
       next(err);

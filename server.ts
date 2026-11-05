@@ -11,6 +11,7 @@ import { Tenant } from './server/models/Tenant.js';
 import { User } from './server/models/User.js';
 import { Order } from './server/models/Order.js';
 import { httpCompression } from './server/middlewares/compression.middleware.js';
+import {mountAnalyticsBodyLimit} from './server/middlewares/analytics.middleware.js';
 
 // Global Process Error Monitors
 process.on('uncaughtException', (error) => {
@@ -79,6 +80,7 @@ async function runTenantMigration() {
 async function startServer() {
   const app = express();
   app.use(httpCompression);
+  mountAnalyticsBodyLimit(app);
   app.use(express.json({ limit: '50mb' }));
   app.use(responseErrorMonitor);
 

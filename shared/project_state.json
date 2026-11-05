@@ -1,13 +1,14 @@
 {
-  "project": "Mi Receta - order and payment diagnostic traces",
+  "project": "MiReceta - first-party web analytics",
   "status": "dev_ready",
   "current_phase": "local_validation_complete",
-  "current_milestone": "M10",
-  "current_story": "US-014",
+  "current_milestone": "M11",
+  "current_story": "US-015",
   "pending_stories": [
     "US-012",
     "US-013",
-    "US-014"
+    "US-014",
+    "US-015"
   ],
   "completed_stories": [
     "US-001",
@@ -24,6 +25,37 @@
   ],
   "open_questions": [],
   "last_agent": "developer",
-  "qa_verdict": "not_independently_reviewed",
-  "qa_note": "US-014: 393/393 mocked unit tests pass; TypeScript, production build and diff checks pass. Overall tested-file line coverage 82.87%; checkoutAccess 100%; checkoutAttempt 95.45%. No independent review, manual browser QA, deployment, production data changes or real payments."
+  "qa_verdict": "local_checks_passed_not_independently_reviewed",
+  "qa_note": "US-015: 489/489 mocked unit tests; 85.20% Node overall line coverage; TypeScript/build/diff pass. AnalyticsView desktop/mobile synthetic-fixture QA passed. Capture defaults off. No live analytics DB validation, provider sandbox, production activation/deployment, commits or push. Previous US-014 state retained in previous_story_state.",
+  "previous_story_state": {
+    "project": "Mi Receta - order and payment diagnostic traces",
+    "status": "dev_ready",
+    "current_phase": "local_validation_complete",
+    "current_milestone": "M10",
+    "current_story": "US-014",
+    "pending_stories": [
+      "US-012",
+      "US-013",
+      "US-014"
+    ],
+    "completed_stories": [
+      "US-001",
+      "US-002",
+      "US-003",
+      "US-004",
+      "US-005",
+      "US-006",
+      "US-007",
+      "US-008",
+      "US-009",
+      "US-010",
+      "US-011"
+    ],
+    "open_questions": [],
+    "last_agent": "developer",
+    "qa_verdict": "not_independently_reviewed",
+    "qa_note": "US-014: 393/393 mocked unit tests pass; TypeScript, production build and diff checks pass. Overall tested-file line coverage 82.87%; checkoutAccess 100%; checkoutAttempt 95.45%. No independent review, manual browser QA, deployment, production data changes or real payments."
+  },
+  "active_spec": "shared/specs/US-015.md",
+  "qa_report": "docs/web-analytics-validation.md"
 }

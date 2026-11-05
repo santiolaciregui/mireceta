@@ -1,4 +1,5 @@
 import { cancellableOrderStatuses } from '../../src/utils/orderCancellation.js';
+import {observeAnalyticsOrder} from './analyticsStore.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
 import { PatientRepository } from '../repositories/PatientRepository.js';
 import { TenantRepository } from '../repositories/TenantRepository.js';
@@ -145,7 +146,7 @@ export class OrderService {
 
   async createOrder(orderData: any, currentUser: any) {
     const flowContext = sanitizeFlowContext(orderData.flowContext);
-    const { flowContext: _discardedTrace, ...businessData } = orderData;
+    const { flowContext: _discardedTrace, analyticsContext, ...businessData } = orderData;
     orderData = businessData;
     if (currentUser?.role === 'admin') {
       throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
@@ -243,6 +244,7 @@ export class OrderService {
             paymentDate: existingOrder.paymentDate,
           }, existingOrder.auditLog[existingOrder.auditLog.length - 1]);
           if (!updatedOrder) throw new Error('La solicitud cambió durante el reintento. Revisá su estado antes de continuar.');
+          await observeAnalyticsOrder(updatedOrder, {}, analyticsContext, currentUser);
           await this.refreshPendingOrderLimitAlert(existingOrder.tenantId);
           return updatedOrder;
         }
@@ -250,6 +252,7 @@ export class OrderService {
         if (Object.keys(flowContext).length) await writeFlowAudit(tenantIdToUse, 'create_reused', existingOrder.id, {
           clientReported: flowContext, reason: 'same_client_request_id',
         }, currentUser);
+        await observeAnalyticsOrder(existingOrder, {}, analyticsContext, currentUser);
         return existingOrder;
       }
     }
@@ -452,6 +455,8 @@ export class OrderService {
       throw error;
     }
 
+    await observeAnalyticsOrder(createdOrder, {origin:currentUser?.role === 'paciente' ? 'patient' : 'staff',
+      ...(createdOrder.paymentStatus === 'approved' ? {approvedAt:new Date(),source:'created_approved'} : {})}, analyticsContext, currentUser);
     await notificationService.sendNewOrderSecretaryWhatsApp(createdOrder.tenantId);
 
     await auditLogService.log({
@@ -483,6 +488,7 @@ export class OrderService {
   async updateOrder(id: string, updateData: any, currentUser: any) {
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
+    const analyticsPreviousPaymentStatus = order.paymentStatus;
 
     // 1. Patient permissions and updates
     if (currentUser.role === 'paciente') {
@@ -516,6 +522,7 @@ export class OrderService {
         });
 
         const updatedOrder = await this.orderRepo.update(id, order);
+        await observeAnalyticsOrder(updatedOrder || order);
         await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
         return updatedOrder;
       } else if (updateData.messages) {
@@ -902,6 +909,8 @@ export class OrderService {
     }
 
     const updatedOrder = await this.orderRepo.update(id, order);
+    await observeAnalyticsOrder(updatedOrder || order, order.paymentStatus === 'approved' && analyticsPreviousPaymentStatus !== 'approved'
+      ? {approvedAt:new Date(),source:'administrative'} : {});
     await this.refreshPendingOrderLimitAlert(order.tenantId || 'TEN-0001');
     return updatedOrder;
   }
@@ -958,6 +967,7 @@ export class OrderService {
       notes: 'Solicitud cancelada conservando sus datos e historial. Los pagos se gestionan por separado.',
     });
     if (!updatedOrder) throw new Error('La solicitud cambió de estado. Actualizá la bandeja antes de continuar.');
+    await observeAnalyticsOrder(updatedOrder);
 
     await auditLogService.log({
       tenantId: order.tenantId || currentUser?.tenantId || 'TEN-0001',

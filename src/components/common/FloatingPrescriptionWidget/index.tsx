@@ -6,6 +6,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MedicalOrder } from '../../../types';
 import { copyToClipboard } from '../../../utils/clipboard';
+import { paymentOperationLabel } from '../../../utils/paymentDisplay';
 import PrescriptionImageViewer from './PrescriptionImageViewer';
 import { 
   Pill, 
@@ -196,7 +197,7 @@ export default function FloatingPrescriptionWidget({
     lines.push(`  - Método: ${getPaymentMethodLabel(order)}`);
     lines.push(`  - Monto: $${order.paymentAmount || '0'}`);
     lines.push(`  - Estado Pago: ${getPaymentStatusLabel(order.paymentStatus)}`);
-    if (order.paymentId) lines.push(`  - ID Transacción: ${order.paymentId}`);
+    if (order.paymentId) lines.push(`  - ID Transacción: ${paymentOperationLabel(order.paymentId)}`);
     if (order.paymentDate) lines.push(`  - Fecha Pago: ${formatDateTime(order.paymentDate)}`);
 
     lines.push('');
@@ -681,7 +682,8 @@ export default function FloatingPrescriptionWidget({
                   const isExempt = order.paymentStatus === 'exempt' || getPaymentMethodLabel(order) === 'Bonificado / Exento';
                   const displayId = isExempt
                     ? (order.paymentId && !order.paymentId.startsWith('MP-') ? order.paymentId : 'Exento de arancel')
-                    : order.paymentId;
+                    : (order.paymentMethod === 'mp' || /^MP-/i.test(order.paymentId || '')
+                        ? paymentOperationLabel(order.paymentId) : order.paymentId);
                   if (!displayId) return null;
                   return (
                     <WidgetRow label="ID de Transacción / Pago" value={displayId} fieldId="pay-id" />

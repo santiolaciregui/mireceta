@@ -4,6 +4,7 @@
  */
 
 import { canCancelOrder } from '../../../utils/orderCancellation';
+import { paymentOperationLabel } from '../../../utils/paymentDisplay';
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import PatientForm from '../PatientForm';
@@ -2257,7 +2258,8 @@ export default function DoctorDashboard({
                                 const isExempt = selectedOrder.paymentStatus === 'exempt' || getOrderPaymentMethod(selectedOrder) === 'bonificado';
                                 const displayId = isExempt
                                   ? (selectedOrder.paymentId && !selectedOrder.paymentId.startsWith('MP-') ? selectedOrder.paymentId : 'Exento de arancel')
-                                  : selectedOrder.paymentId;
+                                  : (getOrderPaymentMethod(selectedOrder) === 'mp' || /^MP-/i.test(selectedOrder.paymentId || '')
+                                      ? paymentOperationLabel(selectedOrder.paymentId) : selectedOrder.paymentId);
                                 if (!displayId) return null;
                                 return (
                                   <CopyableFieldRow label="ID de Transacción / Pago" value={displayId} fieldId="paymentId" />

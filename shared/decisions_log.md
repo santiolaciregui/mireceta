@@ -48,3 +48,8 @@
 
 | 2026-10-21 | Developer | US-014 exact checkout continuation | Independent small browser journal + Web Locks; exact authenticated request lookup; no similarity reuse; explicit review/new-request actions; checkout ownership/state/provider checks; conditional atomic payment updates preserve concurrent medical changes. Existing historical requests untouched. |
 | 2026-10-21 | Local validation | US-014: 393/393 tests; TypeScript/build/diff pass | Tested-file line coverage 82.87%; no independent reviewer, browser QA or deployment. See docs/checkout-continuation.md. |
+
+| 2026-10-29 | PM | US-015: especificación de analítica propia y Excel por períodos | Visitas estimadas, tiempo activo, intento exacto, hechos de negocio, cohortes y cobertura. Solo documentación; sin implementación, cambios de BD ni despliegue. Se conserva project_state.json de US-014. |
+
+| 2026-10-29 | Developer / DevOps | US-015 T-001 through T-007 implemented locally | First-party capture, separate MongoDB collections, scoped tokens/quotas, passive business facts, resumable reconciliation, cohort metrics, admin UI and ExcelJS export. Flags default off; no production operations. |
+| 2026-10-29 | Local validation | US-015: 489/489 tests, 85.20% Node overall line coverage, TypeScript/build/diff checks passed | AnalyticsView inspected with synthetic responses on desktop/mobile; real API persistence/provider/cron and independent QA not performed. See docs/web-analytics-validation.md. |

@@ -54,7 +54,7 @@ test('does not record payment persistence as successful when the business write 
   const logs: any[] = [];
   auditLogService.log = async entry => { logs.push(entry); };
   const service: any = new PaymentService();
-  service.orderRepo = { update: async () => { throw new Error('database failure'); } };
+  service.orderRepo = { updateCheckoutPayment: async () => { throw new Error('database failure'); } };
   const order = { id: 'REC-1', tenantId: 'TEN-1', paymentStatus: 'pending', status: 'Pendiente', paymentAmount: '10000', auditLog: [] };
   await assert.rejects(() => service.applyProviderPayment(order, {
     id: '123', external_reference: 'REC-1', status: 'approved', transaction_amount: 10000,
@@ -135,7 +135,7 @@ test('synchronizes a pending order with a temporary payment ID by external refer
   };
   service.orderRepo = {
     findById: async () => order,
-    update: async (_id: string, updatedOrder: any) => updatedOrder,
+    updateCheckoutPayment: async (_id: string, _expected: any, updatedOrder: any) => updatedOrder,
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.refreshPendingOrderLimitAlert = async () => undefined;
@@ -171,7 +171,7 @@ test('keeps an emitted recipe emitted when synchronizing its late payment', asyn
   });
   service.orderRepo = {
     findById: async () => order,
-    update: async (_id: string, updatedOrder: any) => updatedOrder,
+    updateCheckoutPayment: async (_id: string, _expected: any, updatedOrder: any) => updatedOrder,
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.refreshPendingOrderLimitAlert = async () => undefined;
@@ -206,7 +206,7 @@ test('keeps the clinical request open when Mercado Pago rejects a payment', asyn
   });
   service.orderRepo = {
     findById: async () => order,
-    update: async (_id: string, updatedOrder: any) => updatedOrder,
+    updateCheckoutPayment: async (_id: string, _expected: any, updatedOrder: any) => updatedOrder,
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.refreshPendingOrderLimitAlert = async () => undefined;
@@ -263,9 +263,9 @@ test('processes merchant_order webhook and prioritizes approved payment when ear
   let updatedOrder: any = null;
   service.orderRepo = {
     findById: async (id: string) => (id === 'REC-1431' ? order : null),
-    update: async (_id: string, updateData: any) => {
-      updatedOrder = updateData;
-      return updateData;
+    updateCheckoutPayment: async (_id: string, _expected: any, updateData: any, entry: any) => {
+      updatedOrder = { ...order, ...updateData, auditLog: [...order.auditLog, entry] };
+      return updatedOrder;
     },
   };
   service.tenantRepo = {
@@ -320,7 +320,7 @@ test('synchronizes a pending order prioritizing the approved payment over earlie
   };
   service.orderRepo = {
     findById: async () => order,
-    update: async (_id: string, updated: any) => updated,
+    updateCheckoutPayment: async (_id: string, _expected: any, updated: any) => updated,
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.refreshPendingOrderLimitAlert = async () => undefined;
@@ -357,7 +357,7 @@ test('keeps the order pending when checkout return parameters cannot be verified
   (MerchantOrder.prototype as any).search = async () => ({ elements: [] });
   service.orderRepo = {
     findById: async () => order,
-    update: async () => assert.fail('An unverified return must not update the order'),
+    updateCheckoutPayment: async () => assert.fail('An unverified return must not update the order'),
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
 
@@ -406,7 +406,7 @@ test('does not downgrade an approved order when a late rejected webhook arrives'
   });
   service.orderRepo = {
     findById: async () => order,
-    update: async () => {
+    updateCheckoutPayment: async () => {
       updateCalls += 1;
       return order;
     },
@@ -436,7 +436,7 @@ test('requires a valid signature when MP_WEBHOOK_SECRET is configured', async ()
 
   try {
     const result = await service.processWebhook({ type: 'payment', id: '123' }, {}, {});
-    assert.deepEqual(result, { received: false, error: 'Firma de webhook inválida' });
+    assert.deepEqual(result, { received: false, httpStatus: 401, error: 'Firma de webhook inválida' });
   } finally {
     if (originalWebhookSecret === undefined) delete process.env.MP_WEBHOOK_SECRET;
     else process.env.MP_WEBHOOK_SECRET = originalWebhookSecret;
@@ -445,6 +445,7 @@ test('requires a valid signature when MP_WEBHOOK_SECRET is configured', async ()
 
 test('reconciles a bounded batch of pending Mercado Pago orders', async () => {
   const service: any = new PaymentService();
+  service.recoveryProgress = { read: async () => undefined, save: async () => {} };
   const order: any = {
     id: 'REC-CRON',
     tenantId: 'TEN-123',
@@ -462,7 +463,7 @@ test('reconciles a bounded batch of pending Mercado Pago orders', async () => {
       assert.equal(limit, 25);
       return [order];
     },
-    update: async (_id: string, updatedOrder: any) => updatedOrder,
+    updateCheckoutPayment: async (_id: string, _expected: any, updatedOrder: any) => updatedOrder,
   };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.fetchBestPaymentForOrder = async () => ({

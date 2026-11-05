@@ -4,6 +4,7 @@
  */
 
 import { applyPatientRecordToOrder } from '../utils/patientRecordUpdate';
+import {analyticsContext} from '../services/webAnalytics';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MedicalOrder, OrderStatus, PaymentInformationUpdate, PatientInformationUpdate, SystemUser, UserRole } from '../types';
 
@@ -342,10 +343,11 @@ export function useMedicalOrders() {
 
   // Create a new medical request order
   const createOrder = async (orderData: any): Promise<string> => {
+    const context = analyticsContext();
     const res = await fetch('/api/orders', {
       method: 'POST',
       headers: fetchHeaders(),
-      body: JSON.stringify(orderData),
+      body: JSON.stringify({...orderData, ...(context ? {analyticsContext: context} : {})}),
     });
     
     if (!res.ok) {

@@ -26,6 +26,8 @@ import PatientListView from './components/pages/PatientListView';
 import LoadingSpinner from './components/common/LoadingSpinner';
 import ResetPassword from './components/pages/ResetPassword';
 import { getOrderInbox } from './utils/orderInbox';
+import {startWebAnalytics} from './services/webAnalytics';
+import AnalyticsView from './components/pages/AnalyticsView';
 
 import { 
   PlusCircle, 
@@ -157,6 +159,13 @@ export default function App() {
   const [loginMode, setLoginMode] = useState<'login'|'register'>('login');
   const [currentTenant, setCurrentTenant] = useState<any>(null);
   const [resolvingTenant, setResolvingTenant] = useState(true);
+  useEffect(() => {
+    if (!currentTenant?.id || resolvingTenant || authLoading) return;
+    const page = currentUser && currentUser.role !== 'paciente' ? 'staff'
+      : currentUser ? activeSubcategory === 'solicitar' ? 'patient_form' : 'patient_status'
+      : showLogin ? 'auth' : 'landing';
+    try { startWebAnalytics(currentTenant.id, page); } catch { /* Analytics must not affect the application. */ }
+  }, [currentTenant?.id, resolvingTenant, authLoading, currentUser?.id, currentUser?.role, activeSubcategory, showLogin]);
   const [openPatientFaq, setOpenPatientFaq] = useState<number | null>(null);
 
   // Detect password reset token in URL (?token=...)
@@ -482,7 +491,9 @@ export default function App() {
             {/* 2. MEDICO / ADMIN / COLABORADOR / SUPERADMIN SUBVIEWS */}
             {(activeRole === 'medico' || activeRole === 'colaborador' || activeRole === 'admin' || activeRole === 'superadmin') && (
               <>
-                {activeSubcategory === 'chat' ? (
+                {activeSubcategory === 'analitica' && activeRole === 'admin' ? (
+                  <div className="flex-1 overflow-y-auto p-4 sm:p-8"><AnalyticsView /></div>
+                ) : activeSubcategory === 'chat' ? (
                   <div className="flex flex-col flex-1 h-full overflow-hidden bg-white">
                     <div className="flex-1 flex overflow-hidden">
                       <PatientDoctorChat

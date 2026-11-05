@@ -10,7 +10,6 @@ coverage/
 fix_ts.cjs
 README.md
 rewrite.cjs
-package-lock.json
 /scripts
 /.agents
 /shared

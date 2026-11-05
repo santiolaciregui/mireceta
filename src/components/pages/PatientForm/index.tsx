@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import {analyticsAttempt, analyticsEvent} from '../../../services/webAnalytics';
 import { MedicationItem, DependentPatient, MedicationPhoto, MedicalOrder } from '../../../types';
 import { OBRA_SOCIAL_OPTIONS } from '../../../constants/orderStatus';
 import { copyToClipboard } from '../../../utils/clipboard';
@@ -148,6 +149,23 @@ export default function PatientForm({
   const [submitting, setSubmitting] = useState(false);
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [clientRequestId, setClientRequestId] = useState(createClientRequestId);
+  const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
+  useEffect(() => { setAnalyticsInitialized(true); }, []);
+  useEffect(() => {
+    if (isThirdPartyUser || !analyticsInitialized) return;
+    analyticsAttempt(clientRequestId);
+    analyticsEvent('form_step_viewed', {step});
+    if (step === 'payment') analyticsEvent('payment_step_viewed', {step});
+  }, [clientRequestId, step, isThirdPartyUser, analyticsInitialized]);
+  useEffect(() => {
+    if (isThirdPartyUser) return;
+    const interact = (e: Event) => {
+      if (e.isTrusted && formRef.current?.contains(e.target as Node)) analyticsEvent('form_started');
+    };
+    document.addEventListener('input', interact);
+    document.addEventListener('pointerdown', interact);
+    return () => { document.removeEventListener('input', interact); document.removeEventListener('pointerdown', interact); };
+  }, [isThirdPartyUser]);
   const checkoutScope = `${currentUser?.tenantId || currentTenant?.id || 'TEN-0001'}:${userKey}`;
   const [linkedCheckout, setLinkedCheckout] = useState<CheckoutAttempt | null>(null);
   const [showLinkedCheckout, setShowLinkedCheckout] = useState(false);
@@ -1098,6 +1116,7 @@ export default function PatientForm({
   // 3. Reset form and discard draft
   const handleResetForm = async () => {
     try { await clearCheckoutAttempt(checkoutScope); } catch (err: any) { setError(err.message); return; }
+    if (!isThirdPartyUser) analyticsEvent('form_reset');
     setLinkedCheckout(null);
     setReviewedCheckout(null);
     setShowLinkedCheckout(false);
@@ -1253,7 +1272,7 @@ export default function PatientForm({
   const goToMedication = () => {
     if (validateStep1()) {
       setStep('medication');
-    }
+    } else if (!isThirdPartyUser) analyticsEvent('form_validation_failed', {step:'identification', validationCategory:'required'});
   };
 
   const addManualMedication = () => {
@@ -1362,7 +1381,8 @@ export default function PatientForm({
   };
 
   const goToPayment = () => {
-    if (!validateStep2()) return;
+    if (!validateStep2()) { if (!isThirdPartyUser) analyticsEvent('form_validation_failed', {step:'medication',validationCategory:'required'}); return; }
+    if (!isThirdPartyUser) analyticsEvent('clinical_data_completed', {step:'medication'});
     isOficio ? setStep('confirmation') : setStep('payment');
   };
 
@@ -1377,6 +1397,7 @@ export default function PatientForm({
 
   const processMercadoPagoPayment = async () => {
     if (isSubmittingRef.current) return;
+    if (!isThirdPartyUser) analyticsEvent('submit_attempted', {step:'payment'});
     isSubmittingRef.current = true;
     setError(null);
 
@@ -1521,6 +1542,7 @@ export default function PatientForm({
         isSubmittingRef.current = false;
       } else if (data.initPoint) {
         flow.event('checkout_redirect', flow.snapshot(clientRequestId, orderId));
+        if (!isThirdPartyUser) analyticsEvent('checkout_redirected', {step:'payment'});
         // 3. Redirect to official Mercado Pago Checkout
         window.location.href = data.initPoint;
       } else {
@@ -1547,6 +1569,7 @@ export default function PatientForm({
     setError(null);
 
     const isExempt = paymentAmount === '0';
+    if (!isThirdPartyUser && paymentMethod !== 'mp') analyticsEvent('submit_attempted', {step:'payment'});
 
     // Final payment checks
     if (!isExempt && paymentMethod !== 'cash_desk') {
@@ -1556,6 +1579,7 @@ export default function PatientForm({
         return;
       }
       if (paymentMethod === 'transfer' && !paymentReceipt) {
+        if (!isThirdPartyUser) analyticsEvent('form_validation_failed', {step:'payment', validationCategory:'upload'});
         setFieldErrors(prev => ({ ...prev, paymentReceipt: 'Debe adjuntar el comprobante de transferencia bancaria para continuar.' }));
         setError('Debe adjuntar el comprobante de transferencia bancaria para poder enviar la solicitud.');
         setTimeout(() => {
@@ -1738,6 +1762,7 @@ export default function PatientForm({
         setReturnedOrder(data.order);
         setStep('confirmation');
       } else if (data.initPoint) {
+        if (!isThirdPartyUser) analyticsEvent('checkout_redirected', {step:'payment'});
         window.location.href = data.initPoint;
       } else throw new Error('No se pudo generar el enlace de pago.');
     } catch (err: any) {

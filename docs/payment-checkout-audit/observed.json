@@ -1,0 +1,91 @@
+{
+  "probes": 14,
+  "observations": [
+    {
+      "id": "ACK-throw",
+      "result": "defect_reproduced",
+      "httpStatus": 200
+    },
+    {
+      "id": "ACK-returned_failure",
+      "result": "defect_reproduced",
+      "httpStatus": 200
+    },
+    {
+      "id": "ACK-invalid_signature",
+      "result": "defect_reproduced",
+      "httpStatus": 200
+    },
+    {
+      "id": "RETURN-WRITE-FAILURE",
+      "result": "defect_reproduced",
+      "verifiedWithApi": true,
+      "verificationPending": false,
+      "returnedStatus": "approved",
+      "persisted": false
+    },
+    {
+      "id": "NULL-WRITE",
+      "result": "defect_reproduced",
+      "updated": true,
+      "persistedAudit": true,
+      "persisted": false
+    },
+    {
+      "id": "REFUND-THEN-APPROVAL",
+      "result": "defect_reproduced",
+      "paymentStatus": "approved",
+      "shouldPersist": true
+    },
+    {
+      "id": "OTHER-ATTEMPT-REFUND",
+      "result": "defect_reproduced",
+      "paymentStatus": "refunded",
+      "orderStatus": "Rechazada",
+      "paymentId": "11"
+    },
+    {
+      "id": "CURRENCY-ENVIRONMENT",
+      "result": "defect_reproduced",
+      "paymentStatus": "approved",
+      "checkedCurrencyOrEnvironment": false
+    },
+    {
+      "id": "UNREFERENCED-REDUCER",
+      "result": "defect_reproduced",
+      "paymentStatus": "approved",
+      "scope": "defense_in_depth"
+    },
+    {
+      "id": "CLINICAL-RACE",
+      "result": "defect_reproduced",
+      "statusBeforeWrite": "Emitida",
+      "statusAfterWrite": "En revisión"
+    },
+    {
+      "id": "CONCURRENT-PREFERENCES",
+      "result": "defect_reproduced",
+      "preferencesCreatedForOneOrder": 2
+    },
+    {
+      "id": "TWO-PAYMENT-PURCHASE",
+      "result": "defect_reproduced",
+      "totalPaid": 10000,
+      "selectedAmount": 6000,
+      "paymentStatus": "rejected",
+      "requiresProviderFeatureVerification": true
+    },
+    {
+      "id": "TENANT-CREDENTIAL",
+      "result": "defect_reproduced",
+      "selectedFirstTenant": true,
+      "received": true,
+      "scope": "multiple_collectors"
+    },
+    {
+      "id": "RETURN-FULL-ORDER",
+      "result": "defect_reproduced",
+      "fullOrderReturnedWithoutActor": true
+    }
+  ]
+}

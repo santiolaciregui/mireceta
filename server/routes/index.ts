@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import analyticsRoutes from './analytics.routes.js';
 import authRoutes from './auth.routes.js';
 import userRoutes from './user.routes.js';
 import tenantRoutes from './tenant.routes.js';
@@ -10,6 +11,7 @@ import chatRoutes from './chat.routes.js';
 import patientRoutes from './patient.routes.js';
 
 const router = Router();
+router.use('/analytics', analyticsRoutes);
 
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);

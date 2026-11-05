@@ -113,13 +113,14 @@ export class OrderRepository {
     return Order.countDocuments();
   }
 
-  async findPendingMercadoPago(limit = 100): Promise<IMedicalOrder[]> {
+  async findPendingMercadoPago(limit = 100, afterId?: string): Promise<IMedicalOrder[]> {
     const safeLimit = Math.min(Math.max(Math.trunc(limit) || 1, 1), 500);
     return Order.find({
       paymentMethod: 'mp',
       paymentStatus: { $in: ['pending', 'rejected'] },
+      ...(afterId ? { id: { $gt: afterId } } : {}),
     })
-      .sort({ createdAt: 1 })
+      .sort({ id: 1 })
       .limit(safeLimit) as unknown as IMedicalOrder[];
   }
 
@@ -139,10 +140,13 @@ export class OrderRepository {
   // US-014: a checkout retry must not overwrite a concurrent clinical/payment update.
   async updateCheckoutPayment(id: string, expected: {
     status: IMedicalOrder['status']; paymentStatus: IMedicalOrder['paymentStatus']; paymentId?: string; paymentAmount: string;
+    tenantId?: string; paymentMethod?: IMedicalOrder['paymentMethod'];
   }, changes: Partial<IMedicalOrder>, entry: IAuditLogEntry): Promise<IMedicalOrder | null> {
     const filter: QueryFilter<IMedicalOrder> = {
       id, status: expected.status, paymentStatus: expected.paymentStatus,
       paymentId: expected.paymentId ?? null, paymentAmount: expected.paymentAmount,
+      ...(expected.tenantId ? { tenantId: expected.tenantId } : {}),
+      ...(expected.paymentMethod ? { paymentMethod: expected.paymentMethod } : {}),
     };
     const update: UpdateQuery<IMedicalOrder> = { $set: changes, $push: { auditLog: { $each: [entry] } } };
     return Order.findOneAndUpdate(filter, update, { new: true, runValidators: true });

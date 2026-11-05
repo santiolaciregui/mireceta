@@ -1,9 +1,11 @@
 import express from 'express';
+import {mountAnalyticsBodyLimit} from '../server/middlewares/analytics.middleware.js';
 import { connectDB, getDBState } from '../server/config/db.js';
 import routes from '../server/routes/index.js';
 import { errorHandler } from '../server/middlewares/error.middleware.js';
 
 const app = express();
+mountAnalyticsBodyLimit(app);
 app.use(express.json({ limit: '50mb' }));
 
 // CORS & Preflight handler for Vercel
