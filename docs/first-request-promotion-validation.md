@@ -54,3 +54,7 @@ Promotion remains disabled by default. No production activation, deployment, com
 Eleven further tests verify the inclusive Argentina start, exclusive next-midnight end, a single-day interval, invalid/reversed periods, calendar date round-trips (including leap days), scheduling a future start, and preserving the existing start for older clients. The date helper has 100% line/branch coverage.
 
 The actual administrative component was inspected with a synthetic local fixture: both desde/hasta controls rendered, the start was changed using the native date input and saved, and the confirmation retained the new value. No real settings were modified. Updated screenshot: `outputs/promotion-views/04-configuracion-administracion.png`.
+
+## Medication fee layout correction
+
+The new-request promotion breakdown now renders inside the existing “Arancel de la medicación” card. The separate promotion card above the payment step is removed. Two regression tests verify the embedded zero/positive-balance breakdown without a standalone card/heading. Full suite: 582/582 pass; TypeScript/build/diff checks pass. A new browser screenshot could not be captured because the browser runtime failed to initialize; no fresh visual verification is claimed for this adjustment. Saved-request actions retain their existing presentation.

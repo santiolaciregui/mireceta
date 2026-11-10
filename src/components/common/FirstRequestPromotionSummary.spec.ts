@@ -64,3 +64,15 @@ test('quote failures show a retry instead of an old discount or confirmation act
   assert.match(html, /role="alert"/); assert.match(html, /Volver a consultar/);
   assert.doesNotMatch(html, /Total|Enviar solicitud gratis|Confirmar bonificación/);
 });
+test('embedded fee breakdown has no standalone promotion card or duplicate heading', () => {
+  const html = render({ embedded: true });
+  assert.doesNotMatch(html, /<section|bg-slate-50|rounded-2xl|<p class="font-bold">/);
+  assert.match(html, /Arancel original/); assert.match(html, /Bonificación primera solicitud/);
+  assert.match(html, /Total<\/span><span>\$0/);
+});
+test('embedded fee breakdown retains the amount due for additional medication', () => {
+  const html = render({ embedded: true, quote: { ...quote, originalAmount: 20000, finalAmount: 10000 } });
+  assert.match(html, /Arancel original<\/span><span>\$20\.000/);
+  assert.match(html, /−\$10\.000/); assert.match(html, /Total<\/span><span>\$10\.000/);
+  assert.doesNotMatch(html, /<section|bg-slate-50/);
+});

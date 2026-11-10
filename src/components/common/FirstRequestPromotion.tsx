@@ -4,8 +4,8 @@ import FirstRequestPromotionSummary from './FirstRequestPromotionSummary';
 import type { PromotionQuote } from '../../types/firstRequestPromotion';
 import { apiFetchJson } from '../../services/api';
 import { quotePromotion, applyPromotion } from '../../services/firstRequestPromotion';
-export default function FirstRequestPromotion({ data, onQuote, onApplied, refresh = 0, showSummary = true }: {
-  data: any; onQuote?: (quote: PromotionQuote | null) => void; onApplied?: (order: any) => void; refresh?: number; showSummary?: boolean;
+export default function FirstRequestPromotion({ data, onQuote, onApplied, refresh = 0, showSummary = true, embedded = false }: {
+  data: any; onQuote?: (quote: PromotionQuote | null) => void; onApplied?: (order: any) => void; refresh?: number; showSummary?: boolean; embedded?: boolean;
 }) {
   const [quote, setQuote] = useState<PromotionQuote | null>(null);
   const [error, setError] = useState('');
@@ -35,7 +35,7 @@ export default function FirstRequestPromotion({ data, onQuote, onApplied, refres
     finally { setLoading(false); }
   };
   return <FirstRequestPromotionSummary
-    showSummary={showSummary} quote={quote} loading={loading} error={error} actionError={actionError}
+    showSummary={showSummary} embedded={embedded} quote={quote} loading={loading} error={error} actionError={actionError}
     existingOrder={Boolean(data.orderId)} canApply={Boolean(onApplied)} onRetry={() => setRetry(n => n + 1)}
     onApply={apply} onContinue={async () => {
       setLoading(true);

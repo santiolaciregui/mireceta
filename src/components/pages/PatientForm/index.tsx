@@ -2769,9 +2769,6 @@ export default function PatientForm({
       <form ref={formRef} onSubmit={handleSubmitAll} className="p-4 sm:p-6" noValidate>
         
         {/* STEP 0: INFO */}
-        {!isThirdPartyUser && <FirstRequestPromotion
-          data={{ medicationMethod: medicationItems.length ? 'manual' : 'foto', medicationItems, medicationPhotos }}
-          onQuote={setPromotion} refresh={promotionRefresh} showSummary={step === 'payment'} />}
         {step === 'info' && (
           <div className="space-y-6 animate-fadeIn">
 
@@ -3742,6 +3739,10 @@ export default function PatientForm({
                   </div>
                 </div>
               </div>
+
+              {!isThirdPartyUser && <FirstRequestPromotion
+                data={{ medicationMethod: medicationItems.length ? 'manual' : 'foto', medicationItems, medicationPhotos }}
+                onQuote={setPromotion} refresh={promotionRefresh} embedded />}
 
               {/* Cost rules explained */}
               <div className="text-xs text-slate-300 leading-relaxed border-t border-slate-800/80 pt-3 space-y-2">
