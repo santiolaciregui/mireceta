@@ -1,3 +1,4 @@
+import firstRequestPromotionRoutes from './firstRequestPromotion.routes.js';
 import { Router } from 'express';
 import analyticsRoutes from './analytics.routes.js';
 import authRoutes from './auth.routes.js';
@@ -18,6 +19,7 @@ router.use('/users', userRoutes);
 router.use('/patients', patientRoutes);
 router.use('/tenants', tenantRoutes);
 router.use('/orders', orderRoutes);
+router.use('/first-request-promotion', firstRequestPromotionRoutes);
 router.use('/payments', paymentRoutes);
 router.use('/notifications', notificationRoutes);
 router.use('/chat', chatRoutes);

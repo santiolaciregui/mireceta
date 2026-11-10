@@ -1,3 +1,4 @@
+import { FirstRequestPromotionService, benefitAudit } from './FirstRequestPromotionService.js';
 import { cancellableOrderStatuses } from '../../src/utils/orderCancellation.js';
 import {observeAnalyticsOrder} from './analyticsStore.js';
 import { OrderRepository } from '../repositories/OrderRepository.js';
@@ -148,6 +149,11 @@ export class OrderService {
     const flowContext = sanitizeFlowContext(orderData.flowContext);
     const { flowContext: _discardedTrace, analyticsContext, ...businessData } = orderData;
     orderData = businessData;
+    // Promotion metadata is server-owned, including on non-promotional requests.
+    const promotionConfirmation = orderData.promotionConfirmation;
+    delete orderData.firstRequestBenefit;
+    delete orderData.checkoutEverStarted;
+    delete orderData.promotionConfirmation;
     if (currentUser?.role === 'admin') {
       throw new Error('Los administradores no tienen permiso para crear solicitudes, solo pueden visualizarlas.');
     }
@@ -156,7 +162,7 @@ export class OrderService {
 
     const newId = generateOrderId();
 
-    const tenantIdToUse = currentUser?.tenantId || orderData.tenantId || 'TEN-0001';
+    const tenantIdToUse = currentUser?.role === 'paciente' ? (currentUser.tenantId || 'TEN-0001') : (currentUser?.tenantId || orderData.tenantId || 'TEN-0001');
     const clientRequestId = typeof orderData.clientRequestId === 'string'
       ? orderData.clientRequestId.trim()
       : '';
@@ -189,6 +195,10 @@ export class OrderService {
             },
           });
           throw new Error('La cobertura cambió después de crear esta solicitud. No se inició otro pago; solicitá la corrección de la solicitud existente.');
+        }
+
+        if (promotionConfirmation) {
+          return new FirstRequestPromotionService().apply(currentUser, existingOrder.id, promotionConfirmation);
         }
 
         for (const field of ['obraSocial', 'obraSocialNumber', 'medicationText', 'diagnostic', 'comments']) {
@@ -257,6 +267,12 @@ export class OrderService {
       }
     }
 
+    if (currentUser?.role === 'paciente') {
+      if (orderData.paymentMethod && !['mp', 'transfer'].includes(orderData.paymentMethod)) throw new Error('Método de pago no disponible para autogestión.');
+      orderData.paymentStatus = 'pending';
+      orderData.status = 'Pendiente';
+    }
+
     if (orderData.paymentMethod === 'transfer' && !orderData.paymentReceiptUrl) {
       throw new Error('Debe adjuntar el comprobante de transferencia bancaria para continuar.');
     }
@@ -281,6 +297,14 @@ export class OrderService {
       basePricePerPrescription,
     });
 
+    let benefit;
+    if (promotionConfirmation) {
+      benefit = await new FirstRequestPromotionService().prepare(currentUser, { patientDni: orderData.patientDni || currentUser?.identifier, medicationMethod: orderData.medicationMethod, medicationItems: orderData.medicationItems, medicationPhotos: orderData.medicationPhotos, medicationPhotoUrl: orderData.medicationPhotoUrl }, promotionConfirmation);
+      pricing.amount = benefit.finalAmount;
+      pricing.amountFormatted = String(benefit.finalAmount);
+      pricing.isExempt = benefit.finalAmount === 0;
+      pricing.breakdown = 'Primera receta bonificada (hasta 2 medicamentos)';
+    }
     const isExempt = pricing.isExempt;
     const calculatedPaymentStatus = isExempt
       ? 'exempt'
@@ -348,11 +372,14 @@ export class OrderService {
       ...orderData,
       id: newId,
       clientRequestId: clientRequestId || undefined,
+      firstRequestBenefit: benefit,
+      checkoutEverStarted: false,
+      paymentStage: orderData.paymentMethod === 'transfer' && !isExempt ? 'awaiting_validation' : 'not_started',
       patientName: orderData.patientName || currentUser?.name || 'Paciente',
       patientLastName: orderData.patientLastName || currentUser?.lastName || '',
       patientDni: orderData.patientDni || currentUser?.identifier || '',
       patientEmail: orderData.patientEmail || currentUser?.email || '',
-      tenantId: currentUser?.tenantId || orderData.tenantId || 'TEN-0001',
+      tenantId: tenantIdToUse,
       isForDependent,
       dependentRelationship,
       requestedByTitularName,
@@ -363,7 +390,7 @@ export class OrderService {
       paymentId: finalPaymentId,
       paymentStatus: calculatedPaymentStatus,
       paymentAmount: pricing.amountFormatted,
-      status: orderData.paymentMethod === 'transfer' ? 'En revisión' : (orderData.status || 'Pendiente'),
+      status: benefit && isExempt ? 'En revisión' : orderData.paymentMethod === 'transfer' ? 'En revisión' : (orderData.status || 'Pendiente'),
       createdAt: new Date().toISOString(),
       auditLog: [],
       notificationsSent: [],
@@ -437,6 +464,8 @@ export class OrderService {
       );
     }
 
+    if (benefit) newOrder.auditLog.push(benefitAudit(benefit));
+
     let createdOrder;
     try {
       createdOrder = await this.orderRepo.create(newOrder);
@@ -446,12 +475,14 @@ export class OrderService {
         if (existingOrder) {
           assertCheckoutAccess(existingOrder, currentUser);
           if (cleanDni(existingOrder.patientDni || '') !== cleanDni(orderData.patientDni || currentUser?.identifier || '')) throw new Error('Este intento pertenece a otro paciente.');
+          if (promotionConfirmation) return new FirstRequestPromotionService().apply(currentUser, existingOrder.id, promotionConfirmation);
           if (Object.keys(flowContext).length) await writeFlowAudit(tenantIdToUse, 'create_reused', existingOrder.id, {
             clientReported: flowContext, reason: 'unique_index_race',
           }, currentUser);
           return existingOrder;
         }
       }
+      if (error?.code === 11000 && benefit) throw Object.assign(new Error('Ya utilizaste la bonificación en otra solicitud. Revisá el resumen.'), { status: 409 });
       throw error;
     }
 
@@ -467,6 +498,7 @@ export class OrderService {
       entityId: newId,
       details: `Creada receta ${newId} para paciente ${newOrder.patientName} ${newOrder.patientLastName}`,
       changes: {
+        firstRequestBenefit: createdOrder.firstRequestBenefit,
         submittedCoverage: coverageSnapshot(orderData),
         persistedCoverage: coverageSnapshot(createdOrder),
         clientConfirmation: coverageConfirmation,
@@ -486,6 +518,8 @@ export class OrderService {
   }
 
   async updateOrder(id: string, updateData: any, currentUser: any) {
+    delete updateData.firstRequestBenefit;
+    delete updateData.checkoutEverStarted;
     const order: any = await this.orderRepo.findById(id);
     if (!order) throw new Error('Pedido no encontrado.');
     const analyticsPreviousPaymentStatus = order.paymentStatus;

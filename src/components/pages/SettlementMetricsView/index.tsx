@@ -637,7 +637,10 @@ if (onUpdateUser) {
       'Medico Evaluador',
       'Estado Receta',
       'Estado de Pago',
-      'Monto Abonado'
+      'Monto Abonado',
+      'Arancel Original',
+      'Bonificación Primera Solicitud',
+      'Fecha Uso Beneficio'
     ];
 
     const rows = filteredOrders.map((o) => [
@@ -651,7 +654,10 @@ if (onUpdateUser) {
       `"${getOrderDoctorName(o)}"`,
       o.status,
       o.paymentStatus || 'pending',
-      o.paymentAmount || '0'
+      o.paymentAmount || '0',
+      o.firstRequestBenefit?.originalAmount ?? o.paymentAmount ?? '0',
+      o.firstRequestBenefit?.discount ?? '0',
+      o.firstRequestBenefit?.appliedAt ?? ''
     ]);
 
     const csvContent = '\uFEFF' + [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\n');

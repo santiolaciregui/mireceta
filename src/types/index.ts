@@ -59,6 +59,7 @@ export interface NotificationEntry {
 }
 
 export interface MedicalOrder {
+  firstRequestBenefit?: import('./firstRequestPromotion').FirstRequestBenefit;
   /** List responses omit binary attachment bodies until the order is opened. */
   _isSummary?: boolean;
   _hasRecipePdf?: boolean;

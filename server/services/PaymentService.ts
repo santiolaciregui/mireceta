@@ -323,6 +323,8 @@ export class PaymentService {
       }
       assertCheckoutPayable(latestOrder);
     }
+    const claimed = await this.orderRepo.markCheckoutStarted(latestOrder);
+    if (!claimed) throw new Error('La solicitud cambió antes de iniciar el pago. Revisá su estado.');
     const client = new MercadoPagoConfig({ accessToken });
     const preference = new Preference(client);
 

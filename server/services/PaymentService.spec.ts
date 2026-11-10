@@ -35,7 +35,7 @@ test('records checkout preference failures with sanitized flow context', async (
   const originalCreate = Preference.prototype.create;
   Preference.prototype.create = async () => { throw Object.assign(new Error('sensitive provider error'), { status: 503 }); };
   const service: any = new PaymentService();
-  service.orderRepo = { findById: async () => ({ id: 'REC-1', tenantId: 'TEN-1', patientDni: '12345678', status: 'Pendiente', paymentMethod: 'mp', paymentStatus: 'pending', paymentAmount: '10000' }) };
+  service.orderRepo = { findById: async () => ({ id: 'REC-1', tenantId: 'TEN-1', patientDni: '12345678', status: 'Pendiente', paymentMethod: 'mp', paymentStatus: 'pending', paymentAmount: '10000' }), markCheckoutStarted: async (o: any) => o };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-private' }) };
   service.fetchBestPaymentForOrder = async () => null;
   try {

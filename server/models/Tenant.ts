@@ -7,6 +7,9 @@ export interface ITenant extends Document {
   mpAccessToken?: string;
   mpPublicKey?: string;
   mpEnabled?: boolean;
+  firstRequestPromotionEnabled?: boolean;
+  firstRequestPromotionStartsAt?: string;
+  firstRequestPromotionEndsAt?: string;
   pricePerPrescription?: number;
   collaboratorRate?: number;
   doctorRate?: number;
@@ -22,6 +25,9 @@ const tenantSchema = new Schema<ITenant>({
   mpAccessToken: { type: String },
   mpPublicKey: { type: String },
   mpEnabled: { type: Boolean, default: false },
+  firstRequestPromotionEnabled: { type: Boolean, default: false },
+  firstRequestPromotionStartsAt: { type: String, default: "2026-11-10T03:00:00.000Z" },
+  firstRequestPromotionEndsAt: { type: String, default: "2026-12-16T03:00:00.000Z" },
   pricePerPrescription: { type: Number, default: 10000 },
   collaboratorRate: { type: Number, default: 500 },
   doctorRate: { type: Number, default: 1500 },

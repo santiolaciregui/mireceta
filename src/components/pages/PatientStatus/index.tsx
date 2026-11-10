@@ -1,3 +1,4 @@
+import FirstRequestPromotion from '../../common/FirstRequestPromotion';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -779,6 +780,8 @@ export default function PatientStatus({
                         )}
                       </div>
 
+                      {currentUser?.role === 'paciente' && (order.status === 'Pendiente' || order.firstRequestBenefit) && <FirstRequestPromotion
+                        data={{ orderId: order.id }} onApplied={async () => { await onLoadOrderDetails?.(order.id); showToast('Bonificación confirmada. El beneficio quedó utilizado.'); }} />}
                       {/* Right: Coverage, Doctor & Payment Info */}
                       <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
                         <h5 className="text-[10px] font-mono font-bold uppercase tracking-widest text-slate-400 flex items-center gap-1.5">

@@ -137,6 +137,14 @@ export class OrderRepository {
     return newOrder.save();
   }
 
+  // US-016: claim checkout before contacting the provider; promotion uses the same snapshot.
+  async markCheckoutStarted(order: IMedicalOrder): Promise<IMedicalOrder | null> {
+    return Order.findOneAndUpdate({ id: order.id, tenantId: order.tenantId,
+      status: order.status, paymentStatus: order.paymentStatus, paymentMethod: order.paymentMethod,
+      paymentAmount: order.paymentAmount,
+    }, { $set: { checkoutEverStarted: true, paymentStage: 'checkout_started' } }, { new: true });
+  }
+
   // US-014: a checkout retry must not overwrite a concurrent clinical/payment update.
   async updateCheckoutPayment(id: string, expected: {
     status: IMedicalOrder['status']; paymentStatus: IMedicalOrder['paymentStatus']; paymentId?: string; paymentAmount: string;

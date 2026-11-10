@@ -352,7 +352,7 @@ export function useMedicalOrders() {
     
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || 'Error al guardar la solicitud en el servidor. Verifique su conexión o autenticación.');
+      throw Object.assign(new Error(errData.error || 'Error al guardar la solicitud en el servidor. Verifique su conexión o autenticación.'), { status: res.status });
     }
     
     const newOrder = await res.json();

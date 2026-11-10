@@ -1,3 +1,4 @@
+import type { FirstRequestBenefit } from '../../src/types/firstRequestPromotion.js';
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IMedicationItem {
@@ -34,6 +35,8 @@ export interface IRecipeFile {
 
 export interface IMedicalOrder extends Document {
   id: string;
+  firstRequestBenefit?: FirstRequestBenefit;
+  checkoutEverStarted?: boolean;
   clientRequestId?: string;
   tenantId?: string;
   patientName: string;
@@ -170,6 +173,11 @@ const chatMessageSchema = new Schema({
 
 const medicalOrderSchema = new Schema<IMedicalOrder>({
   id: { type: String, required: true, unique: true },
+  firstRequestBenefit: {
+    type: new Schema({ beneficiaryId: { type: String, required: true }, appliedAt: { type: String, required: true }, originalAmount: { type: Number, required: true }, discount: { type: Number, required: true }, finalAmount: { type: Number, required: true } }, { _id: false }),
+    default: undefined
+  },
+  checkoutEverStarted: { type: Boolean },
   clientRequestId: { type: String, unique: true, sparse: true },
   tenantId: { type: String },
   patientName: { type: String, required: true },
@@ -255,6 +263,11 @@ const medicalOrderSchema = new Schema<IMedicalOrder>({
   notificationsSent: [notificationEntrySchema],
   messages: [chatMessageSchema],
   lastPatientWhatsAppInteractionAt: { type: String }
+});
+
+medicalOrderSchema.index({ tenantId: 1, 'firstRequestBenefit.beneficiaryId': 1 }, {
+  name: 'one_first_request_benefit', unique: true,
+  partialFilterExpression: { 'firstRequestBenefit.beneficiaryId': { $type: 'string' } }
 });
 
 // Composite indexes for fast tenant listing and patient order lookups

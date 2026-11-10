@@ -1,3 +1,5 @@
+import FirstRequestPromotion from '../../common/FirstRequestPromotion';
+import type { PromotionQuote } from '../../../types/firstRequestPromotion';
 /**
  * @license
  * SPDX-License-Identifier: Apache-2.0
@@ -815,6 +817,8 @@ export default function PatientForm({
   const [paymentMethod, setPaymentMethod] = useState<'mp' | 'transfer' | 'cash_desk'>(
     isThirdPartyUser ? 'cash_desk' : 'mp'
   );
+  const [promotion, setPromotion] = useState<PromotionQuote | null>(null);
+  const [promotionRefresh, setPromotionRefresh] = useState(0);
   const [paymentAmount, setPaymentAmount] = useState(
     currentTenant?.pricePerPrescription ? currentTenant.pricePerPrescription.toString() : '10000'
   );
@@ -963,8 +967,8 @@ export default function PatientForm({
 
     const basePrice = currentTenant?.pricePerPrescription || 10000;
     const calculated = Math.max(1, Math.ceil(count / 2)) * basePrice;
-    setPaymentAmount(calculated.toString());
-  }, [medicationItems.length, medicationPhotos.length, currentTenant]);
+    setPaymentAmount(String(!isThirdPartyUser && promotion?.eligible ? promotion.finalAmount : calculated));
+  }, [medicationItems.length, medicationPhotos.length, currentTenant, promotion, isThirdPartyUser]);
 
   // --- Age calculation helper ---
   const calculateAge = (dobString: string): number => {
@@ -1468,6 +1472,7 @@ export default function PatientForm({
           medicationPhotoUrl: medicationPhotos.length > 0 ? medicationPhotos[0].url : null,
           medicationPhotoName: medicationPhotos.length > 0 ? medicationPhotos[0].name : null,
           paymentMethod: 'mp',
+          promotionConfirmation: !isThirdPartyUser && promotion?.eligible ? promotion : undefined,
           clientRequestId,
           flowContext: trace,
           paymentAmount,
@@ -1512,6 +1517,13 @@ export default function PatientForm({
         throw new Error(`La cobertura guardada en la solicitud ${orderId} difiere de los datos mostrados. No se inició el pago; solicitá la corrección de esa solicitud.`);
       }
       setReturnedOrder(savedOrder);
+      if (savedOrder.paymentStatus === 'exempt') {
+        clearDraft();
+        setStep('confirmation');
+        setMpProcessing(false);
+        isSubmittingRef.current = false;
+        return;
+      }
 
       // 2. Create Mercado Pago checkout preference using generated orderId
       failureStage = 'create_preference';
@@ -1555,6 +1567,19 @@ export default function PatientForm({
         setLinkedCheckout(attempt);
         setShowLinkedCheckout(!!attempt);
       } catch { setCheckoutStorageError(true); }
+      if (promotion?.eligible && failureStage === 'create_order' && err.status === 409) {
+        try {
+          const attempt = readCheckoutAttempt(checkoutScope);
+          if (attempt && !(await findCheckoutOrder(attempt.clientRequestId))) {
+            // An exact lookup proves there is no saved order to replace. Keep the draft and identity.
+            await clearCheckoutAttempt(checkoutScope);
+            setClientRequestId(attempt.clientRequestId);
+            setLinkedCheckout(null);
+            setShowLinkedCheckout(false);
+          }
+        } catch { /* Keep the durable attempt if the lookup or storage is unavailable. */ }
+      }
+      setPromotionRefresh(n => n + 1);
       setError(err.message || 'Error al comunicarse con Mercado Pago');
       setMpProcessing(false);
       isSubmittingRef.current = false;
@@ -1568,6 +1593,8 @@ export default function PatientForm({
 
     setError(null);
 
+    if (!isThirdPartyUser && !promotion) { setError('Esperá a que se consulte el arancel y la bonificación.'); return; }
+    if (!isThirdPartyUser && promotion?.eligible && promotion.finalAmount === 0) { await processMercadoPagoPayment(); return; }
     const isExempt = paymentAmount === '0';
     if (!isThirdPartyUser && paymentMethod !== 'mp') analyticsEvent('submit_attempted', {step:'payment'});
 
@@ -1654,6 +1681,7 @@ export default function PatientForm({
       clientRequestId,
       flowContext: flow.snapshot(clientRequestId, createdOrderId),
       paymentRetryOrderId: createdOrderId || undefined,
+      promotionConfirmation: !isThirdPartyUser && promotion?.eligible ? promotion : undefined,
       
       // Payment details
       paymentReceiptUrl: isExempt
@@ -1722,6 +1750,7 @@ export default function PatientForm({
       setCreatedOrderId(orderId);
       setStep('confirmation');
     } catch (err: any) {
+      setPromotionRefresh(n => n + 1);
       setError(err.message || 'Error al procesar la solicitud en el servidor.');
     } finally {
       setSubmitting(false);
@@ -1785,6 +1814,7 @@ export default function PatientForm({
           <p>Estado: {reviewedCheckout.status}</p>
           <p>Pago: {reviewedCheckout.paymentStatus === 'approved' ? 'Aprobado' : reviewedCheckout.paymentStatus === 'pending' ? 'Pendiente' : reviewedCheckout.paymentStatus === 'rejected' ? 'Rechazado' : reviewedCheckout.paymentStatus === 'refunded' ? 'Reintegrado' : 'Bonificado'} · ${reviewedCheckout.paymentAmount}</p>
         </div>}
+        {!isThirdPartyUser && reviewedCheckout && <FirstRequestPromotion data={{ orderId: reviewedCheckout.id }} onApplied={order => { setReviewedCheckout(order); setReturnedOrder(order); if (order.paymentStatus === 'exempt') setStep('confirmation'); }} />}
         <p className="text-sm text-slate-500">Crear una nueva solicitud inicia un formulario vacío y conserva la anterior en tu historial.</p>
         {error && <p role="alert" className="text-red-600">{error}</p>}
         {checkoutStorageError && <p role="alert" className="text-red-600">No se pudo leer el intento guardado. Habilitá el almacenamiento o iniciá una nueva solicitud de forma explícita.</p>}
@@ -2739,6 +2769,9 @@ export default function PatientForm({
       <form ref={formRef} onSubmit={handleSubmitAll} className="p-4 sm:p-6" noValidate>
         
         {/* STEP 0: INFO */}
+        {!isThirdPartyUser && <FirstRequestPromotion
+          data={{ medicationMethod: medicationItems.length ? 'manual' : 'foto', medicationItems, medicationPhotos }}
+          onQuote={setPromotion} refresh={promotionRefresh} showSummary={step === 'payment'} />}
         {step === 'info' && (
           <div className="space-y-6 animate-fadeIn">
 
@@ -3715,7 +3748,7 @@ export default function PatientForm({
                 <div className="flex items-center justify-between">
                   <p className="font-semibold text-slate-200">Medicamentos Solicitados ({medicationItems.length > 0 ? medicationItems.length : medicationPhotos.length}):</p>
                   <span className="text-[11px] text-blue-300 font-mono font-bold">
-                    {isExemptOrder ? 'Arancel 100% Bonificado / Exento' : '$10.000 c/ 2 medicamentos'}
+                    {isExemptOrder ? 'Arancel 100% Bonificado / Exento' : `$${currentTenant?.pricePerPrescription || 10000} c/ 2 medicamentos`}
                   </span>
                 </div>
                 
@@ -3757,7 +3790,7 @@ export default function PatientForm({
                 <div className="bg-emerald-50/90 border border-emerald-200 p-5 rounded-3xl space-y-2.5 animate-fadeIn shadow-xs">
                   <div className="flex items-center gap-2.5 text-emerald-950 font-extrabold text-sm">
                     <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-                    <span>Cobertura con Arancel 100% Bonificado ({selectedObraSocial || 'Exento'})</span>
+                    <span>{promotion?.eligible ? 'Primera receta bonificada' : 'Arancel 100% bonificado'}</span>
                   </div>
                   <p className="text-xs text-emerald-900 leading-relaxed font-medium">
                     Tu solicitud no requiere abonar arancel administrativo ($0 ARS). No es necesario ingresar tarjetas ni adjuntar comprobantes de pago. Al confirmar, tu pedido será recibido inmediatamente por los médicos auditores.
@@ -3989,7 +4022,7 @@ export default function PatientForm({
               <button
                 id="btn-submit-order"
                 type="submit"
-                disabled={submitting || (!isExemptOrder && mpProcessing)}
+                disabled={submitting || mpProcessing || (!isThirdPartyUser && !promotion)}
                 className={`w-2/3 text-white font-extrabold py-4 px-4 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer text-sm ${
                   isExemptOrder
                     ? 'bg-emerald-600 hover:bg-emerald-700'
@@ -4011,12 +4044,12 @@ export default function PatientForm({
                     {isExemptOrder ? (
                       <>
                         <Check className="h-5 w-5" />
-                        <span>Confirmar y Enviar Solicitud</span>
+                        <span>{promotion?.eligible ? 'Enviar solicitud gratis' : 'Confirmar y Enviar Solicitud'}</span>
                       </>
                     ) : paymentMethod === 'mp' && !mpPaymentApproved ? (
                       <>
                         <MercadoPagoIcon className="h-5 w-5" />
-                        <span>Pagar con Mercado Pago y Enviar</span>
+                        <span>{promotion?.eligible ? 'Confirmar y continuar al pago' : 'Pagar con Mercado Pago y Enviar'}</span>
                       </>
                     ) : paymentMethod === 'transfer' ? (
                       <>

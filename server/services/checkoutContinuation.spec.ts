@@ -103,7 +103,7 @@ test('provider-processing payment blocks checkout and preserves the request', as
 
 test('provider lookup errors fail closed before creating another preference', async () => {
   const service: any = new PaymentService();
-  service.orderRepo = { findById: async () => order() };
+  service.orderRepo = { findById: async () => order(), markCheckoutStarted: async (o: any) => o };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   const search = Payment.prototype.search; const merchantSearch = MerchantOrder.prototype.search;
   Payment.prototype.search = async () => { throw new Error('provider unavailable'); };
@@ -155,7 +155,7 @@ test('retry reconciliation atomically guards state and appends only its own audi
 
 test('eligible retry creates a preference tied to the existing order only', async () => {
   const service: any = new PaymentService();
-  service.orderRepo = { findById: async () => order() };
+  service.orderRepo = { findById: async () => order(), markCheckoutStarted: async (o: any) => o };
   service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
   service.fetchBestPaymentForOrder = async () => null;
   const original = Preference.prototype.create;
@@ -167,5 +167,38 @@ test('eligible retry creates a preference tied to the existing order only', asyn
   try {
     const result = await service.createPreference('TEN-1', { orderId: 'REC-1', origin: 'https://mireceta.online' }, user);
     assert.equal(result.orderId, 'REC-1'); assert.equal(result.preferenceId, 'PREF-1');
+  } finally { Preference.prototype.create = original; }
+});
+
+test('a promotion applied during checkout blocks preference creation before contacting the provider', async () => {
+  const service: any = new PaymentService(); let providerCalls = 0;
+  service.orderRepo = { findById: async () => order(), markCheckoutStarted: async () => null };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+  service.fetchBestPaymentForOrder = async () => null;
+  const original = Preference.prototype.create;
+  Preference.prototype.create = async () => { providerCalls++; throw new Error('must not create a charge'); };
+  try {
+    await assert.rejects(service.createPreference('TEN-1', { orderId: 'REC-1' }, user), /cambió antes de iniciar el pago/);
+    assert.equal(providerCalls, 0);
+  } finally { Preference.prototype.create = original; }
+});
+
+test('Checkout Pro charges only the persisted promotional balance, ignoring client original prices', async () => {
+  const service: any = new PaymentService();
+  const discounted = { ...order(), medicationItems: [{}, {}, {}], firstRequestBenefit: {
+    beneficiaryId: user.id, appliedAt: '2026-11-10T12:00:00Z', originalAmount: 20000, discount: 10000, finalAmount: 10000,
+  } };
+  service.orderRepo = { findById: async () => discounted, markCheckoutStarted: async () => discounted };
+  service.tenantRepo = { findById: async () => ({ mpAccessToken: 'TEST-token' }) };
+  service.fetchBestPaymentForOrder = async () => null;
+  const original = Preference.prototype.create;
+  Preference.prototype.create = async ({ body }: any) => {
+    assert.equal(body.items[0].unit_price, 10000); assert.equal(body.metadata.expected_amount, 10000);
+    assert.equal(body.external_reference, 'REC-1');
+    return { id: 'PREF-DISCOUNT', sandbox_init_point: 'https://example.test/checkout' } as any;
+  };
+  try {
+    const result = await service.createPreference('TEN-1', { orderId: 'REC-1', paymentAmount: '20000', origin: 'https://example.test' }, user);
+    assert.equal(result.amount, 10000);
   } finally { Preference.prototype.create = original; }
 });

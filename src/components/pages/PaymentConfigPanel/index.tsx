@@ -1,3 +1,4 @@
+import FirstRequestPromotionConfig from '../../common/FirstRequestPromotionConfig';
 import React, { useState, useEffect } from 'react';
 import { CreditCard, Check, AlertCircle, Save, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import FixedQRCodePanel from '../../common/FixedQRCodePanel';
@@ -226,6 +227,8 @@ export default function PaymentConfigPanel() {
           <span>{isSaving ? 'Guardando...' : 'Guardar Configuración'}</span>
         </button>
       </form>
+
+      <FirstRequestPromotionConfig />
 
       {/* QR Fijo del Sistema */}
       <div className="mt-8">
